@@ -3,15 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Sistema Integral de Gestion y Control de Produccion Axones">
+    <meta name="description" content="Sistema Integral de Gestion y Control de Produccion - Inversiones Axones 2008, C.A.">
     <title>Axones - Sistema de Control de Produccion</title>
 
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
-    <!-- Custom CSS -->
+    <!-- Chart.js -->
     <link href="../src/css/main.css" rel="stylesheet">
+    <style>
+        .stat-card {
+            border-left: 4px solid;
+            transition: transform 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+        .stat-card.stat-produccion { border-left-color: #198754; }
+        .stat-card.stat-refil { border-left-color: #ffc107; }
+        .stat-card.stat-alertas { border-left-color: #dc3545; }
+        .stat-card.stat-inventario { border-left-color: #0d6efd; }
+        .quick-action {
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        .quick-action:hover {
+            border-color: #0d6efd;
+            transform: scale(1.02);
+        }
+        .alert-item {
+            border-left: 3px solid;
+            transition: background 0.2s;
+        }
+        .alert-item:hover {
+            background-color: #f8f9fa;
+        }
+        .alert-item.warning { border-left-color: #ffc107; }
+        .alert-item.danger { border-left-color: #dc3545; }
+        .machine-status {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .machine-status.active { background-color: #198754; }
+        .machine-status.idle { background-color: #ffc107; }
+        .machine-status.stopped { background-color: #dc3545; }
+    </style>
 </head>
 <body>
     <!-- Navbar -->
@@ -31,19 +69,26 @@
                             <i class="bi bi-house-door me-1"></i> Inicio
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="produccion.html">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
                             <i class="bi bi-clipboard-data me-1"></i> Produccion
                         </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="impresion.html"><i class="bi bi-printer me-2"></i>Control de Impresion</a></li>
+                            <li><a class="dropdown-item" href="corte.html"><i class="bi bi-scissors me-2"></i>Control de Corte</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="tintas.html"><i class="bi bi-droplet me-2"></i>Consumo de Tintas</a></li>
+                        </ul>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="desperdicios.html">
-                            <i class="bi bi-exclamation-triangle me-1"></i> Desperdicios
+                        <a class="nav-link" href="inventario.html">
+                            <i class="bi bi-box-seam me-1"></i> Inventario
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="dashboard.html">
-                            <i class="bi bi-graph-up me-1"></i> Dashboard
+                        <a class="nav-link" href="alertas.html">
+                            <i class="bi bi-bell me-1"></i> Alertas
+                            <span class="badge bg-danger ms-1" id="alertasBadge" style="display: none;">0</span>
                         </a>
                     </li>
                     <li class="nav-item">
@@ -67,98 +112,88 @@
 
     <!-- Main Content -->
     <main class="container-fluid" style="margin-top: 70px;">
-        <!-- Welcome Section -->
+        <!-- Header con fecha y bienvenida -->
         <section class="row mb-4">
             <div class="col-12">
-                <div class="card bg-primary text-white">
-                    <div class="card-body py-4">
-                        <div class="row align-items-center">
-                            <div class="col-md-8">
-                                <h1 class="display-6 fw-bold mb-2">
-                                    <i class="bi bi-gear-wide-connected me-2"></i>
-                                    Sistema de Control de Produccion
-                                </h1>
-                                <p class="lead mb-0">
-                                    Plataforma integral para optimizacion y monitoreo de procesos de manufactura
-                                </p>
-                            </div>
-                            <div class="col-md-4 text-md-end">
-                                <p class="mb-0 opacity-75">
-                                    <i class="bi bi-calendar3 me-1"></i>
-                                    <span id="currentDate"></span>
-                                </p>
-                                <p class="mb-0 opacity-75">
-                                    <i class="bi bi-clock me-1"></i>
-                                    <span id="currentTime"></span>
-                                </p>
-                            </div>
-                        </div>
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <div>
+                        <h4 class="mb-1">
+                            <i class="bi bi-speedometer2 text-primary me-2"></i>
+                            Panel de Control
+                        </h4>
+                        <p class="text-muted mb-0">
+                            <small>Inversiones Axones 2008, C.A.</small>
+                        </p>
+                    </div>
+                    <div class="text-end">
+                        <h5 class="mb-0" id="currentDate">--</h5>
+                        <small class="text-muted"><i class="bi bi-clock me-1"></i><span id="currentTime">--</span></small>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Quick Stats -->
+        <!-- KPIs principales -->
         <section class="row mb-4 g-3">
-            <div class="col-md-3">
-                <div class="card border-0 shadow-sm h-100">
+            <div class="col-6 col-lg-3">
+                <div class="card stat-card stat-produccion border-0 shadow-sm h-100">
                     <div class="card-body">
-                        <div class="d-flex align-items-center">
-                            <div class="rounded-circle bg-success bg-opacity-10 p-3 me-3">
-                                <i class="bi bi-box-seam text-success fs-4"></i>
-                            </div>
+                        <div class="d-flex justify-content-between align-items-start">
                             <div>
-                                <h6 class="text-muted mb-1">Produccion Hoy</h6>
-                                <h3 class="mb-0" id="statProduccion">--</h3>
-                                <small class="text-success">Kg procesados</small>
+                                <p class="text-muted mb-1 small">Produccion Hoy</p>
+                                <h3 class="mb-0" id="statProduccion">0</h3>
+                                <small class="text-success"><i class="bi bi-box-seam me-1"></i>Kg</small>
+                            </div>
+                            <div class="rounded bg-success bg-opacity-10 p-2">
+                                <i class="bi bi-graph-up-arrow text-success fs-4"></i>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="card border-0 shadow-sm h-100">
+            <div class="col-6 col-lg-3">
+                <div class="card stat-card stat-refil border-0 shadow-sm h-100">
                     <div class="card-body">
-                        <div class="d-flex align-items-center">
-                            <div class="rounded-circle bg-warning bg-opacity-10 p-3 me-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <p class="text-muted mb-1 small">Refil Promedio</p>
+                                <h3 class="mb-0" id="statRefil">0%</h3>
+                                <small id="refilStatus" class="text-success"><i class="bi bi-check-circle me-1"></i>OK</small>
+                            </div>
+                            <div class="rounded bg-warning bg-opacity-10 p-2">
                                 <i class="bi bi-recycle text-warning fs-4"></i>
                             </div>
-                            <div>
-                                <h6 class="text-muted mb-1">Desperdicio</h6>
-                                <h3 class="mb-0" id="statDesperdicio">--</h3>
-                                <small class="text-warning">% promedio</small>
-                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="card border-0 shadow-sm h-100">
+            <div class="col-6 col-lg-3">
+                <div class="card stat-card stat-alertas border-0 shadow-sm h-100" style="cursor: pointer;" onclick="window.location='alertas.html'">
                     <div class="card-body">
-                        <div class="d-flex align-items-center">
-                            <div class="rounded-circle bg-danger bg-opacity-10 p-3 me-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <p class="text-muted mb-1 small">Alertas Pendientes</p>
+                                <h3 class="mb-0" id="statAlertas">0</h3>
+                                <small class="text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Ver todas</small>
+                            </div>
+                            <div class="rounded bg-danger bg-opacity-10 p-2">
                                 <i class="bi bi-bell text-danger fs-4"></i>
                             </div>
-                            <div>
-                                <h6 class="text-muted mb-1">Alertas</h6>
-                                <h3 class="mb-0" id="statAlertas">--</h3>
-                                <small class="text-danger">pendientes</small>
-                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="card border-0 shadow-sm h-100">
+            <div class="col-6 col-lg-3">
+                <div class="card stat-card stat-inventario border-0 shadow-sm h-100" style="cursor: pointer;" onclick="window.location='inventario.html'">
                     <div class="card-body">
-                        <div class="d-flex align-items-center">
-                            <div class="rounded-circle bg-info bg-opacity-10 p-3 me-3">
-                                <i class="bi bi-people text-info fs-4"></i>
-                            </div>
+                        <div class="d-flex justify-content-between align-items-start">
                             <div>
-                                <h6 class="text-muted mb-1">Operadores</h6>
-                                <h3 class="mb-0" id="statOperadores">--</h3>
-                                <small class="text-info">activos</small>
+                                <p class="text-muted mb-1 small">Inventario Total</p>
+                                <h3 class="mb-0" id="statInventario">0</h3>
+                                <small class="text-primary"><i class="bi bi-box-seam me-1"></i>Kg sustratos</small>
+                            </div>
+                            <div class="rounded bg-primary bg-opacity-10 p-2">
+                                <i class="bi bi-boxes text-primary fs-4"></i>
                             </div>
                         </div>
                     </div>
@@ -166,150 +201,157 @@
             </div>
         </section>
 
-        <!-- Quick Access Modules -->
+        <!-- Acciones rapidas y Estado de maquinas -->
         <section class="row mb-4 g-3">
-            <div class="col-12">
-                <h5 class="mb-3"><i class="bi bi-grid me-2"></i>Acceso Rapido</h5>
-            </div>
-
-            <!-- Modulo Produccion -->
-            <div class="col-md-4">
-                <div class="card h-100 border-0 shadow-sm module-card">
-                    <div class="card-body text-center p-4">
-                        <div class="rounded-circle bg-primary bg-opacity-10 p-4 d-inline-block mb-3">
-                            <i class="bi bi-clipboard-plus text-primary display-5"></i>
+            <!-- Acciones rapidas -->
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white">
+                        <h6 class="mb-0"><i class="bi bi-lightning text-warning me-2"></i>Acciones Rapidas</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-6 col-md-3">
+                                <a href="impresion.html" class="card quick-action text-decoration-none h-100">
+                                    <div class="card-body text-center py-4">
+                                        <i class="bi bi-printer text-primary display-6 mb-2"></i>
+                                        <p class="mb-0 small fw-medium text-dark">Impresion</p>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <a href="corte.html" class="card quick-action text-decoration-none h-100">
+                                    <div class="card-body text-center py-4">
+                                        <i class="bi bi-scissors text-success display-6 mb-2"></i>
+                                        <p class="mb-0 small fw-medium text-dark">Corte</p>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <a href="tintas.html" class="card quick-action text-decoration-none h-100">
+                                    <div class="card-body text-center py-4">
+                                        <i class="bi bi-droplet text-purple display-6 mb-2" style="color: #6f42c1;"></i>
+                                        <p class="mb-0 small fw-medium text-dark">Tintas</p>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <a href="inventario.html" class="card quick-action text-decoration-none h-100">
+                                    <div class="card-body text-center py-4">
+                                        <i class="bi bi-box-seam text-info display-6 mb-2"></i>
+                                        <p class="mb-0 small fw-medium text-dark">Inventario</p>
+                                    </div>
+                                </a>
+                            </div>
                         </div>
-                        <h5 class="card-title">Registro de Produccion</h5>
-                        <p class="card-text text-muted">
-                            Formulario digital para captura de datos de produccion con validacion automatica
-                        </p>
-                        <a href="produccion.html" class="btn btn-primary">
-                            <i class="bi bi-arrow-right me-1"></i> Ir al Modulo
-                        </a>
                     </div>
                 </div>
             </div>
 
-            <!-- Modulo Desperdicios -->
-            <div class="col-md-4">
-                <div class="card h-100 border-0 shadow-sm module-card">
-                    <div class="card-body text-center p-4">
-                        <div class="rounded-circle bg-warning bg-opacity-10 p-4 d-inline-block mb-3">
-                            <i class="bi bi-exclamation-triangle text-warning display-5"></i>
-                        </div>
-                        <h5 class="card-title">Control de Desperdicios</h5>
-                        <p class="card-text text-muted">
-                            Monitoreo en tiempo real con alertas inteligentes segun umbrales por material
-                        </p>
-                        <a href="desperdicios.html" class="btn btn-warning">
-                            <i class="bi bi-arrow-right me-1"></i> Ir al Modulo
-                        </a>
+            <!-- Estado de maquinas -->
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white">
+                        <h6 class="mb-0"><i class="bi bi-cpu text-secondary me-2"></i>Estado de Maquinas</h6>
                     </div>
-                </div>
-            </div>
-
-            <!-- Modulo Dashboard -->
-            <div class="col-md-4">
-                <div class="card h-100 border-0 shadow-sm module-card">
-                    <div class="card-body text-center p-4">
-                        <div class="rounded-circle bg-success bg-opacity-10 p-4 d-inline-block mb-3">
-                            <i class="bi bi-graph-up-arrow text-success display-5"></i>
-                        </div>
-                        <h5 class="card-title">Dashboard Analitico</h5>
-                        <p class="card-text text-muted">
-                            Visualizacion de KPIs, tendencias y metricas de rendimiento operativo
-                        </p>
-                        <a href="dashboard.html" class="btn btn-success">
-                            <i class="bi bi-arrow-right me-1"></i> Ir al Modulo
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Modulo Chatbot -->
-            <div class="col-md-4">
-                <div class="card h-100 border-0 shadow-sm module-card">
-                    <div class="card-body text-center p-4">
-                        <div class="rounded-circle bg-info bg-opacity-10 p-4 d-inline-block mb-3">
-                            <i class="bi bi-chat-dots text-info display-5"></i>
-                        </div>
-                        <h5 class="card-title">Chatbot Financiero</h5>
-                        <p class="card-text text-muted">
-                            Consultas en lenguaje natural sobre cuentas por cobrar y facturacion
-                        </p>
-                        <a href="chatbot.html" class="btn btn-info text-white">
-                            <i class="bi bi-arrow-right me-1"></i> Ir al Modulo
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Modulo Despachos -->
-            <div class="col-md-4">
-                <div class="card h-100 border-0 shadow-sm module-card">
-                    <div class="card-body text-center p-4">
-                        <div class="rounded-circle bg-secondary bg-opacity-10 p-4 d-inline-block mb-3">
-                            <i class="bi bi-truck text-secondary display-5"></i>
-                        </div>
-                        <h5 class="card-title">Control de Despachos</h5>
-                        <p class="card-text text-muted">
-                            Gestion de notas de entrega e integracion con inventario
-                        </p>
-                        <a href="despachos.html" class="btn btn-secondary">
-                            <i class="bi bi-arrow-right me-1"></i> Ir al Modulo
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Modulo Configuracion -->
-            <div class="col-md-4">
-                <div class="card h-100 border-0 shadow-sm module-card">
-                    <div class="card-body text-center p-4">
-                        <div class="rounded-circle bg-dark bg-opacity-10 p-4 d-inline-block mb-3">
-                            <i class="bi bi-gear text-dark display-5"></i>
-                        </div>
-                        <h5 class="card-title">Configuracion</h5>
-                        <p class="card-text text-muted">
-                            Gestion de usuarios, umbrales de desperdicio y parametros del sistema
-                        </p>
-                        <a href="configuracion.html" class="btn btn-dark">
-                            <i class="bi bi-arrow-right me-1"></i> Ir al Modulo
-                        </a>
+                    <div class="card-body p-0">
+                        <ul class="list-group list-group-flush" id="listaMaquinas">
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span><span class="machine-status active me-2"></span>COMEXI 1</span>
+                                <span class="badge bg-success">Activa</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span><span class="machine-status active me-2"></span>COMEXI 2</span>
+                                <span class="badge bg-success">Activa</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span><span class="machine-status idle me-2"></span>COMEXI 3</span>
+                                <span class="badge bg-warning text-dark">En espera</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span><span class="machine-status active me-2"></span>Laminadora</span>
+                                <span class="badge bg-success">Activa</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span><span class="machine-status active me-2"></span>Cortadora China</span>
+                                <span class="badge bg-success">Activa</span>
+                            </li>
+                        </ul>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Recent Alerts -->
+        <!-- Alertas recientes y Produccion del dia -->
+        <section class="row mb-4 g-3">
+            <!-- Alertas recientes -->
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="bi bi-exclamation-triangle text-danger me-2"></i>Alertas Recientes</h6>
+                        <a href="alertas.html" class="btn btn-sm btn-outline-danger">Ver todas</a>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="alertasRecientes">
+                            <!-- Se llena dinamicamente -->
+                            <div class="text-center text-muted py-4">
+                                <i class="bi bi-check-circle display-6 text-success d-block mb-2"></i>
+                                <p class="mb-0">No hay alertas pendientes</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Produccion del dia -->
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="bi bi-bar-chart text-primary me-2"></i>Produccion del Dia</h6>
+                        <span class="badge bg-primary" id="totalOTsHoy">0 OTs</span>
+                    </div>
+                    <div class="card-body">
+                        <div id="produccionHoy">
+                            <!-- Se llena dinamicamente -->
+                            <div class="text-center text-muted py-3">
+                                <i class="bi bi-inbox display-6 d-block mb-2"></i>
+                                <p class="mb-0">No hay registros de produccion hoy</p>
+                                <a href="impresion.html" class="btn btn-primary btn-sm mt-2">
+                                    <i class="bi bi-plus me-1"></i>Crear registro
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Inventario bajo stock -->
         <section class="row mb-4">
             <div class="col-12">
                 <div class="card border-0 shadow-sm">
                     <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">
-                            <i class="bi bi-bell text-danger me-2"></i>
-                            Alertas Recientes
-                        </h5>
-                        <a href="desperdicios.html" class="btn btn-sm btn-outline-primary">Ver todas</a>
+                        <h6 class="mb-0"><i class="bi bi-exclamation-circle text-warning me-2"></i>Materiales con Stock Bajo</h6>
+                        <a href="inventario.html" class="btn btn-sm btn-outline-primary">Ver inventario completo</a>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
                             <table class="table table-hover mb-0">
                                 <thead class="table-light">
                                     <tr>
-                                        <th>Fecha/Hora</th>
-                                        <th>Tipo</th>
-                                        <th>Maquina</th>
-                                        <th>Operador</th>
-                                        <th>Mensaje</th>
-                                        <th>Estado</th>
+                                        <th>Material</th>
+                                        <th class="text-center">Micras</th>
+                                        <th class="text-center">Ancho</th>
+                                        <th class="text-end">Stock (Kg)</th>
+                                        <th>Producto</th>
+                                        <th class="text-center">Estado</th>
                                     </tr>
                                 </thead>
-                                <tbody id="alertasRecientes">
+                                <tbody id="inventarioBajo">
                                     <tr>
-                                        <td colspan="6" class="text-center text-muted py-4">
-                                            <i class="bi bi-inbox display-6 d-block mb-2"></i>
-                                            No hay alertas recientes
+                                        <td colspan="6" class="text-center text-muted py-3">
+                                            <i class="bi bi-check-circle text-success me-2"></i>
+                                            Todo el inventario esta en niveles adecuados
                                         </td>
                                     </tr>
                                 </tbody>
@@ -322,18 +364,18 @@
     </main>
 
     <!-- Footer -->
-    <footer class="bg-light border-top py-3 mt-4">
+    <footer class="bg-light border-top py-3">
         <div class="container-fluid">
             <div class="row align-items-center">
                 <div class="col-md-6 text-center text-md-start">
                     <small class="text-muted">
                         <i class="bi bi-gear-wide-connected me-1"></i>
-                        Sistema Axones v1.0 - Control de Produccion
+                        Sistema Axones v1.0 - Inversiones Axones 2008, C.A.
                     </small>
                 </div>
                 <div class="col-md-6 text-center text-md-end">
                     <small class="text-muted">
-                        <i class="bi bi-c-circle me-1"></i> 2026 Axones. Todos los derechos reservados.
+                        <i class="bi bi-c-circle me-1"></i> 2026
                     </small>
                 </div>
             </div>
@@ -342,10 +384,9 @@
 
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- App Scripts -->
     <script src="../src/js/utils/config.js"></script>
     <script src="../src/js/utils/auth.js"></script>
-    <script src="../src/js/modules/dashboard.js"></script>
+    <script src="../src/js/modules/home.js"></script>
     <script src="../src/js/main.js"></script>
 </body>
 </html>

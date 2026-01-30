@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Control de Produccion de Corte - Sistema Axones">
+    <title>Control de Corte - Axones</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="../src/css/main.css" rel="stylesheet">
+    <style>
+        .form-section {
+            background: #fff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .form-section-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            color: #495057;
+            border-bottom: 2px solid #198754;
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+        }
+        .bobina-input {
+            width: 100%;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+        .bobina-label {
+            font-size: 0.75rem;
+            color: #6c757d;
+            text-align: center;
+            display: block;
+        }
+        .total-highlight {
+            background-color: #d1e7dd;
+            font-weight: 600;
+        }
+        .turno-btn.active {
+            background-color: #198754;
+            color: white;
+        }
+        @media print {
+            .no-print { display: none !important; }
+            .form-section { box-shadow: none; border: 1px solid #ddd; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success fixed-top no-print">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="index.html">
+                <i class="bi bi-gear-wide-connected me-2"></i>
+                <span class="fw-bold">AXONES</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarMain">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">
+                            <i class="bi bi-house-door me-1"></i> Inicio
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle active" href="#" data-bs-toggle="dropdown">
+                            <i class="bi bi-clipboard-data me-1"></i> Produccion
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="impresion.html">Control de Impresion</a></li>
+                            <li><a class="dropdown-item active" href="corte.html">Control de Corte</a></li>
+                            <li><a class="dropdown-item" href="laminacion.html">Control de Laminacion</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="dashboard.html">
+                            <i class="bi bi-graph-up me-1"></i> Dashboard
+                        </a>
+                    </li>
+                </ul>
+                <div class="d-flex align-items-center">
+                    <span class="text-light me-3" id="userInfo">
+                        <i class="bi bi-person-circle me-1"></i>
+                        <span id="userName">Usuario</span>
+                    </span>
+                    <button class="btn btn-outline-light btn-sm" id="btnLogin">
+                        <i class="bi bi-box-arrow-in-right me-1"></i> Ingresar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container-fluid" style="margin-top: 70px; padding-bottom: 80px;">
+        <!-- Header -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <div>
+                        <h4 class="mb-1">
+                            <i class="bi bi-scissors text-success me-2"></i>
+                            Control de Produccion de Corte
+                        </h4>
+                        <p class="text-muted mb-0 small">Inversiones Axones 2008, C.A.</p>
+                    </div>
+                    <div class="no-print">
+                        <button class="btn btn-outline-secondary btn-sm me-2" onclick="window.print()">
+                            <i class="bi bi-printer me-1"></i> Imprimir
+                        </button>
+                        <button class="btn btn-outline-success btn-sm me-2" id="btnLimpiar">
+                            <i class="bi bi-eraser me-1"></i> Limpiar
+                        </button>
+                        <button class="btn btn-success btn-sm" id="btnGuardar">
+                            <i class="bi bi-save me-1"></i> Guardar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <form id="formCorte">
+            <div class="row">
+                <!-- Columna Izquierda -->
+                <div class="col-lg-6">
+                    <!-- Datos Generales -->
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="bi bi-info-circle me-1"></i> Datos Generales
+                        </div>
+                        <div class="row g-2">
+                            <!-- Turno -->
+                            <div class="col-12">
+                                <label class="form-label small">Turno</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="turno" id="turnoD" value="D">
+                                    <label class="btn btn-outline-success turno-btn" for="turnoD">D</label>
+                                    <input type="radio" class="btn-check" name="turno" id="turno1" value="1">
+                                    <label class="btn btn-outline-success turno-btn" for="turno1">1ro</label>
+                                    <input type="radio" class="btn-check" name="turno" id="turno2" value="2">
+                                    <label class="btn btn-outline-success turno-btn" for="turno2">2do</label>
+                                    <input type="radio" class="btn-check" name="turno" id="turno3" value="3">
+                                    <label class="btn btn-outline-success turno-btn" for="turno3">3ro</label>
+                                </div>
+                            </div>
+                            <!-- Producto -->
+                            <div class="col-12">
+                                <label for="producto" class="form-label small">Producto</label>
+                                <input type="text" class="form-control form-control-sm" id="producto" placeholder="Nombre del producto" required>
+                            </div>
+                            <!-- Maquina -->
+                            <div class="col-6">
+                                <label for="maquina" class="form-label small">Maquina Cortadora</label>
+                                <select class="form-select form-select-sm" id="maquina" required>
+                                    <option value="">Seleccionar...</option>
+                                    <option value="cortadora_china">China</option>
+                                    <option value="cortadora_permaco">Permaco</option>
+                                    <option value="cortadora_novograf">Novograf</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label for="fecha" class="form-label small">Fecha</label>
+                                <input type="date" class="form-control form-control-sm" id="fecha" required>
+                            </div>
+                            <!-- OT -->
+                            <div class="col-12">
+                                <label for="ordenTrabajo" class="form-label small">Orden de Trabajo</label>
+                                <input type="text" class="form-control form-control-sm" id="ordenTrabajo" placeholder="Ej: 015 ENERO 26" required>
+                            </div>
+                            <!-- Operador y Ayudante -->
+                            <div class="col-6">
+                                <label for="operador" class="form-label small">Operador</label>
+                                <input type="text" class="form-control form-control-sm" id="operador" placeholder="Nombre operador" required>
+                            </div>
+                            <div class="col-6">
+                                <label for="ayudante" class="form-label small">Ayudante</label>
+                                <input type="text" class="form-control form-control-sm" id="ayudante" placeholder="Nombre ayudante">
+                            </div>
+                            <!-- Supervisor -->
+                            <div class="col-12">
+                                <label for="supervisor" class="form-label small">Supervisor</label>
+                                <input type="text" class="form-control form-control-sm" id="supervisor" placeholder="Nombre supervisor">
+                            </div>
+                            <!-- Horas -->
+                            <div class="col-4">
+                                <label for="horaInicio" class="form-label small">Hora Inicio</label>
+                                <input type="time" class="form-control form-control-sm" id="horaInicio">
+                            </div>
+                            <div class="col-4">
+                                <label for="horaArranque" class="form-label small">Hora Arranque</label>
+                                <input type="time" class="form-control form-control-sm" id="horaArranque">
+                            </div>
+                            <div class="col-4">
+                                <label for="horaFinal" class="form-label small">Hora Final</label>
+                                <input type="time" class="form-control form-control-sm" id="horaFinal">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Ingreso de Bobinas Madres -->
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="bi bi-box-seam me-1"></i> Ingreso de Bobinas Madres (Laminas) - Kg
+                        </div>
+                        <div class="row g-1">
+                            <!-- Fila 1: 1-5 -->
+                            <div class="col">
+                                <span class="bobina-label">1</span>
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob1" step="0.01" min="0">
+                            </div>
+                            <div class="col">
+                                <span class="bobina-label">2</span>
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob2" step="0.01" min="0">
+                            </div>
+                            <div class="col">
+                                <span class="bobina-label">3</span>
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob3" step="0.01" min="0">
+                            </div>
+                            <div class="col">
+                                <span class="bobina-label">4</span>
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob4" step="0.01" min="0">
+                            </div>
+                            <div class="col">
+                                <span class="bobina-label">5</span>
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob5" step="0.01" min="0">
+                            </div>
+                        </div>
+                        <div class="row g-1 mt-1">
+                            <!-- Fila 2: 6-10 -->
+                            <div class="col">
+                                <span class="bobina-label">6</span>
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob6" step="0.01" min="0">
+                            </div>
+                            <div class="col">
+                                <span class="bobina-label">7</span>
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob7" step="0.01" min="0">
+                            </div>
+                            <div class="col">
+                                <span class="bobina-label">8</span>
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob8" step="0.01" min="0">
+                            </div>
+                            <div class="col">
+                                <span class="bobina-label">9</span>
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob9" step="0.01" min="0">
+                            </div>
+                            <div class="col">
+                                <span class="bobina-label">10</span>
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob10" step="0.01" min="0">
+                            </div>
+                        </div>
+                        <div class="row g-1 mt-1">
+                            <!-- Fila 3: 11-14 + Total -->
+                            <div class="col">
+                                <span class="bobina-label">11</span>
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob11" step="0.01" min="0">
+                            </div>
+                            <div class="col">
+                                <span class="bobina-label">12</span>
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob12" step="0.01" min="0">
+                            </div>
+                            <div class="col">
+                                <span class="bobina-label">13</span>
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob13" step="0.01" min="0">
+                            </div>
+                            <div class="col">
+                                <span class="bobina-label">14</span>
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob14" step="0.01" min="0">
+                            </div>
+                            <div class="col-2">
+                                <span class="bobina-label fw-bold">TOTAL</span>
+                                <input type="text" class="form-control form-control-sm bobina-input total-highlight" id="totalEntrada" readonly>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Columna Derecha -->
+                <div class="col-lg-6">
+                    <!-- Resumen del Turno -->
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="bi bi-clipboard-check me-1"></i> Resumen del Turno
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-4">
+                                <label class="form-label small">N° Bobinas Salida</label>
+                                <input type="number" class="form-control form-control-sm" id="numBobinasSalida" min="0" value="0">
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label small">Peso Total (Kg)</label>
+                                <input type="number" class="form-control form-control-sm" id="pesoTotalSalida" step="0.01" min="0">
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label small">Merma (Kg)</label>
+                                <input type="text" class="form-control form-control-sm total-highlight" id="merma" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Scrap (Refil) -->
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="bi bi-recycle me-1"></i> Scrap / Refil
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-4">
+                                <label class="form-label small">Refile (Kg)</label>
+                                <input type="number" class="form-control form-control-sm scrap-input" id="scrapRefile" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label small">Impreso (Kg)</label>
+                                <input type="number" class="form-control form-control-sm scrap-input" id="scrapImpreso" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label small">Total Scrap</label>
+                                <input type="text" class="form-control form-control-sm total-highlight" id="totalScrap" readonly>
+                            </div>
+                        </div>
+                        <div class="row g-2 mt-2">
+                            <div class="col-6">
+                                <label class="form-label small">% Refil</label>
+                                <input type="text" class="form-control form-control-sm total-highlight" id="porcentajeRefil" readonly>
+                            </div>
+                            <div class="col-6">
+                                <div id="indicadorRefil" class="alert alert-secondary py-1 px-2 mb-0 small text-center">
+                                    <i class="bi bi-dash-circle me-1"></i> Sin datos
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tiempos -->
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="bi bi-stopwatch me-1"></i> Tiempos y Paradas
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-12">
+                                <label class="form-label small">Motivos de Paradas</label>
+                                <textarea class="form-control form-control-sm" id="motivosParadas" rows="2" placeholder="Describir paradas y sus motivos..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Observaciones -->
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="bi bi-chat-left-text me-1"></i> Observaciones
+                        </div>
+                        <textarea class="form-control form-control-sm" id="observaciones" rows="3" placeholder="Observaciones adicionales..."></textarea>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </main>
+
+    <!-- Footer Fijo -->
+    <footer class="fixed-bottom bg-white border-top py-2 no-print">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-auto">
+                    <span class="badge bg-success me-2">Entrada: <span id="footerEntrada">0</span> Kg</span>
+                </div>
+                <div class="col-auto">
+                    <span class="badge bg-primary me-2">Salida: <span id="footerSalida">0</span> Kg</span>
+                </div>
+                <div class="col-auto">
+                    <span class="badge bg-warning text-dark me-2">Merma: <span id="footerMerma">0</span> Kg</span>
+                </div>
+                <div class="col-auto">
+                    <span class="badge bg-danger me-2">Refil: <span id="footerRefil">0</span>%</span>
+                </div>
+                <div class="col text-end">
+                    <small class="text-muted">Sistema Axones v1.0</small>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../src/js/utils/config.js"></script>
+    <script src="../src/js/utils/auth.js"></script>
+    <script src="../src/js/modules/corte.js"></script>
+    <script src="../src/js/main.js"></script>
+</body>
+</html>

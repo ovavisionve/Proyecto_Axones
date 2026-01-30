@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Inventario de Sustratos - Sistema Axones">
+    <title>Inventario de Sustratos - Axones</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="../src/css/main.css" rel="stylesheet">
+    <style>
+        .material-card {
+            border-left: 4px solid;
+            transition: all 0.2s;
+        }
+        .material-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .material-bopp { border-left-color: #0d6efd; }
+        .material-cast { border-left-color: #6f42c1; }
+        .material-mate { border-left-color: #20c997; }
+        .material-pasta { border-left-color: #fd7e14; }
+        .material-metal { border-left-color: #6c757d; }
+        .material-perlado { border-left-color: #e83e8c; }
+        .material-pebd { border-left-color: #198754; }
+        .table-inventory th {
+            position: sticky;
+            top: 0;
+            background: #f8f9fa;
+            z-index: 10;
+        }
+        .stock-low { background-color: #fff3cd; }
+        .stock-zero { background-color: #f8d7da; }
+        .stock-reserved { background-color: #cfe2ff; }
+        .filter-badge {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .filter-badge:hover {
+            transform: scale(1.05);
+        }
+        .filter-badge.active {
+            box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="index.html">
+                <i class="bi bi-gear-wide-connected me-2"></i>
+                <span class="fw-bold">AXONES</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarMain">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">
+                            <i class="bi bi-house-door me-1"></i> Inicio
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="bi bi-clipboard-data me-1"></i> Produccion
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="impresion.html">Control de Impresion</a></li>
+                            <li><a class="dropdown-item" href="corte.html">Control de Corte</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="inventario.html">
+                            <i class="bi bi-box-seam me-1"></i> Inventario
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="dashboard.html">
+                            <i class="bi bi-graph-up me-1"></i> Dashboard
+                        </a>
+                    </li>
+                </ul>
+                <div class="d-flex align-items-center">
+                    <span class="text-light me-3" id="userInfo">
+                        <i class="bi bi-person-circle me-1"></i>
+                        <span id="userName">Usuario</span>
+                    </span>
+                    <button class="btn btn-outline-light btn-sm" id="btnLogin">
+                        <i class="bi bi-box-arrow-in-right me-1"></i> Ingresar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container-fluid" style="margin-top: 70px;">
+        <!-- Header -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <h4 class="mb-1">
+                            <i class="bi bi-box-seam text-dark me-2"></i>
+                            Inventario de Sustratos
+                        </h4>
+                        <p class="text-muted mb-0 small">
+                            <i class="bi bi-calendar3 me-1"></i>
+                            Ultima actualizacion: <span id="fechaActualizacion">--</span>
+                        </p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" id="btnExportar">
+                            <i class="bi bi-download me-1"></i> Exportar
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm" id="btnActualizar">
+                            <i class="bi bi-arrow-clockwise me-1"></i> Actualizar
+                        </button>
+                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalAgregarItem">
+                            <i class="bi bi-plus-lg me-1"></i> Agregar Item
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resumen por Material -->
+        <div class="row mb-4 g-3">
+            <div class="col-12">
+                <h6 class="text-muted mb-2"><i class="bi bi-pie-chart me-1"></i> Resumen por Material</h6>
+            </div>
+            <div class="col-6 col-md-4 col-lg-2">
+                <div class="card material-card material-bopp h-100">
+                    <div class="card-body py-2 px-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted d-block">BOPP</small>
+                                <strong id="totalBopp">0</strong> <small>Kg</small>
+                            </div>
+                            <span class="badge bg-primary filter-badge" data-filter="BOPP">Ver</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-lg-2">
+                <div class="card material-card material-cast h-100">
+                    <div class="card-body py-2 px-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted d-block">CAST</small>
+                                <strong id="totalCast">0</strong> <small>Kg</small>
+                            </div>
+                            <span class="badge bg-purple filter-badge" data-filter="CAST" style="background-color: #6f42c1;">Ver</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-lg-2">
+                <div class="card material-card material-mate h-100">
+                    <div class="card-body py-2 px-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted d-block">MATE</small>
+                                <strong id="totalMate">0</strong> <small>Kg</small>
+                            </div>
+                            <span class="badge filter-badge" data-filter="MATE" style="background-color: #20c997;">Ver</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-lg-2">
+                <div class="card material-card material-pasta h-100">
+                    <div class="card-body py-2 px-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted d-block">PASTA</small>
+                                <strong id="totalPasta">0</strong> <small>Kg</small>
+                            </div>
+                            <span class="badge filter-badge" data-filter="PASTA" style="background-color: #fd7e14;">Ver</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-lg-2">
+                <div class="card material-card material-metal h-100">
+                    <div class="card-body py-2 px-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted d-block">METAL</small>
+                                <strong id="totalMetal">0</strong> <small>Kg</small>
+                            </div>
+                            <span class="badge bg-secondary filter-badge" data-filter="METAL">Ver</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-lg-2">
+                <div class="card material-card material-pebd h-100">
+                    <div class="card-body py-2 px-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted d-block">PEBD</small>
+                                <strong id="totalPebd">0</strong> <small>Kg</small>
+                            </div>
+                            <span class="badge bg-success filter-badge" data-filter="PEBD">Ver</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filtros y Busqueda -->
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="buscarInventario" placeholder="Buscar por producto, cliente...">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select form-select-sm" id="filtroMaterial">
+                    <option value="">Todos los materiales</option>
+                    <option value="BOPP">BOPP</option>
+                    <option value="BOPP MATE">BOPP MATE</option>
+                    <option value="BOPP PASTA">BOPP PASTA</option>
+                    <option value="CAST">CAST</option>
+                    <option value="METAL">METAL</option>
+                    <option value="PERLADO">PERLADO</option>
+                    <option value="PEBD">PEBD</option>
+                    <option value="PEBD PIGMENT">PEBD PIGMENT</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select form-select-sm" id="filtroMicras">
+                    <option value="">Todas las micras</option>
+                    <option value="15">15 micras</option>
+                    <option value="17">17 micras</option>
+                    <option value="20">20 micras</option>
+                    <option value="25">25 micras</option>
+                    <option value="30">30 micras</option>
+                    <option value="35">35 micras</option>
+                    <option value="40">40 micras</option>
+                    <option value="45">45 micras</option>
+                    <option value="50">50 micras</option>
+                    <option value="53">53 micras</option>
+                    <option value="55">55 micras</option>
+                    <option value="58">58 micras</option>
+                    <option value="60">60 micras</option>
+                    <option value="70">70 micras</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select form-select-sm" id="filtroStock">
+                    <option value="">Todo el stock</option>
+                    <option value="disponible">Con stock</option>
+                    <option value="bajo">Stock bajo</option>
+                    <option value="agotado">Agotado</option>
+                    <option value="reservado">Reservado</option>
+                </select>
+            </div>
+            <div class="col-md-2 text-end">
+                <button class="btn btn-sm btn-outline-secondary" id="btnLimpiarFiltros">
+                    <i class="bi bi-x-circle me-1"></i> Limpiar filtros
+                </button>
+            </div>
+        </div>
+
+        <!-- Total General -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="alert alert-dark py-2 mb-0 d-flex justify-content-between align-items-center">
+                    <span>
+                        <i class="bi bi-box-seam me-2"></i>
+                        <strong>Total Inventario:</strong> <span id="totalGeneral">0</span> Kg
+                    </span>
+                    <span class="badge bg-light text-dark">
+                        <span id="totalItems">0</span> items
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de Inventario -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-0">
+                        <div class="table-responsive" style="max-height: 60vh; overflow-y: auto;">
+                            <table class="table table-hover table-sm mb-0 table-inventory">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center" style="width: 50px;">#</th>
+                                        <th>Material</th>
+                                        <th class="text-center">Micras</th>
+                                        <th class="text-center">Ancho</th>
+                                        <th class="text-end">Kg</th>
+                                        <th>Producto / Usar En</th>
+                                        <th class="text-center">Estado</th>
+                                        <th class="text-center" style="width: 100px;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaInventario">
+                                    <!-- Se llena dinamicamente -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Agregar Item -->
+    <div class="modal fade" id="modalAgregarItem" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-plus-circle me-2"></i>Agregar Item al Inventario
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formAgregarItem">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label small">Material</label>
+                                <select class="form-select form-select-sm" id="nuevoMaterial" required>
+                                    <option value="">Seleccionar...</option>
+                                    <option value="BOPP">BOPP</option>
+                                    <option value="BOPP MATE">BOPP MATE</option>
+                                    <option value="BOPP PASTA">BOPP PASTA</option>
+                                    <option value="CAST">CAST</option>
+                                    <option value="METAL">METAL</option>
+                                    <option value="PERLADO">PERLADO</option>
+                                    <option value="PEBD">PEBD</option>
+                                    <option value="PEBD PIGMENT">PEBD PIGMENT</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Micras</label>
+                                <input type="number" class="form-control form-control-sm" id="nuevoMicras" min="1" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Ancho (mm)</label>
+                                <input type="number" class="form-control form-control-sm" id="nuevoAncho" min="1" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Cantidad (Kg)</label>
+                                <input type="number" class="form-control form-control-sm" id="nuevoKg" min="0" step="0.01" required>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small">Producto / Usar En</label>
+                                <input type="text" class="form-control form-control-sm" id="nuevoProducto" placeholder="Cliente o producto destino">
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="nuevoImportado">
+                                    <label class="form-check-label small" for="nuevoImportado">
+                                        Material Importado
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="btnGuardarItem">
+                        <i class="bi bi-save me-1"></i> Guardar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-light border-top py-2 mt-4">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col text-center">
+                    <small class="text-muted">Sistema Axones v1.0 - Inventario de Sustratos</small>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../src/js/utils/config.js"></script>
+    <script src="../src/js/utils/auth.js"></script>
+    <script src="../src/js/modules/inventario.js"></script>
+    <script src="../src/js/main.js"></script>
+</body>
+</html>

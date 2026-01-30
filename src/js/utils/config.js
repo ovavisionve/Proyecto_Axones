@@ -186,11 +186,11 @@ const CONFIG = {
     ],
 
     // Umbrales de Refil por defecto (se cargan de Sheets)
-    // NOTA: El porcentaje exacto valido de Refil aun no esta definido
+    // Refil maximo aceptado: 5-6% segun Axones
     UMBRALES_REFIL: {
         'default': {
-            maximo: 10.0, // porcentaje - por definir con el cliente
-            advertencia: 7.0, // porcentaje - por definir con el cliente
+            maximo: 6.0, // porcentaje maximo aceptado
+            advertencia: 5.0, // porcentaje de advertencia
         },
     },
 

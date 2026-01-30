@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Consumo de Tintas y Solventes - Sistema Axones">
+    <title>Tintas y Solventes - Axones</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="../src/css/main.css" rel="stylesheet">
+    <style>
+        .form-section {
+            background: #fff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .form-section-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            color: #495057;
+            border-bottom: 2px solid;
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+        }
+        .title-laminacion { border-color: #6f42c1; }
+        .title-superficie { border-color: #fd7e14; }
+        .title-solventes { border-color: #20c997; }
+        .tinta-input {
+            width: 100%;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+        .tinta-label {
+            font-size: 0.7rem;
+            color: #6c757d;
+            text-align: center;
+            display: block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .color-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 4px;
+        }
+        .total-row {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top" style="background-color: #6f42c1;">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="index.html">
+                <i class="bi bi-gear-wide-connected me-2"></i>
+                <span class="fw-bold">AXONES</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarMain">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">
+                            <i class="bi bi-house-door me-1"></i> Inicio
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="bi bi-clipboard-data me-1"></i> Produccion
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="impresion.html">Control de Impresion</a></li>
+                            <li><a class="dropdown-item" href="corte.html">Control de Corte</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="tintas.html">
+                            <i class="bi bi-droplet me-1"></i> Tintas
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="inventario.html">
+                            <i class="bi bi-box-seam me-1"></i> Inventario
+                        </a>
+                    </li>
+                </ul>
+                <div class="d-flex align-items-center">
+                    <span class="text-light me-3" id="userInfo">
+                        <i class="bi bi-person-circle me-1"></i>
+                        <span id="userName">Usuario</span>
+                    </span>
+                    <button class="btn btn-outline-light btn-sm" id="btnLogin">
+                        <i class="bi bi-box-arrow-in-right me-1"></i> Ingresar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container-fluid" style="margin-top: 70px; padding-bottom: 20px;">
+        <!-- Header -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <h4 class="mb-1">
+                            <i class="bi bi-droplet-half me-2" style="color: #6f42c1;"></i>
+                            Consumo de Tintas y Solventes
+                        </h4>
+                        <p class="text-muted mb-0 small">Registro por Orden de Trabajo</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" id="btnHistorial">
+                            <i class="bi bi-clock-history me-1"></i> Historial
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm" id="btnLimpiar">
+                            <i class="bi bi-eraser me-1"></i> Limpiar
+                        </button>
+                        <button class="btn btn-primary btn-sm" id="btnGuardar" style="background-color: #6f42c1; border-color: #6f42c1;">
+                            <i class="bi bi-save me-1"></i> Guardar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <form id="formTintas">
+            <div class="row">
+                <!-- Columna Izquierda - Datos OT y Tintas Laminacion -->
+                <div class="col-lg-6">
+                    <!-- Datos de la OT -->
+                    <div class="form-section">
+                        <div class="form-section-title" style="border-color: #0d6efd;">
+                            <i class="bi bi-file-earmark-text me-1"></i> Datos de la Orden de Trabajo
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <label class="form-label small">Fecha</label>
+                                <input type="date" class="form-control form-control-sm" id="fecha" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small">Orden de Trabajo</label>
+                                <input type="text" class="form-control form-control-sm" id="ordenTrabajo" placeholder="Ej: 015 EN-26" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small">Kg Produccion</label>
+                                <input type="number" class="form-control form-control-sm" id="kgProduccion" step="0.01" min="0">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Cliente</label>
+                                <input type="text" class="form-control form-control-sm" id="cliente" placeholder="Nombre del cliente">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Producto</label>
+                                <input type="text" class="form-control form-control-sm" id="producto" placeholder="Nombre del producto">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Status</label>
+                                <select class="form-select form-select-sm" id="status">
+                                    <option value="en_proceso">En Proceso</option>
+                                    <option value="finalizo">Finalizo</option>
+                                    <option value="finalizo_rebobinado">Finalizo Rebobinado</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Maquina</label>
+                                <select class="form-select form-select-sm" id="maquina">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="comexi_1">COMEXI 1</option>
+                                    <option value="comexi_2">COMEXI 2</option>
+                                    <option value="comexi_3">COMEXI 3</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tintas de Laminacion -->
+                    <div class="form-section">
+                        <div class="form-section-title title-laminacion">
+                            <i class="bi bi-droplet-fill me-1"></i> Tintas de Laminacion (Kg)
+                        </div>
+                        <div class="row g-1">
+                            <!-- Fila 1: Colores basicos -->
+                            <div class="col-4 col-md-2">
+                                <span class="tinta-label"><span class="color-dot" style="background:#FFD700;"></span>Amarillo</span>
+                                <input type="number" class="form-control form-control-sm tinta-input tinta-lam" id="lamAmarillo" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4 col-md-2">
+                                <span class="tinta-label"><span class="color-dot" style="background:#00CED1;"></span>Cyan</span>
+                                <input type="number" class="form-control form-control-sm tinta-input tinta-lam" id="lamCyan" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4 col-md-2">
+                                <span class="tinta-label"><span class="color-dot" style="background:#FF1493;"></span>Magenta</span>
+                                <input type="number" class="form-control form-control-sm tinta-input tinta-lam" id="lamMagenta" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4 col-md-2">
+                                <span class="tinta-label"><span class="color-dot" style="background:#000;"></span>Negro</span>
+                                <input type="number" class="form-control form-control-sm tinta-input tinta-lam" id="lamNegro" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4 col-md-2">
+                                <span class="tinta-label"><span class="color-dot" style="background:#fff; border:1px solid #ccc;"></span>Blanco</span>
+                                <input type="number" class="form-control form-control-sm tinta-input tinta-lam" id="lamBlanco" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4 col-md-2">
+                                <span class="tinta-label"><span class="color-dot" style="background:#DC143C;"></span>Rojo 485 2X</span>
+                                <input type="number" class="form-control form-control-sm tinta-input tinta-lam" id="lamRojo485" step="0.01" min="0" value="0">
+                            </div>
+                        </div>
+                        <div class="row g-1 mt-1">
+                            <!-- Fila 2: Otros colores -->
+                            <div class="col-4 col-md-2">
+                                <span class="tinta-label"><span class="color-dot" style="background:#0000CD;"></span>Azul Reflex</span>
+                                <input type="number" class="form-control form-control-sm tinta-input tinta-lam" id="lamAzulReflex" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4 col-md-2">
+                                <span class="tinta-label"><span class="color-dot" style="background:#FF4500;"></span>Naranja 021</span>
+                                <input type="number" class="form-control form-control-sm tinta-input tinta-lam" id="lamNaranja021" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4 col-md-2">
+                                <span class="tinta-label"><span class="color-dot" style="background:#DDD;"></span>Extender</span>
+                                <input type="number" class="form-control form-control-sm tinta-input tinta-lam" id="lamExtender" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4 col-md-2">
+                                <span class="tinta-label"><span class="color-dot" style="background:#FF8C00;"></span>Naranja Mary</span>
+                                <input type="number" class="form-control form-control-sm tinta-input tinta-lam" id="lamNaranjaMary" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4 col-md-2">
+                                <span class="tinta-label"><span class="color-dot" style="background:#8A2BE2;"></span>Violeta</span>
+                                <input type="number" class="form-control form-control-sm tinta-input tinta-lam" id="lamVioleta" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4 col-md-2">
+                                <span class="tinta-label"><span class="color-dot" style="background:#228B22;"></span>Verde C</span>
+                                <input type="number" class="form-control form-control-sm tinta-input tinta-lam" id="lamVerdeC" step="0.01" min="0" value="0">
+                            </div>
+                        </div>
+                        <div class="row g-1 mt-1">
+                            <!-- Fila 3: Especiales -->
+                            <div class="col-4 col-md-2">
+                                <span class="tinta-label"><span class="color-dot" style="background:#D2B48C;"></span>Comp. Cera</span>
+                                <input type="number" class="form-control form-control-sm tinta-input tinta-lam" id="lamCompCera" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4 col-md-2">
+                                <span class="tinta-label"><span class="color-dot" style="background:#FFD700;"></span>Dorado ALV</span>
+                                <input type="number" class="form-control form-control-sm tinta-input tinta-lam" id="lamDorado" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4 col-md-2">
+                                <span class="tinta-label"><span class="color-dot" style="background:#B22222;"></span>Rojo 485 C</span>
+                                <input type="number" class="form-control form-control-sm tinta-input tinta-lam" id="lamRojo485C" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <span class="tinta-label fw-bold">TOTAL LAM</span>
+                                <input type="text" class="form-control form-control-sm tinta-input total-row" id="totalLaminacion" readonly>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Columna Derecha - Tintas Superficie y Solventes -->
+                <div class="col-lg-6">
+                    <!-- Tintas de Superficie -->
+                    <div class="form-section">
+                        <div class="form-section-title title-superficie">
+                            <i class="bi bi-droplet me-1"></i> Tintas de Superficie (Kg)
+                        </div>
+                        <div class="row g-1">
+                            <!-- Fila 1 -->
+                            <div class="col-4 col-md-2">
+                                <span class="tinta-label"><span class="color-dot" style="background:#FFD700;"></span>Amarillo</span>
+                                <input type="number" class="form-control form-control-sm tinta-input tinta-sup" id="supAmarillo" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4 col-md-2">
+                                <span class="tinta-label"><span class="color-dot" style="background:#00CED1;"></span>Cyan</span>
+                                <input type="number" class="form-control form-control-sm tinta-input tinta-sup" id="supCyan" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4 col-md-2">
+                                <span class="tinta-label"><span class="color-dot" style="background:#FF1493;"></span>Magenta</span>
+                                <input type="number" class="form-control form-control-sm tinta-input tinta-sup" id="supMagenta" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4 col-md-2">
+                                <span class="tinta-label"><span class="color-dot" style="background:#000;"></span>Negro</span>
+                                <input type="number" class="form-control form-control-sm tinta-input tinta-sup" id="supNegro" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4 col-md-2">
+                                <span class="tinta-label"><span class="color-dot" style="background:#fff; border:1px solid #ccc;"></span>Blanco</span>
+                                <input type="number" class="form-control form-control-sm tinta-input tinta-sup" id="supBlanco" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4 col-md-2">
+                                <span class="tinta-label"><span class="color-dot" style="background:#DC143C;"></span>Rojo 485 2X</span>
+                                <input type="number" class="form-control form-control-sm tinta-input tinta-sup" id="supRojo485" step="0.01" min="0" value="0">
+                            </div>
+                        </div>
+                        <div class="row g-1 mt-1">
+                            <!-- Fila 2 -->
+                            <div class="col-4 col-md-2">
+                                <span class="tinta-label"><span class="color-dot" style="background:#0000CD;"></span>Azul Reflex</span>
+                                <input type="number" class="form-control form-control-sm tinta-input tinta-sup" id="supAzulReflex" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4 col-md-2">
+                                <span class="tinta-label"><span class="color-dot" style="background:#FF4500;"></span>Naranja 021</span>
+                                <input type="number" class="form-control form-control-sm tinta-input tinta-sup" id="supNaranja021" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4 col-md-2">
+                                <span class="tinta-label"><span class="color-dot" style="background:#DDD;"></span>Extender</span>
+                                <input type="number" class="form-control form-control-sm tinta-input tinta-sup" id="supExtender" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4 col-md-2">
+                                <span class="tinta-label"><span class="color-dot" style="background:#C0C0C0;"></span>Barniz S/IMP</span>
+                                <input type="number" class="form-control form-control-sm tinta-input tinta-sup" id="supBarniz" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4 col-md-2">
+                                <span class="tinta-label"><span class="color-dot" style="background:#228B22;"></span>Verde C</span>
+                                <input type="number" class="form-control form-control-sm tinta-input tinta-sup" id="supVerdeC" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4 col-md-2">
+                                <span class="tinta-label fw-bold">TOTAL SUP</span>
+                                <input type="text" class="form-control form-control-sm tinta-input total-row" id="totalSuperficie" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Solventes -->
+                    <div class="form-section">
+                        <div class="form-section-title title-solventes">
+                            <i class="bi bi-moisture me-1"></i> Solventes (Lt)
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-4">
+                                <label class="form-label small">Alcohol</label>
+                                <input type="number" class="form-control form-control-sm solvente-input" id="alcohol" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label small">Metoxi</label>
+                                <input type="number" class="form-control form-control-sm solvente-input" id="metoxi" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label small">Acetato</label>
+                                <input type="number" class="form-control form-control-sm solvente-input" id="acetato" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-12">
+                                <div class="alert alert-light py-2 mb-0 d-flex justify-content-between">
+                                    <span><strong>Total Solventes:</strong></span>
+                                    <span id="totalSolventes">0.00</span> Lt
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Resumen -->
+                    <div class="form-section">
+                        <div class="form-section-title" style="border-color: #198754;">
+                            <i class="bi bi-calculator me-1"></i> Resumen de Consumo
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <div class="alert alert-primary py-2 mb-0 text-center">
+                                    <small class="d-block">Total Tintas</small>
+                                    <strong id="totalTintas">0.00</strong> Kg
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="alert alert-success py-2 mb-0 text-center">
+                                    <small class="d-block">Total Solventes</small>
+                                    <strong id="totalSolventesResumen">0.00</strong> Lt
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small">Observaciones</label>
+                                <textarea class="form-control form-control-sm" id="observaciones" rows="2" placeholder="Notas adicionales..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </main>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../src/js/utils/config.js"></script>
+    <script src="../src/js/utils/auth.js"></script>
+    <script src="../src/js/modules/tintas.js"></script>
+    <script src="../src/js/main.js"></script>
+</body>
+</html>

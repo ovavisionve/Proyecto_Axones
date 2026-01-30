@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Chatbot Financiero - Sistema Axones">
+    <title>Chatbot - Axones</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="../src/css/main.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="index.html">
+                <i class="bi bi-gear-wide-connected me-2"></i>
+                <span class="fw-bold">AXONES</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarMain">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">
+                            <i class="bi bi-house-door me-1"></i> Inicio
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="produccion.html">
+                            <i class="bi bi-clipboard-data me-1"></i> Produccion
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="desperdicios.html">
+                            <i class="bi bi-exclamation-triangle me-1"></i> Desperdicios
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="dashboard.html">
+                            <i class="bi bi-graph-up me-1"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="chatbot.html">
+                            <i class="bi bi-chat-dots me-1"></i> Chatbot
+                        </a>
+                    </li>
+                </ul>
+                <div class="d-flex align-items-center">
+                    <span class="text-light me-3" id="userInfo">
+                        <i class="bi bi-person-circle me-1"></i>
+                        <span id="userName">Usuario</span>
+                    </span>
+                    <button class="btn btn-outline-light btn-sm" id="btnLogin">
+                        <i class="bi bi-box-arrow-in-right me-1"></i> Ingresar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container-fluid" style="margin-top: 70px;">
+        <div class="row">
+            <!-- Chat Area -->
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <div class="rounded-circle bg-info bg-opacity-10 p-2 me-2">
+                                <i class="bi bi-robot text-info fs-5"></i>
+                            </div>
+                            <div>
+                                <h5 class="mb-0">Asistente Financiero</h5>
+                                <small class="text-muted">Consultas de cuentas por cobrar</small>
+                            </div>
+                        </div>
+                        <button class="btn btn-sm btn-outline-secondary" id="btnLimpiarChat">
+                            <i class="bi bi-trash me-1"></i> Limpiar
+                        </button>
+                    </div>
+
+                    <div class="chat-container">
+                        <!-- Mensajes del chat -->
+                        <div class="chat-messages" id="chatMessages">
+                            <!-- Mensaje de bienvenida -->
+                            <div class="chat-message bot">
+                                <div class="d-flex align-items-start">
+                                    <i class="bi bi-robot text-info me-2 mt-1"></i>
+                                    <div>
+                                        <p class="mb-2">Hola, soy el asistente financiero de Axones. Puedo ayudarte con consultas sobre:</p>
+                                        <ul class="mb-2">
+                                            <li>Saldos de clientes</li>
+                                            <li>Facturas pendientes y vencidas</li>
+                                            <li>Ranking de deudores</li>
+                                            <li>Historico de pagos</li>
+                                        </ul>
+                                        <p class="mb-0">Preguntame lo que necesites.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Input del chat -->
+                        <div class="chat-input-container">
+                            <form id="formChat" class="d-flex gap-2">
+                                <input type="text"
+                                       class="form-control"
+                                       id="chatInput"
+                                       placeholder="Escribe tu pregunta... Ej: Cuanto debe el cliente Rosa Azul?"
+                                       autocomplete="off">
+                                <button type="submit" class="btn btn-primary" id="btnEnviar">
+                                    <i class="bi bi-send"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel lateral -->
+            <div class="col-lg-4">
+                <!-- Consultas rapidas -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h6 class="mb-0">
+                            <i class="bi bi-lightning me-2"></i>
+                            Consultas Rapidas
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-primary text-start quick-query"
+                                    data-query="Quienes son los 5 clientes con mayor deuda?">
+                                <i class="bi bi-bar-chart me-2"></i>
+                                Top 5 deudores
+                            </button>
+                            <button class="btn btn-outline-warning text-start quick-query"
+                                    data-query="Hay facturas vencidas?">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                Facturas vencidas
+                            </button>
+                            <button class="btn btn-outline-success text-start quick-query"
+                                    data-query="Cual es el total de cuentas por cobrar?">
+                                <i class="bi bi-cash-stack me-2"></i>
+                                Total por cobrar
+                            </button>
+                            <button class="btn btn-outline-info text-start quick-query"
+                                    data-query="Resumen de cartera vencida por antigüedad">
+                                <i class="bi bi-calendar-range me-2"></i>
+                                Antigüedad de cartera
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resumen rapido -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h6 class="mb-0">
+                            <i class="bi bi-wallet2 me-2"></i>
+                            Resumen de Cartera
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <div class="text-center p-3 bg-light rounded">
+                                    <h4 class="mb-0 text-primary" id="totalCartera">$0</h4>
+                                    <small class="text-muted">Total por cobrar</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-center p-3 bg-light rounded">
+                                    <h4 class="mb-0 text-danger" id="totalVencido">$0</h4>
+                                    <small class="text-muted">Vencido</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-center p-3 bg-light rounded">
+                                    <h4 class="mb-0" id="clientesDeudores">0</h4>
+                                    <small class="text-muted">Clientes</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-center p-3 bg-light rounded">
+                                    <h4 class="mb-0" id="facturasVencidas">0</h4>
+                                    <small class="text-muted">Facturas vencidas</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ejemplos de consultas -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white">
+                        <h6 class="mb-0">
+                            <i class="bi bi-question-circle me-2"></i>
+                            Ejemplos de Preguntas
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled mb-0">
+                            <li class="mb-2">
+                                <small class="text-muted">"Cuanto debe el cliente Rosa Azul?"</small>
+                            </li>
+                            <li class="mb-2">
+                                <small class="text-muted">"Facturas pendientes de Alimentos del Sur"</small>
+                            </li>
+                            <li class="mb-2">
+                                <small class="text-muted">"Clientes con mas de 30 dias de mora"</small>
+                            </li>
+                            <li class="mb-2">
+                                <small class="text-muted">"Cuanto produjo Rosa Azul el mes pasado?"</small>
+                            </li>
+                            <li>
+                                <small class="text-muted">"Pagos recibidos esta semana"</small>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light border-top py-3 mt-4">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-6 text-center text-md-start">
+                    <small class="text-muted">
+                        <i class="bi bi-gear-wide-connected me-1"></i>
+                        Sistema Axones v1.0 - Control de Produccion
+                    </small>
+                </div>
+                <div class="col-md-6 text-center text-md-end">
+                    <small class="text-muted">
+                        <i class="bi bi-c-circle me-1"></i> 2026 Axones
+                    </small>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../src/js/utils/config.js"></script>
+    <script src="../src/js/utils/auth.js"></script>
+    <script src="../src/js/modules/chatbot.js"></script>
+    <script src="../src/js/main.js"></script>
+</body>
+</html>

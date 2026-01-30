@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Sistema Integral de Gestion y Control de Produccion Axones">
+    <title>Axones - Sistema de Control de Produccion</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link href="../src/css/main.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="index.html">
+                <i class="bi bi-gear-wide-connected me-2"></i>
+                <span class="fw-bold">AXONES</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarMain">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="index.html">
+                            <i class="bi bi-house-door me-1"></i> Inicio
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="produccion.html">
+                            <i class="bi bi-clipboard-data me-1"></i> Produccion
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="desperdicios.html">
+                            <i class="bi bi-exclamation-triangle me-1"></i> Desperdicios
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="dashboard.html">
+                            <i class="bi bi-graph-up me-1"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="chatbot.html">
+                            <i class="bi bi-chat-dots me-1"></i> Chatbot
+                        </a>
+                    </li>
+                </ul>
+                <div class="d-flex align-items-center">
+                    <span class="text-light me-3" id="userInfo">
+                        <i class="bi bi-person-circle me-1"></i>
+                        <span id="userName">Usuario</span>
+                    </span>
+                    <button class="btn btn-outline-light btn-sm" id="btnLogin">
+                        <i class="bi bi-box-arrow-in-right me-1"></i> Ingresar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container-fluid" style="margin-top: 70px;">
+        <!-- Welcome Section -->
+        <section class="row mb-4">
+            <div class="col-12">
+                <div class="card bg-primary text-white">
+                    <div class="card-body py-4">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h1 class="display-6 fw-bold mb-2">
+                                    <i class="bi bi-gear-wide-connected me-2"></i>
+                                    Sistema de Control de Produccion
+                                </h1>
+                                <p class="lead mb-0">
+                                    Plataforma integral para optimizacion y monitoreo de procesos de manufactura
+                                </p>
+                            </div>
+                            <div class="col-md-4 text-md-end">
+                                <p class="mb-0 opacity-75">
+                                    <i class="bi bi-calendar3 me-1"></i>
+                                    <span id="currentDate"></span>
+                                </p>
+                                <p class="mb-0 opacity-75">
+                                    <i class="bi bi-clock me-1"></i>
+                                    <span id="currentTime"></span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quick Stats -->
+        <section class="row mb-4 g-3">
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="rounded-circle bg-success bg-opacity-10 p-3 me-3">
+                                <i class="bi bi-box-seam text-success fs-4"></i>
+                            </div>
+                            <div>
+                                <h6 class="text-muted mb-1">Produccion Hoy</h6>
+                                <h3 class="mb-0" id="statProduccion">--</h3>
+                                <small class="text-success">Kg procesados</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="rounded-circle bg-warning bg-opacity-10 p-3 me-3">
+                                <i class="bi bi-recycle text-warning fs-4"></i>
+                            </div>
+                            <div>
+                                <h6 class="text-muted mb-1">Desperdicio</h6>
+                                <h3 class="mb-0" id="statDesperdicio">--</h3>
+                                <small class="text-warning">% promedio</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="rounded-circle bg-danger bg-opacity-10 p-3 me-3">
+                                <i class="bi bi-bell text-danger fs-4"></i>
+                            </div>
+                            <div>
+                                <h6 class="text-muted mb-1">Alertas</h6>
+                                <h3 class="mb-0" id="statAlertas">--</h3>
+                                <small class="text-danger">pendientes</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="rounded-circle bg-info bg-opacity-10 p-3 me-3">
+                                <i class="bi bi-people text-info fs-4"></i>
+                            </div>
+                            <div>
+                                <h6 class="text-muted mb-1">Operadores</h6>
+                                <h3 class="mb-0" id="statOperadores">--</h3>
+                                <small class="text-info">activos</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quick Access Modules -->
+        <section class="row mb-4 g-3">
+            <div class="col-12">
+                <h5 class="mb-3"><i class="bi bi-grid me-2"></i>Acceso Rapido</h5>
+            </div>
+
+            <!-- Modulo Produccion -->
+            <div class="col-md-4">
+                <div class="card h-100 border-0 shadow-sm module-card">
+                    <div class="card-body text-center p-4">
+                        <div class="rounded-circle bg-primary bg-opacity-10 p-4 d-inline-block mb-3">
+                            <i class="bi bi-clipboard-plus text-primary display-5"></i>
+                        </div>
+                        <h5 class="card-title">Registro de Produccion</h5>
+                        <p class="card-text text-muted">
+                            Formulario digital para captura de datos de produccion con validacion automatica
+                        </p>
+                        <a href="produccion.html" class="btn btn-primary">
+                            <i class="bi bi-arrow-right me-1"></i> Ir al Modulo
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modulo Desperdicios -->
+            <div class="col-md-4">
+                <div class="card h-100 border-0 shadow-sm module-card">
+                    <div class="card-body text-center p-4">
+                        <div class="rounded-circle bg-warning bg-opacity-10 p-4 d-inline-block mb-3">
+                            <i class="bi bi-exclamation-triangle text-warning display-5"></i>
+                        </div>
+                        <h5 class="card-title">Control de Desperdicios</h5>
+                        <p class="card-text text-muted">
+                            Monitoreo en tiempo real con alertas inteligentes segun umbrales por material
+                        </p>
+                        <a href="desperdicios.html" class="btn btn-warning">
+                            <i class="bi bi-arrow-right me-1"></i> Ir al Modulo
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modulo Dashboard -->
+            <div class="col-md-4">
+                <div class="card h-100 border-0 shadow-sm module-card">
+                    <div class="card-body text-center p-4">
+                        <div class="rounded-circle bg-success bg-opacity-10 p-4 d-inline-block mb-3">
+                            <i class="bi bi-graph-up-arrow text-success display-5"></i>
+                        </div>
+                        <h5 class="card-title">Dashboard Analitico</h5>
+                        <p class="card-text text-muted">
+                            Visualizacion de KPIs, tendencias y metricas de rendimiento operativo
+                        </p>
+                        <a href="dashboard.html" class="btn btn-success">
+                            <i class="bi bi-arrow-right me-1"></i> Ir al Modulo
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modulo Chatbot -->
+            <div class="col-md-4">
+                <div class="card h-100 border-0 shadow-sm module-card">
+                    <div class="card-body text-center p-4">
+                        <div class="rounded-circle bg-info bg-opacity-10 p-4 d-inline-block mb-3">
+                            <i class="bi bi-chat-dots text-info display-5"></i>
+                        </div>
+                        <h5 class="card-title">Chatbot Financiero</h5>
+                        <p class="card-text text-muted">
+                            Consultas en lenguaje natural sobre cuentas por cobrar y facturacion
+                        </p>
+                        <a href="chatbot.html" class="btn btn-info text-white">
+                            <i class="bi bi-arrow-right me-1"></i> Ir al Modulo
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modulo Despachos -->
+            <div class="col-md-4">
+                <div class="card h-100 border-0 shadow-sm module-card">
+                    <div class="card-body text-center p-4">
+                        <div class="rounded-circle bg-secondary bg-opacity-10 p-4 d-inline-block mb-3">
+                            <i class="bi bi-truck text-secondary display-5"></i>
+                        </div>
+                        <h5 class="card-title">Control de Despachos</h5>
+                        <p class="card-text text-muted">
+                            Gestion de notas de entrega e integracion con inventario
+                        </p>
+                        <a href="despachos.html" class="btn btn-secondary">
+                            <i class="bi bi-arrow-right me-1"></i> Ir al Modulo
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modulo Configuracion -->
+            <div class="col-md-4">
+                <div class="card h-100 border-0 shadow-sm module-card">
+                    <div class="card-body text-center p-4">
+                        <div class="rounded-circle bg-dark bg-opacity-10 p-4 d-inline-block mb-3">
+                            <i class="bi bi-gear text-dark display-5"></i>
+                        </div>
+                        <h5 class="card-title">Configuracion</h5>
+                        <p class="card-text text-muted">
+                            Gestion de usuarios, umbrales de desperdicio y parametros del sistema
+                        </p>
+                        <a href="configuracion.html" class="btn btn-dark">
+                            <i class="bi bi-arrow-right me-1"></i> Ir al Modulo
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Recent Alerts -->
+        <section class="row mb-4">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="bi bi-bell text-danger me-2"></i>
+                            Alertas Recientes
+                        </h5>
+                        <a href="desperdicios.html" class="btn btn-sm btn-outline-primary">Ver todas</a>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Fecha/Hora</th>
+                                        <th>Tipo</th>
+                                        <th>Maquina</th>
+                                        <th>Operador</th>
+                                        <th>Mensaje</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="alertasRecientes">
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-4">
+                                            <i class="bi bi-inbox display-6 d-block mb-2"></i>
+                                            No hay alertas recientes
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light border-top py-3 mt-4">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-6 text-center text-md-start">
+                    <small class="text-muted">
+                        <i class="bi bi-gear-wide-connected me-1"></i>
+                        Sistema Axones v1.0 - Control de Produccion
+                    </small>
+                </div>
+                <div class="col-md-6 text-center text-md-end">
+                    <small class="text-muted">
+                        <i class="bi bi-c-circle me-1"></i> 2026 Axones. Todos los derechos reservados.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- App Scripts -->
+    <script src="../src/js/utils/config.js"></script>
+    <script src="../src/js/utils/auth.js"></script>
+    <script src="../src/js/modules/dashboard.js"></script>
+    <script src="../src/js/main.js"></script>
+</body>
+</html>

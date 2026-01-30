@@ -1,0 +1,30 @@
+{
+  "name": "axones-sistema-produccion",
+  "version": "1.0.0",
+  "description": "Sistema Integral de Gestion y Control de Produccion Axones - Plataforma Web de Optimizacion y Monitoreo",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx live-server public --port=3000",
+    "build": "echo 'Static site - no build required'",
+    "lint": "npx eslint src/js/**/*.js"
+  },
+  "keywords": [
+    "produccion",
+    "desperdicios",
+    "manufactura",
+    "plasticos",
+    "dashboard",
+    "chatbot",
+    "google-sheets"
+  ],
+  "author": "Equipo de Desarrollo",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ovavisionve/Proyecto_Axones"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "live-server": "^1.2.2"
+  }
+}

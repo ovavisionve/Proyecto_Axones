@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Administracion - Sistema Axones">
+    <title>Administracion - Sistema Axones</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#212529">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="../src/css/main.css" rel="stylesheet">
+    <style>
+        .config-card {
+            border-left: 4px solid #0d6efd;
+            transition: all 0.2s;
+        }
+        .config-card:hover {
+            transform: translateY(-2px);
+        }
+        .storage-bar {
+            height: 8px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="index.html">
+                <i class="bi bi-gear-wide-connected me-2"></i>
+                <span class="fw-bold">AXONES</span>
+                <span class="badge bg-danger ms-2">Admin</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarMain">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">
+                            <i class="bi bi-house-door me-1"></i> Inicio
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="admin.html">
+                            <i class="bi bi-gear me-1"></i> Administracion
+                        </a>
+                    </li>
+                </ul>
+                <div class="d-flex align-items-center">
+                    <span class="text-light me-3">
+                        <i class="bi bi-shield-check me-1"></i>
+                        Administrador
+                    </span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container-fluid" style="margin-top: 70px;">
+        <!-- Header -->
+        <section class="row mb-4">
+            <div class="col-12">
+                <h4 class="mb-1">
+                    <i class="bi bi-gear text-primary me-2"></i>
+                    Panel de Administracion
+                </h4>
+                <p class="text-muted mb-0">
+                    <small>Configuracion del sistema y gestion de datos</small>
+                </p>
+            </div>
+        </section>
+
+        <div class="row">
+            <!-- Columna Izquierda -->
+            <div class="col-lg-8">
+                <!-- Configuracion de API -->
+                <div class="card config-card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h6 class="mb-0"><i class="bi bi-cloud me-2"></i>Configuracion de Backend</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">URL de Google Apps Script</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="apiUrl"
+                                       placeholder="https://script.google.com/macros/s/...">
+                                <button class="btn btn-outline-primary" onclick="AdminModule.guardarApiUrl()">
+                                    <i class="bi bi-save me-1"></i>Guardar
+                                </button>
+                            </div>
+                            <small class="text-muted">Dejar vacio para usar localStorage (desarrollo)</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">ID de Google Sheets</label>
+                            <input type="text" class="form-control" id="sheetsId"
+                                   placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms">
+                            <small class="text-muted">Se encuentra en la URL del Spreadsheet</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">API Key de Groq (Chatbot)</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="groqApiKey"
+                                       placeholder="gsk_...">
+                                <button class="btn btn-outline-secondary" onclick="AdminModule.togglePassword('groqApiKey')">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" onclick="AdminModule.probarConexion()">
+                            <i class="bi bi-wifi me-1"></i>Probar Conexion
+                        </button>
+                        <span class="ms-2" id="conexionStatus"></span>
+                    </div>
+                </div>
+
+                <!-- Umbrales de Refil -->
+                <div class="card config-card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h6 class="mb-0"><i class="bi bi-sliders me-2"></i>Umbrales de Refil</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Umbral de Advertencia (%)</label>
+                                <input type="number" class="form-control" id="umbralAdvertencia"
+                                       value="5" min="0" max="20" step="0.5">
+                                <small class="text-muted">Se muestra alerta amarilla</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Umbral Maximo (%)</label>
+                                <input type="number" class="form-control" id="umbralMaximo"
+                                       value="6" min="0" max="20" step="0.5">
+                                <small class="text-muted">Se muestra alerta roja (critica)</small>
+                            </div>
+                        </div>
+                        <button class="btn btn-success" onclick="AdminModule.guardarUmbrales()">
+                            <i class="bi bi-check-lg me-1"></i>Guardar Umbrales
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Gestion de Usuarios -->
+                <div class="card config-card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="bi bi-people me-2"></i>Usuarios del Sistema</h6>
+                        <button class="btn btn-sm btn-primary" onclick="AdminModule.mostrarModalUsuario()">
+                            <i class="bi bi-plus me-1"></i>Agregar
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Nombre</th>
+                                        <th>Email</th>
+                                        <th>Rol</th>
+                                        <th>Estado</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaUsuarios">
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted py-3">
+                                            Cargando usuarios...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Columna Derecha -->
+            <div class="col-lg-4">
+                <!-- Estado del Sistema -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h6 class="mb-0"><i class="bi bi-activity me-2"></i>Estado del Sistema</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>Modo:</span>
+                            <span class="badge bg-warning text-dark" id="modoSistema">Desarrollo</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>Version:</span>
+                            <span class="text-muted">1.0.0</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span>Ultima actualizacion:</span>
+                            <span class="text-muted" id="ultimaActualizacion">-</span>
+                        </div>
+                        <hr>
+                        <p class="small text-muted mb-2">Almacenamiento Local</p>
+                        <div class="progress storage-bar mb-2">
+                            <div class="progress-bar" id="storageBar" style="width: 0%"></div>
+                        </div>
+                        <small class="text-muted"><span id="storageUsed">0</span> KB usados</small>
+                    </div>
+                </div>
+
+                <!-- Datos de Prueba -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h6 class="mb-0"><i class="bi bi-database me-2"></i>Datos de Prueba</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="small text-muted">Genera datos demo para probar el sistema.</p>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-primary" onclick="AdminModule.generarDatosPrueba()">
+                                <i class="bi bi-magic me-1"></i>Generar Datos Demo
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="AdminModule.limpiarDatos()">
+                                <i class="bi bi-trash me-1"></i>Limpiar Todos los Datos
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Estadisticas Rapidas -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h6 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Estadisticas</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Registros Produccion:</span>
+                            <strong id="statProduccion">0</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Items Inventario:</span>
+                            <strong id="statInventario">0</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Alertas Totales:</span>
+                            <strong id="statAlertas">0</strong>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>Consumos Tintas:</span>
+                            <strong id="statTintas">0</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exportar/Importar -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white">
+                        <h6 class="mb-0"><i class="bi bi-arrow-left-right me-2"></i>Backup</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-success" onclick="AdminModule.exportarDatos()">
+                                <i class="bi bi-download me-1"></i>Exportar Backup
+                            </button>
+                            <label class="btn btn-outline-primary mb-0">
+                                <i class="bi bi-upload me-1"></i>Importar Backup
+                                <input type="file" accept=".json" style="display: none;"
+                                       onchange="AdminModule.importarDatos(this)">
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Usuario -->
+    <div class="modal fade" id="modalUsuario" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>Agregar Usuario</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nombre Completo</label>
+                        <input type="text" class="form-control" id="usuarioNombre">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" id="usuarioEmail">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Rol</label>
+                        <select class="form-select" id="usuarioRol">
+                            <option value="operador">Operador</option>
+                            <option value="jefe_operaciones">Jefe de Operaciones</option>
+                            <option value="supervisor">Supervisor</option>
+                            <option value="administrador">Administrador</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="AdminModule.guardarUsuario()">
+                        <i class="bi bi-save me-1"></i>Guardar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-light border-top py-3 mt-4">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-6 text-center text-md-start">
+                    <small class="text-muted">
+                        <i class="bi bi-gear-wide-connected me-1"></i>
+                        Sistema Axones v1.0 - Panel de Administracion
+                    </small>
+                </div>
+                <div class="col-md-6 text-center text-md-end">
+                    <small class="text-muted">
+                        Inversiones Axones 2008, C.A.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../src/js/utils/config.js"></script>
+    <script src="../src/js/utils/demoData.js"></script>
+    <script src="../src/js/modules/admin.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW:', err));
+        }
+    </script>
+</body>
+</html>

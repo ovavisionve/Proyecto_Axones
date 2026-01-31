@@ -1,9 +1,15 @@
 /**
  * Modulo Control de Impresion - Sistema Axones
  * Maneja el formulario digital de Control de Produccion de Impresion
+ * Incluye conexion con inventario y generacion automatica de alertas
  */
 
 const Impresion = {
+    // Cache de datos
+    inventarioCache: [],
+    clientesCache: [],
+    productosCache: [],
+
     /**
      * Inicializa el modulo
      */
@@ -11,8 +17,283 @@ const Impresion = {
         console.log('Inicializando modulo Control de Impresion');
 
         this.setDefaultDate();
+        this.cargarDatosIniciales();
         this.setupEventListeners();
         this.setupCalculations();
+        this.setupClienteProductoConnection();
+    },
+
+    /**
+     * Carga datos iniciales (inventario, clientes, productos)
+     */
+    cargarDatosIniciales: function() {
+        // Cargar inventario desde localStorage
+        this.inventarioCache = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
+
+        // Cargar clientes desde CONFIG
+        this.clientesCache = CONFIG.CLIENTES || [];
+
+        // Cargar historial de produccion para autocompletado
+        const produccion = JSON.parse(localStorage.getItem('axones_impresion') || '[]');
+        this.productosCache = [...new Set(produccion.map(p => p.producto).filter(Boolean))];
+    },
+
+    /**
+     * Configura la conexion cliente-producto-inventario
+     */
+    setupClienteProductoConnection: function() {
+        const clienteSelect = document.getElementById('cliente');
+        const productoInput = document.getElementById('producto');
+        const otInput = document.getElementById('ordenTrabajo');
+
+        if (clienteSelect) {
+            // Poblar select de clientes
+            this.poblarSelectClientes(clienteSelect);
+
+            // Al cambiar cliente, filtrar productos e inventario
+            clienteSelect.addEventListener('change', (e) => {
+                this.onClienteChange(e.target.value);
+            });
+        }
+
+        if (otInput) {
+            // Al ingresar OT, buscar datos relacionados
+            otInput.addEventListener('blur', (e) => {
+                this.buscarDatosOT(e.target.value);
+            });
+        }
+
+        // Agregar boton para ver inventario disponible
+        this.agregarBotonInventario();
+    },
+
+    /**
+     * Poblar select de clientes
+     */
+    poblarSelectClientes: function(select) {
+        // Mantener la opcion por defecto
+        const defaultOption = select.querySelector('option[value=""]');
+
+        // Limpiar opciones existentes excepto la primera
+        select.innerHTML = '';
+        if (defaultOption) {
+            select.appendChild(defaultOption);
+        } else {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = 'Seleccione cliente...';
+            select.appendChild(opt);
+        }
+
+        // Agregar clientes de CONFIG
+        this.clientesCache.forEach(cliente => {
+            const option = document.createElement('option');
+            option.value = cliente;
+            option.textContent = cliente;
+            select.appendChild(option);
+        });
+    },
+
+    /**
+     * Manejador de cambio de cliente
+     */
+    onClienteChange: function(cliente) {
+        if (!cliente) return;
+
+        // Buscar inventario disponible para este cliente
+        const inventarioCliente = this.inventarioCache.filter(item =>
+            item.cliente === cliente || !item.cliente
+        );
+
+        // Mostrar notificacion si hay inventario asignado
+        const asignado = inventarioCliente.filter(i => i.cliente === cliente);
+        if (asignado.length > 0) {
+            const totalKg = asignado.reduce((sum, i) => sum + (parseFloat(i.kg) || 0), 0);
+            this.mostrarInfoInventario(cliente, asignado.length, totalKg);
+        }
+    },
+
+    /**
+     * Busca datos relacionados a una OT
+     */
+    buscarDatosOT: function(ot) {
+        if (!ot) return;
+
+        // Buscar en historial de produccion
+        const produccion = JSON.parse(localStorage.getItem('axones_impresion') || '[]');
+        const registroAnterior = produccion.find(p => p.ordenTrabajo === ot);
+
+        if (registroAnterior) {
+            // Preguntar si desea cargar datos anteriores
+            if (confirm(`Se encontro un registro anterior para OT ${ot}. ¿Desea cargar los datos del producto?`)) {
+                this.cargarDatosOT(registroAnterior);
+            }
+        }
+
+        // Buscar consumo de tintas asociado
+        const tintas = JSON.parse(localStorage.getItem('axones_tintas') || '[]');
+        const tintasOT = tintas.find(t => t.ot === ot);
+        if (tintasOT) {
+            console.log('Tintas encontradas para OT:', tintasOT);
+        }
+    },
+
+    /**
+     * Carga datos de una OT anterior
+     */
+    cargarDatosOT: function(registro) {
+        // Cargar datos basicos
+        const campos = ['producto', 'cliente', 'maquina'];
+        campos.forEach(campo => {
+            const input = document.getElementById(campo);
+            if (input && registro[campo]) {
+                input.value = registro[campo];
+            }
+        });
+
+        // Disparar evento change en cliente para actualizar inventario
+        const clienteSelect = document.getElementById('cliente');
+        if (clienteSelect && registro.cliente) {
+            clienteSelect.value = registro.cliente;
+            clienteSelect.dispatchEvent(new Event('change'));
+        }
+    },
+
+    /**
+     * Agrega boton para ver inventario disponible
+     */
+    agregarBotonInventario: function() {
+        const productoGroup = document.getElementById('producto')?.closest('.col-md-3, .col-md-4, .mb-3');
+        if (!productoGroup) return;
+
+        // Verificar si ya existe el boton
+        if (productoGroup.querySelector('.btn-ver-inventario')) return;
+
+        const btnInventario = document.createElement('button');
+        btnInventario.type = 'button';
+        btnInventario.className = 'btn btn-outline-info btn-sm btn-ver-inventario mt-1';
+        btnInventario.innerHTML = '<i class="bi bi-box-seam me-1"></i>Ver Inventario';
+        btnInventario.addEventListener('click', () => this.mostrarModalInventario());
+
+        productoGroup.appendChild(btnInventario);
+    },
+
+    /**
+     * Muestra modal con inventario disponible
+     */
+    mostrarModalInventario: function() {
+        const cliente = document.getElementById('cliente')?.value;
+
+        // Filtrar inventario
+        let inventario = this.inventarioCache;
+        if (cliente) {
+            inventario = inventario.filter(i => i.cliente === cliente || !i.cliente);
+        }
+
+        // Crear modal
+        const modalHtml = `
+            <div class="modal fade" id="modalInventario" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="bi bi-box-seam me-2"></i>Inventario Disponible
+                                ${cliente ? `- ${cliente}` : ''}
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            ${this.generarTablaInventario(inventario)}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Remover modal anterior si existe
+        const modalExistente = document.getElementById('modalInventario');
+        if (modalExistente) modalExistente.remove();
+
+        // Insertar y mostrar modal
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        const modal = new bootstrap.Modal(document.getElementById('modalInventario'));
+        modal.show();
+    },
+
+    /**
+     * Genera tabla HTML de inventario
+     */
+    generarTablaInventario: function(inventario) {
+        if (inventario.length === 0) {
+            return '<div class="alert alert-info">No hay inventario disponible</div>';
+        }
+
+        let html = `
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Material</th>
+                            <th>Micras</th>
+                            <th>Ancho</th>
+                            <th class="text-end">Kg</th>
+                            <th>Producto</th>
+                            <th>Cliente</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        inventario.forEach(item => {
+            const stockClass = parseFloat(item.kg) < 100 ? 'table-warning' : '';
+            html += `
+                <tr class="${stockClass}">
+                    <td><strong>${item.material || '-'}</strong></td>
+                    <td>${item.micras || '-'}</td>
+                    <td>${item.ancho || '-'}</td>
+                    <td class="text-end">${parseFloat(item.kg).toLocaleString('es-VE')}</td>
+                    <td>${item.producto || '-'}</td>
+                    <td>${item.cliente || '<em>General</em>'}</td>
+                </tr>
+            `;
+        });
+
+        html += '</tbody></table></div>';
+
+        // Agregar total
+        const totalKg = inventario.reduce((sum, i) => sum + (parseFloat(i.kg) || 0), 0);
+        html += `<div class="text-end mt-2"><strong>Total: ${totalKg.toLocaleString('es-VE')} Kg</strong></div>`;
+
+        return html;
+    },
+
+    /**
+     * Muestra informacion de inventario asignado
+     */
+    mostrarInfoInventario: function(cliente, items, totalKg) {
+        // Crear o actualizar badge de inventario
+        let badge = document.getElementById('badgeInventario');
+        if (!badge) {
+            badge = document.createElement('div');
+            badge.id = 'badgeInventario';
+            badge.className = 'alert alert-info py-2 mt-2';
+
+            const clienteSelect = document.getElementById('cliente');
+            if (clienteSelect) {
+                clienteSelect.closest('.col-md-3, .col-md-4, .mb-3')?.appendChild(badge);
+            }
+        }
+
+        badge.innerHTML = `
+            <small>
+                <i class="bi bi-info-circle me-1"></i>
+                <strong>${items}</strong> items en inventario
+                (<strong>${totalKg.toLocaleString('es-VE')} Kg</strong>)
+            </small>
+        `;
     },
 
     /**
@@ -179,12 +460,11 @@ const Impresion = {
                 this.guardarLocal(datos);
                 Axones.showSuccess('Registro guardado correctamente');
 
-                // Verificar si genera alerta por refil excedido
-                const porcentajeRefil = parseFloat(datos.porcentajeRefil) || 0;
-                const umbral = CONFIG.UMBRALES_REFIL.default;
-                if (porcentajeRefil > umbral.maximo) {
-                    this.generarAlerta(datos);
-                }
+                // Verificar alertas
+                this.verificarAlertas(datos);
+
+                // Limpiar formulario
+                this.limpiar();
 
                 return;
             }
@@ -241,6 +521,7 @@ const Impresion = {
 
             // Datos generales
             turno: turnoSeleccionado ? turnoSeleccionado.value : '',
+            cliente: document.getElementById('cliente')?.value || '',
             producto: document.getElementById('producto').value,
             maquina: document.getElementById('maquina').value,
             fecha: document.getElementById('fecha').value,
@@ -292,39 +573,170 @@ const Impresion = {
      * Guarda en localStorage (desarrollo)
      */
     guardarLocal: function(datos) {
-        const registros = JSON.parse(localStorage.getItem(CONFIG.CACHE.PREFIJO + 'impresion') || '[]');
+        // Guardar en produccion
+        const registros = JSON.parse(localStorage.getItem('axones_produccion') || '[]');
         registros.unshift(datos);
-        localStorage.setItem(CONFIG.CACHE.PREFIJO + 'impresion', JSON.stringify(registros));
+        localStorage.setItem('axones_produccion', JSON.stringify(registros));
+
+        // Tambien guardar en key especifica de impresion
+        const impresion = JSON.parse(localStorage.getItem('axones_impresion') || '[]');
+        impresion.unshift(datos);
+        localStorage.setItem('axones_impresion', JSON.stringify(impresion));
+    },
+
+    /**
+     * Verifica y genera alertas segun los datos
+     */
+    verificarAlertas: function(datos) {
+        const umbral = CONFIG.UMBRALES_REFIL.default;
+        const porcentajeRefil = parseFloat(datos.porcentajeRefil) || 0;
+
+        // Alerta por Refil alto
+        if (porcentajeRefil > umbral.advertencia) {
+            this.generarAlerta(datos);
+        }
+
+        // Alerta por tiempo muerto excesivo
+        this.verificarTiempoMuerto(datos);
+
+        // Actualizar contadores de produccion si HomeModule esta disponible
+        if (typeof HomeModule !== 'undefined') {
+            HomeModule.cargarKPIs();
+            HomeModule.cargarProduccionHoy();
+        }
     },
 
     /**
      * Genera una alerta por refil excedido
      */
     generarAlerta: function(datos) {
+        const porcentaje = parseFloat(datos.porcentajeRefil) || 0;
+        const umbral = CONFIG.UMBRALES_REFIL.default;
+
+        // Determinar tipo y nivel de alerta
+        const esCritico = porcentaje > umbral.maximo;
+        const tipo = esCritico ? 'refil_critico' : 'refil_alto';
+        const nivel = esCritico ? 'critical' : 'warning';
+
         const alerta = {
-            id: 'ALT_' + Date.now(),
-            timestamp: new Date().toISOString(),
-            tipo: CONFIG.ALERTAS.TIPOS.REFIL_ALTO,
-            nivel: datos.porcentajeRefil > CONFIG.UMBRALES_REFIL.default.maximo * 1.5
-                ? CONFIG.ALERTAS.NIVELES.CRITICAL
-                : CONFIG.ALERTAS.NIVELES.WARNING,
+            id: Date.now(),
+            fecha: new Date().toISOString(),
+            tipo: tipo,
+            nivel: nivel,
             maquina: datos.maquina,
-            operador: datos.operador,
-            mensaje: `Refil ${datos.porcentajeRefil.toFixed(1)}% en OT ${datos.ordenTrabajo} - Producto: ${datos.producto}`,
+            ot: datos.ordenTrabajo,
+            mensaje: `Refil ${porcentaje.toFixed(1)}% en OT ${datos.ordenTrabajo} - ${datos.maquina} - Producto: ${datos.producto}`,
             estado: 'pendiente',
-            registro_id: datos.id,
+            datos: {
+                porcentajeRefil: porcentaje,
+                umbral: umbral.maximo,
+                producto: datos.producto,
+                cliente: datos.cliente,
+                operador: datos.operador
+            }
         };
 
         // Guardar alerta
-        const alertas = JSON.parse(localStorage.getItem(CONFIG.CACHE.PREFIJO + 'alertas') || '[]');
+        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
         alertas.unshift(alerta);
-        localStorage.setItem(CONFIG.CACHE.PREFIJO + 'alertas', JSON.stringify(alertas));
+        localStorage.setItem('axones_alertas', JSON.stringify(alertas));
 
-        // Mostrar notificacion
-        Axones.showToast(
-            `ALERTA: Refil ${datos.porcentajeRefil.toFixed(1)}% excedido`,
-            alerta.nivel === CONFIG.ALERTAS.NIVELES.CRITICAL ? 'danger' : 'warning'
-        );
+        // Actualizar badge de alertas si existe
+        this.actualizarBadgeAlertas();
+
+        // Mostrar notificacion visual
+        this.mostrarNotificacionAlerta(alerta);
+    },
+
+    /**
+     * Actualiza el badge de alertas en el navbar
+     */
+    actualizarBadgeAlertas: function() {
+        const badge = document.getElementById('alertasBadge');
+        if (!badge) return;
+
+        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
+        const pendientes = alertas.filter(a => a.estado === 'pendiente' || a.estado === 'activa').length;
+
+        if (pendientes > 0) {
+            badge.textContent = pendientes;
+            badge.style.display = 'inline-block';
+        } else {
+            badge.style.display = 'none';
+        }
+    },
+
+    /**
+     * Muestra notificacion visual de alerta
+     */
+    mostrarNotificacionAlerta: function(alerta) {
+        // Crear toast container si no existe
+        let toastContainer = document.querySelector('.toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+            toastContainer.style.zIndex = '1100';
+            document.body.appendChild(toastContainer);
+        }
+
+        const bgClass = alerta.nivel === 'critical' ? 'bg-danger' : 'bg-warning';
+        const textClass = alerta.nivel === 'critical' ? 'text-white' : 'text-dark';
+
+        const toastHtml = `
+            <div class="toast align-items-center ${bgClass} ${textClass} border-0" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>ALERTA ${alerta.nivel === 'critical' ? 'CRITICA' : ''}:</strong>
+                        Refil ${alerta.datos.porcentajeRefil.toFixed(1)}% excedido
+                        <br>
+                        <small>OT: ${alerta.ot} - ${alerta.maquina}</small>
+                    </div>
+                    <button type="button" class="btn-close ${alerta.nivel === 'critical' ? 'btn-close-white' : ''} me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `;
+
+        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+        const toastEl = toastContainer.lastElementChild;
+        const toast = new bootstrap.Toast(toastEl, { autohide: true, delay: 8000 });
+        toast.show();
+
+        toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+    },
+
+    /**
+     * Verifica tiempo muerto excesivo
+     */
+    verificarTiempoMuerto: function(datos) {
+        const tiempoMuerto = parseInt(datos.tiempoMuerto) || 0;
+        const tiempoEfectivo = parseInt(datos.tiempoEfectivo) || 0;
+
+        // Si tiempo muerto es mayor al 20% del tiempo efectivo, generar alerta
+        if (tiempoEfectivo > 0 && tiempoMuerto > 0) {
+            const porcentajeTiempoMuerto = (tiempoMuerto / (tiempoMuerto + tiempoEfectivo)) * 100;
+            if (porcentajeTiempoMuerto > 20) {
+                const alerta = {
+                    id: Date.now() + 1,
+                    fecha: new Date().toISOString(),
+                    tipo: 'tiempo_muerto_alto',
+                    nivel: 'info',
+                    maquina: datos.maquina,
+                    ot: datos.ordenTrabajo,
+                    mensaje: `Tiempo muerto ${porcentajeTiempoMuerto.toFixed(0)}% en OT ${datos.ordenTrabajo}`,
+                    estado: 'pendiente',
+                    datos: {
+                        tiempoMuerto: tiempoMuerto,
+                        tiempoEfectivo: tiempoEfectivo,
+                        porcentaje: porcentajeTiempoMuerto
+                    }
+                };
+
+                const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
+                alertas.unshift(alerta);
+                localStorage.setItem('axones_alertas', JSON.stringify(alertas));
+            }
+        }
     },
 
     /**

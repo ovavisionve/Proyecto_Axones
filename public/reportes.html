@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Reportes y Exportacion - Sistema Axones">
+    <title>Reportes - Sistema Axones</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="../src/css/main.css" rel="stylesheet">
+    <style>
+        .report-card {
+            border-left: 4px solid;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .report-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .report-card.produccion { border-left-color: #198754; }
+        .report-card.refil { border-left-color: #ffc107; }
+        .report-card.inventario { border-left-color: #0d6efd; }
+        .report-card.tintas { border-left-color: #6f42c1; }
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="index.html">
+                <i class="bi bi-gear-wide-connected me-2"></i>
+                <span class="fw-bold">AXONES</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarMain">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">
+                            <i class="bi bi-house-door me-1"></i> Inicio
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="bi bi-clipboard-data me-1"></i> Produccion
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="impresion.html"><i class="bi bi-printer me-2"></i>Control de Impresion</a></li>
+                            <li><a class="dropdown-item" href="corte.html"><i class="bi bi-scissors me-2"></i>Control de Corte</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="tintas.html"><i class="bi bi-droplet me-2"></i>Consumo de Tintas</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="inventario.html">
+                            <i class="bi bi-box-seam me-1"></i> Inventario
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="alertas.html">
+                            <i class="bi bi-bell me-1"></i> Alertas
+                            <span class="badge bg-danger ms-1" id="alertasBadge" style="display: none;">0</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="reportes.html">
+                            <i class="bi bi-file-earmark-bar-graph me-1"></i> Reportes
+                        </a>
+                    </li>
+                </ul>
+                <div class="d-flex align-items-center">
+                    <span class="text-light me-3" id="userInfo">
+                        <i class="bi bi-person-circle me-1"></i>
+                        <span id="userName">Usuario</span>
+                    </span>
+                    <button class="btn btn-outline-light btn-sm" id="btnLogin">
+                        <i class="bi bi-box-arrow-in-right me-1"></i> Ingresar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container-fluid" style="margin-top: 70px;">
+        <!-- Header -->
+        <section class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <div>
+                        <h4 class="mb-1">
+                            <i class="bi bi-file-earmark-bar-graph text-primary me-2"></i>
+                            Reportes y Exportacion
+                        </h4>
+                        <p class="text-muted mb-0">
+                            <small>Genera reportes y exporta datos del sistema</small>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Filtros de fecha -->
+        <section class="row mb-4">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body py-3">
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-3">
+                                <label class="form-label small">Fecha Inicio</label>
+                                <input type="date" class="form-control" id="fechaInicio">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">Fecha Fin</label>
+                                <input type="date" class="form-control" id="fechaFin">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">Maquina</label>
+                                <select class="form-select" id="filtroMaquina">
+                                    <option value="">Todas las maquinas</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-primary w-100" onclick="ReportesModule.aplicarFiltros()">
+                                    <i class="bi bi-funnel me-1"></i>Aplicar Filtros
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Resumen de periodo -->
+        <section class="row mb-4 g-3">
+            <div class="col-6 col-lg-3">
+                <div class="card border-0 shadow-sm text-center">
+                    <div class="card-body">
+                        <p class="text-muted small mb-1">Produccion Total</p>
+                        <div class="stat-number text-success" id="statProduccionTotal">0</div>
+                        <small class="text-muted">Kg</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card border-0 shadow-sm text-center">
+                    <div class="card-body">
+                        <p class="text-muted small mb-1">Registros</p>
+                        <div class="stat-number text-primary" id="statRegistros">0</div>
+                        <small class="text-muted">OTs procesadas</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card border-0 shadow-sm text-center">
+                    <div class="card-body">
+                        <p class="text-muted small mb-1">Refil Promedio</p>
+                        <div class="stat-number" id="statRefilPromedio">0%</div>
+                        <small class="text-muted">del periodo</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card border-0 shadow-sm text-center">
+                    <div class="card-body">
+                        <p class="text-muted small mb-1">Alertas Generadas</p>
+                        <div class="stat-number text-danger" id="statAlertasPeriodo">0</div>
+                        <small class="text-muted">en el periodo</small>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Reportes disponibles -->
+        <section class="row mb-4">
+            <div class="col-12">
+                <h5 class="mb-3"><i class="bi bi-collection me-2"></i>Reportes Disponibles</h5>
+            </div>
+
+            <!-- Reporte de Produccion -->
+            <div class="col-md-6 col-lg-3 mb-3">
+                <div class="card report-card produccion h-100" onclick="ReportesModule.generarReporte('produccion')">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="rounded bg-success bg-opacity-10 p-2 me-3">
+                                <i class="bi bi-graph-up text-success fs-4"></i>
+                            </div>
+                            <h6 class="mb-0">Produccion</h6>
+                        </div>
+                        <p class="text-muted small mb-2">Resumen de produccion por maquina, turno y cliente.</p>
+                        <div class="d-flex gap-1">
+                            <span class="badge bg-light text-dark">CSV</span>
+                            <span class="badge bg-light text-dark">Excel</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reporte de Refil -->
+            <div class="col-md-6 col-lg-3 mb-3">
+                <div class="card report-card refil h-100" onclick="ReportesModule.generarReporte('refil')">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="rounded bg-warning bg-opacity-10 p-2 me-3">
+                                <i class="bi bi-percent text-warning fs-4"></i>
+                            </div>
+                            <h6 class="mb-0">Analisis de Refil</h6>
+                        </div>
+                        <p class="text-muted small mb-2">Detalle de % de refil por OT, maquina y operador.</p>
+                        <div class="d-flex gap-1">
+                            <span class="badge bg-light text-dark">CSV</span>
+                            <span class="badge bg-light text-dark">Excel</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reporte de Inventario -->
+            <div class="col-md-6 col-lg-3 mb-3">
+                <div class="card report-card inventario h-100" onclick="ReportesModule.generarReporte('inventario')">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="rounded bg-primary bg-opacity-10 p-2 me-3">
+                                <i class="bi bi-box-seam text-primary fs-4"></i>
+                            </div>
+                            <h6 class="mb-0">Inventario</h6>
+                        </div>
+                        <p class="text-muted small mb-2">Estado actual del inventario de sustratos.</p>
+                        <div class="d-flex gap-1">
+                            <span class="badge bg-light text-dark">CSV</span>
+                            <span class="badge bg-light text-dark">Excel</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reporte de Tintas -->
+            <div class="col-md-6 col-lg-3 mb-3">
+                <div class="card report-card tintas h-100" onclick="ReportesModule.generarReporte('tintas')">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="rounded bg-purple bg-opacity-10 p-2 me-3" style="background-color: rgba(111,66,193,0.1);">
+                                <i class="bi bi-droplet fs-4" style="color: #6f42c1;"></i>
+                            </div>
+                            <h6 class="mb-0">Consumo Tintas</h6>
+                        </div>
+                        <p class="text-muted small mb-2">Consumo de tintas y solventes por OT.</p>
+                        <div class="d-flex gap-1">
+                            <span class="badge bg-light text-dark">CSV</span>
+                            <span class="badge bg-light text-dark">Excel</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tabla de datos -->
+        <section class="row mb-4">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="bi bi-table me-2"></i>Datos del Periodo</h6>
+                        <div>
+                            <button class="btn btn-outline-success btn-sm me-2" onclick="ReportesModule.exportarCSV()">
+                                <i class="bi bi-filetype-csv me-1"></i>Exportar CSV
+                            </button>
+                            <button class="btn btn-outline-primary btn-sm" onclick="ReportesModule.exportarExcel()">
+                                <i class="bi bi-file-earmark-excel me-1"></i>Exportar Excel
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive" style="max-height: 400px;">
+                            <table class="table table-hover table-sm mb-0">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>OT</th>
+                                        <th>Cliente</th>
+                                        <th>Producto</th>
+                                        <th>Maquina</th>
+                                        <th class="text-end">Entrada (Kg)</th>
+                                        <th class="text-end">Salida (Kg)</th>
+                                        <th class="text-end">Refil %</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaDatos">
+                                    <tr>
+                                        <td colspan="8" class="text-center text-muted py-4">
+                                            Seleccione un rango de fechas para ver los datos
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light border-top py-3 mt-4">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-6 text-center text-md-start">
+                    <small class="text-muted">
+                        <i class="bi bi-gear-wide-connected me-1"></i>
+                        Sistema Axones v1.0 - Inversiones Axones 2008, C.A.
+                    </small>
+                </div>
+                <div class="col-md-6 text-center text-md-end">
+                    <small class="text-muted">
+                        <i class="bi bi-c-circle me-1"></i> 2026
+                    </small>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../src/js/utils/config.js"></script>
+    <script src="../src/js/utils/auth.js"></script>
+    <script src="../src/js/modules/reportes.js"></script>
+    <script src="../src/js/main.js"></script>
+</body>
+</html>

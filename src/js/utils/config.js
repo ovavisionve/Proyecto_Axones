@@ -12,13 +12,13 @@ const CONFIG = {
 
     // URLs de Google Apps Script (se configuraran en produccion)
     API: {
-        BASE_URL: '', // URL del Web App de Google Apps Script
-        SHEETS_ID: '', // ID del Google Sheets principal
+        BASE_URL: 'https://script.google.com/macros/s/AKfycbwBjCdaFT9tkqZloQ5Bew9eqFAMYI10JO0B22RuyLIS56mqZTEdOldJNYqds3jiOH9Cpg/exec', // URL del Web App de Google Apps Script
+        SHEETS_ID: '1fMDXLc2AjcqCRHc5Qk04IVjv2ZoKII8_BpCu58DYEdQ', // ID del Google Sheets principal
     },
 
     // Configuracion de Groq para el chatbot
     CHATBOT: {
-        API_URL: 'https://api.groq.com/openai/v1/chat/completions',
+        API_URL: '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',
         MODEL: 'llama-3.3-70b-versatile',
         MAX_TOKENS: 1024,
         TEMPERATURE: 0.7,

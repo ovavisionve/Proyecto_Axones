@@ -18,7 +18,8 @@ const CONFIG = {
 
     // Configuracion de Groq para el chatbot
     CHATBOT: {
-        API_URL: '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',
+        API_URL: 'https://api.groq.com/openai/v1/chat/completions',
+        API_KEY: '', // Se configura en Admin o localStorage
         MODEL: 'llama-3.3-70b-versatile',
         MAX_TOKENS: 1024,
         TEMPERATURE: 0.7,

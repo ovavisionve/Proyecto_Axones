@@ -216,8 +216,10 @@ const Chatbot = {
         }
 
         // Consulta no reconocida - usar IA si esta configurada
-        if (CONFIG.CHATBOT.API_URL && window.GROQ_API_KEY) {
-            return await this.consultarIA(consulta);
+        const config = JSON.parse(localStorage.getItem('axones_config') || '{}');
+        const apiKey = config.groqApiKey;
+        if (CONFIG.CHATBOT.API_URL && apiKey) {
+            return await this.consultarIA(consulta, apiKey);
         }
 
         return this.respuestaNoReconocida();
@@ -454,7 +456,7 @@ const Chatbot = {
     /**
      * Consulta a la IA (Groq)
      */
-    consultarIA: async function(consulta) {
+    consultarIA: async function(consulta, apiKey) {
         // Preparar contexto con datos de cuentas por cobrar
         const contexto = JSON.stringify(this.cuentasPorCobrar, null, 2);
 
@@ -476,7 +478,7 @@ const Chatbot = {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${window.GROQ_API_KEY}`
+                    'Authorization': `Bearer ${apiKey}`
                 },
                 body: JSON.stringify({
                     model: CONFIG.CHATBOT.MODEL,

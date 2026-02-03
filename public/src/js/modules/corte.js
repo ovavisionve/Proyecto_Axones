@@ -1,9 +1,14 @@
 /**
  * Modulo Control de Corte - Sistema Axones
  * Maneja el formulario digital de Control de Produccion de Corte
+ * Actualizado para 4 paletas con 48 bobinas cada una
  */
 
 const Corte = {
+    // Configuracion de paletas
+    NUM_PALETAS: 4,
+    BOBINAS_POR_PALETA: 48,
+
     /**
      * Inicializa el modulo
      */
@@ -11,6 +16,7 @@ const Corte = {
         console.log('Inicializando modulo Control de Corte');
 
         this.setDefaultDate();
+        this.generarInputsPaletas();
         this.setupEventListeners();
         this.setupCalculations();
     },
@@ -22,6 +28,28 @@ const Corte = {
         const fechaInput = document.getElementById('fecha');
         if (fechaInput) {
             fechaInput.value = new Date().toISOString().split('T')[0];
+        }
+    },
+
+    /**
+     * Genera los inputs de bobinas para cada paleta
+     */
+    generarInputsPaletas: function() {
+        for (let p = 1; p <= this.NUM_PALETAS; p++) {
+            const container = document.getElementById(`paleta${p}Container`);
+            if (!container) continue;
+
+            let html = '';
+            for (let b = 1; b <= this.BOBINAS_POR_PALETA; b++) {
+                html += `
+                    <div class="paleta-col">
+                        <span class="paleta-bobina-label">${b}</span>
+                        <input type="number" class="form-control form-control-sm paleta-bobina bobina-paleta${p}"
+                               id="p${p}b${b}" step="0.01" min="0" placeholder="0">
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
         }
     },
 
@@ -63,16 +91,54 @@ const Corte = {
             input.addEventListener('input', () => this.calcularTotales());
         });
 
-        // Calcular con peso de salida
-        const pesoSalida = document.getElementById('pesoTotalSalida');
-        if (pesoSalida) {
-            pesoSalida.addEventListener('input', () => this.calcularTotales());
+        // Calcular con bobinas de salida (paletas)
+        for (let p = 1; p <= this.NUM_PALETAS; p++) {
+            document.querySelectorAll(`.bobina-paleta${p}`).forEach(input => {
+                input.addEventListener('input', () => this.calcularTotalesPaleta(p));
+            });
         }
 
         // Calcular total de scrap
         document.querySelectorAll('.scrap-input').forEach(input => {
             input.addEventListener('input', () => this.calcularTotales());
         });
+    },
+
+    /**
+     * Calcula los totales de una paleta especifica
+     */
+    calcularTotalesPaleta: function(numPaleta) {
+        let total = 0;
+        let count = 0;
+
+        document.querySelectorAll(`.bobina-paleta${numPaleta}`).forEach(input => {
+            const valor = parseFloat(input.value) || 0;
+            if (valor > 0) {
+                total += valor;
+                count++;
+            }
+        });
+
+        // Actualizar total de la paleta
+        const totalInput = document.getElementById(`totalPaleta${numPaleta}`);
+        if (totalInput) {
+            totalInput.value = total.toFixed(2);
+        }
+
+        // Actualizar contador de bobinas
+        const countBadge = document.getElementById(`countPaleta${numPaleta}`);
+        if (countBadge) {
+            countBadge.textContent = `${count}/${this.BOBINAS_POR_PALETA}`;
+        }
+
+        // Actualizar resumen
+        const resumenBob = document.getElementById(`resumenBob${numPaleta}`);
+        const resumenPeso = document.getElementById(`resumenPeso${numPaleta}`);
+        if (resumenBob) resumenBob.textContent = count;
+        if (resumenPeso) resumenPeso.textContent = total.toFixed(2);
+
+        // Recalcular totales generales
+        this.calcularTotales();
     },
 
     /**
@@ -86,8 +152,38 @@ const Corte = {
         });
         document.getElementById('totalEntrada').value = totalEntrada.toFixed(2);
 
-        // Peso de salida
-        const pesoSalida = parseFloat(document.getElementById('pesoTotalSalida').value) || 0;
+        // Totales de salida (suma de todas las paletas)
+        let pesoSalida = 0;
+        let bobinasSalida = 0;
+        let paletasUsadas = 0;
+
+        for (let p = 1; p <= this.NUM_PALETAS; p++) {
+            let totalPaleta = 0;
+            let countPaleta = 0;
+
+            document.querySelectorAll(`.bobina-paleta${p}`).forEach(input => {
+                const valor = parseFloat(input.value) || 0;
+                if (valor > 0) {
+                    totalPaleta += valor;
+                    countPaleta++;
+                }
+            });
+
+            pesoSalida += totalPaleta;
+            bobinasSalida += countPaleta;
+            if (countPaleta > 0) paletasUsadas++;
+        }
+
+        // Actualizar campos de resumen
+        document.getElementById('pesoTotalSalida').value = pesoSalida.toFixed(2);
+        document.getElementById('numBobinasSalida').value = bobinasSalida;
+        document.getElementById('numPaletas').value = paletasUsadas;
+
+        // Actualizar resumen total
+        const resumenBobTotal = document.getElementById('resumenBobTotal');
+        const resumenPesoTotal = document.getElementById('resumenPesoTotal');
+        if (resumenBobTotal) resumenBobTotal.textContent = bobinasSalida;
+        if (resumenPesoTotal) resumenPesoTotal.textContent = pesoSalida.toFixed(2);
 
         // Total scrap
         const scrapRefile = parseFloat(document.getElementById('scrapRefile').value) || 0;
@@ -114,6 +210,8 @@ const Corte = {
         document.getElementById('footerSalida').textContent = pesoSalida.toFixed(0);
         document.getElementById('footerMerma').textContent = merma.toFixed(2);
         document.getElementById('footerRefil').textContent = porcentajeRefil.toFixed(2);
+        document.getElementById('footerPaletas').textContent = paletasUsadas;
+        document.getElementById('footerBobinas').textContent = bobinasSalida;
     },
 
     /**
@@ -206,6 +304,29 @@ const Corte = {
             }
         }
 
+        // Obtener bobinas de salida por paleta
+        const paletas = [];
+        for (let p = 1; p <= this.NUM_PALETAS; p++) {
+            const bobinas = [];
+            let totalPaleta = 0;
+
+            for (let b = 1; b <= this.BOBINAS_POR_PALETA; b++) {
+                const input = document.getElementById(`p${p}b${b}`);
+                const valor = input ? parseFloat(input.value) || 0 : 0;
+                if (valor > 0) {
+                    bobinas.push({ posicion: b, peso: valor });
+                    totalPaleta += valor;
+                }
+            }
+
+            paletas.push({
+                numero: p,
+                bobinas: bobinas,
+                totalBobinas: bobinas.length,
+                pesoTotal: totalPaleta,
+            });
+        }
+
         return {
             id: 'COR_' + Date.now(),
             timestamp: new Date().toISOString(),
@@ -226,6 +347,8 @@ const Corte = {
             bobinasEntrada: bobinasEntrada,
             totalEntrada: parseFloat(document.getElementById('totalEntrada').value) || 0,
 
+            paletas: paletas,
+            numPaletas: parseInt(document.getElementById('numPaletas').value) || 0,
             numBobinasSalida: parseInt(document.getElementById('numBobinasSalida').value) || 0,
             pesoTotalSalida: parseFloat(document.getElementById('pesoTotalSalida').value) || 0,
             merma: parseFloat(document.getElementById('merma').value) || 0,
@@ -293,6 +416,29 @@ const Corte = {
             document.getElementById('merma').value = '';
             document.getElementById('totalScrap').value = '';
             document.getElementById('porcentajeRefil').value = '';
+            document.getElementById('pesoTotalSalida').value = '';
+            document.getElementById('numBobinasSalida').value = '0';
+            document.getElementById('numPaletas').value = '0';
+
+            // Limpiar totales de paletas
+            for (let p = 1; p <= this.NUM_PALETAS; p++) {
+                const totalInput = document.getElementById(`totalPaleta${p}`);
+                if (totalInput) totalInput.value = '0';
+
+                const countBadge = document.getElementById(`countPaleta${p}`);
+                if (countBadge) countBadge.textContent = `0/${this.BOBINAS_POR_PALETA}`;
+
+                const resumenBob = document.getElementById(`resumenBob${p}`);
+                const resumenPeso = document.getElementById(`resumenPeso${p}`);
+                if (resumenBob) resumenBob.textContent = '0';
+                if (resumenPeso) resumenPeso.textContent = '0.00';
+            }
+
+            // Limpiar resumen total
+            const resumenBobTotal = document.getElementById('resumenBobTotal');
+            const resumenPesoTotal = document.getElementById('resumenPesoTotal');
+            if (resumenBobTotal) resumenBobTotal.textContent = '0';
+            if (resumenPesoTotal) resumenPesoTotal.textContent = '0.00';
 
             const indicador = document.getElementById('indicadorRefil');
             if (indicador) {
@@ -304,6 +450,8 @@ const Corte = {
             document.getElementById('footerSalida').textContent = '0';
             document.getElementById('footerMerma').textContent = '0';
             document.getElementById('footerRefil').textContent = '0';
+            document.getElementById('footerPaletas').textContent = '0';
+            document.getElementById('footerBobinas').textContent = '0';
         }
     },
 };

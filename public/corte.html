@@ -52,9 +52,33 @@
             background-color: #198754;
             color: white;
         }
+        .paleta-bobina {
+            width: 100%;
+            text-align: center;
+            font-size: 0.7rem;
+            padding: 2px 4px;
+            height: 28px;
+        }
+        .paleta-bobina-label {
+            font-size: 0.6rem;
+            color: #6c757d;
+            text-align: center;
+            display: block;
+            margin-bottom: 1px;
+        }
+        .paleta-col {
+            flex: 0 0 12.5%;
+            max-width: 12.5%;
+            padding: 2px;
+        }
+        .card-body .row.g-1 {
+            max-height: 400px;
+            overflow-y: auto;
+        }
         @media print {
             .no-print { display: none !important; }
             .form-section { box-shadow: none; border: 1px solid #ddd; }
+            .card-body .row.g-1 { max-height: none; overflow: visible; }
         }
     </style>
 </head>
@@ -319,21 +343,124 @@
                             <i class="bi bi-clipboard-check me-1"></i> Resumen del Turno
                         </div>
                         <div class="row g-2">
-                            <div class="col-4">
-                                <label class="form-label small">N° Bobinas Salida</label>
-                                <input type="number" class="form-control form-control-sm" id="numBobinasSalida" min="0" value="0">
+                            <div class="col-3">
+                                <label class="form-label small">N° Bobinas</label>
+                                <input type="text" class="form-control form-control-sm total-highlight" id="numBobinasSalida" readonly value="0">
                             </div>
-                            <div class="col-4">
+                            <div class="col-3">
                                 <label class="form-label small">Peso Total (Kg)</label>
-                                <input type="number" class="form-control form-control-sm" id="pesoTotalSalida" step="0.01" min="0">
+                                <input type="text" class="form-control form-control-sm total-highlight" id="pesoTotalSalida" readonly>
                             </div>
-                            <div class="col-4">
+                            <div class="col-3">
                                 <label class="form-label small">Merma (Kg)</label>
                                 <input type="text" class="form-control form-control-sm total-highlight" id="merma" readonly>
+                            </div>
+                            <div class="col-3">
+                                <label class="form-label small">N° Paletas</label>
+                                <input type="text" class="form-control form-control-sm total-highlight" id="numPaletas" readonly value="0">
                             </div>
                         </div>
                     </div>
 
+                </div>
+            </div>
+
+            <!-- Paletas de Salida - Full Width -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="bi bi-box-seam me-1"></i> Bobinas de Salida por Paleta - Peso Neto (Kg)
+                        </div>
+                        <div class="row g-3">
+                            <!-- Paleta #01 -->
+                            <div class="col-lg-3 col-md-6">
+                                <div class="card border-success">
+                                    <div class="card-header bg-success text-white py-2">
+                                        <strong>Paleta #01</strong>
+                                        <span class="float-end badge bg-light text-dark" id="countPaleta1">0/48</span>
+                                    </div>
+                                    <div class="card-body p-2">
+                                        <div class="row g-1" id="paleta1Container">
+                                            <!-- Bobinas 1-48 generadas por JS -->
+                                        </div>
+                                        <div class="mt-2 pt-2 border-top">
+                                            <div class="row">
+                                                <div class="col-6"><span class="small fw-bold">TOTAL:</span></div>
+                                                <div class="col-6"><input type="text" class="form-control form-control-sm total-highlight text-center" id="totalPaleta1" readonly value="0"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Paleta #02 -->
+                            <div class="col-lg-3 col-md-6">
+                                <div class="card border-primary">
+                                    <div class="card-header bg-primary text-white py-2">
+                                        <strong>Paleta #02</strong>
+                                        <span class="float-end badge bg-light text-dark" id="countPaleta2">0/48</span>
+                                    </div>
+                                    <div class="card-body p-2">
+                                        <div class="row g-1" id="paleta2Container">
+                                            <!-- Bobinas 1-48 generadas por JS -->
+                                        </div>
+                                        <div class="mt-2 pt-2 border-top">
+                                            <div class="row">
+                                                <div class="col-6"><span class="small fw-bold">TOTAL:</span></div>
+                                                <div class="col-6"><input type="text" class="form-control form-control-sm total-highlight text-center" id="totalPaleta2" readonly value="0"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Paleta #03 -->
+                            <div class="col-lg-3 col-md-6">
+                                <div class="card border-warning">
+                                    <div class="card-header bg-warning text-dark py-2">
+                                        <strong>Paleta #03</strong>
+                                        <span class="float-end badge bg-dark text-light" id="countPaleta3">0/48</span>
+                                    </div>
+                                    <div class="card-body p-2">
+                                        <div class="row g-1" id="paleta3Container">
+                                            <!-- Bobinas 1-48 generadas por JS -->
+                                        </div>
+                                        <div class="mt-2 pt-2 border-top">
+                                            <div class="row">
+                                                <div class="col-6"><span class="small fw-bold">TOTAL:</span></div>
+                                                <div class="col-6"><input type="text" class="form-control form-control-sm total-highlight text-center" id="totalPaleta3" readonly value="0"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Paleta #04 -->
+                            <div class="col-lg-3 col-md-6">
+                                <div class="card border-info">
+                                    <div class="card-header bg-info text-white py-2">
+                                        <strong>Paleta #04</strong>
+                                        <span class="float-end badge bg-light text-dark" id="countPaleta4">0/48</span>
+                                    </div>
+                                    <div class="card-body p-2">
+                                        <div class="row g-1" id="paleta4Container">
+                                            <!-- Bobinas 1-48 generadas por JS -->
+                                        </div>
+                                        <div class="mt-2 pt-2 border-top">
+                                            <div class="row">
+                                                <div class="col-6"><span class="small fw-bold">TOTAL:</span></div>
+                                                <div class="col-6"><input type="text" class="form-control form-control-sm total-highlight text-center" id="totalPaleta4" readonly value="0"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scrap y Observaciones -->
+            <div class="row">
+                <div class="col-lg-6">
                     <!-- Scrap (Refil) -->
                     <div class="form-section">
                         <div class="form-section-title">
@@ -387,6 +514,52 @@
                         <textarea class="form-control form-control-sm" id="observaciones" rows="3" placeholder="Observaciones adicionales..."></textarea>
                     </div>
                 </div>
+                <div class="col-lg-6">
+                    <!-- Resumen de Paletas -->
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="bi bi-bar-chart me-1"></i> Resumen de Paletas
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Paleta</th>
+                                        <th class="text-center">Bobinas</th>
+                                        <th class="text-end">Peso (Kg)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><span class="badge bg-success">Paleta #01</span></td>
+                                        <td class="text-center" id="resumenBob1">0</td>
+                                        <td class="text-end" id="resumenPeso1">0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="badge bg-primary">Paleta #02</span></td>
+                                        <td class="text-center" id="resumenBob2">0</td>
+                                        <td class="text-end" id="resumenPeso2">0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="badge bg-warning text-dark">Paleta #03</span></td>
+                                        <td class="text-center" id="resumenBob3">0</td>
+                                        <td class="text-end" id="resumenPeso3">0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="badge bg-info">Paleta #04</span></td>
+                                        <td class="text-center" id="resumenBob4">0</td>
+                                        <td class="text-end" id="resumenPeso4">0.00</td>
+                                    </tr>
+                                    <tr class="table-success fw-bold">
+                                        <td>TOTAL</td>
+                                        <td class="text-center" id="resumenBobTotal">0</td>
+                                        <td class="text-end" id="resumenPesoTotal">0.00</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
         </form>
     </main>
@@ -406,6 +579,12 @@
                 </div>
                 <div class="col-auto">
                     <span class="badge bg-danger me-2">Refil: <span id="footerRefil">0</span>%</span>
+                </div>
+                <div class="col-auto">
+                    <span class="badge bg-info me-2">Paletas: <span id="footerPaletas">0</span></span>
+                </div>
+                <div class="col-auto">
+                    <span class="badge bg-secondary">Bobinas: <span id="footerBobinas">0</span></span>
                 </div>
                 <div class="col text-end">
                     <small class="text-muted">Sistema Axones v1.0</small>

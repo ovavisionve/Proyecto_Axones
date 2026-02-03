@@ -331,3 +331,325 @@ main {
         border: 1px solid #dee2e6 !important;
     }
 }
+
+/* ============================================
+   Animaciones de carga
+   ============================================ */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.loading-content {
+    text-align: center;
+}
+
+.loading-logo {
+    font-size: 3rem;
+    color: var(--axones-primary);
+    animation: bounce 1s infinite;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.typing-dots {
+    display: inline-flex;
+    gap: 4px;
+}
+
+.typing-dots span {
+    width: 8px;
+    height: 8px;
+    background: var(--axones-primary);
+    border-radius: 50%;
+    animation: typing 1.4s infinite both;
+}
+
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typing {
+    0%, 80%, 100% {
+        transform: scale(0.6);
+        opacity: 0.5;
+    }
+    40% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Fade animations */
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.slide-in {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(-20px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* ============================================
+   Modo Oscuro
+   ============================================ */
+[data-theme="dark"] {
+    --axones-light: #1a1d21;
+    --axones-dark: #f8f9fa;
+}
+
+[data-theme="dark"] body {
+    background-color: #121416;
+    color: #e9ecef;
+}
+
+[data-theme="dark"] .card {
+    background-color: #1a1d21;
+    border-color: #2d3238;
+}
+
+[data-theme="dark"] .card-header {
+    background-color: #1a1d21 !important;
+    border-color: #2d3238;
+}
+
+[data-theme="dark"] .bg-white {
+    background-color: #1a1d21 !important;
+}
+
+[data-theme="dark"] .bg-light {
+    background-color: #212529 !important;
+}
+
+[data-theme="dark"] .text-muted {
+    color: #adb5bd !important;
+}
+
+[data-theme="dark"] .text-dark {
+    color: #e9ecef !important;
+}
+
+[data-theme="dark"] .table {
+    color: #e9ecef;
+}
+
+[data-theme="dark"] .table-light {
+    background-color: #212529;
+}
+
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select {
+    background-color: #212529;
+    border-color: #495057;
+    color: #e9ecef;
+}
+
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] .form-select:focus {
+    background-color: #2d3238;
+    border-color: var(--axones-primary);
+    color: #e9ecef;
+}
+
+[data-theme="dark"] .list-group-item {
+    background-color: #1a1d21;
+    border-color: #2d3238;
+    color: #e9ecef;
+}
+
+[data-theme="dark"] .modal-content {
+    background-color: #1a1d21;
+    border-color: #2d3238;
+}
+
+[data-theme="dark"] .modal-header {
+    border-color: #2d3238;
+}
+
+[data-theme="dark"] .modal-footer {
+    border-color: #2d3238;
+}
+
+[data-theme="dark"] .dropdown-menu {
+    background-color: #1a1d21;
+    border-color: #2d3238;
+}
+
+[data-theme="dark"] .dropdown-item {
+    color: #e9ecef;
+}
+
+[data-theme="dark"] .dropdown-item:hover {
+    background-color: #2d3238;
+}
+
+[data-theme="dark"] .border-bottom {
+    border-color: #2d3238 !important;
+}
+
+[data-theme="dark"] .alert-item:hover {
+    background-color: #212529;
+}
+
+[data-theme="dark"] footer {
+    background-color: #1a1d21 !important;
+    border-color: #2d3238 !important;
+}
+
+/* Boton de tema */
+.theme-toggle {
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: all 0.3s;
+}
+
+.theme-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ============================================
+   Mejoras visuales adicionales
+   ============================================ */
+.hover-lift {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.hover-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.gradient-border {
+    border: 2px solid transparent;
+    background: linear-gradient(white, white) padding-box,
+                linear-gradient(135deg, var(--axones-primary), var(--axones-success)) border-box;
+}
+
+.pulse-alert {
+    animation: pulseAlert 2s infinite;
+}
+
+@keyframes pulseAlert {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); }
+    50% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+}
+
+/* Progress bar animado */
+.progress-animated .progress-bar {
+    animation: progressAnimation 2s ease-in-out;
+}
+
+@keyframes progressAnimation {
+    from { width: 0%; }
+}
+
+/* Contador animado */
+.count-up {
+    font-variant-numeric: tabular-nums;
+}
+
+/* ============================================
+   Toast personalizado
+   ============================================ */
+.toast-container {
+    z-index: 1100;
+}
+
+.toast.show {
+    animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* ============================================
+   Botones mejorados
+   ============================================ */
+.btn {
+    transition: all 0.2s ease;
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+.btn-loading {
+    position: relative;
+    color: transparent !important;
+}
+
+.btn-loading::after {
+    content: '';
+    position: absolute;
+    width: 1rem;
+    height: 1rem;
+    top: 50%;
+    left: 50%;
+    margin: -0.5rem 0 0 -0.5rem;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: spinner 0.75s linear infinite;
+}
+
+/* ============================================
+   Scrollbar personalizado
+   ============================================ */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-track {
+    background: #2d3238;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: #495057;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background: #6c757d;
+}

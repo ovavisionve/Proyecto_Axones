@@ -47,6 +47,184 @@ const HomeModule = {
         this.cargarProduccionHoy();
         this.cargarInventarioBajo();
         this.cargarEstadoMaquinas();
+        this.cargarGraficos();
+    },
+
+    // Graficos
+    charts: {},
+
+    // Cargar graficos
+    cargarGraficos() {
+        this.cargarGraficoProduccion();
+        this.cargarGraficoRefil();
+    },
+
+    // Grafico de produccion ultimos 7 dias
+    cargarGraficoProduccion() {
+        const canvas = document.getElementById('chartProduccion');
+        if (!canvas) return;
+
+        // Destruir grafico anterior si existe
+        if (this.charts.produccion) {
+            this.charts.produccion.destroy();
+        }
+
+        const produccion = JSON.parse(localStorage.getItem('axones_produccion') || '[]');
+
+        // Obtener ultimos 7 dias
+        const labels = [];
+        const dataKg = [];
+        const dataRefil = [];
+
+        for (let i = 6; i >= 0; i--) {
+            const fecha = new Date();
+            fecha.setDate(fecha.getDate() - i);
+            const fechaStr = fecha.toLocaleDateString('es-VE', { weekday: 'short', day: 'numeric' });
+            labels.push(fechaStr);
+
+            // Filtrar produccion de ese dia
+            const registrosDia = produccion.filter(r => {
+                const fechaReg = new Date(r.fecha).toDateString();
+                return fechaReg === fecha.toDateString();
+            });
+
+            const totalKg = registrosDia.reduce((sum, r) => sum + (parseFloat(r.totalSalida) || 0), 0);
+            const avgRefil = registrosDia.length > 0
+                ? registrosDia.reduce((sum, r) => sum + (parseFloat(r.porcentajeRefil) || 0), 0) / registrosDia.length
+                : 0;
+
+            dataKg.push(totalKg);
+            dataRefil.push(avgRefil);
+        }
+
+        this.charts.produccion = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Produccion (Kg)',
+                        data: dataKg,
+                        backgroundColor: 'rgba(25, 135, 84, 0.7)',
+                        borderColor: 'rgb(25, 135, 84)',
+                        borderWidth: 1,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Refil (%)',
+                        data: dataRefil,
+                        type: 'line',
+                        borderColor: 'rgb(255, 193, 7)',
+                        backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                        tension: 0.3,
+                        fill: true,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Kg'
+                        },
+                        beginAtZero: true
+                    },
+                    y1: {
+                        type: 'linear',
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Refil %'
+                        },
+                        beginAtZero: true,
+                        max: 15,
+                        grid: {
+                            drawOnChartArea: false
+                        }
+                    }
+                }
+            }
+        });
+    },
+
+    // Grafico de refil por maquina
+    cargarGraficoRefil() {
+        const canvas = document.getElementById('chartRefil');
+        if (!canvas) return;
+
+        // Destruir grafico anterior si existe
+        if (this.charts.refil) {
+            this.charts.refil.destroy();
+        }
+
+        const produccion = JSON.parse(localStorage.getItem('axones_produccion') || '[]');
+
+        // Agrupar por maquina
+        const porMaquina = {};
+        produccion.forEach(r => {
+            const maq = r.maquina || 'Sin asignar';
+            if (!porMaquina[maq]) {
+                porMaquina[maq] = [];
+            }
+            porMaquina[maq].push(parseFloat(r.porcentajeRefil) || 0);
+        });
+
+        const labels = Object.keys(porMaquina);
+        const data = labels.map(maq => {
+            const refils = porMaquina[maq];
+            return refils.reduce((a, b) => a + b, 0) / refils.length;
+        });
+
+        // Colores basados en umbral
+        const colors = data.map(val => {
+            if (val > CONFIG.UMBRALES_REFIL.default.maximo) return 'rgba(220, 53, 69, 0.8)';
+            if (val > CONFIG.UMBRALES_REFIL.default.advertencia) return 'rgba(255, 193, 7, 0.8)';
+            return 'rgba(25, 135, 84, 0.8)';
+        });
+
+        this.charts.refil = new Chart(canvas, {
+            type: 'doughnut',
+            data: {
+                labels: labels.length > 0 ? labels : ['Sin datos'],
+                datasets: [{
+                    data: data.length > 0 ? data : [1],
+                    backgroundColor: colors.length > 0 ? colors : ['#e9ecef'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            boxWidth: 12,
+                            padding: 8
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.label + ': ' + context.raw.toFixed(1) + '%';
+                            }
+                        }
+                    }
+                }
+            }
+        });
     },
 
     // Cargar KPIs principales

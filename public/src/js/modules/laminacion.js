@@ -1,0 +1,488 @@
+/**
+ * Modulo Control de Laminacion - Sistema Axones
+ * Maneja el formulario digital de Control de Produccion de Laminacion
+ * Proceso intermedio entre Impresion y Corte
+ */
+
+const Laminacion = {
+    // Cache de datos
+    clientesCache: [],
+
+    /**
+     * Inicializa el modulo
+     */
+    init: function() {
+        console.log('Inicializando modulo Control de Laminacion');
+
+        this.setDefaultDate();
+        this.cargarClientes();
+        this.setupEventListeners();
+        this.setupCalculations();
+    },
+
+    /**
+     * Carga clientes desde CONFIG
+     */
+    cargarClientes: function() {
+        const clienteSelect = document.getElementById('cliente');
+        if (!clienteSelect) return;
+
+        this.clientesCache = CONFIG.CLIENTES || CONFIG.CLIENTES_EJEMPLO || [];
+
+        this.clientesCache.forEach(cliente => {
+            const option = document.createElement('option');
+            option.value = cliente;
+            option.textContent = cliente;
+            clienteSelect.appendChild(option);
+        });
+    },
+
+    /**
+     * Establece la fecha actual por defecto
+     */
+    setDefaultDate: function() {
+        const fechaInput = document.getElementById('fecha');
+        if (fechaInput) {
+            fechaInput.value = new Date().toISOString().split('T')[0];
+        }
+    },
+
+    /**
+     * Configura los event listeners
+     */
+    setupEventListeners: function() {
+        // Boton guardar
+        const btnGuardar = document.getElementById('btnGuardar');
+        if (btnGuardar) {
+            btnGuardar.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.guardar();
+            });
+        }
+
+        // Boton limpiar
+        const btnLimpiar = document.getElementById('btnLimpiar');
+        if (btnLimpiar) {
+            btnLimpiar.addEventListener('click', () => this.limpiar());
+        }
+
+        // Submit del formulario
+        const form = document.getElementById('formLaminacion');
+        if (form) {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.guardar();
+            });
+        }
+
+        // Buscar OT de impresion
+        const otImpresion = document.getElementById('otImpresion');
+        if (otImpresion) {
+            otImpresion.addEventListener('blur', (e) => {
+                this.buscarOTImpresion(e.target.value);
+            });
+        }
+    },
+
+    /**
+     * Busca datos de una OT de impresion para prellenar
+     */
+    buscarOTImpresion: function(ot) {
+        if (!ot) return;
+
+        const impresiones = JSON.parse(localStorage.getItem('axones_impresion') || '[]');
+        const registro = impresiones.find(i => i.ordenTrabajo === ot);
+
+        if (registro) {
+            // Prellenar datos
+            const clienteSelect = document.getElementById('cliente');
+            if (clienteSelect && registro.cliente) {
+                clienteSelect.value = registro.cliente;
+            }
+
+            const producto = document.getElementById('producto');
+            if (producto && registro.producto) {
+                producto.value = registro.producto;
+            }
+
+            this.mostrarNotificacion(`Datos cargados de OT ${ot}`, 'success');
+        }
+    },
+
+    /**
+     * Configura los calculos automaticos
+     */
+    setupCalculations: function() {
+        // Calcular total de bobinas de entrada
+        document.querySelectorAll('.bobina-entrada').forEach(input => {
+            input.addEventListener('input', () => this.calcularTotales());
+        });
+
+        // Calcular total de bobinas de salida
+        document.querySelectorAll('.bobina-salida').forEach(input => {
+            input.addEventListener('input', () => this.calcularTotales());
+        });
+
+        // Calcular total de scrap
+        document.querySelectorAll('.scrap-input').forEach(input => {
+            input.addEventListener('input', () => this.calcularTotales());
+        });
+
+        // Calcular consumo de adhesivo
+        document.querySelectorAll('.adhesivo-input').forEach(input => {
+            input.addEventListener('input', () => this.calcularConsumoAdhesivo());
+        });
+    },
+
+    /**
+     * Calcula consumo de adhesivo, catalizador y acetato
+     */
+    calcularConsumoAdhesivo: function() {
+        const adhesivoEntrada = parseFloat(document.getElementById('adhesivoEntrada').value) || 0;
+        const adhesivoSobro = parseFloat(document.getElementById('adhesivoSobro').value) || 0;
+        const consumoAdhesivo = adhesivoEntrada - adhesivoSobro;
+
+        const catalizadorEntrada = parseFloat(document.getElementById('catalizadorEntrada').value) || 0;
+        const catalizadorSobro = parseFloat(document.getElementById('catalizadorSobro').value) || 0;
+        const consumoCatalizador = catalizadorEntrada - catalizadorSobro;
+
+        const acetatoEntrada = parseFloat(document.getElementById('acetatoEntrada').value) || 0;
+        const acetatoSobro = parseFloat(document.getElementById('acetatoSobro').value) || 0;
+        const consumoAcetato = acetatoEntrada - acetatoSobro;
+
+        document.getElementById('consumoAdhesivo').textContent = consumoAdhesivo.toFixed(2);
+        document.getElementById('consumoCatalizador').textContent = consumoCatalizador.toFixed(2);
+        document.getElementById('consumoAcetato').textContent = consumoAcetato.toFixed(2);
+    },
+
+    /**
+     * Calcula todos los totales
+     */
+    calcularTotales: function() {
+        // Total bobinas de entrada
+        let totalEntrada = 0;
+        document.querySelectorAll('.bobina-entrada').forEach(input => {
+            totalEntrada += parseFloat(input.value) || 0;
+        });
+        document.getElementById('totalEntrada').value = totalEntrada.toFixed(2);
+
+        // Total bobinas de salida y conteo
+        let totalSalida = 0;
+        let numBobinas = 0;
+        document.querySelectorAll('.bobina-salida').forEach(input => {
+            const valor = parseFloat(input.value) || 0;
+            if (valor > 0) {
+                totalSalida += valor;
+                numBobinas++;
+            }
+        });
+        document.getElementById('pesoTotal').value = totalSalida.toFixed(2);
+        document.getElementById('numBobinas').value = numBobinas;
+
+        // Total scrap
+        const scrapRefile = parseFloat(document.getElementById('scrapRefile').value) || 0;
+        const scrapLaminado = parseFloat(document.getElementById('scrapLaminado').value) || 0;
+        const totalScrap = scrapRefile + scrapLaminado;
+        document.getElementById('totalScrap').value = totalScrap.toFixed(2);
+
+        // Merma
+        const merma = totalEntrada - totalSalida - totalScrap;
+        document.getElementById('merma').value = merma.toFixed(2);
+
+        // Porcentaje de Refil
+        let porcentajeRefil = 0;
+        if (totalEntrada > 0) {
+            porcentajeRefil = ((merma + totalScrap) / totalEntrada) * 100;
+        }
+        document.getElementById('porcentajeRefil').value = porcentajeRefil.toFixed(2) + '%';
+
+        // Actualizar indicador
+        this.actualizarIndicadorRefil(porcentajeRefil, totalEntrada);
+
+        // Actualizar footer
+        document.getElementById('footerEntrada').textContent = totalEntrada.toFixed(0);
+        document.getElementById('footerSalida').textContent = totalSalida.toFixed(0);
+        document.getElementById('footerMerma').textContent = merma.toFixed(2);
+        document.getElementById('footerRefil').textContent = porcentajeRefil.toFixed(2);
+    },
+
+    /**
+     * Actualiza el indicador visual de refil
+     */
+    actualizarIndicadorRefil: function(porcentaje, totalEntrada) {
+        const indicador = document.getElementById('indicadorRefil');
+        if (!indicador) return;
+
+        if (totalEntrada === 0) {
+            indicador.className = 'alert alert-secondary py-1 px-2 mb-0 small text-center';
+            indicador.innerHTML = '<i class="bi bi-dash-circle me-1"></i> Sin datos';
+            return;
+        }
+
+        const umbral = CONFIG.UMBRALES_REFIL.default;
+
+        if (porcentaje <= umbral.advertencia) {
+            indicador.className = 'alert alert-success py-1 px-2 mb-0 small text-center';
+            indicador.innerHTML = '<i class="bi bi-check-circle me-1"></i> Refil OK';
+        } else if (porcentaje <= umbral.maximo) {
+            indicador.className = 'alert alert-warning py-1 px-2 mb-0 small text-center';
+            indicador.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i> Refil en advertencia';
+        } else {
+            indicador.className = 'alert alert-danger py-1 px-2 mb-0 small text-center';
+            indicador.innerHTML = '<i class="bi bi-x-circle me-1"></i> Refil excedido';
+        }
+    },
+
+    /**
+     * Guarda el registro
+     */
+    guardar: async function() {
+        const form = document.getElementById('formLaminacion');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        if (!Auth.isAuthenticated()) {
+            Axones.showError('Debe iniciar sesion para guardar registros');
+            return;
+        }
+
+        const datos = this.recopilarDatos();
+
+        try {
+            if (CONFIG.API.BASE_URL === '') {
+                this.guardarLocal(datos);
+                Axones.showSuccess('Registro de laminacion guardado correctamente');
+
+                const porcentajeRefil = parseFloat(datos.porcentajeRefil) || 0;
+                const umbral = CONFIG.UMBRALES_REFIL.default;
+                if (porcentajeRefil > umbral.maximo) {
+                    this.generarAlerta(datos);
+                }
+
+                this.limpiar();
+                return;
+            }
+
+            const response = await fetch(CONFIG.API.BASE_URL + '?action=saveLaminacion', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(datos),
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                Axones.showSuccess('Registro guardado correctamente');
+                this.limpiar();
+            } else {
+                throw new Error(result.error || 'Error desconocido');
+            }
+        } catch (error) {
+            console.error('Error guardando registro:', error);
+            Axones.showError('Error al guardar: ' + error.message);
+        }
+    },
+
+    /**
+     * Recopila todos los datos del formulario
+     */
+    recopilarDatos: function() {
+        const turnoSeleccionado = document.querySelector('input[name="turno"]:checked');
+
+        // Obtener bobinas de entrada
+        const bobinasEntrada = [];
+        for (let i = 1; i <= 14; i++) {
+            const valor = parseFloat(document.getElementById('bobEnt' + i).value) || 0;
+            if (valor > 0) {
+                bobinasEntrada.push({ posicion: i, peso: valor });
+            }
+        }
+
+        // Obtener bobinas de salida
+        const bobinasSalida = [];
+        for (let i = 1; i <= 22; i++) {
+            const valor = parseFloat(document.getElementById('bobSal' + i).value) || 0;
+            if (valor > 0) {
+                bobinasSalida.push({ posicion: i, peso: valor });
+            }
+        }
+
+        return {
+            id: 'LAM_' + Date.now(),
+            timestamp: new Date().toISOString(),
+            tipo: 'laminacion',
+
+            turno: turnoSeleccionado ? turnoSeleccionado.value : '',
+            cliente: document.getElementById('cliente')?.value || '',
+            producto: document.getElementById('producto').value,
+            maquina: document.getElementById('maquina').value,
+            fecha: document.getElementById('fecha').value,
+            ordenTrabajo: document.getElementById('ordenTrabajo').value,
+            otImpresion: document.getElementById('otImpresion').value,
+            operador: document.getElementById('operador').value,
+            ayudante: document.getElementById('ayudante').value,
+            supervisor: document.getElementById('supervisor').value,
+            horaInicio: document.getElementById('horaInicio').value,
+            horaArranque: document.getElementById('horaArranque').value,
+            horaFinal: document.getElementById('horaFinal').value,
+
+            bobinasEntrada: bobinasEntrada,
+            totalEntrada: parseFloat(document.getElementById('totalEntrada').value) || 0,
+
+            // Adhesivo
+            adhesivoEntrada: parseFloat(document.getElementById('adhesivoEntrada').value) || 0,
+            adhesivoSobro: parseFloat(document.getElementById('adhesivoSobro').value) || 0,
+            consumoAdhesivo: parseFloat(document.getElementById('consumoAdhesivo').textContent) || 0,
+            catalizadorEntrada: parseFloat(document.getElementById('catalizadorEntrada').value) || 0,
+            catalizadorSobro: parseFloat(document.getElementById('catalizadorSobro').value) || 0,
+            consumoCatalizador: parseFloat(document.getElementById('consumoCatalizador').textContent) || 0,
+            acetatoEntrada: parseFloat(document.getElementById('acetatoEntrada').value) || 0,
+            acetatoSobro: parseFloat(document.getElementById('acetatoSobro').value) || 0,
+            consumoAcetato: parseFloat(document.getElementById('consumoAcetato').textContent) || 0,
+
+            bobinasSalida: bobinasSalida,
+            numBobinas: parseInt(document.getElementById('numBobinas').value) || 0,
+            pesoTotal: parseFloat(document.getElementById('pesoTotal').value) || 0,
+            merma: parseFloat(document.getElementById('merma').value) || 0,
+            metraje: parseFloat(document.getElementById('metraje').value) || 0,
+
+            scrapRefile: parseFloat(document.getElementById('scrapRefile').value) || 0,
+            scrapLaminado: parseFloat(document.getElementById('scrapLaminado').value) || 0,
+            totalScrap: parseFloat(document.getElementById('totalScrap').value) || 0,
+            porcentajeRefil: parseFloat(document.getElementById('porcentajeRefil').value) || 0,
+
+            motivosParadas: document.getElementById('motivosParadas').value,
+            observaciones: document.getElementById('observaciones').value,
+
+            registradoPor: Auth.getUser() ? Auth.getUser().id : 'unknown',
+            registradoPorNombre: Auth.getUser() ? Auth.getUser().nombre : 'Unknown',
+        };
+    },
+
+    /**
+     * Guarda en localStorage
+     */
+    guardarLocal: function(datos) {
+        // Guardar en produccion general
+        const produccion = JSON.parse(localStorage.getItem('axones_produccion') || '[]');
+        produccion.unshift(datos);
+        localStorage.setItem('axones_produccion', JSON.stringify(produccion));
+
+        // Guardar en key especifica de laminacion
+        const laminacion = JSON.parse(localStorage.getItem('axones_laminacion') || '[]');
+        laminacion.unshift(datos);
+        localStorage.setItem('axones_laminacion', JSON.stringify(laminacion));
+    },
+
+    /**
+     * Genera una alerta por refil excedido
+     */
+    generarAlerta: function(datos) {
+        const alerta = {
+            id: 'ALT_' + Date.now(),
+            timestamp: new Date().toISOString(),
+            fecha: new Date().toISOString(),
+            tipo: CONFIG.ALERTAS.TIPOS.REFIL_ALTO,
+            nivel: datos.porcentajeRefil > CONFIG.UMBRALES_REFIL.default.maximo * 1.5
+                ? CONFIG.ALERTAS.NIVELES.CRITICAL
+                : CONFIG.ALERTAS.NIVELES.WARNING,
+            maquina: datos.maquina,
+            ot: datos.ordenTrabajo,
+            operador: datos.operador,
+            mensaje: `Refil ${datos.porcentajeRefil.toFixed(1)}% en Laminacion OT ${datos.ordenTrabajo}`,
+            estado: 'pendiente',
+            registro_id: datos.id,
+            datos: {
+                porcentajeRefil: datos.porcentajeRefil,
+                producto: datos.producto,
+                cliente: datos.cliente
+            }
+        };
+
+        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
+        alertas.unshift(alerta);
+        localStorage.setItem('axones_alertas', JSON.stringify(alertas));
+
+        this.mostrarNotificacion(
+            `ALERTA: Refil ${datos.porcentajeRefil.toFixed(1)}% excedido en laminacion`,
+            alerta.nivel === CONFIG.ALERTAS.NIVELES.CRITICAL ? 'danger' : 'warning'
+        );
+    },
+
+    /**
+     * Muestra notificacion toast
+     */
+    mostrarNotificacion: function(mensaje, tipo = 'success') {
+        let toastContainer = document.querySelector('.toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            document.body.appendChild(toastContainer);
+        }
+
+        const bgClass = tipo === 'success' ? 'bg-success' :
+                       tipo === 'warning' ? 'bg-warning' :
+                       tipo === 'danger' ? 'bg-danger' : 'bg-info';
+
+        const toast = document.createElement('div');
+        toast.className = `toast align-items-center text-white ${bgClass} border-0`;
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">${mensaje}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        `;
+
+        toastContainer.appendChild(toast);
+        const bsToast = new bootstrap.Toast(toast);
+        bsToast.show();
+
+        toast.addEventListener('hidden.bs.toast', () => toast.remove());
+    },
+
+    /**
+     * Limpia el formulario
+     */
+    limpiar: function() {
+        const form = document.getElementById('formLaminacion');
+        if (form) {
+            form.reset();
+            this.setDefaultDate();
+
+            // Limpiar campos calculados
+            document.getElementById('totalEntrada').value = '';
+            document.getElementById('numBobinas').value = '';
+            document.getElementById('pesoTotal').value = '';
+            document.getElementById('merma').value = '';
+            document.getElementById('totalScrap').value = '';
+            document.getElementById('porcentajeRefil').value = '';
+            document.getElementById('consumoAdhesivo').textContent = '0';
+            document.getElementById('consumoCatalizador').textContent = '0';
+            document.getElementById('consumoAcetato').textContent = '0';
+
+            const indicador = document.getElementById('indicadorRefil');
+            if (indicador) {
+                indicador.className = 'alert alert-secondary py-1 px-2 mb-0 small text-center';
+                indicador.innerHTML = '<i class="bi bi-dash-circle me-1"></i> Sin datos';
+            }
+
+            document.getElementById('footerEntrada').textContent = '0';
+            document.getElementById('footerSalida').textContent = '0';
+            document.getElementById('footerMerma').textContent = '0';
+            document.getElementById('footerRefil').textContent = '0';
+        }
+    },
+};
+
+// Inicializar cuando el DOM este listo
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('formLaminacion')) {
+        Laminacion.init();
+    }
+});
+
+// Exportar modulo
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = Laminacion;
+}

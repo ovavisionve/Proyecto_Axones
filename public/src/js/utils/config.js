@@ -195,13 +195,23 @@ const CONFIG = {
         },
     },
 
-    // Tipos de Scrap/Refil
+    // Tipos de Scrap/Refil (terminologia Axones)
+    // Refile = recorte de bordes de la bobina
+    // Impreso = material impreso defectuoso
+    // Laminado = desperdicio del proceso de laminacion
     TIPOS_SCRAP: [
-        { id: 'refile', nombre: 'Refile' },
-        { id: 'impreso', nombre: 'Impreso' },
-        { id: 'transparente', nombre: 'Transparente' },
-        { id: 'laminado', nombre: 'Laminado' },
+        { id: 'refile', nombre: 'Refile', descripcion: 'Recorte de bordes' },
+        { id: 'impreso', nombre: 'Impreso', descripcion: 'Material impreso defectuoso' },
+        { id: 'laminado', nombre: 'Laminado', descripcion: 'Desperdicio de laminacion' },
     ],
+
+    // Flujo de trabajo Axones
+    // Normal: Impresion -> Laminacion -> Corte
+    // Superficie: Impresion -> Corte (sin laminacion)
+    FLUJO_TRABAJO: {
+        NORMAL: ['impresion', 'laminacion', 'corte'],
+        SUPERFICIE: ['impresion', 'corte'],
+    },
 
     // Estados de Orden de Trabajo
     ESTADOS_OT: [

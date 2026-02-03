@@ -13,6 +13,7 @@ const ReportesModule = {
         console.log('Inicializando modulo de Reportes...');
         this.setFechasDefault();
         this.cargarMaquinas();
+        this.cargarFiltrosAvanzados();
         this.aplicarFiltros();
     },
 
@@ -53,11 +54,14 @@ const ReportesModule = {
         const fechaInicio = document.getElementById('fechaInicio')?.value;
         const fechaFin = document.getElementById('fechaFin')?.value;
         const maquina = document.getElementById('filtroMaquina')?.value;
+        const proceso = document.getElementById('filtroProceso')?.value;
+        const cliente = document.getElementById('filtroCliente')?.value;
+        const operador = document.getElementById('filtroOperador')?.value;
 
         // Obtener datos de produccion
         const produccion = JSON.parse(localStorage.getItem('axones_produccion') || '[]');
 
-        // Filtrar por fecha
+        // Filtrar
         this.datosFiltrados = produccion.filter(item => {
             const fecha = item.fecha || item.timestamp?.split('T')[0];
             if (!fecha) return false;
@@ -65,12 +69,44 @@ const ReportesModule = {
             if (fechaInicio && fecha < fechaInicio) return false;
             if (fechaFin && fecha > fechaFin) return false;
             if (maquina && item.maquina !== maquina) return false;
+            if (proceso && item.tipo !== proceso) return false;
+            if (cliente && item.cliente !== cliente) return false;
+            if (operador && item.operador !== operador) return false;
 
             return true;
         });
 
         this.actualizarEstadisticas();
         this.renderizarTabla();
+    },
+
+    // Cargar filtros adicionales (clientes, operadores)
+    cargarFiltrosAvanzados() {
+        const produccion = JSON.parse(localStorage.getItem('axones_produccion') || '[]');
+
+        // Cargar clientes unicos
+        const selectCliente = document.getElementById('filtroCliente');
+        if (selectCliente) {
+            const clientes = [...new Set(produccion.map(p => p.cliente).filter(Boolean))];
+            clientes.sort().forEach(cliente => {
+                const option = document.createElement('option');
+                option.value = cliente;
+                option.textContent = cliente;
+                selectCliente.appendChild(option);
+            });
+        }
+
+        // Cargar operadores unicos
+        const selectOperador = document.getElementById('filtroOperador');
+        if (selectOperador) {
+            const operadores = [...new Set(produccion.map(p => p.operador).filter(Boolean))];
+            operadores.sort().forEach(operador => {
+                const option = document.createElement('option');
+                option.value = operador;
+                option.textContent = operador;
+                selectOperador.appendChild(option);
+            });
+        }
     },
 
     // Actualizar estadisticas del periodo
@@ -130,7 +166,7 @@ const ReportesModule = {
         if (this.datosFiltrados.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="8" class="text-center text-muted py-4">
+                    <td colspan="9" class="text-center text-muted py-4">
                         No hay datos para el periodo seleccionado
                     </td>
                 </tr>
@@ -141,10 +177,12 @@ const ReportesModule = {
         tbody.innerHTML = this.datosFiltrados.map(item => {
             const refil = parseFloat(item.porcentajeRefil) || 0;
             const refilClass = refil > 6 ? 'text-danger' : refil > 5 ? 'text-warning' : 'text-success';
+            const tipoBadge = this.getTipoBadge(item.tipo);
 
             return `
                 <tr>
                     <td>${this.formatearFecha(item.fecha)}</td>
+                    <td>${tipoBadge}</td>
                     <td><strong>${item.ordenTrabajo || '-'}</strong></td>
                     <td>${item.cliente || '-'}</td>
                     <td>${item.producto || '-'}</td>
@@ -155,6 +193,16 @@ const ReportesModule = {
                 </tr>
             `;
         }).join('');
+    },
+
+    // Obtener badge del tipo de proceso
+    getTipoBadge(tipo) {
+        const badges = {
+            'impresion': '<span class="badge bg-primary">IMP</span>',
+            'laminacion': '<span class="badge bg-purple" style="background-color: #6f42c1;">LAM</span>',
+            'corte': '<span class="badge bg-success">COR</span>',
+        };
+        return badges[tipo] || '<span class="badge bg-secondary">-</span>';
     },
 
     // Generar reporte especifico
@@ -174,7 +222,38 @@ const ReportesModule = {
             case 'tintas':
                 this.exportarReporteTintas();
                 break;
+            case 'laminacion':
+                this.exportarReporteLaminacion();
+                break;
         }
+    },
+
+    // Exportar reporte de laminacion
+    exportarReporteLaminacion() {
+        const laminacion = JSON.parse(localStorage.getItem('axones_laminacion') || '[]');
+
+        const datos = laminacion.map(item => ({
+            'Fecha': item.fecha,
+            'Turno': item.turno,
+            'OT': item.ordenTrabajo,
+            'OT Impresion': item.otImpresion || '',
+            'Cliente': item.cliente,
+            'Producto': item.producto,
+            'Maquina': item.maquina,
+            'Operador': item.operador,
+            'Entrada (Kg)': item.totalEntrada || 0,
+            'Salida (Kg)': item.pesoTotal || 0,
+            'Refile (Kg)': item.scrapRefile || 0,
+            'Laminado (Kg)': item.scrapLaminado || 0,
+            'Merma (Kg)': item.merma || 0,
+            'Refil %': item.porcentajeRefil || 0,
+            'Adhesivo (Kg)': item.consumoAdhesivo || 0,
+            'Catalizador (Kg)': item.consumoCatalizador || 0,
+            'Acetato (Lt)': item.consumoAcetato || 0,
+        }));
+
+        this.descargarCSV(datos, 'reporte_laminacion');
+        this.mostrarNotificacion('Reporte de laminacion generado', 'success');
     },
 
     // Exportar reporte de produccion
@@ -212,8 +291,9 @@ const ReportesModule = {
                 'Producto': item.producto,
                 'Entrada (Kg)': item.totalMaterialEntrada || item.totalEntrada || 0,
                 'Salida (Kg)': item.pesoTotal || item.totalSalida || 0,
-                'Scrap Transp (Kg)': item.scrapTransparente || 0,
+                'Refile (Kg)': item.scrapRefile || item.scrapTransparente || 0,
                 'Scrap Impreso (Kg)': item.scrapImpreso || 0,
+                'Scrap Laminado (Kg)': item.scrapLaminado || 0,
                 'Merma (Kg)': item.merma || 0,
                 'Refil %': item.porcentajeRefil || 0,
                 'Estado': parseFloat(item.porcentajeRefil) > 6 ? 'EXCEDIDO' : parseFloat(item.porcentajeRefil) > 5 ? 'ADVERTENCIA' : 'OK',

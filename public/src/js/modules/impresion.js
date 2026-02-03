@@ -380,9 +380,9 @@ const Impresion = {
         document.getElementById('numBobinas').value = numBobinas;
 
         // Merma (entrada - salida - scrap)
-        const scrapTransp = parseFloat(document.getElementById('scrapTransparente').value) || 0;
+        const scrapRefile = parseFloat(document.getElementById('scrapRefile').value) || 0;
         const scrapImpreso = parseFloat(document.getElementById('scrapImpreso').value) || 0;
-        const totalScrap = scrapTransp + scrapImpreso;
+        const totalScrap = scrapRefile + scrapImpreso;
         document.getElementById('totalScrap').value = totalScrap.toFixed(2);
 
         const merma = totalEntrada - totalSalida - totalScrap;
@@ -549,7 +549,7 @@ const Impresion = {
             metraje: parseFloat(document.getElementById('metraje').value) || 0,
 
             // Scrap / Refil
-            scrapTransparente: parseFloat(document.getElementById('scrapTransparente').value) || 0,
+            scrapRefile: parseFloat(document.getElementById('scrapRefile').value) || 0,
             scrapImpreso: parseFloat(document.getElementById('scrapImpreso').value) || 0,
             totalScrap: parseFloat(document.getElementById('totalScrap').value) || 0,
             porcentajeRefil: parseFloat(document.getElementById('porcentajeRefil').value) || 0,

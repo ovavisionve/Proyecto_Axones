@@ -60,6 +60,7 @@
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="impresion.html"><i class="bi bi-printer me-2"></i>Control de Impresion</a></li>
+                            <li><a class="dropdown-item" href="laminacion.html"><i class="bi bi-layers me-2"></i>Control de Laminacion</a></li>
                             <li><a class="dropdown-item" href="corte.html"><i class="bi bi-scissors me-2"></i>Control de Corte</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="tintas.html"><i class="bi bi-droplet me-2"></i>Consumo de Tintas</a></li>
@@ -125,31 +126,62 @@
             </div>
         </section>
 
-        <!-- Filtros de fecha -->
+        <!-- Filtros -->
         <section class="row mb-4">
             <div class="col-12">
                 <div class="card border-0 shadow-sm">
                     <div class="card-body py-3">
                         <div class="row g-3 align-items-end">
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <label class="form-label small">Fecha Inicio</label>
-                                <input type="date" class="form-control" id="fechaInicio">
+                                <input type="date" class="form-control form-control-sm" id="fechaInicio">
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <label class="form-label small">Fecha Fin</label>
-                                <input type="date" class="form-control" id="fechaFin">
+                                <input type="date" class="form-control form-control-sm" id="fechaFin">
                             </div>
-                            <div class="col-md-3">
-                                <label class="form-label small">Maquina</label>
-                                <select class="form-select" id="filtroMaquina">
-                                    <option value="">Todas las maquinas</option>
+                            <div class="col-md-2">
+                                <label class="form-label small">Proceso</label>
+                                <select class="form-select form-select-sm" id="filtroProceso">
+                                    <option value="">Todos</option>
+                                    <option value="impresion">Impresion</option>
+                                    <option value="laminacion">Laminacion</option>
+                                    <option value="corte">Corte</option>
                                 </select>
                             </div>
-                            <div class="col-md-3">
-                                <button class="btn btn-primary w-100" onclick="ReportesModule.aplicarFiltros()">
-                                    <i class="bi bi-funnel me-1"></i>Aplicar Filtros
+                            <div class="col-md-2">
+                                <label class="form-label small">Maquina</label>
+                                <select class="form-select form-select-sm" id="filtroMaquina">
+                                    <option value="">Todas</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small">Cliente</label>
+                                <select class="form-select form-select-sm" id="filtroCliente">
+                                    <option value="">Todos</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-primary btn-sm w-100" onclick="ReportesModule.aplicarFiltros()">
+                                    <i class="bi bi-funnel me-1"></i>Filtrar
                                 </button>
                             </div>
+                        </div>
+                        <!-- Filtros adicionales (colapsables) -->
+                        <div class="collapse mt-3" id="filtrosAvanzados">
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="form-label small">Operador</label>
+                                    <select class="form-select form-select-sm" id="filtroOperador">
+                                        <option value="">Todos</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-center mt-2">
+                            <button class="btn btn-link btn-sm text-muted" type="button" data-bs-toggle="collapse" data-bs-target="#filtrosAvanzados">
+                                <i class="bi bi-sliders me-1"></i>Mas filtros
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -277,6 +309,25 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Reporte de Laminacion -->
+            <div class="col-md-6 col-lg-3 mb-3">
+                <div class="card report-card h-100" style="border-left-color: #6f42c1;" onclick="ReportesModule.generarReporte('laminacion')">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="rounded p-2 me-3" style="background-color: rgba(111,66,193,0.1);">
+                                <i class="bi bi-layers fs-4" style="color: #6f42c1;"></i>
+                            </div>
+                            <h6 class="mb-0">Laminacion</h6>
+                        </div>
+                        <p class="text-muted small mb-2">Produccion de laminacion con consumo de adhesivos.</p>
+                        <div class="d-flex gap-1">
+                            <span class="badge bg-light text-dark">CSV</span>
+                            <span class="badge bg-light text-dark">Excel</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </section>
 
         <!-- Tabla de datos -->
@@ -300,6 +351,7 @@
                                 <thead class="table-light sticky-top">
                                     <tr>
                                         <th>Fecha</th>
+                                        <th>Tipo</th>
                                         <th>OT</th>
                                         <th>Cliente</th>
                                         <th>Producto</th>
@@ -311,7 +363,7 @@
                                 </thead>
                                 <tbody id="tablaDatos">
                                     <tr>
-                                        <td colspan="8" class="text-center text-muted py-4">
+                                        <td colspan="9" class="text-center text-muted py-4">
                                             Seleccione un rango de fechas para ver los datos
                                         </td>
                                     </tr>

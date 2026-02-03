@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Control de Produccion de Impresion - Sistema Axones">
-    <title>Control de Impresion - Axones</title>
+    <meta name="description" content="Control de Produccion de Laminacion - Sistema Axones">
+    <title>Control de Laminacion - Axones</title>
 
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0d6efd">
+    <meta name="theme-color" content="#6f42c1">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <link rel="apple-touch-icon" href="icons/icon-192x192.png">
 
@@ -29,7 +29,7 @@
             font-size: 0.9rem;
             text-transform: uppercase;
             color: #495057;
-            border-bottom: 2px solid #0d6efd;
+            border-bottom: 2px solid #6f42c1;
             padding-bottom: 8px;
             margin-bottom: 15px;
         }
@@ -45,15 +45,17 @@
             display: block;
         }
         .total-highlight {
-            background-color: #e7f3ff;
+            background-color: #e9d5ff;
             font-weight: 600;
         }
-        .turno-btn {
-            min-width: 50px;
-        }
         .turno-btn.active {
-            background-color: #0d6efd;
+            background-color: #6f42c1;
             color: white;
+        }
+        .adhesivo-section {
+            background-color: #f8f4ff;
+            border-radius: 8px;
+            padding: 10px;
         }
         @media print {
             .no-print { display: none !important; }
@@ -63,7 +65,7 @@
 </head>
 <body>
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top no-print">
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top no-print" style="background-color: #6f42c1;">
         <div class="container-fluid">
             <a class="navbar-brand d-flex align-items-center" href="index.html">
                 <i class="bi bi-gear-wide-connected me-2"></i>
@@ -84,8 +86,8 @@
                             <i class="bi bi-clipboard-data me-1"></i> Produccion
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item active" href="impresion.html"><i class="bi bi-printer me-2"></i>Control de Impresion</a></li>
-                            <li><a class="dropdown-item" href="laminacion.html"><i class="bi bi-layers me-2"></i>Control de Laminacion</a></li>
+                            <li><a class="dropdown-item" href="impresion.html"><i class="bi bi-printer me-2"></i>Control de Impresion</a></li>
+                            <li><a class="dropdown-item active" href="laminacion.html"><i class="bi bi-layers me-2"></i>Control de Laminacion</a></li>
                             <li><a class="dropdown-item" href="corte.html"><i class="bi bi-scissors me-2"></i>Control de Corte</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="tintas.html"><i class="bi bi-droplet me-2"></i>Consumo de Tintas</a></li>
@@ -133,14 +135,14 @@
 
     <!-- Main Content -->
     <main class="container-fluid" style="margin-top: 70px; padding-bottom: 80px;">
-        <!-- Header del formulario -->
+        <!-- Header -->
         <div class="row mb-3">
             <div class="col-12">
                 <div class="d-flex justify-content-between align-items-center flex-wrap">
                     <div>
                         <h4 class="mb-1">
-                            <i class="bi bi-printer text-primary me-2"></i>
-                            Control de Produccion de Impresion
+                            <i class="bi bi-layers me-2" style="color: #6f42c1;"></i>
+                            Control de Produccion de Laminacion
                         </h4>
                         <p class="text-muted mb-0 small">Inversiones Axones 2008, C.A.</p>
                     </div>
@@ -148,10 +150,10 @@
                         <button class="btn btn-outline-secondary btn-sm me-2" onclick="window.print()">
                             <i class="bi bi-printer me-1"></i> Imprimir
                         </button>
-                        <button class="btn btn-outline-primary btn-sm me-2" id="btnLimpiar">
+                        <button class="btn btn-outline-secondary btn-sm me-2" id="btnLimpiar" style="border-color: #6f42c1; color: #6f42c1;">
                             <i class="bi bi-eraser me-1"></i> Limpiar
                         </button>
-                        <button class="btn btn-primary btn-sm" id="btnGuardar">
+                        <button class="btn btn-sm" id="btnGuardar" style="background-color: #6f42c1; color: white;">
                             <i class="bi bi-save me-1"></i> Guardar
                         </button>
                     </div>
@@ -159,7 +161,7 @@
             </div>
         </div>
 
-        <form id="formImpresion">
+        <form id="formLaminacion">
             <div class="row">
                 <!-- Columna Izquierda -->
                 <div class="col-lg-6">
@@ -174,13 +176,13 @@
                                 <label class="form-label small">Turno</label>
                                 <div class="btn-group w-100" role="group">
                                     <input type="radio" class="btn-check" name="turno" id="turnoD" value="D">
-                                    <label class="btn btn-outline-primary turno-btn" for="turnoD">D</label>
+                                    <label class="btn btn-outline-secondary turno-btn" for="turnoD" style="border-color: #6f42c1;">D</label>
                                     <input type="radio" class="btn-check" name="turno" id="turno1" value="1">
-                                    <label class="btn btn-outline-primary turno-btn" for="turno1">1ro</label>
+                                    <label class="btn btn-outline-secondary turno-btn" for="turno1" style="border-color: #6f42c1;">1ro</label>
                                     <input type="radio" class="btn-check" name="turno" id="turno2" value="2">
-                                    <label class="btn btn-outline-primary turno-btn" for="turno2">2do</label>
+                                    <label class="btn btn-outline-secondary turno-btn" for="turno2" style="border-color: #6f42c1;">2do</label>
                                     <input type="radio" class="btn-check" name="turno" id="turno3" value="3">
-                                    <label class="btn btn-outline-primary turno-btn" for="turno3">3ro</label>
+                                    <label class="btn btn-outline-secondary turno-btn" for="turno3" style="border-color: #6f42c1;">3ro</label>
                                 </div>
                             </div>
                             <!-- Cliente -->
@@ -195,194 +197,183 @@
                                 <label for="producto" class="form-label small">Producto</label>
                                 <input type="text" class="form-control form-control-sm" id="producto" placeholder="Nombre del producto" required>
                             </div>
-                            <!-- Maquina e Impresora -->
+                            <!-- Maquina -->
                             <div class="col-6">
-                                <label for="maquina" class="form-label small">Maquina Impresora</label>
+                                <label for="maquina" class="form-label small">Maquina Laminadora</label>
                                 <select class="form-select form-select-sm" id="maquina" required>
                                     <option value="">Seleccionar...</option>
-                                    <option value="comexi_1">COMEXI 1</option>
-                                    <option value="comexi_2">COMEXI 2</option>
-                                    <option value="comexi_3">COMEXI 3</option>
+                                    <option value="laminadora_1">Laminadora</option>
                                 </select>
                             </div>
                             <div class="col-6">
                                 <label for="fecha" class="form-label small">Fecha</label>
                                 <input type="date" class="form-control form-control-sm" id="fecha" required>
                             </div>
-                            <!-- OT y Operador -->
+                            <!-- OT -->
                             <div class="col-6">
                                 <label for="ordenTrabajo" class="form-label small">Orden de Trabajo</label>
                                 <input type="text" class="form-control form-control-sm" id="ordenTrabajo" placeholder="Ej: 015 EN-26" required>
                             </div>
                             <div class="col-6">
+                                <label for="otImpresion" class="form-label small">OT Impresion Origen</label>
+                                <input type="text" class="form-control form-control-sm" id="otImpresion" placeholder="OT de impresion">
+                            </div>
+                            <!-- Operador y Ayudante -->
+                            <div class="col-6">
                                 <label for="operador" class="form-label small">Operador</label>
                                 <input type="text" class="form-control form-control-sm" id="operador" placeholder="Nombre operador" required>
                             </div>
-                            <!-- Ayudante y Supervisor -->
                             <div class="col-6">
                                 <label for="ayudante" class="form-label small">Ayudante</label>
                                 <input type="text" class="form-control form-control-sm" id="ayudante" placeholder="Nombre ayudante">
                             </div>
-                            <div class="col-6">
+                            <!-- Supervisor -->
+                            <div class="col-12">
                                 <label for="supervisor" class="form-label small">Supervisor</label>
                                 <input type="text" class="form-control form-control-sm" id="supervisor" placeholder="Nombre supervisor">
                             </div>
                             <!-- Horas -->
-                            <div class="col-6">
-                                <label for="horaInicio" class="form-label small">Hora de Inicio</label>
+                            <div class="col-4">
+                                <label for="horaInicio" class="form-label small">Hora Inicio</label>
                                 <input type="time" class="form-control form-control-sm" id="horaInicio">
                             </div>
-                            <div class="col-6">
-                                <label for="horaArranque" class="form-label small">Hora de Arranque</label>
+                            <div class="col-4">
+                                <label for="horaArranque" class="form-label small">Hora Arranque</label>
                                 <input type="time" class="form-control form-control-sm" id="horaArranque">
+                            </div>
+                            <div class="col-4">
+                                <label for="horaFinal" class="form-label small">Hora Final</label>
+                                <input type="time" class="form-control form-control-sm" id="horaFinal">
                             </div>
                         </div>
                     </div>
 
-                    <!-- Ingreso de Material (Laminas) -->
+                    <!-- Ingreso de Material (Bobinas Impresas) -->
                     <div class="form-section">
                         <div class="form-section-title">
-                            <i class="bi bi-box-seam me-1"></i> Ingreso de Material (Laminas) - Kg
+                            <i class="bi bi-box-seam me-1"></i> Ingreso de Bobinas Impresas - Kg
                         </div>
                         <div class="row g-1">
                             <!-- Fila 1: 1-7 -->
                             <div class="col">
                                 <span class="bobina-label">1</span>
-                                <input type="number" class="form-control form-control-sm bobina-input material-entrada" id="mat1" step="0.01" min="0">
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bobEnt1" step="0.01" min="0">
                             </div>
                             <div class="col">
                                 <span class="bobina-label">2</span>
-                                <input type="number" class="form-control form-control-sm bobina-input material-entrada" id="mat2" step="0.01" min="0">
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bobEnt2" step="0.01" min="0">
                             </div>
                             <div class="col">
                                 <span class="bobina-label">3</span>
-                                <input type="number" class="form-control form-control-sm bobina-input material-entrada" id="mat3" step="0.01" min="0">
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bobEnt3" step="0.01" min="0">
                             </div>
                             <div class="col">
                                 <span class="bobina-label">4</span>
-                                <input type="number" class="form-control form-control-sm bobina-input material-entrada" id="mat4" step="0.01" min="0">
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bobEnt4" step="0.01" min="0">
                             </div>
                             <div class="col">
                                 <span class="bobina-label">5</span>
-                                <input type="number" class="form-control form-control-sm bobina-input material-entrada" id="mat5" step="0.01" min="0">
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bobEnt5" step="0.01" min="0">
                             </div>
                             <div class="col">
                                 <span class="bobina-label">6</span>
-                                <input type="number" class="form-control form-control-sm bobina-input material-entrada" id="mat6" step="0.01" min="0">
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bobEnt6" step="0.01" min="0">
                             </div>
                             <div class="col">
                                 <span class="bobina-label">7</span>
-                                <input type="number" class="form-control form-control-sm bobina-input material-entrada" id="mat7" step="0.01" min="0">
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bobEnt7" step="0.01" min="0">
                             </div>
                         </div>
                         <div class="row g-1 mt-1">
                             <!-- Fila 2: 8-14 -->
                             <div class="col">
                                 <span class="bobina-label">8</span>
-                                <input type="number" class="form-control form-control-sm bobina-input material-entrada" id="mat8" step="0.01" min="0">
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bobEnt8" step="0.01" min="0">
                             </div>
                             <div class="col">
                                 <span class="bobina-label">9</span>
-                                <input type="number" class="form-control form-control-sm bobina-input material-entrada" id="mat9" step="0.01" min="0">
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bobEnt9" step="0.01" min="0">
                             </div>
                             <div class="col">
                                 <span class="bobina-label">10</span>
-                                <input type="number" class="form-control form-control-sm bobina-input material-entrada" id="mat10" step="0.01" min="0">
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bobEnt10" step="0.01" min="0">
                             </div>
                             <div class="col">
                                 <span class="bobina-label">11</span>
-                                <input type="number" class="form-control form-control-sm bobina-input material-entrada" id="mat11" step="0.01" min="0">
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bobEnt11" step="0.01" min="0">
                             </div>
                             <div class="col">
                                 <span class="bobina-label">12</span>
-                                <input type="number" class="form-control form-control-sm bobina-input material-entrada" id="mat12" step="0.01" min="0">
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bobEnt12" step="0.01" min="0">
                             </div>
                             <div class="col">
                                 <span class="bobina-label">13</span>
-                                <input type="number" class="form-control form-control-sm bobina-input material-entrada" id="mat13" step="0.01" min="0">
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bobEnt13" step="0.01" min="0">
                             </div>
                             <div class="col">
                                 <span class="bobina-label">14</span>
-                                <input type="number" class="form-control form-control-sm bobina-input material-entrada" id="mat14" step="0.01" min="0">
+                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bobEnt14" step="0.01" min="0">
                             </div>
                         </div>
-                        <div class="row g-1 mt-1">
-                            <!-- Fila 3: 15-21 -->
-                            <div class="col">
-                                <span class="bobina-label">15</span>
-                                <input type="number" class="form-control form-control-sm bobina-input material-entrada" id="mat15" step="0.01" min="0">
-                            </div>
-                            <div class="col">
-                                <span class="bobina-label">16</span>
-                                <input type="number" class="form-control form-control-sm bobina-input material-entrada" id="mat16" step="0.01" min="0">
-                            </div>
-                            <div class="col">
-                                <span class="bobina-label">17</span>
-                                <input type="number" class="form-control form-control-sm bobina-input material-entrada" id="mat17" step="0.01" min="0">
-                            </div>
-                            <div class="col">
-                                <span class="bobina-label">18</span>
-                                <input type="number" class="form-control form-control-sm bobina-input material-entrada" id="mat18" step="0.01" min="0">
-                            </div>
-                            <div class="col">
-                                <span class="bobina-label">19</span>
-                                <input type="number" class="form-control form-control-sm bobina-input material-entrada" id="mat19" step="0.01" min="0">
-                            </div>
-                            <div class="col">
-                                <span class="bobina-label">20</span>
-                                <input type="number" class="form-control form-control-sm bobina-input material-entrada" id="mat20" step="0.01" min="0">
-                            </div>
-                            <div class="col">
-                                <span class="bobina-label">21</span>
-                                <input type="number" class="form-control form-control-sm bobina-input material-entrada" id="mat21" step="0.01" min="0">
-                            </div>
-                        </div>
-                        <div class="row g-1 mt-1">
-                            <!-- Fila 4: 22-26 + Total -->
-                            <div class="col">
-                                <span class="bobina-label">22</span>
-                                <input type="number" class="form-control form-control-sm bobina-input material-entrada" id="mat22" step="0.01" min="0">
-                            </div>
-                            <div class="col">
-                                <span class="bobina-label">23</span>
-                                <input type="number" class="form-control form-control-sm bobina-input material-entrada" id="mat23" step="0.01" min="0">
-                            </div>
-                            <div class="col">
-                                <span class="bobina-label">24</span>
-                                <input type="number" class="form-control form-control-sm bobina-input material-entrada" id="mat24" step="0.01" min="0">
-                            </div>
-                            <div class="col">
-                                <span class="bobina-label">25</span>
-                                <input type="number" class="form-control form-control-sm bobina-input material-entrada" id="mat25" step="0.01" min="0">
-                            </div>
-                            <div class="col">
-                                <span class="bobina-label">26</span>
-                                <input type="number" class="form-control form-control-sm bobina-input material-entrada" id="mat26" step="0.01" min="0">
-                            </div>
-                            <div class="col-2">
-                                <span class="bobina-label fw-bold">TOTAL</span>
-                                <input type="text" class="form-control form-control-sm bobina-input total-highlight" id="totalMaterialEntrada" readonly>
+                        <div class="row g-1 mt-2">
+                            <div class="col-8"></div>
+                            <div class="col-4">
+                                <span class="bobina-label fw-bold">TOTAL ENTRADA</span>
+                                <input type="text" class="form-control form-control-sm bobina-input total-highlight" id="totalEntrada" readonly>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Resumen de Pesaje -->
+                    <!-- Control de Adhesivo -->
                     <div class="form-section">
                         <div class="form-section-title">
-                            <i class="bi bi-clipboard-check me-1"></i> Resumen de Pesaje
+                            <i class="bi bi-droplet-fill me-1"></i> Control de Adhesivo
                         </div>
-                        <div class="row g-2">
-                            <div class="col-4">
-                                <label class="form-label small">N° de Pesaje</label>
-                                <input type="text" class="form-control form-control-sm" id="numPesaje">
+                        <div class="adhesivo-section">
+                            <div class="row g-2">
+                                <div class="col-4">
+                                    <label class="form-label small fw-bold">Adhesivo (Kg)</label>
+                                </div>
+                                <div class="col-4">
+                                    <label class="form-label small">Entrada</label>
+                                    <input type="number" class="form-control form-control-sm adhesivo-input" id="adhesivoEntrada" step="0.01" min="0" value="0">
+                                </div>
+                                <div class="col-4">
+                                    <label class="form-label small">Sobro</label>
+                                    <input type="number" class="form-control form-control-sm adhesivo-input" id="adhesivoSobro" step="0.01" min="0" value="0">
+                                </div>
                             </div>
-                            <div class="col-4">
-                                <label class="form-label small">Apertura</label>
-                                <input type="time" class="form-control form-control-sm" id="pesajeApertura">
+                            <div class="row g-2 mt-1">
+                                <div class="col-4">
+                                    <label class="form-label small fw-bold">Catalizador (Kg)</label>
+                                </div>
+                                <div class="col-4">
+                                    <input type="number" class="form-control form-control-sm adhesivo-input" id="catalizadorEntrada" step="0.01" min="0" value="0">
+                                </div>
+                                <div class="col-4">
+                                    <input type="number" class="form-control form-control-sm adhesivo-input" id="catalizadorSobro" step="0.01" min="0" value="0">
+                                </div>
                             </div>
-                            <div class="col-4">
-                                <label class="form-label small">Cierre</label>
-                                <input type="time" class="form-control form-control-sm" id="pesajeCierre">
+                            <div class="row g-2 mt-1">
+                                <div class="col-4">
+                                    <label class="form-label small fw-bold">Acetato (Lt)</label>
+                                </div>
+                                <div class="col-4">
+                                    <input type="number" class="form-control form-control-sm adhesivo-input" id="acetatoEntrada" step="0.01" min="0" value="0">
+                                </div>
+                                <div class="col-4">
+                                    <input type="number" class="form-control form-control-sm adhesivo-input" id="acetatoSobro" step="0.01" min="0" value="0">
+                                </div>
+                            </div>
+                            <div class="row g-2 mt-2">
+                                <div class="col-12">
+                                    <div class="alert alert-info py-1 px-2 mb-0 small">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        <strong>Consumo:</strong> Adhesivo: <span id="consumoAdhesivo">0</span> Kg |
+                                        Catalizador: <span id="consumoCatalizador">0</span> Kg |
+                                        Acetato: <span id="consumoAcetato">0</span> Lt
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -390,48 +381,48 @@
 
                 <!-- Columna Derecha -->
                 <div class="col-lg-6">
-                    <!-- Proceso - Pesos Netos por Bobina -->
+                    <!-- Bobinas de Salida (Laminadas) -->
                     <div class="form-section">
                         <div class="form-section-title">
-                            <i class="bi bi-collection me-1"></i> Proceso - Pesos Netos por Bobina (Kg)
+                            <i class="bi bi-collection me-1"></i> Bobinas de Salida (Laminadas) - Kg
                         </div>
                         <div class="row g-1">
                             <!-- Filas de bobinas de salida -->
                             <div class="col-6">
                                 <div class="row g-1">
-                                    <div class="col-4"><span class="bobina-label">1</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bob1" step="0.01" min="0"></div>
-                                    <div class="col-4"><span class="bobina-label">2</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bob2" step="0.01" min="0"></div>
-                                    <div class="col-4"><span class="bobina-label">3</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bob3" step="0.01" min="0"></div>
-                                    <div class="col-4"><span class="bobina-label">4</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bob4" step="0.01" min="0"></div>
-                                    <div class="col-4"><span class="bobina-label">5</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bob5" step="0.01" min="0"></div>
-                                    <div class="col-4"><span class="bobina-label">6</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bob6" step="0.01" min="0"></div>
-                                    <div class="col-4"><span class="bobina-label">7</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bob7" step="0.01" min="0"></div>
-                                    <div class="col-4"><span class="bobina-label">8</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bob8" step="0.01" min="0"></div>
-                                    <div class="col-4"><span class="bobina-label">9</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bob9" step="0.01" min="0"></div>
-                                    <div class="col-4"><span class="bobina-label">10</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bob10" step="0.01" min="0"></div>
-                                    <div class="col-4"><span class="bobina-label">11</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bob11" step="0.01" min="0"></div>
+                                    <div class="col-4"><span class="bobina-label">1</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bobSal1" step="0.01" min="0"></div>
+                                    <div class="col-4"><span class="bobina-label">2</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bobSal2" step="0.01" min="0"></div>
+                                    <div class="col-4"><span class="bobina-label">3</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bobSal3" step="0.01" min="0"></div>
+                                    <div class="col-4"><span class="bobina-label">4</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bobSal4" step="0.01" min="0"></div>
+                                    <div class="col-4"><span class="bobina-label">5</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bobSal5" step="0.01" min="0"></div>
+                                    <div class="col-4"><span class="bobina-label">6</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bobSal6" step="0.01" min="0"></div>
+                                    <div class="col-4"><span class="bobina-label">7</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bobSal7" step="0.01" min="0"></div>
+                                    <div class="col-4"><span class="bobina-label">8</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bobSal8" step="0.01" min="0"></div>
+                                    <div class="col-4"><span class="bobina-label">9</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bobSal9" step="0.01" min="0"></div>
+                                    <div class="col-4"><span class="bobina-label">10</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bobSal10" step="0.01" min="0"></div>
+                                    <div class="col-4"><span class="bobina-label">11</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bobSal11" step="0.01" min="0"></div>
                                 </div>
                             </div>
                             <div class="col-6">
                                 <div class="row g-1">
-                                    <div class="col-4"><span class="bobina-label">12</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bob12" step="0.01" min="0"></div>
-                                    <div class="col-4"><span class="bobina-label">13</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bob13" step="0.01" min="0"></div>
-                                    <div class="col-4"><span class="bobina-label">14</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bob14" step="0.01" min="0"></div>
-                                    <div class="col-4"><span class="bobina-label">15</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bob15" step="0.01" min="0"></div>
-                                    <div class="col-4"><span class="bobina-label">16</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bob16" step="0.01" min="0"></div>
-                                    <div class="col-4"><span class="bobina-label">17</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bob17" step="0.01" min="0"></div>
-                                    <div class="col-4"><span class="bobina-label">18</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bob18" step="0.01" min="0"></div>
-                                    <div class="col-4"><span class="bobina-label">19</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bob19" step="0.01" min="0"></div>
-                                    <div class="col-4"><span class="bobina-label">20</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bob20" step="0.01" min="0"></div>
-                                    <div class="col-4"><span class="bobina-label">21</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bob21" step="0.01" min="0"></div>
-                                    <div class="col-4"><span class="bobina-label">22</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bob22" step="0.01" min="0"></div>
+                                    <div class="col-4"><span class="bobina-label">12</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bobSal12" step="0.01" min="0"></div>
+                                    <div class="col-4"><span class="bobina-label">13</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bobSal13" step="0.01" min="0"></div>
+                                    <div class="col-4"><span class="bobina-label">14</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bobSal14" step="0.01" min="0"></div>
+                                    <div class="col-4"><span class="bobina-label">15</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bobSal15" step="0.01" min="0"></div>
+                                    <div class="col-4"><span class="bobina-label">16</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bobSal16" step="0.01" min="0"></div>
+                                    <div class="col-4"><span class="bobina-label">17</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bobSal17" step="0.01" min="0"></div>
+                                    <div class="col-4"><span class="bobina-label">18</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bobSal18" step="0.01" min="0"></div>
+                                    <div class="col-4"><span class="bobina-label">19</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bobSal19" step="0.01" min="0"></div>
+                                    <div class="col-4"><span class="bobina-label">20</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bobSal20" step="0.01" min="0"></div>
+                                    <div class="col-4"><span class="bobina-label">21</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bobSal21" step="0.01" min="0"></div>
+                                    <div class="col-4"><span class="bobina-label">22</span><input type="number" class="form-control form-control-sm bobina-input bobina-salida" id="bobSal22" step="0.01" min="0"></div>
                                 </div>
                             </div>
                         </div>
                         <!-- Resumen de salida -->
                         <div class="row g-2 mt-2">
                             <div class="col-3">
-                                <label class="form-label small">N° Bobinas</label>
+                                <label class="form-label small">N Bobinas</label>
                                 <input type="text" class="form-control form-control-sm total-highlight" id="numBobinas" readonly>
                             </div>
                             <div class="col-3">
@@ -449,38 +440,26 @@
                         </div>
                     </div>
 
-                    <!-- Tiempos y Motivos de Paradas -->
-                    <div class="form-section">
-                        <div class="form-section-title">
-                            <i class="bi bi-clock-history me-1"></i> Tiempos y Motivos de Paradas
-                        </div>
-                        <div class="row g-2">
-                            <div class="col-12">
-                                <textarea class="form-control form-control-sm" id="motivosParadas" rows="2" placeholder="Describir paradas y sus motivos..."></textarea>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Scrap (Refil) -->
                     <div class="form-section">
                         <div class="form-section-title">
-                            <i class="bi bi-recycle me-1"></i> Scrap / Refil (Kg)
+                            <i class="bi bi-recycle me-1"></i> Scrap / Refil
                         </div>
                         <div class="row g-2">
                             <div class="col-4">
-                                <label class="form-label small">Refile</label>
+                                <label class="form-label small">Refile (Kg)</label>
                                 <input type="number" class="form-control form-control-sm scrap-input" id="scrapRefile" step="0.01" min="0" value="0">
                             </div>
                             <div class="col-4">
-                                <label class="form-label small">Impreso</label>
-                                <input type="number" class="form-control form-control-sm scrap-input" id="scrapImpreso" step="0.01" min="0" value="0">
+                                <label class="form-label small">Laminado (Kg)</label>
+                                <input type="number" class="form-control form-control-sm scrap-input" id="scrapLaminado" step="0.01" min="0" value="0">
                             </div>
                             <div class="col-4">
                                 <label class="form-label small">Total Scrap</label>
                                 <input type="text" class="form-control form-control-sm total-highlight" id="totalScrap" readonly>
                             </div>
                         </div>
-                        <div class="row g-2 mt-1">
+                        <div class="row g-2 mt-2">
                             <div class="col-6">
                                 <label class="form-label small">% Refil</label>
                                 <input type="text" class="form-control form-control-sm total-highlight" id="porcentajeRefil" readonly>
@@ -493,23 +472,15 @@
                         </div>
                     </div>
 
-                    <!-- Tiempos -->
+                    <!-- Tiempos y Paradas -->
                     <div class="form-section">
                         <div class="form-section-title">
-                            <i class="bi bi-stopwatch me-1"></i> Tiempos
+                            <i class="bi bi-stopwatch me-1"></i> Tiempos y Paradas
                         </div>
                         <div class="row g-2">
-                            <div class="col-4">
-                                <label class="form-label small">Muerto (min)</label>
-                                <input type="number" class="form-control form-control-sm" id="tiempoMuerto" step="1" min="0" value="0">
-                            </div>
-                            <div class="col-4">
-                                <label class="form-label small">Efectivo (min)</label>
-                                <input type="number" class="form-control form-control-sm" id="tiempoEfectivo" step="1" min="0" value="0">
-                            </div>
-                            <div class="col-4">
-                                <label class="form-label small">Preparacion (min)</label>
-                                <input type="number" class="form-control form-control-sm" id="tiempoPreparacion" step="1" min="0" value="0">
+                            <div class="col-12">
+                                <label class="form-label small">Motivos de Paradas</label>
+                                <textarea class="form-control form-control-sm" id="motivosParadas" rows="2" placeholder="Describir paradas y sus motivos..."></textarea>
                             </div>
                         </div>
                     </div>
@@ -526,15 +497,15 @@
         </form>
     </main>
 
-    <!-- Footer Fijo con Resumen -->
+    <!-- Footer Fijo -->
     <footer class="fixed-bottom bg-white border-top py-2 no-print">
         <div class="container-fluid">
             <div class="row align-items-center">
                 <div class="col-auto">
-                    <span class="badge bg-primary me-2">Entrada: <span id="footerEntrada">0</span> Kg</span>
+                    <span class="badge me-2" style="background-color: #6f42c1;">Entrada: <span id="footerEntrada">0</span> Kg</span>
                 </div>
                 <div class="col-auto">
-                    <span class="badge bg-success me-2">Salida: <span id="footerSalida">0</span> Kg</span>
+                    <span class="badge bg-primary me-2">Salida: <span id="footerSalida">0</span> Kg</span>
                 </div>
                 <div class="col-auto">
                     <span class="badge bg-warning text-dark me-2">Merma: <span id="footerMerma">0</span> Kg</span>
@@ -554,7 +525,7 @@
     <script src="src/js/utils/config.js"></script>
     <script src="src/js/utils/theme.js"></script>
     <script src="src/js/utils/auth.js"></script>
-    <script src="src/js/modules/impresion.js"></script>
+    <script src="src/js/modules/laminacion.js"></script>
     <script src="src/js/main.js"></script>
     <script>
         if ('serviceWorker' in navigator) {

@@ -7,19 +7,19 @@
 const CONFIG = {
     // Informacion del sistema
     APP_NAME: 'Sistema Axones',
-    APP_VERSION: '1.0.0',
+    APP_VERSION: '1.1.0',
     EMPRESA: 'Inversiones Axones 2008, C.A.',
 
-    // URLs de Google Apps Script (se configuraran en produccion)
+    // URLs de Google Apps Script - CONFIGURACION FIJA
     API: {
-        BASE_URL: 'https://script.google.com/macros/s/AKfycbwBjCdaFT9tkqZloQ5Bew9eqFAMYI10JO0B22RuyLIS56mqZTEdOldJNYqds3jiOH9Cpg/exec', // URL del Web App de Google Apps Script
-        SHEETS_ID: '1fMDXLc2AjcqCRHc5Qk04IVjv2ZoKII8_BpCu58DYEdQ', // ID del Google Sheets principal
+        BASE_URL: 'https://script.google.com/macros/s/AKfycby6we9nx81660m7sMBvXl2rh4Inh6kBd5dze4r4y1g5Wt/exec',
+        SHEETS_ID: '1fMDXLc2AjcqCRHc5Qk04IVjv2ZoKII8_BpCu58DYEdQ',
     },
 
     // Configuracion de Groq para el chatbot
     CHATBOT: {
         API_URL: 'https://api.groq.com/openai/v1/chat/completions',
-        API_KEY: '', // Se configura en Admin o localStorage
+        API_KEY: 'gsk_xxxx', // Configurar con API key real
         MODEL: 'llama-3.3-70b-versatile',
         MAX_TOKENS: 1024,
         TEMPERATURE: 0.7,

@@ -16,10 +16,11 @@ const CONFIG = {
         SHEETS_ID: '1fMDXLc2AjcqCRHc5Qk04IVjv2ZoKII8_BpCu58DYEdQ',
     },
 
-    // Configuracion de Groq para el chatbot
+    // Configuracion de Groq para el chatbot (HARDCODEADO - NO EDITABLE DESDE UI)
+    // Para obtener una API key: https://console.groq.com/keys
     CHATBOT: {
         API_URL: 'https://api.groq.com/openai/v1/chat/completions',
-        API_KEY: 'gsk_xxxx', // Configurar con API key real
+        API_KEY: 'gsk_REEMPLAZAR_CON_TU_API_KEY_DE_GROQ', // <-- PONER API KEY AQUI
         MODEL: 'llama-3.3-70b-versatile',
         MAX_TOKENS: 1024,
         TEMPERATURE: 0.7,

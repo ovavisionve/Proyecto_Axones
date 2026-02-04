@@ -215,10 +215,9 @@ const Chatbot = {
             return this.responderPagosRecientes();
         }
 
-        // Consulta no reconocida - usar IA si esta configurada
-        const config = JSON.parse(localStorage.getItem('axones_config') || '{}');
-        const apiKey = config.groqApiKey;
-        if (CONFIG.CHATBOT.API_URL && apiKey) {
+        // Consulta no reconocida - usar IA si esta configurada (API key desde CONFIG)
+        const apiKey = CONFIG.CHATBOT.API_KEY;
+        if (CONFIG.CHATBOT.API_URL && apiKey && !apiKey.includes('REEMPLAZAR')) {
             return await this.consultarIA(consulta, apiKey);
         }
 

@@ -83,38 +83,30 @@
         <div class="row">
             <!-- Columna Izquierda -->
             <div class="col-lg-8">
-                <!-- Configuracion de API -->
+                <!-- Configuracion de Backend (Solo Lectura) -->
                 <div class="card config-card border-0 shadow-sm mb-4">
                     <div class="card-header bg-white">
-                        <h6 class="mb-0"><i class="bi bi-cloud me-2"></i>Configuracion de Backend</h6>
+                        <h6 class="mb-0"><i class="bi bi-lock me-2"></i>Configuracion del Sistema</h6>
                     </div>
                     <div class="card-body">
-                        <div class="mb-3">
-                            <label class="form-label">URL de Google Apps Script</label>
-                            <div class="input-group">
-                                <input type="text" class="form-control" id="apiUrl"
-                                       placeholder="https://script.google.com/macros/s/...">
-                                <button class="btn btn-outline-primary" onclick="AdminModule.guardarApiUrl()">
-                                    <i class="bi bi-save me-1"></i>Guardar
-                                </button>
-                            </div>
-                            <small class="text-muted">Dejar vacio para usar localStorage (desarrollo)</small>
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <small>La configuracion del backend esta protegida y no puede ser modificada desde esta interfaz.</small>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">ID de Google Sheets</label>
-                            <input type="text" class="form-control" id="sheetsId"
-                                   placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms">
-                            <small class="text-muted">Se encuentra en la URL del Spreadsheet</small>
+                            <label class="form-label text-muted">URL de Google Apps Script</label>
+                            <input type="text" class="form-control bg-light" id="apiUrl" readonly
+                                   value="Configurado en codigo fuente">
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">API Key de Groq (Chatbot)</label>
-                            <div class="input-group">
-                                <input type="password" class="form-control" id="groqApiKey"
-                                       placeholder="gsk_...">
-                                <button class="btn btn-outline-secondary" onclick="AdminModule.togglePassword('groqApiKey')">
-                                    <i class="bi bi-eye"></i>
-                                </button>
-                            </div>
+                            <label class="form-label text-muted">ID de Google Sheets</label>
+                            <input type="text" class="form-control bg-light" id="sheetsId" readonly
+                                   value="Configurado en codigo fuente">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted">API de Chatbot IA</label>
+                            <input type="text" class="form-control bg-light" readonly
+                                   value="Groq - Llama 3.3 70B (Configurado)">
                         </div>
                         <button class="btn btn-primary" onclick="AdminModule.probarConexion()">
                             <i class="bi bi-wifi me-1"></i>Probar Conexion

@@ -13,21 +13,20 @@ const AdminModule = {
         this.actualizarStorage();
     },
 
-    // Cargar configuracion guardada
+    // Cargar configuracion (solo lectura desde CONFIG)
     cargarConfiguracion() {
         const config = JSON.parse(localStorage.getItem('axones_config') || '{}');
 
-        // API URL
+        // Mostrar configuracion desde CONFIG global (solo lectura)
         const apiUrl = document.getElementById('apiUrl');
-        if (apiUrl) apiUrl.value = config.apiUrl || '';
+        if (apiUrl && typeof CONFIG !== 'undefined') {
+            apiUrl.value = CONFIG.API.BASE_URL || 'No configurado';
+        }
 
-        // Sheets ID
         const sheetsId = document.getElementById('sheetsId');
-        if (sheetsId) sheetsId.value = config.sheetsId || '';
-
-        // Groq API Key
-        const groqApiKey = document.getElementById('groqApiKey');
-        if (groqApiKey) groqApiKey.value = config.groqApiKey || '';
+        if (sheetsId && typeof CONFIG !== 'undefined') {
+            sheetsId.value = CONFIG.API.SHEETS_ID || 'No configurado';
+        }
 
         // Umbrales
         const umbralAdvertencia = document.getElementById('umbralAdvertencia');
@@ -35,16 +34,14 @@ const AdminModule = {
         if (umbralAdvertencia) umbralAdvertencia.value = config.umbralAdvertencia || 5;
         if (umbralMaximo) umbralMaximo.value = config.umbralMaximo || 6;
 
-        // Modo sistema
+        // Modo sistema - siempre produccion si hay CONFIG
         const modoSistema = document.getElementById('modoSistema');
-        if (modoSistema) {
-            if (config.apiUrl) {
-                modoSistema.textContent = 'Produccion';
-                modoSistema.className = 'badge bg-success';
-            } else {
-                modoSistema.textContent = 'Desarrollo';
-                modoSistema.className = 'badge bg-warning text-dark';
-            }
+        if (modoSistema && typeof CONFIG !== 'undefined' && CONFIG.API.BASE_URL) {
+            modoSistema.textContent = 'Produccion';
+            modoSistema.className = 'badge bg-success';
+        } else if (modoSistema) {
+            modoSistema.textContent = 'Desarrollo';
+            modoSistema.className = 'badge bg-warning text-dark';
         }
 
         // Ultima actualizacion
@@ -52,25 +49,8 @@ const AdminModule = {
         if (ultimaActualizacion) {
             ultimaActualizacion.textContent = config.ultimaActualizacion
                 ? new Date(config.ultimaActualizacion).toLocaleString('es-VE')
-                : 'Nunca';
+                : 'Sistema configurado';
         }
-    },
-
-    // Guardar URL de API
-    guardarApiUrl() {
-        const apiUrl = document.getElementById('apiUrl')?.value || '';
-        const sheetsId = document.getElementById('sheetsId')?.value || '';
-        const groqApiKey = document.getElementById('groqApiKey')?.value || '';
-
-        const config = JSON.parse(localStorage.getItem('axones_config') || '{}');
-        config.apiUrl = apiUrl;
-        config.sheetsId = sheetsId;
-        config.groqApiKey = groqApiKey;
-        config.ultimaActualizacion = new Date().toISOString();
-
-        localStorage.setItem('axones_config', JSON.stringify(config));
-        this.mostrarNotificacion('Configuracion guardada correctamente', 'success');
-        this.cargarConfiguracion();
     },
 
     // Guardar umbrales
@@ -99,26 +79,31 @@ const AdminModule = {
         this.mostrarNotificacion('Umbrales guardados correctamente', 'success');
     },
 
-    // Probar conexion
+    // Probar conexion usando CONFIG global
     async probarConexion() {
-        const apiUrl = document.getElementById('apiUrl')?.value;
         const statusEl = document.getElementById('conexionStatus');
+        const apiUrl = (typeof CONFIG !== 'undefined') ? CONFIG.API.BASE_URL : null;
 
         if (!apiUrl) {
-            statusEl.innerHTML = '<span class="text-warning"><i class="bi bi-exclamation-circle me-1"></i>Modo desarrollo (sin API)</span>';
+            statusEl.innerHTML = '<span class="text-warning"><i class="bi bi-exclamation-circle me-1"></i>API no configurada</span>';
             return;
         }
 
         statusEl.innerHTML = '<span class="text-muted"><i class="bi bi-arrow-repeat spin me-1"></i>Probando...</span>';
 
         try {
-            const response = await fetch(apiUrl + '?action=getStats', {
+            const response = await fetch(apiUrl + '?action=ping', {
                 method: 'GET',
                 mode: 'cors'
             });
 
             if (response.ok) {
-                statusEl.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Conexion exitosa</span>';
+                const data = await response.json();
+                if (data.success) {
+                    statusEl.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Conexion exitosa</span>';
+                } else {
+                    throw new Error(data.error || 'Error en respuesta');
+                }
             } else {
                 throw new Error('Error ' + response.status);
             }

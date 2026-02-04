@@ -9,7 +9,7 @@ const AyudaBot = {
         general: {
             titulo: 'Sistema Axones - Control de Produccion',
             descripcion: 'Sistema integral para gestion y control de produccion en planta de impresion flexografica.',
-            modulos: ['Dashboard', 'Impresion', 'Corte', 'Tintas', 'Inventario', 'Alertas', 'Reportes', 'Chatbot', 'Admin']
+            modulos: ['Dashboard', 'Impresion', 'Laminacion', 'Corte', 'Tintas', 'Checklist', 'Certificado', 'Programacion', 'Etiquetas', 'Inventario', 'Alertas', 'Reportes']
         },
         dashboard: {
             titulo: 'Panel de Control (Dashboard)',
@@ -158,6 +158,102 @@ const AyudaBot = {
                 'La API Key de Groq es opcional (solo para chatbot IA)'
             ]
         },
+        checklist: {
+            titulo: 'Lista de Chequeo de Calidad',
+            pasos: [
+                '1. Selecciona el AREA (Impresion, Laminacion o Corte)',
+                '2. Selecciona la MAQUINA correspondiente',
+                '3. Completa la informacion general (fecha, turno, operador)',
+                '4. Revisa cada punto del checklist y marca OK o Falla',
+                '5. Si hay fallas, documenta en las observaciones',
+                '6. Firma digitalmente en el canvas',
+                '7. Guarda el checklist - se genera alerta si hay fallas'
+            ],
+            tips: [
+                'Realiza el checklist al inicio de cada turno',
+                'Un checklist con mas de 2 fallas genera alerta critica',
+                'Puedes ver el historial de checklists anteriores',
+                'El grafico muestra el progreso en tiempo real'
+            ]
+        },
+        programacion: {
+            titulo: 'Programacion de Produccion',
+            pasos: [
+                '1. Vista Kanban: Las OTs se organizan por area (Impresion, Laminacion, Corte)',
+                '2. Para agregar una OT: Haz clic en "Nueva OT"',
+                '3. Completa los datos: cliente, producto, cantidad, fecha entrega',
+                '4. Selecciona la prioridad (1=Normal, 4=Urgente)',
+                '5. Para mover una OT: Arrastra y suelta entre columnas',
+                '6. Para avanzar al siguiente proceso: Menu > Avanzar',
+                '7. Para completar: Menu > Completar'
+            ],
+            tips: [
+                'Las OTs urgentes (prioridad 4) se destacan en rojo',
+                'El badge muestra dias restantes para entrega',
+                'Puedes filtrar por area, estado o cliente',
+                'El flujo Normal es: Impresion > Laminacion > Corte',
+                'El flujo Superficie es: Impresion > Corte (sin laminacion)'
+            ]
+        },
+        etiquetas: {
+            titulo: 'Generador de Etiquetas',
+            pasos: [
+                '1. Ingresa la informacion de la Orden de Trabajo',
+                '2. Completa los datos del cliente y producto',
+                '3. Ingresa la informacion de la bobina (numero, peso, dimensiones)',
+                '4. Selecciona el tipo de material',
+                '5. Indica la cantidad de etiquetas a generar',
+                '6. Haz clic en "Vista Previa" para ver el resultado',
+                '7. Haz clic en "Imprimir" para enviar a la impresora'
+            ],
+            tips: [
+                'El codigo de bobina se genera automaticamente',
+                'Puedes generar multiples etiquetas consecutivas',
+                'La vista previa se actualiza automaticamente',
+                'Consulta el historial para ver etiquetas anteriores'
+            ]
+        },
+        certificado: {
+            titulo: 'Certificado de Control de Calidad',
+            pasos: [
+                '1. El numero de certificado se genera automaticamente',
+                '2. Ingresa la informacion del cliente y producto',
+                '3. En Especificaciones Tecnicas:',
+                '   - Columna "Espec." = valor especificado por el cliente',
+                '   - Columna "Medido" = valor real medido',
+                '4. Marca los items de Inspeccion Visual',
+                '5. Ingresa el nombre del Inspector y Supervisor',
+                '6. Haz clic en "Vista Previa" para ver el certificado',
+                '7. Haz clic en "Imprimir" para generar el PDF'
+            ],
+            tips: [
+                'Verde = dentro de tolerancia (±5%)',
+                'Amarillo = fuera de tolerancia pero cerca',
+                'Rojo = fuera de especificacion',
+                'El sello APROBADO/RECHAZADO se coloca automaticamente',
+                'Guarda el historial de certificados emitidos'
+            ]
+        },
+        laminacion: {
+            titulo: 'Control de Laminacion',
+            pasos: [
+                '1. Selecciona el TURNO y la FECHA',
+                '2. Ingresa la ORDEN DE TRABAJO',
+                '3. Selecciona la LAMINADORA',
+                '4. En CONTROL DE ADHESIVO registra:',
+                '   - Entrada y Sobro de Adhesivo, Catalizador y Acetato',
+                '5. En BOBINAS DE ENTRADA registra los pesos',
+                '6. En BOBINAS DE SALIDA registra los pesos producidos',
+                '7. Registra el SCRAP (Refile y Laminado)',
+                '8. El sistema calcula automaticamente los consumos'
+            ],
+            tips: [
+                'El consumo de adhesivo se calcula automaticamente',
+                'Productos "Superficie" no pasan por laminacion',
+                'Registra las horas de inicio y fin del proceso',
+                'Puedes buscar OTs de impresion para continuar el flujo'
+            ]
+        },
         glosario: {
             'OT': 'Orden de Trabajo - Documento que especifica que producir',
             'Refil': 'Desperdicio o scrap - Material que no se convierte en producto final',
@@ -243,11 +339,26 @@ const AyudaBot = {
                                     <button class="list-group-item list-group-item-action" onclick="AyudaBot.mostrarSeccion('impresion')">
                                         <i class="bi bi-printer me-2"></i>Impresion
                                     </button>
+                                    <button class="list-group-item list-group-item-action" onclick="AyudaBot.mostrarSeccion('laminacion')">
+                                        <i class="bi bi-layers me-2"></i>Laminacion
+                                    </button>
                                     <button class="list-group-item list-group-item-action" onclick="AyudaBot.mostrarSeccion('corte')">
                                         <i class="bi bi-scissors me-2"></i>Corte
                                     </button>
                                     <button class="list-group-item list-group-item-action" onclick="AyudaBot.mostrarSeccion('tintas')">
                                         <i class="bi bi-droplet me-2"></i>Tintas
+                                    </button>
+                                    <button class="list-group-item list-group-item-action" onclick="AyudaBot.mostrarSeccion('checklist')">
+                                        <i class="bi bi-list-check me-2"></i>Checklist
+                                    </button>
+                                    <button class="list-group-item list-group-item-action" onclick="AyudaBot.mostrarSeccion('certificado')">
+                                        <i class="bi bi-award me-2"></i>Certificado
+                                    </button>
+                                    <button class="list-group-item list-group-item-action" onclick="AyudaBot.mostrarSeccion('programacion')">
+                                        <i class="bi bi-calendar3 me-2"></i>Programacion
+                                    </button>
+                                    <button class="list-group-item list-group-item-action" onclick="AyudaBot.mostrarSeccion('etiquetas')">
+                                        <i class="bi bi-tag me-2"></i>Etiquetas
                                     </button>
                                     <button class="list-group-item list-group-item-action" onclick="AyudaBot.mostrarSeccion('inventario')">
                                         <i class="bi bi-box-seam me-2"></i>Inventario

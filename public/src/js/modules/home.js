@@ -15,8 +15,46 @@ const HomeModule = {
     init() {
         console.log('Inicializando modulo Home...');
         this.actualizarFechaHora();
+        this.verificarConexion();
         this.cargarDatos();
         this.iniciarActualizacionAutomatica();
+    },
+
+    // Verificar conexion con Google Sheets API
+    async verificarConexion() {
+        const badge = document.getElementById('conexionBadge');
+        if (!badge) return;
+
+        // Verificar si CONFIG existe y tiene URL
+        if (typeof CONFIG === 'undefined' || !CONFIG.API || !CONFIG.API.BASE_URL) {
+            badge.className = 'ms-2 badge bg-secondary';
+            badge.innerHTML = '<i class="bi bi-database-x me-1"></i>Sin configurar';
+            return;
+        }
+
+        try {
+            const response = await fetch(CONFIG.API.BASE_URL + '?action=ping', {
+                method: 'GET',
+                mode: 'cors'
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    badge.className = 'ms-2 badge bg-success';
+                    badge.innerHTML = '<i class="bi bi-cloud-check me-1"></i>Conectado a Sheets';
+                    console.log('Conexion a Google Sheets exitosa:', data);
+                } else {
+                    throw new Error(data.error || 'Error en respuesta');
+                }
+            } else {
+                throw new Error('HTTP ' + response.status);
+            }
+        } catch (error) {
+            badge.className = 'ms-2 badge bg-danger';
+            badge.innerHTML = '<i class="bi bi-cloud-slash me-1"></i>Sin conexion';
+            console.error('Error de conexion:', error.message);
+        }
     },
 
     // Actualizar fecha y hora

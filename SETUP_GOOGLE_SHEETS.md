@@ -1,266 +1,218 @@
-# Configuracion Completa de Google Sheets + Apps Script
-## Sistema Axones - Inversiones Axones 2008, C.A.
+# Configuracion Google Sheets - Sistema Axones
+## Solo 3 pasos simples
 
 ---
 
-## PASO 1: Crear el Google Sheets
+## PASO 1: Crear Google Sheets vacio
 
 1. Ve a [Google Sheets](https://sheets.google.com)
-2. Crea una nueva hoja de calculo
-3. Renombrala como: **"Sistema Axones - Base de Datos"**
-4. Copia el ID del Sheets de la URL (es el texto largo entre `/d/` y `/edit`)
-   - Ejemplo: `https://docs.google.com/spreadsheets/d/ESTE_ES_EL_ID/edit`
+2. Crea una hoja nueva (en blanco)
+3. Renombrala: **"Sistema Axones - Base de Datos"**
 
 ---
 
-## PASO 2: Crear las Hojas (Pestanas)
+## PASO 2: Copiar el Apps Script
 
-Crea las siguientes hojas con estos nombres EXACTOS:
-
-| # | Nombre de Hoja | Descripcion |
-|---|----------------|-------------|
-| 1 | PRODUCCION | Registros de produccion |
-| 2 | USUARIOS | Usuarios del sistema |
-| 3 | CLIENTES | Lista de clientes |
-| 4 | INVENTARIO | Inventario de materiales |
-| 5 | ALERTAS | Alertas del sistema |
-| 6 | CONFIGURACION | Parametros del sistema |
-| 7 | MAQUINAS | Registro de maquinas |
-| 8 | DESPACHOS | Registro de despachos |
-| 9 | AUDITORIA | Log de cambios |
-| 10 | CONSUMO_TINTAS | Consumo de tintas y solventes |
-
----
-
-## PASO 3: Estructura de cada Hoja
-
-### HOJA: USUARIOS (Fila 1 = Encabezados)
-```
-A1: id
-B1: usuario
-C1: password
-D1: nombre
-E1: rol
-F1: activo
-G1: fecha_creacion
-H1: ultimo_acceso
-```
-
-**Datos iniciales (Fila 2):**
-```
-A2: 1
-B2: admin
-C2: admin123
-D2: Administrador
-E2: administrador
-F2: true
-G2: =NOW()
-H2: (dejar vacio)
-```
-
-**Usuarios adicionales sugeridos (Filas 3-6):**
-```
-Fila 3: 2, supervisor, super123, Supervisor Planta, supervisor, true, =NOW()
-Fila 4: 3, jefe, jefe123, Jefe Operaciones, jefe_operaciones, true, =NOW()
-Fila 5: 4, operador1, op123, Juan Perez, operador, true, =NOW()
-Fila 6: 5, operador2, op123, Maria Garcia, operador, true, =NOW()
-```
-
----
-
-### HOJA: CLIENTES (Fila 1 = Encabezados)
-```
-A1: id
-B1: nombre
-C1: rif
-D1: direccion
-E1: telefono
-F1: email
-G1: activo
-```
-
-**Datos iniciales (Filas 2-13):**
-```
-1, Alivensa, J-12345678-9, Caracas, 0212-1234567, , true
-2, Amacorp, J-23456789-0, Valencia, 0241-2345678, , true
-3, Agua Blanca, J-34567890-1, Maracay, 0243-3456789, , true
-4, Alimentos Alvarigua, J-45678901-2, Barquisimeto, 0251-4567890, , true
-5, Industrias Rico Mundo, J-56789012-3, Caracas, 0212-5678901, , true
-6, Inproa Santoni, J-67890123-4, Valencia, 0241-6789012, , true
-7, Alimentos El Toro, J-78901234-5, Maracay, 0243-7890123, , true
-8, Pasta La Sirena, J-89012345-6, Caracas, 0212-8901234, , true
-9, FDLM (Fior di Latte), J-90123456-7, Valencia, 0241-9012345, , true
-10, Procesadora de Alimentos Viuz, J-01234567-8, Barquisimeto, 0251-0123456, , true
-11, Corporacion de Alimentos Regina, J-11234567-9, Caracas, 0212-1123456, , true
-12, Representaciones Saj, J-21234567-0, Valencia, 0241-2123456, , true
-```
-
----
-
-### HOJA: PRODUCCION (Fila 1 = Encabezados)
-```
-A1: id
-B1: fecha
-C1: turno
-D1: maquina
-E1: proceso
-F1: cliente
-G1: producto
-H1: ot
-I1: kilos_producidos
-J1: kilos_entrada
-K1: refil_kg
-L1: refil_porcentaje
-M1: tiempo_trabajo_min
-N1: tiempo_muerto_min
-O1: operador
-P1: observaciones
-Q1: estado
-R1: created_at
-S1: updated_at
-```
-
----
-
-### HOJA: INVENTARIO (Fila 1 = Encabezados)
-```
-A1: id
-B1: tipo
-C1: material
-D1: cantidad
-E1: unidad
-F1: ubicacion
-G1: lote
-H1: fecha_entrada
-I1: proveedor
-J1: observaciones
-```
-
----
-
-### HOJA: ALERTAS (Fila 1 = Encabezados)
-```
-A1: id
-B1: tipo
-C1: nivel
-D1: mensaje
-E1: fecha
-F1: leida
-G1: usuario_id
-H1: referencia_id
-I1: referencia_tipo
-```
-
----
-
-### HOJA: MAQUINAS (Fila 1 = Encabezados)
-```
-A1: id
-B1: codigo
-C1: nombre
-D1: tipo
-E1: estado
-F1: ubicacion
-G1: ultima_mantenimiento
-```
-
-**Datos iniciales:**
-```
-1, comexi_1, COMEXI 1, impresora, activa, Planta
-2, comexi_2, COMEXI 2, impresora, activa, Planta
-3, comexi_3, COMEXI 3, impresora, activa, Planta
-4, laminadora_1, Laminadora, laminadora, activa, Planta
-5, cortadora_china, China, cortadora, activa, Planta
-6, cortadora_permaco, Permaco, cortadora, activa, Planta
-7, cortadora_novograf, Novograf, cortadora, activa, Planta
-```
-
----
-
-### HOJA: DESPACHOS (Fila 1 = Encabezados)
-```
-A1: id
-B1: fecha
-C1: cliente
-D1: producto
-E1: cantidad
-F1: unidad
-G1: guia
-H1: transporte
-I1: destino
-J1: observaciones
-K1: created_by
-```
-
----
-
-### HOJA: CONFIGURACION (Fila 1 = Encabezados)
-```
-A1: clave
-B1: valor
-C1: descripcion
-```
-
-**Datos iniciales:**
-```
-refil_maximo, 6.0, Porcentaje maximo de refil aceptado
-refil_advertencia, 5.0, Porcentaje de advertencia de refil
-empresa_nombre, Inversiones Axones 2008 C.A., Nombre de la empresa
-empresa_rif, J-12345678-9, RIF de la empresa
-```
-
----
-
-### HOJA: CONSUMO_TINTAS (Fila 1 = Encabezados)
-```
-A1: id
-B1: fecha
-C1: turno
-D1: maquina
-E1: produccion_id
-F1: tinta_tipo
-G1: tinta_nombre
-H1: cantidad_kg
-I1: operador
-```
-
----
-
-### HOJA: AUDITORIA (Fila 1 = Encabezados)
-```
-A1: id
-B1: fecha
-C1: usuario
-D1: accion
-E1: tabla
-F1: registro_id
-G1: datos_anteriores
-H1: datos_nuevos
-```
-
----
-
-## PASO 4: Configurar Apps Script
-
-1. En el Google Sheets, ve a **Extensiones > Apps Script**
-2. Borra todo el codigo existente
-3. Crea los siguientes archivos:
-
----
-
-### Archivo: Code.gs (Principal)
+1. En tu Sheets, ve a **Extensiones > Apps Script**
+2. Borra todo el codigo que aparece
+3. Copia y pega TODO el codigo de abajo:
 
 ```javascript
 /**
- * Sistema Axones - Google Apps Script Backend
+ * ============================================
+ * SISTEMA AXONES - Google Apps Script Backend
  * Inversiones Axones 2008, C.A.
- * API para el sistema de produccion
+ * ============================================
+ *
+ * INSTRUCCIONES:
+ * 1. Copiar este codigo completo
+ * 2. Ir a Extensiones > Apps Script
+ * 3. Pegar y guardar (Ctrl+S)
+ * 4. Ejecutar: inicializarSistema()
+ * 5. Desplegar como Web App
  */
 
-// ID del Sheets (se configura automaticamente)
-const SHEETS_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
+// ==================== INICIALIZACION ====================
 
-// Configuracion de CORS
+/**
+ * EJECUTAR PRIMERO - Crea todas las hojas y datos iniciales
+ */
+function inicializarSistema() {
+  const ui = SpreadsheetApp.getUi();
+
+  ui.alert('Inicializando Sistema Axones',
+    'Se crearan todas las hojas necesarias con sus datos iniciales.\n\nEsto puede tomar unos segundos...',
+    ui.ButtonSet.OK);
+
+  try {
+    // Crear todas las hojas
+    crearHojaUsuarios();
+    crearHojaClientes();
+    crearHojaProduccion();
+    crearHojaInventario();
+    crearHojaAlertas();
+    crearHojaMaquinas();
+    crearHojaDespachos();
+    crearHojaConfiguracion();
+    crearHojaConsumoTintas();
+    crearHojaAuditoria();
+
+    // Eliminar hoja por defecto si existe
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const defaultSheet = ss.getSheetByName('Hoja 1') || ss.getSheetByName('Sheet1');
+    if (defaultSheet && ss.getSheets().length > 1) {
+      ss.deleteSheet(defaultSheet);
+    }
+
+    ui.alert('Sistema Inicializado',
+      'Todas las hojas han sido creadas correctamente.\n\n' +
+      'Ahora debe desplegar el Web App:\n' +
+      '1. Clic en Implementar > Nueva implementacion\n' +
+      '2. Tipo: Aplicacion web\n' +
+      '3. Ejecutar como: Tu cuenta\n' +
+      '4. Acceso: Cualquier persona\n' +
+      '5. Clic en Implementar\n' +
+      '6. Copiar la URL generada',
+      ui.ButtonSet.OK);
+
+  } catch (error) {
+    ui.alert('Error', 'Ocurrio un error: ' + error.toString(), ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Crea una hoja si no existe
+ */
+function crearHoja(nombre, encabezados, datos) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(nombre);
+
+  if (!sheet) {
+    sheet = ss.insertSheet(nombre);
+  } else {
+    sheet.clear();
+  }
+
+  // Encabezados
+  if (encabezados && encabezados.length > 0) {
+    sheet.getRange(1, 1, 1, encabezados.length).setValues([encabezados]);
+    sheet.getRange(1, 1, 1, encabezados.length)
+      .setBackground('#4285f4')
+      .setFontColor('#ffffff')
+      .setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+
+  // Datos iniciales
+  if (datos && datos.length > 0) {
+    sheet.getRange(2, 1, datos.length, datos[0].length).setValues(datos);
+  }
+
+  // Ajustar columnas
+  if (encabezados) {
+    for (let i = 1; i <= encabezados.length; i++) {
+      sheet.autoResizeColumn(i);
+    }
+  }
+
+  return sheet;
+}
+
+// ==================== CREAR HOJAS ====================
+
+function crearHojaUsuarios() {
+  const encabezados = ['id', 'usuario', 'password', 'nombre', 'rol', 'activo', 'fecha_creacion', 'ultimo_acceso'];
+  const datos = [
+    [1, 'admin', 'admin123', 'Administrador', 'administrador', true, new Date().toISOString(), ''],
+    [2, 'supervisor', 'super123', 'Supervisor Planta', 'supervisor', true, new Date().toISOString(), ''],
+    [3, 'jefe', 'jefe123', 'Jefe Operaciones', 'jefe_operaciones', true, new Date().toISOString(), ''],
+    [4, 'operador1', 'op123', 'Juan Perez', 'operador', true, new Date().toISOString(), ''],
+    [5, 'operador2', 'op123', 'Maria Garcia', 'operador', true, new Date().toISOString(), ''],
+  ];
+  crearHoja('USUARIOS', encabezados, datos);
+}
+
+function crearHojaClientes() {
+  const encabezados = ['id', 'nombre', 'rif', 'direccion', 'telefono', 'email', 'activo'];
+  const datos = [
+    [1, 'Alivensa', 'J-12345678-9', 'Caracas', '0212-1234567', '', true],
+    [2, 'Amacorp', 'J-23456789-0', 'Valencia', '0241-2345678', '', true],
+    [3, 'Agua Blanca', 'J-34567890-1', 'Maracay', '0243-3456789', '', true],
+    [4, 'Alimentos Alvarigua', 'J-45678901-2', 'Barquisimeto', '0251-4567890', '', true],
+    [5, 'Industrias Rico Mundo', 'J-56789012-3', 'Caracas', '0212-5678901', '', true],
+    [6, 'Inproa Santoni', 'J-67890123-4', 'Valencia', '0241-6789012', '', true],
+    [7, 'Alimentos El Toro', 'J-78901234-5', 'Maracay', '0243-7890123', '', true],
+    [8, 'Pasta La Sirena', 'J-89012345-6', 'Caracas', '0212-8901234', '', true],
+    [9, 'FDLM (Fior di Latte)', 'J-90123456-7', 'Valencia', '0241-9012345', '', true],
+    [10, 'Procesadora de Alimentos Viuz', 'J-01234567-8', 'Barquisimeto', '0251-0123456', '', true],
+    [11, 'Corporacion de Alimentos Regina', 'J-11234567-9', 'Caracas', '0212-1123456', '', true],
+    [12, 'Representaciones Saj', 'J-21234567-0', 'Valencia', '0241-2123456', '', true],
+  ];
+  crearHoja('CLIENTES', encabezados, datos);
+}
+
+function crearHojaProduccion() {
+  const encabezados = [
+    'id', 'fecha', 'turno', 'maquina', 'proceso', 'cliente', 'producto', 'ot',
+    'kilos_producidos', 'kilos_entrada', 'refil_kg', 'refil_porcentaje',
+    'tiempo_trabajo_min', 'tiempo_muerto_min', 'operador', 'observaciones',
+    'estado', 'created_at', 'updated_at'
+  ];
+  crearHoja('PRODUCCION', encabezados, []);
+}
+
+function crearHojaInventario() {
+  const encabezados = ['id', 'tipo', 'material', 'cantidad', 'unidad', 'ubicacion', 'lote', 'fecha_entrada', 'proveedor', 'observaciones'];
+  crearHoja('INVENTARIO', encabezados, []);
+}
+
+function crearHojaAlertas() {
+  const encabezados = ['id', 'tipo', 'nivel', 'mensaje', 'fecha', 'leida', 'usuario_id', 'referencia_id', 'referencia_tipo'];
+  crearHoja('ALERTAS', encabezados, []);
+}
+
+function crearHojaMaquinas() {
+  const encabezados = ['id', 'codigo', 'nombre', 'tipo', 'estado', 'ubicacion', 'ultimo_mantenimiento'];
+  const datos = [
+    [1, 'comexi_1', 'COMEXI 1', 'impresora', 'activa', 'Planta', ''],
+    [2, 'comexi_2', 'COMEXI 2', 'impresora', 'activa', 'Planta', ''],
+    [3, 'comexi_3', 'COMEXI 3', 'impresora', 'activa', 'Planta', ''],
+    [4, 'laminadora_1', 'Laminadora', 'laminadora', 'activa', 'Planta', ''],
+    [5, 'cortadora_china', 'China', 'cortadora', 'activa', 'Planta', ''],
+    [6, 'cortadora_permaco', 'Permaco', 'cortadora', 'activa', 'Planta', ''],
+    [7, 'cortadora_novograf', 'Novograf', 'cortadora', 'activa', 'Planta', ''],
+  ];
+  crearHoja('MAQUINAS', encabezados, datos);
+}
+
+function crearHojaDespachos() {
+  const encabezados = ['id', 'fecha', 'cliente', 'producto', 'cantidad', 'unidad', 'guia', 'transporte', 'destino', 'observaciones', 'created_by'];
+  crearHoja('DESPACHOS', encabezados, []);
+}
+
+function crearHojaConfiguracion() {
+  const encabezados = ['clave', 'valor', 'descripcion'];
+  const datos = [
+    ['refil_maximo', '6.0', 'Porcentaje maximo de refil aceptado'],
+    ['refil_advertencia', '5.0', 'Porcentaje de advertencia de refil'],
+    ['empresa_nombre', 'Inversiones Axones 2008, C.A.', 'Nombre de la empresa'],
+    ['empresa_rif', 'J-29882122-7', 'RIF de la empresa'],
+  ];
+  crearHoja('CONFIGURACION', encabezados, datos);
+}
+
+function crearHojaConsumoTintas() {
+  const encabezados = ['id', 'fecha', 'turno', 'maquina', 'produccion_id', 'tinta_tipo', 'tinta_nombre', 'cantidad_kg', 'operador'];
+  crearHoja('CONSUMO_TINTAS', encabezados, []);
+}
+
+function crearHojaAuditoria() {
+  const encabezados = ['id', 'fecha', 'usuario', 'accion', 'tabla', 'registro_id', 'datos_anteriores', 'datos_nuevos'];
+  crearHoja('AUDITORIA', encabezados, []);
+}
+
+// ==================== API WEB ====================
+
 function doGet(e) {
   return handleRequest(e);
 }
@@ -378,7 +330,13 @@ function handleRequest(e) {
 
       // Ping/Test
       case 'ping':
-        result = { success: true, message: 'API Axones funcionando', timestamp: new Date().toISOString(), sheetsId: SHEETS_ID };
+        result = {
+          success: true,
+          message: 'API Sistema Axones funcionando correctamente',
+          timestamp: new Date().toISOString(),
+          sheetsId: SpreadsheetApp.getActiveSpreadsheet().getId(),
+          version: '1.0.0'
+        };
         break;
 
       default:
@@ -421,7 +379,7 @@ function getSheetData(nombre) {
       obj[header] = row[i];
     });
     return obj;
-  });
+  }).filter(row => row.id !== '' && row.id !== null);
 }
 
 function appendToSheet(nombre, data) {
@@ -481,11 +439,10 @@ function login(usuario, password) {
   const user = usuarios.find(u =>
     u.usuario === usuario &&
     u.password === password &&
-    u.activo === true
+    (u.activo === true || u.activo === 'TRUE' || u.activo === 'true')
   );
 
   if (user) {
-    // Actualizar ultimo acceso
     updateSheetRow('USUARIOS', user._rowIndex, { ultimo_acceso: new Date().toISOString() });
 
     return {
@@ -534,7 +491,9 @@ function createUsuario(data) {
 // ==================== CLIENTES ====================
 
 function getClientes() {
-  const clientes = getSheetData('CLIENTES').filter(c => c.activo !== false);
+  const clientes = getSheetData('CLIENTES').filter(c =>
+    c.activo === true || c.activo === 'TRUE' || c.activo === 'true'
+  );
   return { success: true, data: clientes };
 }
 
@@ -553,7 +512,6 @@ function createCliente(data) {
 function getProduccion(params) {
   let data = getSheetData('PRODUCCION');
 
-  // Filtros opcionales
   if (params.fecha_desde) {
     data = data.filter(r => new Date(r.fecha) >= new Date(params.fecha_desde));
   }
@@ -569,6 +527,9 @@ function getProduccion(params) {
   if (params.turno) {
     data = data.filter(r => r.turno === params.turno);
   }
+  if (params.proceso) {
+    data = data.filter(r => r.proceso === params.proceso);
+  }
 
   return { success: true, data: data };
 }
@@ -577,15 +538,16 @@ function createProduccion(data) {
   data.id = getNextId('PRODUCCION');
   data.created_at = new Date().toISOString();
   data.updated_at = data.created_at;
+  data.estado = data.estado || 'completado';
 
-  // Calcular refil porcentaje si no viene
-  if (data.kilos_entrada && data.refil_kg && !data.refil_porcentaje) {
-    data.refil_porcentaje = ((data.refil_kg / data.kilos_entrada) * 100).toFixed(2);
+  // Calcular refil porcentaje
+  if (data.kilos_entrada && data.refil_kg) {
+    data.refil_porcentaje = ((parseFloat(data.refil_kg) / parseFloat(data.kilos_entrada)) * 100).toFixed(2);
   }
 
   appendToSheet('PRODUCCION', data);
 
-  // Verificar si hay alerta de refil
+  // Verificar alerta de refil
   const config = getConfiguracion().data;
   const maxRefil = parseFloat(config.refil_maximo) || 6.0;
 
@@ -593,7 +555,7 @@ function createProduccion(data) {
     createAlerta({
       tipo: 'refil_alto',
       nivel: 'warning',
-      mensaje: `Refil alto (${data.refil_porcentaje}%) en produccion #${data.id} - ${data.cliente}`,
+      mensaje: 'Refil alto (' + data.refil_porcentaje + '%) en produccion #' + data.id + ' - ' + data.cliente,
       usuario_id: null,
       referencia_id: data.id,
       referencia_tipo: 'produccion'
@@ -602,7 +564,7 @@ function createProduccion(data) {
 
   registrarAuditoria(data.operador || 'sistema', 'crear', 'PRODUCCION', data.id, null, data);
 
-  return { success: true, id: data.id };
+  return { success: true, id: data.id, refil_porcentaje: data.refil_porcentaje };
 }
 
 function updateProduccion(id, data) {
@@ -615,9 +577,8 @@ function updateProduccion(id, data) {
 
   data.updated_at = new Date().toISOString();
 
-  // Recalcular refil si es necesario
   if (data.kilos_entrada && data.refil_kg) {
-    data.refil_porcentaje = ((data.refil_kg / data.kilos_entrada) * 100).toFixed(2);
+    data.refil_porcentaje = ((parseFloat(data.refil_kg) / parseFloat(data.kilos_entrada)) * 100).toFixed(2);
   }
 
   updateSheetRow('PRODUCCION', registro._rowIndex, data);
@@ -671,13 +632,12 @@ function getAlertas(params) {
   let data = getSheetData('ALERTAS');
 
   if (params.no_leidas === 'true') {
-    data = data.filter(a => a.leida !== true && a.leida !== 'true');
+    data = data.filter(a => a.leida !== true && a.leida !== 'TRUE' && a.leida !== 'true');
   }
   if (params.tipo) {
     data = data.filter(a => a.tipo === params.tipo);
   }
 
-  // Ordenar por fecha descendente
   data.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
   return { success: true, data: data };
@@ -798,34 +758,29 @@ function getDashboardData(params) {
   const hoy = new Date();
   const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
 
-  // Produccion del mes
   const produccion = getSheetData('PRODUCCION').filter(p =>
     new Date(p.fecha) >= inicioMes
   );
 
-  // Calcular metricas
   const totalKilos = produccion.reduce((sum, p) => sum + (parseFloat(p.kilos_producidos) || 0), 0);
   const totalRefil = produccion.reduce((sum, p) => sum + (parseFloat(p.refil_kg) || 0), 0);
   const totalEntrada = produccion.reduce((sum, p) => sum + (parseFloat(p.kilos_entrada) || 0), 0);
   const promedioRefil = totalEntrada > 0 ? ((totalRefil / totalEntrada) * 100).toFixed(2) : 0;
 
-  // Produccion por maquina
   const porMaquina = {};
   produccion.forEach(p => {
     if (!porMaquina[p.maquina]) porMaquina[p.maquina] = 0;
     porMaquina[p.maquina] += parseFloat(p.kilos_producidos) || 0;
   });
 
-  // Produccion por cliente
   const porCliente = {};
   produccion.forEach(p => {
     if (!porCliente[p.cliente]) porCliente[p.cliente] = 0;
     porCliente[p.cliente] += parseFloat(p.kilos_producidos) || 0;
   });
 
-  // Alertas no leidas
   const alertasNoLeidas = getSheetData('ALERTAS').filter(a =>
-    a.leida !== true && a.leida !== 'true'
+    a.leida !== true && a.leida !== 'TRUE' && a.leida !== 'true'
   ).length;
 
   return {
@@ -858,7 +813,6 @@ function getResumenProduccion(params) {
     produccion = produccion.filter(p => new Date(p.fecha) <= new Date(params.fecha_hasta));
   }
 
-  // Agrupar por cliente
   const resumen = {};
   produccion.forEach(p => {
     const cliente = p.cliente || 'Sin Cliente';
@@ -893,112 +847,116 @@ function getAuditoria(params) {
     data = data.filter(r => r.tabla === params.tabla);
   }
 
-  // Ordenar por fecha descendente
   data.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
-  // Limitar resultados
   const limit = parseInt(params.limit) || 100;
   data = data.slice(0, limit);
 
   return { success: true, data: data };
 }
+
+// ==================== MENU PERSONALIZADO ====================
+
+function onOpen() {
+  const ui = SpreadsheetApp.getUi();
+  ui.createMenu('Sistema Axones')
+    .addItem('Inicializar Sistema', 'inicializarSistema')
+    .addSeparator()
+    .addItem('Probar API (ping)', 'testPing')
+    .addToUi();
+}
+
+function testPing() {
+  const ui = SpreadsheetApp.getUi();
+  const result = {
+    success: true,
+    message: 'API funcionando',
+    sheetsId: SpreadsheetApp.getActiveSpreadsheet().getId()
+  };
+  ui.alert('Test API', JSON.stringify(result, null, 2), ui.ButtonSet.OK);
+}
 ```
+
+4. Guarda el proyecto (Ctrl+S)
 
 ---
 
-## PASO 5: Desplegar el Apps Script
+## PASO 3: Ejecutar e Implementar
 
-1. En el editor de Apps Script, guarda el proyecto (Ctrl+S)
-2. Haz clic en **Implementar > Nueva implementacion**
-3. Selecciona tipo: **Aplicacion web**
-4. Configura:
-   - Descripcion: "API Sistema Axones v1"
+### 3.1 Crear las hojas automaticamente:
+1. En el menu de Apps Script, selecciona la funcion **`inicializarSistema`**
+2. Clic en **Ejecutar** (boton de play)
+3. Autoriza los permisos cuando lo solicite
+4. Espera a que termine (te mostrara un mensaje de confirmacion)
+
+### 3.2 Desplegar el Web App:
+1. Clic en **Implementar > Nueva implementacion**
+2. Clic en el engranaje y selecciona **Aplicacion web**
+3. Configura:
+   - Descripcion: `API Sistema Axones v1`
    - Ejecutar como: **Tu cuenta**
    - Quien tiene acceso: **Cualquier persona**
-5. Haz clic en **Implementar**
-6. Copia la URL del Web App (empieza con `https://script.google.com/macros/s/...`)
+4. Clic en **Implementar**
+5. **COPIA LA URL** que te genera (la necesitaras)
 
 ---
 
-## PASO 6: Probar la API
+## PASO 4: Actualizar config.js
 
-Abre en el navegador la URL del Web App agregando `?action=ping`:
+Abre el archivo `public/src/js/utils/config.js` y actualiza:
 
+```javascript
+API: {
+    BASE_URL: 'PEGAR_URL_DEL_WEB_APP_AQUI',
+    SHEETS_ID: 'PEGAR_ID_DEL_SHEETS_AQUI',
+},
 ```
-https://script.google.com/macros/s/TU_ID/exec?action=ping
+
+El ID del Sheets esta en la URL:
+`https://docs.google.com/spreadsheets/d/ESTE_ES_EL_ID/edit`
+
+---
+
+## Probar que funciona
+
+Abre en el navegador:
+```
+TU_URL_WEB_APP?action=ping
 ```
 
-Debe responder algo como:
+Debe responder:
 ```json
 {
   "success": true,
-  "message": "API Axones funcionando",
-  "timestamp": "2026-02-04T...",
-  "sheetsId": "TU_SHEETS_ID"
+  "message": "API Sistema Axones funcionando correctamente",
+  "timestamp": "...",
+  "sheetsId": "...",
+  "version": "1.0.0"
 }
 ```
 
 ---
 
-## PASO 7: Actualizar config.js con los datos reales
+## Usuarios por defecto
 
-Una vez que tengas:
-1. El ID del Google Sheets
-2. La URL del Web App
-
-Actualiza el archivo `public/src/js/utils/config.js` con esos valores.
-
----
-
-## Endpoints Disponibles
-
-| Action | Metodo | Descripcion |
-|--------|--------|-------------|
-| `ping` | GET | Verificar conexion |
-| `login` | GET | Autenticar usuario |
-| `getUsuarios` | GET | Lista de usuarios |
-| `getClientes` | GET | Lista de clientes |
-| `getProduccion` | GET | Registros de produccion |
-| `createProduccion` | GET/POST | Crear registro |
-| `updateProduccion` | GET/POST | Actualizar registro |
-| `getInventario` | GET | Inventario |
-| `getAlertas` | GET | Alertas del sistema |
-| `getMaquinas` | GET | Maquinas |
-| `getDespachos` | GET | Despachos |
-| `getDashboardData` | GET | Datos del dashboard |
-| `getConfiguracion` | GET | Configuracion |
+| Usuario | Password | Rol |
+|---------|----------|-----|
+| admin | admin123 | Administrador |
+| supervisor | super123 | Supervisor |
+| jefe | jefe123 | Jefe Operaciones |
+| operador1 | op123 | Operador |
+| operador2 | op123 | Operador |
 
 ---
 
-## Ejemplo de uso desde JavaScript
+## Endpoints disponibles
 
-```javascript
-// Ping
-fetch(CONFIG.API.BASE_URL + '?action=ping')
-  .then(r => r.json())
-  .then(console.log);
-
-// Login
-fetch(CONFIG.API.BASE_URL + '?action=login&usuario=admin&password=admin123')
-  .then(r => r.json())
-  .then(console.log);
-
-// Obtener clientes
-fetch(CONFIG.API.BASE_URL + '?action=getClientes')
-  .then(r => r.json())
-  .then(console.log);
-
-// Crear produccion
-const data = {
-  fecha: '2026-02-04',
-  turno: '1',
-  maquina: 'comexi_1',
-  cliente: 'Alivensa',
-  kilos_producidos: 500,
-  kilos_entrada: 520,
-  refil_kg: 20
-};
-fetch(CONFIG.API.BASE_URL + '?action=createProduccion&data=' + encodeURIComponent(JSON.stringify(data)))
-  .then(r => r.json())
-  .then(console.log);
-```
+| Endpoint | Descripcion |
+|----------|-------------|
+| `?action=ping` | Probar conexion |
+| `?action=login&usuario=X&password=Y` | Iniciar sesion |
+| `?action=getClientes` | Lista de clientes |
+| `?action=getMaquinas` | Lista de maquinas |
+| `?action=getProduccion` | Registros de produccion |
+| `?action=getDashboardData` | Datos del dashboard |
+| `?action=getAlertas` | Alertas del sistema |

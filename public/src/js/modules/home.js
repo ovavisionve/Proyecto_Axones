@@ -80,6 +80,345 @@ const HomeModule = {
 
     // Cargar todos los datos del dashboard
     async cargarDatos() {
+        // Intentar cargar desde API primero
+        try {
+            await this.cargarDatosDesdeAPI();
+        } catch (error) {
+            console.warn('Error cargando desde API, usando localStorage:', error);
+            this.cargarDatosDesdeLocal();
+        }
+    },
+
+    // Cargar datos desde la API de Google Sheets
+    async cargarDatosDesdeAPI() {
+        try {
+            const dashboardData = await AxonesAPI.getDashboardData();
+
+            if (dashboardData.success && dashboardData.data) {
+                const data = dashboardData.data;
+
+                // Actualizar KPIs
+                const statProduccion = document.getElementById('statProduccion');
+                const statRefil = document.getElementById('statRefil');
+                const refilStatus = document.getElementById('refilStatus');
+                const statAlertas = document.getElementById('statAlertas');
+
+                if (statProduccion) {
+                    statProduccion.textContent = this.formatearNumero(data.resumen.total_kilos_producidos);
+                }
+
+                if (statRefil) {
+                    const refil = parseFloat(data.resumen.promedio_refil_porcentaje) || 0;
+                    statRefil.textContent = refil.toFixed(1) + '%';
+
+                    if (refilStatus) {
+                        if (refil > 6) {
+                            refilStatus.className = 'text-danger';
+                            refilStatus.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Alto';
+                        } else if (refil > 5) {
+                            refilStatus.className = 'text-warning';
+                            refilStatus.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i>Advertencia';
+                        } else {
+                            refilStatus.className = 'text-success';
+                            refilStatus.innerHTML = '<i class="bi bi-check-circle me-1"></i>OK';
+                        }
+                    }
+                }
+
+                if (statAlertas) {
+                    statAlertas.textContent = data.resumen.alertas_pendientes || 0;
+
+                    // Badge en navbar
+                    const alertasBadge = document.getElementById('alertasBadge');
+                    if (alertasBadge) {
+                        if (data.resumen.alertas_pendientes > 0) {
+                            alertasBadge.textContent = data.resumen.alertas_pendientes;
+                            alertasBadge.style.display = 'inline-block';
+                        } else {
+                            alertasBadge.style.display = 'none';
+                        }
+                    }
+                }
+
+                // Cargar grafico por maquina
+                this.cargarGraficoDesdeAPI(data.por_maquina, data.por_cliente);
+
+                // Cargar produccion por maquina en la tabla
+                this.cargarProduccionPorMaquina(data.por_maquina);
+            }
+
+            // Cargar alertas desde API
+            await this.cargarAlertasDesdeAPI();
+
+            // Cargar maquinas desde API
+            await this.cargarMaquinasDesdeAPI();
+
+            // Inventario desde API
+            await this.cargarInventarioDesdeAPI();
+
+        } catch (error) {
+            throw error;
+        }
+    },
+
+    // Cargar alertas desde API
+    async cargarAlertasDesdeAPI() {
+        try {
+            const response = await AxonesAPI.getAlertas({ no_leidas: 'true' });
+            if (response.success && response.data) {
+                const container = document.getElementById('alertasRecientes');
+                if (!container) return;
+
+                const alertas = response.data.slice(0, 5);
+
+                if (alertas.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-check-circle display-6 text-success d-block mb-2"></i>
+                            <p class="mb-0">No hay alertas pendientes</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = alertas.map(alerta => {
+                    const icono = this.obtenerIconoAlerta(alerta.tipo);
+                    const clase = alerta.nivel === 'danger' || alerta.nivel === 'critical' ? 'danger' : 'warning';
+                    return `
+                        <div class="alert-item ${clase} p-3 border-bottom">
+                            <div class="d-flex align-items-start">
+                                <i class="bi ${icono} me-2 mt-1 text-${clase}"></i>
+                                <div class="flex-grow-1">
+                                    <p class="mb-1 small fw-medium">${alerta.mensaje}</p>
+                                    <small class="text-muted">
+                                        <i class="bi bi-clock me-1"></i>${this.formatearFecha(alerta.fecha)}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        } catch (error) {
+            console.warn('Error cargando alertas:', error);
+        }
+    },
+
+    // Cargar maquinas desde API
+    async cargarMaquinasDesdeAPI() {
+        try {
+            const response = await AxonesAPI.getMaquinas();
+            if (response.success && response.data) {
+                const container = document.getElementById('listaMaquinas');
+                if (!container) return;
+
+                container.innerHTML = response.data.map(m => {
+                    const estadoClase = m.estado === 'activa' ? 'active' : m.estado === 'espera' ? 'idle' : 'stopped';
+                    const badgeClase = m.estado === 'activa' ? 'bg-success' : m.estado === 'espera' ? 'bg-warning text-dark' : 'bg-danger';
+                    const estadoTexto = m.estado === 'activa' ? 'Activa' : m.estado === 'espera' ? 'En espera' : 'Detenida';
+
+                    return `
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span><span class="machine-status ${estadoClase} me-2"></span>${m.nombre}</span>
+                            <span class="badge ${badgeClase}">${estadoTexto}</span>
+                        </li>
+                    `;
+                }).join('');
+            }
+        } catch (error) {
+            console.warn('Error cargando maquinas:', error);
+            this.cargarEstadoMaquinas();
+        }
+    },
+
+    // Cargar inventario desde API
+    async cargarInventarioDesdeAPI() {
+        try {
+            const response = await AxonesAPI.getInventario();
+            if (response.success && response.data) {
+                const inventario = response.data;
+                const tbody = document.getElementById('inventarioBajo');
+                if (!tbody) return;
+
+                const stockBajo = inventario.filter(item => parseFloat(item.cantidad) < 100);
+
+                // Actualizar stat de inventario
+                const statInventario = document.getElementById('statInventario');
+                if (statInventario) {
+                    const total = inventario.reduce((sum, i) => sum + (parseFloat(i.cantidad) || 0), 0);
+                    statInventario.textContent = this.formatearNumero(total);
+                }
+
+                if (stockBajo.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-3">
+                                <i class="bi bi-check-circle text-success me-2"></i>
+                                Todo el inventario esta en niveles adecuados
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                tbody.innerHTML = stockBajo.slice(0, 5).map(item => {
+                    const estado = parseFloat(item.cantidad) < 50 ?
+                        '<span class="badge bg-danger">Critico</span>' :
+                        '<span class="badge bg-warning text-dark">Bajo</span>';
+
+                    return `
+                        <tr>
+                            <td><strong>${item.material || '-'}</strong></td>
+                            <td class="text-center">${item.tipo || '-'}</td>
+                            <td class="text-center">-</td>
+                            <td class="text-end">${this.formatearNumero(item.cantidad)}</td>
+                            <td>${item.ubicacion || '-'}</td>
+                            <td class="text-center">${estado}</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        } catch (error) {
+            console.warn('Error cargando inventario:', error);
+            this.cargarInventarioBajo();
+        }
+    },
+
+    // Cargar produccion por maquina (tabla)
+    cargarProduccionPorMaquina(porMaquina) {
+        const container = document.getElementById('produccionHoy');
+        const totalOTsHoy = document.getElementById('totalOTsHoy');
+        if (!container) return;
+
+        const maquinas = Object.keys(porMaquina);
+
+        if (totalOTsHoy) {
+            const total = Object.values(porMaquina).reduce((a, b) => a + b, 0);
+            totalOTsHoy.textContent = `${this.formatearNumero(total)} Kg`;
+        }
+
+        if (maquinas.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-3">
+                    <i class="bi bi-inbox display-6 d-block mb-2"></i>
+                    <p class="mb-0">No hay registros de produccion este mes</p>
+                    <a href="impresion.html" class="btn btn-primary btn-sm mt-2">
+                        <i class="bi bi-plus me-1"></i>Crear registro
+                    </a>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '<div class="table-responsive"><table class="table table-sm mb-0">';
+        html += '<thead class="table-light"><tr><th>Maquina</th><th class="text-end">Kg Producidos</th></tr></thead>';
+        html += '<tbody>';
+
+        maquinas.forEach(maq => {
+            html += `
+                <tr>
+                    <td><i class="bi bi-cpu me-1 text-muted"></i>${maq}</td>
+                    <td class="text-end">${this.formatearNumero(porMaquina[maq])}</td>
+                </tr>
+            `;
+        });
+
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+    },
+
+    // Cargar graficos desde datos de API
+    cargarGraficoDesdeAPI(porMaquina, porCliente) {
+        // Grafico de produccion por maquina
+        const canvasRefil = document.getElementById('chartRefil');
+        if (canvasRefil && porMaquina) {
+            if (this.charts.refil) {
+                this.charts.refil.destroy();
+            }
+
+            const labels = Object.keys(porMaquina);
+            const data = Object.values(porMaquina);
+
+            if (labels.length > 0) {
+                this.charts.refil = new Chart(canvasRefil, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: data,
+                            backgroundColor: [
+                                'rgba(25, 135, 84, 0.8)',
+                                'rgba(13, 110, 253, 0.8)',
+                                'rgba(255, 193, 7, 0.8)',
+                                'rgba(220, 53, 69, 0.8)',
+                                'rgba(111, 66, 193, 0.8)',
+                                'rgba(23, 162, 184, 0.8)'
+                            ],
+                            borderWidth: 2,
+                            borderColor: '#fff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Produccion por Maquina'
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // Grafico de produccion (barras) - por cliente
+        const canvasProd = document.getElementById('chartProduccion');
+        if (canvasProd && porCliente) {
+            if (this.charts.produccion) {
+                this.charts.produccion.destroy();
+            }
+
+            const labels = Object.keys(porCliente).slice(0, 7);
+            const data = labels.map(l => porCliente[l]);
+
+            if (labels.length > 0) {
+                this.charts.produccion = new Chart(canvasProd, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Produccion (Kg)',
+                            data: data,
+                            backgroundColor: 'rgba(25, 135, 84, 0.7)',
+                            borderColor: 'rgb(25, 135, 84)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            title: {
+                                display: true,
+                                text: 'Produccion por Cliente (Mes)'
+                            }
+                        },
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
+        }
+    },
+
+    // Cargar datos desde localStorage (fallback)
+    cargarDatosDesdeLocal() {
         this.cargarKPIs();
         this.cargarAlertasRecientes();
         this.cargarProduccionHoy();

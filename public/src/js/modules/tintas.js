@@ -132,18 +132,26 @@ const Tintas = {
         const datos = this.recopilarDatos();
 
         try {
-            if (CONFIG.API.BASE_URL === '') {
+            // Preparar datos para API
+            const datosAPI = {
+                fecha: datos.fecha,
+                turno: datos.turno,
+                maquina: datos.maquina,
+                produccion_id: '',
+                tinta_tipo: 'mixto',
+                tinta_nombre: 'Laminacion: ' + datos.totalLaminacion + ' Kg, Superficie: ' + datos.totalSuperficie + ' Kg',
+                cantidad_kg: datos.totalLaminacion + datos.totalSuperficie,
+                operador: datos.operador || ''
+            };
+
+            const result = await AxonesAPI.createConsumoTinta(datosAPI);
+
+            if (result.success) {
+                this.mostrarToast('Consumo de tintas guardado en Google Sheets', 'success');
                 this.guardarLocal(datos);
-                Axones.showSuccess('Registro de consumo guardado correctamente');
+                this.limpiar();
                 return;
             }
-
-            // En produccion, enviar a Apps Script
-            const response = await fetch(CONFIG.API.BASE_URL + '?action=saveTintas', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(datos),
-            });
 
             const result = await response.json();
             if (result.success) {
@@ -233,6 +241,36 @@ const Tintas = {
         const registros = JSON.parse(localStorage.getItem(CONFIG.CACHE.PREFIJO + 'tintas') || '[]');
         registros.unshift(datos);
         localStorage.setItem(CONFIG.CACHE.PREFIJO + 'tintas', JSON.stringify(registros));
+    },
+
+    /**
+     * Muestra un toast de notificacion
+     */
+    mostrarToast: function(mensaje, tipo = 'info') {
+        let container = document.querySelector('.toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            document.body.appendChild(container);
+        }
+
+        const bgClass = tipo === 'success' ? 'bg-success' : tipo === 'warning' ? 'bg-warning' : tipo === 'danger' ? 'bg-danger' : 'bg-info';
+        const textClass = tipo === 'warning' ? 'text-dark' : 'text-white';
+
+        const toastHtml = `
+            <div class="toast align-items-center ${bgClass} ${textClass} border-0" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">${mensaje}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `;
+
+        container.insertAdjacentHTML('beforeend', toastHtml);
+        const toastEl = container.lastElementChild;
+        const toast = new bootstrap.Toast(toastEl, { autohide: true, delay: 5000 });
+        toast.show();
+        toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
     },
 
     /**

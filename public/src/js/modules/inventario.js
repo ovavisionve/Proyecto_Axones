@@ -23,10 +23,10 @@ const Inventario = {
     /**
      * Inicializa el modulo
      */
-    init: function() {
+    init: async function() {
         console.log('Inicializando modulo Inventario de Sustratos');
 
-        this.loadInventario();
+        await this.loadInventario();
         this.setupEventListeners();
         this.renderInventario();
         this.updateTotales();
@@ -34,14 +34,37 @@ const Inventario = {
     },
 
     /**
-     * Carga el inventario (de localStorage o datos de ejemplo)
+     * Carga el inventario desde API o localStorage
      */
-    loadInventario: function() {
+    loadInventario: async function() {
+        // Intentar cargar desde API primero
+        try {
+            const response = await AxonesAPI.getInventario();
+            if (response.success && response.data && response.data.length > 0) {
+                // Mapear datos de API a formato local
+                this.items = response.data.map(item => ({
+                    id: item.id,
+                    material: item.tipo || item.material,
+                    micras: item.micras || '',
+                    ancho: item.ancho || '',
+                    kg: parseFloat(item.cantidad) || 0,
+                    producto: item.ubicacion || '',
+                    importado: false,
+                    lote: item.lote || ''
+                }));
+                console.log('Inventario cargado desde API:', this.items.length, 'items');
+                this.filteredItems = [...this.items];
+                return;
+            }
+        } catch (error) {
+            console.warn('Error cargando inventario de API:', error);
+        }
+
+        // Fallback a localStorage
         const stored = localStorage.getItem(CONFIG.CACHE.PREFIJO + 'inventario');
         if (stored) {
             this.items = JSON.parse(stored);
         } else {
-            // Datos de ejemplo basados en el inventario real de Axones
             this.items = this.getDatosEjemplo();
             this.saveInventario();
         }

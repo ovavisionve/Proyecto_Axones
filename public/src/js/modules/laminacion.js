@@ -21,13 +21,22 @@ const Laminacion = {
     },
 
     /**
-     * Carga clientes desde CONFIG
+     * Carga clientes desde API o CONFIG
      */
-    cargarClientes: function() {
+    cargarClientes: async function() {
         const clienteSelect = document.getElementById('cliente');
         if (!clienteSelect) return;
 
-        this.clientesCache = CONFIG.CLIENTES || CONFIG.CLIENTES_EJEMPLO || [];
+        try {
+            const response = await AxonesAPI.getClientes();
+            if (response.success && response.data) {
+                this.clientesCache = response.data.map(c => c.nombre);
+            } else {
+                this.clientesCache = CONFIG.CLIENTES || [];
+            }
+        } catch (error) {
+            this.clientesCache = CONFIG.CLIENTES || [];
+        }
 
         this.clientesCache.forEach(cliente => {
             const option = document.createElement('option');
@@ -259,14 +268,29 @@ const Laminacion = {
         }
 
         try {
-            const result = await AxonesAPI.save('saveLaminacion', datos, 'laminacion');
+            // Preparar datos para API
+            const datosAPI = {
+                fecha: datos.fecha,
+                turno: datos.turno,
+                maquina: datos.maquina || 'Laminadora',
+                proceso: 'laminacion',
+                cliente: datos.cliente,
+                producto: datos.producto,
+                ot: datos.ordenTrabajo,
+                kilos_producidos: datos.pesoTotal || 0,
+                kilos_entrada: datos.totalEntrada || 0,
+                refil_kg: (datos.totalEntrada || 0) - (datos.pesoTotal || 0),
+                tiempo_trabajo_min: datos.tiempoEfectivo || 0,
+                tiempo_muerto_min: datos.tiempoMuerto || 0,
+                operador: datos.operador,
+                observaciones: datos.observaciones || ''
+            };
+
+            const result = await AxonesAPI.createProduccion(datosAPI);
 
             if (result.success) {
-                if (result.mode === 'localStorage') {
-                    Axones.showSuccess('Registro de laminacion guardado localmente');
-                } else {
-                    Axones.showSuccess('Registro de laminacion guardado en Google Sheets');
-                }
+                this.mostrarToast('Registro de laminacion guardado en Google Sheets (ID: ' + result.id + ')', 'success');
+                this.guardarLocal(datos);
 
                 const porcentajeRefil = parseFloat(datos.porcentajeRefil) || 0;
                 const umbral = CONFIG.UMBRALES_REFIL.default;
@@ -364,6 +388,36 @@ const Laminacion = {
             registradoPor: Auth.getUser() ? Auth.getUser().id : 'unknown',
             registradoPorNombre: Auth.getUser() ? Auth.getUser().nombre : 'Unknown',
         };
+    },
+
+    /**
+     * Muestra un toast de notificacion
+     */
+    mostrarToast: function(mensaje, tipo = 'info') {
+        let container = document.querySelector('.toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            document.body.appendChild(container);
+        }
+
+        const bgClass = tipo === 'success' ? 'bg-success' : tipo === 'warning' ? 'bg-warning' : tipo === 'danger' ? 'bg-danger' : 'bg-info';
+        const textClass = tipo === 'warning' ? 'text-dark' : 'text-white';
+
+        const toastHtml = `
+            <div class="toast align-items-center ${bgClass} ${textClass} border-0" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">${mensaje}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `;
+
+        container.insertAdjacentHTML('beforeend', toastHtml);
+        const toastEl = container.lastElementChild;
+        const toast = new bootstrap.Toast(toastEl, { autohide: true, delay: 5000 });
+        toast.show();
+        toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
     },
 
     /**

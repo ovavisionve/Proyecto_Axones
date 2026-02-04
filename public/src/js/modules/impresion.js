@@ -26,16 +26,45 @@ const Impresion = {
     /**
      * Carga datos iniciales (inventario, clientes, productos)
      */
-    cargarDatosIniciales: function() {
-        // Cargar inventario desde localStorage
-        this.inventarioCache = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
+    cargarDatosIniciales: async function() {
+        // Intentar cargar clientes desde API
+        try {
+            const response = await AxonesAPI.getClientes();
+            if (response.success && response.data) {
+                this.clientesCache = response.data.map(c => c.nombre);
+                console.log('Clientes cargados desde API:', this.clientesCache.length);
+            }
+        } catch (error) {
+            console.warn('Error cargando clientes de API, usando CONFIG:', error);
+            this.clientesCache = CONFIG.CLIENTES || [];
+        }
 
-        // Cargar clientes desde CONFIG
-        this.clientesCache = CONFIG.CLIENTES || [];
+        // Intentar cargar inventario desde API
+        try {
+            const response = await AxonesAPI.getInventario();
+            if (response.success && response.data) {
+                this.inventarioCache = response.data;
+            }
+        } catch (error) {
+            this.inventarioCache = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
+        }
 
         // Cargar historial de produccion para autocompletado
-        const produccion = JSON.parse(localStorage.getItem('axones_impresion') || '[]');
-        this.productosCache = [...new Set(produccion.map(p => p.producto).filter(Boolean))];
+        try {
+            const response = await AxonesAPI.getProduccion({ proceso: 'impresion' });
+            if (response.success && response.data) {
+                this.productosCache = [...new Set(response.data.map(p => p.producto).filter(Boolean))];
+            }
+        } catch (error) {
+            const produccion = JSON.parse(localStorage.getItem('axones_impresion') || '[]');
+            this.productosCache = [...new Set(produccion.map(p => p.producto).filter(Boolean))];
+        }
+
+        // Poblar select de clientes despues de cargar
+        const clienteSelect = document.getElementById('cliente');
+        if (clienteSelect) {
+            this.poblarSelectClientes(clienteSelect);
+        }
     },
 
     /**
@@ -445,12 +474,6 @@ const Impresion = {
             return;
         }
 
-        // Verificar autenticacion
-        if (!Auth.isAuthenticated()) {
-            Axones.showError('Debe iniciar sesion para guardar registros');
-            return;
-        }
-
         // Recopilar datos
         const datos = this.recopilarDatos();
 
@@ -463,15 +486,32 @@ const Impresion = {
         }
 
         try {
-            // Usar el API helper que maneja CORS y fallbacks
-            const result = await AxonesAPI.save('saveImpresion', datos, 'produccion');
+            // Preparar datos para la API
+            const datosAPI = {
+                fecha: datos.fecha,
+                turno: datos.turno,
+                maquina: datos.maquina,
+                proceso: 'impresion',
+                cliente: datos.cliente,
+                producto: datos.producto,
+                ot: datos.ordenTrabajo,
+                kilos_producidos: datos.pesoTotal,
+                kilos_entrada: datos.totalMaterialEntrada,
+                refil_kg: datos.totalScrap + datos.merma,
+                tiempo_trabajo_min: datos.tiempoEfectivo,
+                tiempo_muerto_min: datos.tiempoMuerto,
+                operador: datos.operador,
+                observaciones: datos.observaciones + (datos.motivosParadas ? ' | Paradas: ' + datos.motivosParadas : '')
+            };
+
+            // Guardar en API
+            const result = await AxonesAPI.createProduccion(datosAPI);
 
             if (result.success) {
-                if (result.mode === 'localStorage') {
-                    Axones.showSuccess('Registro guardado localmente');
-                } else {
-                    Axones.showSuccess('Registro guardado en Google Sheets');
-                }
+                this.mostrarToast('Registro guardado en Google Sheets (ID: ' + result.id + ')', 'success');
+
+                // Tambien guardar localmente como respaldo
+                this.guardarLocal(datos);
 
                 // Verificar alertas
                 this.verificarAlertas(datos);
@@ -485,7 +525,7 @@ const Impresion = {
             console.error('Error guardando registro:', error);
             // Guardar localmente como fallback
             this.guardarLocal(datos);
-            Axones.showWarning('Guardado localmente: ' + error.message);
+            this.mostrarToast('Guardado localmente (sin conexion): ' + error.message, 'warning');
         } finally {
             // Restaurar boton
             if (btnGuardar) {
@@ -493,6 +533,36 @@ const Impresion = {
                 btnGuardar.innerHTML = btnText;
             }
         }
+    },
+
+    /**
+     * Muestra un toast de notificacion
+     */
+    mostrarToast: function(mensaje, tipo = 'info') {
+        let toastContainer = document.querySelector('.toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            document.body.appendChild(toastContainer);
+        }
+
+        const bgClass = tipo === 'success' ? 'bg-success' : tipo === 'warning' ? 'bg-warning' : tipo === 'danger' ? 'bg-danger' : 'bg-info';
+        const textClass = tipo === 'warning' ? 'text-dark' : 'text-white';
+
+        const toastHtml = `
+            <div class="toast align-items-center ${bgClass} ${textClass} border-0" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">${mensaje}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `;
+
+        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+        const toastEl = toastContainer.lastElementChild;
+        const toast = new bootstrap.Toast(toastEl, { autohide: true, delay: 5000 });
+        toast.show();
+        toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
     },
 
     /**

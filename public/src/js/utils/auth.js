@@ -56,47 +56,141 @@ const Auth = {
     },
 
     /**
-     * Inicia el proceso de login con Google
-     * En produccion, esto redirige a Google OAuth
+     * Inicia el proceso de login
      */
     login: function() {
-        // En desarrollo, simulamos el login
-        if (CONFIG.API.BASE_URL === '') {
-            this.simulateLogin();
-            return;
-        }
-
-        // En produccion, redirigir a Google OAuth via Apps Script
-        window.location.href = CONFIG.API.BASE_URL + '?action=login';
+        this.mostrarModalLogin();
     },
 
     /**
-     * Simula un login para desarrollo
+     * Muestra modal de login
      */
-    simulateLogin: function() {
-        const mockUser = {
-            id: 'user_001',
-            email: 'operador@axones.com',
-            nombre: 'Usuario Demo',
-            rol: CONFIG.ROLES.OPERADOR,
-            avatar: null,
-        };
+    mostrarModalLogin: function() {
+        // Remover modal existente
+        const existente = document.getElementById('modalLogin');
+        if (existente) existente.remove();
 
-        // Mostrar modal de seleccion de rol para desarrollo
-        const roles = Object.values(CONFIG.ROLES);
-        const rolSeleccionado = prompt(
-            'Seleccione rol para desarrollo:\n' +
-            roles.map((r, i) => `${i + 1}. ${r}`).join('\n'),
-            '1'
-        );
+        const modalHtml = `
+            <div class="modal fade" id="modalLogin" tabindex="-1">
+                <div class="modal-dialog modal-sm">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title"><i class="bi bi-person-lock me-2"></i>Iniciar Sesion</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="formLogin">
+                                <div class="mb-3">
+                                    <label class="form-label">Usuario</label>
+                                    <input type="text" class="form-control" id="loginUsuario" required placeholder="Ingrese usuario">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Contrasena</label>
+                                    <input type="password" class="form-control" id="loginPassword" required placeholder="Ingrese contrasena">
+                                </div>
+                                <div id="loginError" class="alert alert-danger py-2 d-none"></div>
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-primary" id="btnSubmitLogin">
+                                        <i class="bi bi-box-arrow-in-right me-1"></i>Ingresar
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer justify-content-center">
+                            <small class="text-muted">Sistema Axones v1.0</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
 
-        const index = parseInt(rolSeleccionado) - 1;
-        if (index >= 0 && index < roles.length) {
-            mockUser.rol = roles[index];
-            mockUser.nombre = `Demo ${roles[index].charAt(0).toUpperCase() + roles[index].slice(1)}`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        const modal = new bootstrap.Modal(document.getElementById('modalLogin'));
+        modal.show();
+
+        // Configurar formulario
+        document.getElementById('formLogin').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await this.procesarLogin();
+        });
+    },
+
+    /**
+     * Procesa el login contra la API
+     */
+    procesarLogin: async function() {
+        const usuario = document.getElementById('loginUsuario').value;
+        const password = document.getElementById('loginPassword').value;
+        const errorDiv = document.getElementById('loginError');
+        const btnSubmit = document.getElementById('btnSubmitLogin');
+
+        // Mostrar loading
+        btnSubmit.disabled = true;
+        btnSubmit.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Verificando...';
+        errorDiv.classList.add('d-none');
+
+        try {
+            const response = await AxonesAPI.login(usuario, password);
+
+            if (response.success && response.usuario) {
+                // Login exitoso
+                const user = {
+                    id: response.usuario.id,
+                    usuario: response.usuario.usuario,
+                    nombre: response.usuario.nombre,
+                    rol: response.usuario.rol,
+                };
+
+                this.setSession(user);
+
+                // Cerrar modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('modalLogin'));
+                modal.hide();
+
+                // Mostrar mensaje de bienvenida
+                this.mostrarToast('Bienvenido, ' + user.nombre, 'success');
+
+            } else {
+                throw new Error(response.error || 'Usuario o contrasena incorrectos');
+            }
+
+        } catch (error) {
+            errorDiv.textContent = error.message;
+            errorDiv.classList.remove('d-none');
+        } finally {
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = '<i class="bi bi-box-arrow-in-right me-1"></i>Ingresar';
+        }
+    },
+
+    /**
+     * Muestra toast de notificacion
+     */
+    mostrarToast: function(mensaje, tipo = 'info') {
+        let container = document.querySelector('.toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            document.body.appendChild(container);
         }
 
-        this.setSession(mockUser);
+        const bgClass = tipo === 'success' ? 'bg-success' : tipo === 'danger' ? 'bg-danger' : 'bg-info';
+
+        const toastHtml = `
+            <div class="toast align-items-center ${bgClass} text-white border-0" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">${mensaje}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `;
+
+        container.insertAdjacentHTML('beforeend', toastHtml);
+        const toastEl = container.lastElementChild;
+        const toast = new bootstrap.Toast(toastEl);
+        toast.show();
+        toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
     },
 
     /**

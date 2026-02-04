@@ -454,37 +454,44 @@ const Impresion = {
         // Recopilar datos
         const datos = this.recopilarDatos();
 
+        // Mostrar indicador de carga
+        const btnGuardar = document.getElementById('btnGuardar');
+        const btnText = btnGuardar ? btnGuardar.innerHTML : '';
+        if (btnGuardar) {
+            btnGuardar.disabled = true;
+            btnGuardar.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+        }
+
         try {
-            // Guardar (en desarrollo usa localStorage)
-            if (CONFIG.API.BASE_URL === '') {
-                this.guardarLocal(datos);
-                Axones.showSuccess('Registro guardado correctamente');
+            // Usar el API helper que maneja CORS y fallbacks
+            const result = await AxonesAPI.save('saveImpresion', datos, 'produccion');
+
+            if (result.success) {
+                if (result.mode === 'localStorage') {
+                    Axones.showSuccess('Registro guardado localmente');
+                } else {
+                    Axones.showSuccess('Registro guardado en Google Sheets');
+                }
 
                 // Verificar alertas
                 this.verificarAlertas(datos);
 
                 // Limpiar formulario
                 this.limpiar();
-
-                return;
-            }
-
-            // En produccion, enviar a Apps Script
-            const response = await fetch(CONFIG.API.BASE_URL + '?action=saveImpresion', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(datos),
-            });
-
-            const result = await response.json();
-            if (result.success) {
-                Axones.showSuccess('Registro guardado correctamente');
             } else {
                 throw new Error(result.error || 'Error desconocido');
             }
         } catch (error) {
             console.error('Error guardando registro:', error);
-            Axones.showError('Error al guardar: ' + error.message);
+            // Guardar localmente como fallback
+            this.guardarLocal(datos);
+            Axones.showWarning('Guardado localmente: ' + error.message);
+        } finally {
+            // Restaurar boton
+            if (btnGuardar) {
+                btnGuardar.disabled = false;
+                btnGuardar.innerHTML = btnText;
+            }
         }
     },
 

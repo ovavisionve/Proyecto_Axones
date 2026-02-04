@@ -256,6 +256,13 @@ const Axones = {
     },
 
     /**
+     * Muestra mensaje de advertencia
+     */
+    showWarning: function(mensaje) {
+        this.showToast(mensaje, 'warning');
+    },
+
+    /**
      * Muestra un toast de notificacion
      */
     showToast: function(mensaje, tipo = 'info') {

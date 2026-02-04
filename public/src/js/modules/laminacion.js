@@ -250,10 +250,23 @@ const Laminacion = {
 
         const datos = this.recopilarDatos();
 
+        // Mostrar indicador de carga
+        const btnGuardar = document.getElementById('btnGuardar');
+        const btnText = btnGuardar ? btnGuardar.innerHTML : '';
+        if (btnGuardar) {
+            btnGuardar.disabled = true;
+            btnGuardar.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+        }
+
         try {
-            if (CONFIG.API.BASE_URL === '') {
-                this.guardarLocal(datos);
-                Axones.showSuccess('Registro de laminacion guardado correctamente');
+            const result = await AxonesAPI.save('saveLaminacion', datos, 'laminacion');
+
+            if (result.success) {
+                if (result.mode === 'localStorage') {
+                    Axones.showSuccess('Registro de laminacion guardado localmente');
+                } else {
+                    Axones.showSuccess('Registro de laminacion guardado en Google Sheets');
+                }
 
                 const porcentajeRefil = parseFloat(datos.porcentajeRefil) || 0;
                 const umbral = CONFIG.UMBRALES_REFIL.default;
@@ -262,25 +275,18 @@ const Laminacion = {
                 }
 
                 this.limpiar();
-                return;
-            }
-
-            const response = await fetch(CONFIG.API.BASE_URL + '?action=saveLaminacion', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(datos),
-            });
-
-            const result = await response.json();
-            if (result.success) {
-                Axones.showSuccess('Registro guardado correctamente');
-                this.limpiar();
             } else {
                 throw new Error(result.error || 'Error desconocido');
             }
         } catch (error) {
             console.error('Error guardando registro:', error);
-            Axones.showError('Error al guardar: ' + error.message);
+            this.guardarLocal(datos);
+            Axones.showWarning('Guardado localmente: ' + error.message);
+        } finally {
+            if (btnGuardar) {
+                btnGuardar.disabled = false;
+                btnGuardar.innerHTML = btnText;
+            }
         }
     },
 

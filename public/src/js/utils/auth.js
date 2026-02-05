@@ -117,7 +117,7 @@ const Auth = {
     },
 
     /**
-     * Procesa el login contra la API con fallback local
+     * Procesa el login - primero local, luego API
      */
     procesarLogin: async function() {
         const usuario = document.getElementById('loginUsuario').value;
@@ -125,59 +125,47 @@ const Auth = {
         const errorDiv = document.getElementById('loginError');
         const btnSubmit = document.getElementById('btnSubmitLogin');
 
-        // Mostrar loading
         btnSubmit.disabled = true;
         btnSubmit.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Verificando...';
         errorDiv.classList.add('d-none');
 
-        try {
-            // Intentar login con API
-            const response = await AxonesAPI.login(usuario, password);
+        // PASO 1: Siempre intentar login local primero
+        const loginLocal = this.loginLocal(usuario, password);
+        if (loginLocal) {
+            this.setSession(loginLocal);
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalLogin'));
+            modal.hide();
+            this.mostrarToast('Bienvenido, ' + loginLocal.nombre, 'success');
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = '<i class="bi bi-box-arrow-in-right me-1"></i>Ingresar';
+            return;
+        }
 
-            if (response.success && response.usuario) {
+        // PASO 2: Si no hay match local, intentar con API
+        try {
+            const response = await AxonesAPI.login(usuario, password);
+            if (response && response.success && response.usuario) {
                 const user = {
                     id: response.usuario.id,
                     usuario: response.usuario.usuario,
                     nombre: response.usuario.nombre,
                     rol: response.usuario.rol,
                 };
-
                 this.setSession(user);
                 const modal = bootstrap.Modal.getInstance(document.getElementById('modalLogin'));
                 modal.hide();
                 this.mostrarToast('Bienvenido, ' + user.nombre, 'success');
                 return;
             }
-
-            // Si la API responde pero credenciales invalidas
-            if (response.success === false && response.error === 'Credenciales invalidas') {
-                throw new Error('Usuario o contrasena incorrectos');
-            }
-
-            // Si la API devuelve otro error, intentar fallback local
-            throw new Error('API_ERROR');
-
-        } catch (error) {
-            // Fallback: validar contra usuarios locales
-            if (error.message === 'API_ERROR' || error.message.includes('No se pudo') || error.message.includes('fetch')) {
-                const loginLocal = this.loginLocal(usuario, password);
-                if (loginLocal) {
-                    this.setSession(loginLocal);
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('modalLogin'));
-                    modal.hide();
-                    this.mostrarToast('Bienvenido, ' + loginLocal.nombre + ' (modo local)', 'success');
-                    return;
-                }
-            }
-
-            errorDiv.textContent = error.message === 'API_ERROR'
-                ? 'Usuario o contrasena incorrectos'
-                : error.message;
-            errorDiv.classList.remove('d-none');
-        } finally {
-            btnSubmit.disabled = false;
-            btnSubmit.innerHTML = '<i class="bi bi-box-arrow-in-right me-1"></i>Ingresar';
+        } catch (e) {
+            console.warn('API login error:', e);
         }
+
+        // PASO 3: Si nada funciono, mostrar error
+        errorDiv.textContent = 'Usuario o contrasena incorrectos';
+        errorDiv.classList.remove('d-none');
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = '<i class="bi bi-box-arrow-in-right me-1"></i>Ingresar';
     },
 
     /**

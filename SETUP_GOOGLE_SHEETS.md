@@ -890,14 +890,30 @@ function testPing() {
 4. Espera a que termine (te mostrara un mensaje de confirmacion)
 
 ### 3.2 Desplegar el Web App:
+
+**IMPORTANTE: SIEMPRE crear una NUEVA implementacion. NUNCA editar una existente.**
+
+Google Apps Script cachea las implementaciones. Si editas el codigo y actualizas una
+implementacion existente, puede seguir ejecutando el codigo viejo. La unica forma
+segura es crear una implementacion NUEVA.
+
 1. Clic en **Implementar > Nueva implementacion**
-2. Clic en el engranaje y selecciona **Aplicacion web**
+2. Clic en el engranaje (icono de configuracion) y selecciona **Aplicacion web**
 3. Configura:
-   - Descripcion: `API Sistema Axones v1`
+   - Descripcion: `API Sistema Axones`
    - Ejecutar como: **Tu cuenta**
    - Quien tiene acceso: **Cualquier persona**
 4. Clic en **Implementar**
 5. **COPIA LA URL** que te genera (la necesitaras)
+
+### SI NECESITAS ACTUALIZAR EL CODIGO DESPUES:
+1. Edita el codigo en Apps Script
+2. Guarda (Ctrl+S)
+3. **NO** vayas a "Administrar implementaciones" para editar la existente
+4. En su lugar, ve a **Implementar > Nueva implementacion** (crea una NUEVA)
+5. Copia la URL nueva y actualiza config.js con ella
+6. La URL antigua dejara de funcionar automaticamente si la eliminas desde
+   **Implementar > Administrar implementaciones**
 
 ---
 
@@ -935,6 +951,22 @@ Debe responder:
 }
 ```
 
+Probar login:
+```
+TU_URL_WEB_APP?action=login&usuario=admin&password=admin123
+```
+
+Debe responder:
+```json
+{
+  "success": true,
+  "usuario": { "id": 1, "usuario": "admin", "nombre": "Administrador", "rol": "administrador" }
+}
+```
+
+**Si ves un error como `{"error":"No se pudo obtener el usuario"}` significa que el Web App
+esta ejecutando codigo viejo cacheado. Debes crear una NUEVA implementacion (ver paso 3.2).**
+
 ---
 
 ## Usuarios por defecto
@@ -946,6 +978,10 @@ Debe responder:
 | jefe | jefe123 | Jefe Operaciones |
 | operador1 | op123 | Operador |
 | operador2 | op123 | Operador |
+
+**Nota:** El login en la aplicacion funciona PRIMERO con validacion local (estos
+mismos usuarios estan hardcodeados en el frontend), y despues intenta con la API.
+Esto garantiza que el login siempre funcione aunque la API tenga problemas.
 
 ---
 
@@ -960,3 +996,27 @@ Debe responder:
 | `?action=getProduccion` | Registros de produccion |
 | `?action=getDashboardData` | Datos del dashboard |
 | `?action=getAlertas` | Alertas del sistema |
+| `?action=getInventario` | Inventario |
+| `?action=getConsumoTintas` | Consumo de tintas |
+| `?action=getDespachos` | Despachos |
+| `?action=getConfiguracion` | Configuracion del sistema |
+
+---
+
+## Solucion de problemas
+
+### La API responde con error viejo / codigo cacheado
+- Crear una NUEVA implementacion (Implementar > Nueva implementacion)
+- Copiar la URL nueva a config.js
+
+### Error de CORS o redireccion
+- Verificar que "Quien tiene acceso" sea **Cualquier persona**
+- Las llamadas deben usar `redirect: 'follow'` (ya configurado en api.js)
+
+### El ping funciona pero otras acciones no
+- Verificar que ejecutaste `inicializarSistema()` para crear las hojas
+- Abrir el Sheets y verificar que las hojas USUARIOS, CLIENTES, etc. existen
+
+### El login no funciona
+- El login local (hardcodeado en el frontend) siempre debe funcionar
+- Usuarios: admin/admin123, supervisor/super123, jefe/jefe123, operador1/op123

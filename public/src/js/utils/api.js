@@ -1,11 +1,14 @@
 /**
  * API Helper - Sistema Axones
  * Maneja las llamadas al backend de Google Apps Script
+ * Incluye cache-busting y timeout para evitar problemas con deployments cacheados
  */
 
 const AxonesAPI = {
     // Estado de conexion
     isOnline: false,
+    // Timeout por defecto (15 segundos)
+    TIMEOUT_MS: 15000,
 
     /**
      * Inicializar y verificar conexion
@@ -30,7 +33,30 @@ const AxonesAPI = {
     },
 
     /**
-     * GET request
+     * Fetch con timeout - evita que las llamadas queden colgadas
+     */
+    fetchWithTimeout: async function(url, options = {}) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), this.TIMEOUT_MS);
+
+        try {
+            const response = await fetch(url, {
+                ...options,
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            return response;
+        } catch (error) {
+            clearTimeout(timeoutId);
+            if (error.name === 'AbortError') {
+                throw new Error('Timeout: el servidor no respondio a tiempo');
+            }
+            throw error;
+        }
+    },
+
+    /**
+     * GET request con cache-busting
      */
     get: async function(action, params = {}) {
         if (!CONFIG.API.BASE_URL) {
@@ -39,6 +65,8 @@ const AxonesAPI = {
 
         const url = new URL(CONFIG.API.BASE_URL);
         url.searchParams.append('action', action);
+        // Cache-busting: evita que el navegador o CDN devuelva respuestas cacheadas
+        url.searchParams.append('_t', Date.now());
 
         Object.keys(params).forEach(key => {
             if (params[key] !== undefined && params[key] !== null) {
@@ -46,7 +74,7 @@ const AxonesAPI = {
             }
         });
 
-        const response = await fetch(url.toString(), {
+        const response = await this.fetchWithTimeout(url.toString(), {
             method: 'GET',
             redirect: 'follow'
         });
@@ -65,8 +93,9 @@ const AxonesAPI = {
         const url = new URL(CONFIG.API.BASE_URL);
         url.searchParams.append('action', action);
         url.searchParams.append('data', JSON.stringify(data));
+        url.searchParams.append('_t', Date.now());
 
-        const response = await fetch(url.toString(), {
+        const response = await this.fetchWithTimeout(url.toString(), {
             method: 'GET',
             redirect: 'follow'
         });

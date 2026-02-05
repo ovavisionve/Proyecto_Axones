@@ -10,6 +10,9 @@ const Chatbot = {
     // Datos de cuentas por cobrar (se cargan de Sheets)
     cuentasPorCobrar: [],
 
+    // Datos de produccion (se cargan de localStorage/API)
+    datosProduccion: [],
+
     /**
      * Inicializa el modulo de chatbot
      */
@@ -19,7 +22,29 @@ const Chatbot = {
         this.setupForm();
         this.setupQuickQueries();
         this.loadCuentasPorCobrar();
+        this.loadDatosProduccion();
         this.loadResumenCartera();
+    },
+
+    /**
+     * Carga datos de produccion desde localStorage y API
+     */
+    loadDatosProduccion: async function() {
+        // Cargar de localStorage
+        this.datosProduccion = JSON.parse(localStorage.getItem('axones_produccion') || '[]');
+
+        // Intentar cargar de API si AxonesAPI esta disponible
+        try {
+            if (typeof AxonesAPI !== 'undefined') {
+                const response = await AxonesAPI.getProduccion({});
+                if (response.success && response.data && response.data.length > 0) {
+                    this.datosProduccion = response.data;
+                    console.log('Chatbot: cargados', this.datosProduccion.length, 'registros de produccion');
+                }
+            }
+        } catch (e) {
+            console.warn('Chatbot: usando datos locales de produccion');
+        }
     },
 
     /**
@@ -194,6 +219,22 @@ const Chatbot = {
             return this.responderAntiguedadCartera();
         }
 
+        // ========== CONSULTAS DE PRODUCCION ==========
+        // Produccion total/hoy/mes
+        if (consultaLower.includes('produccion') && (consultaLower.includes('total') || consultaLower.includes('hoy') || consultaLower.includes('mes'))) {
+            return this.responderProduccionResumen();
+        }
+
+        // Refil/merma
+        if (consultaLower.includes('refil') || consultaLower.includes('merma') || consultaLower.includes('desperdicio')) {
+            return this.responderRefilResumen();
+        }
+
+        // Maquinas
+        if (consultaLower.includes('maquina') || consultaLower.includes('impresora') || consultaLower.includes('laminadora') || consultaLower.includes('cortadora')) {
+            return this.responderProduccionPorMaquina();
+        }
+
         // Consulta de cliente especifico
         const clienteConsultado = this.extraerCliente(consultaLower);
         if (clienteConsultado) {
@@ -222,6 +263,100 @@ const Chatbot = {
         }
 
         return this.respuestaNoReconocida();
+    },
+
+    /**
+     * Responde con resumen de produccion
+     */
+    responderProduccionResumen: function() {
+        if (this.datosProduccion.length === 0) {
+            return 'No hay datos de produccion disponibles.';
+        }
+
+        const hoy = new Date().toISOString().split('T')[0];
+        const hace30Dias = new Date();
+        hace30Dias.setDate(hace30Dias.getDate() - 30);
+        const fechaHace30 = hace30Dias.toISOString().split('T')[0];
+
+        let totalMes = 0;
+        let totalHoy = 0;
+        let registrosMes = 0;
+
+        this.datosProduccion.forEach(p => {
+            const fecha = p.fecha || p.timestamp?.split('T')[0];
+            const kg = parseFloat(p.kilos_producidos) || parseFloat(p.pesoTotal) || 0;
+            if (fecha >= fechaHace30) {
+                totalMes += kg;
+                registrosMes++;
+            }
+            if (fecha === hoy) {
+                totalHoy += kg;
+            }
+        });
+
+        let respuesta = '**Resumen de Produccion**\n\n';
+        respuesta += `- **Hoy:** ${Axones.formatNumber(totalHoy)} Kg\n`;
+        respuesta += `- **Ultimos 30 dias:** ${Axones.formatNumber(totalMes)} Kg\n`;
+        respuesta += `- **Registros en el mes:** ${registrosMes}\n`;
+        respuesta += `- **Promedio diario:** ${Axones.formatNumber(totalMes / 30)} Kg\n`;
+
+        return respuesta;
+    },
+
+    /**
+     * Responde con resumen de refil
+     */
+    responderRefilResumen: function() {
+        if (this.datosProduccion.length === 0) {
+            return 'No hay datos de refil disponibles.';
+        }
+
+        let totalRefil = 0;
+        let countRefil = 0;
+        let alertasRefil = 0;
+
+        this.datosProduccion.forEach(p => {
+            const refil = parseFloat(p.refil_porcentaje) || parseFloat(p.porcentajeRefil) || 0;
+            if (refil > 0) {
+                totalRefil += refil;
+                countRefil++;
+                if (refil > 6) alertasRefil++;
+            }
+        });
+
+        const promedioRefil = countRefil > 0 ? totalRefil / countRefil : 0;
+
+        let respuesta = '**Analisis de Refil**\n\n';
+        respuesta += `- **Refil promedio:** ${promedioRefil.toFixed(2)}%\n`;
+        respuesta += `- **Registros analizados:** ${countRefil}\n`;
+        respuesta += `- **Alertas (>6%):** ${alertasRefil}\n`;
+        respuesta += `- **Estado:** ${promedioRefil > 6 ? 'CRITICO' : promedioRefil > 5 ? 'ADVERTENCIA' : 'OK'}\n`;
+
+        return respuesta;
+    },
+
+    /**
+     * Responde con produccion por maquina
+     */
+    responderProduccionPorMaquina: function() {
+        if (this.datosProduccion.length === 0) {
+            return 'No hay datos de produccion por maquina disponibles.';
+        }
+
+        const porMaquina = {};
+        this.datosProduccion.forEach(p => {
+            const maquina = p.maquina || 'Sin asignar';
+            const kg = parseFloat(p.kilos_producidos) || parseFloat(p.pesoTotal) || 0;
+            porMaquina[maquina] = (porMaquina[maquina] || 0) + kg;
+        });
+
+        let respuesta = '**Produccion por Maquina**\n\n';
+        const sorted = Object.entries(porMaquina).sort((a, b) => b[1] - a[1]);
+        sorted.slice(0, 10).forEach(([maquina, kg], i) => {
+            respuesta += `${i + 1}. **${maquina}:** ${Axones.formatNumber(kg)} Kg\n`;
+        });
+
+        return respuesta;
     },
 
     /**
@@ -444,11 +579,15 @@ const Chatbot = {
      */
     respuestaNoReconocida: function() {
         return 'No pude entender completamente tu consulta. Puedes preguntarme sobre:\n\n' +
+               '**Produccion:**\n' +
+               '- "Cual es la produccion de hoy?"\n' +
+               '- "Como esta el refil este mes?"\n' +
+               '- "Produccion por maquina"\n\n' +
+               '**Finanzas:**\n' +
                '- "Cuanto debe [nombre del cliente]?"\n' +
                '- "Quienes son los 5 clientes con mayor deuda?"\n' +
                '- "Hay facturas vencidas?"\n' +
-               '- "Cual es el total de cuentas por cobrar?"\n' +
-               '- "Antiguedad de cartera"\n\n' +
+               '- "Cual es el total de cuentas por cobrar?"\n\n' +
                'Intenta reformular tu pregunta o usa los botones de consultas rapidas.';
     },
 
@@ -457,14 +596,29 @@ const Chatbot = {
      */
     consultarIA: async function(consulta, apiKey) {
         // Preparar contexto con datos de cuentas por cobrar
-        const contexto = JSON.stringify(this.cuentasPorCobrar, null, 2);
+        const contextoFinanciero = JSON.stringify(this.cuentasPorCobrar, null, 2);
+
+        // Preparar resumen de produccion (ultimos 20 registros para no exceder tokens)
+        const produccionReciente = this.datosProduccion.slice(0, 20).map(p => ({
+            fecha: p.fecha,
+            maquina: p.maquina,
+            proceso: p.proceso,
+            cliente: p.cliente,
+            kg_producidos: p.kilos_producidos || p.pesoTotal,
+            refil_pct: p.refil_porcentaje || p.porcentajeRefil
+        }));
+        const contextoProduccion = JSON.stringify(produccionReciente, null, 2);
 
         const mensajes = [
             {
                 role: 'system',
-                content: `Eres un asistente financiero especializado en cuentas por cobrar.
+                content: `Eres un asistente de la empresa Inversiones Axones 2008, C.A., una fabrica de empaques flexibles en Venezuela.
+                         Puedes responder sobre produccion (impresion, laminacion, corte), refil/merma, y finanzas (cuentas por cobrar).
                          Responde en espanol de forma clara y concisa.
-                         Estos son los datos actuales de cuentas por cobrar: ${contexto}`
+
+                         Datos de cuentas por cobrar: ${contextoFinanciero}
+
+                         Datos recientes de produccion: ${contextoProduccion}`
             },
             {
                 role: 'user',

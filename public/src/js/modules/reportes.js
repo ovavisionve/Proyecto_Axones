@@ -8,6 +8,9 @@ const ReportesModule = {
     datosFiltrados: [],
     tipoReporteActual: 'produccion',
 
+    // Instancias de charts
+    charts: {},
+
     // Inicializar
     async init() {
         console.log('Inicializando modulo de Reportes...');
@@ -197,6 +200,221 @@ const ReportesModule = {
                 (refilPromedio > 6 ? 'text-danger' : refilPromedio > 5 ? 'text-warning' : 'text-success');
         }
         if (statAlertasPeriodo) statAlertasPeriodo.textContent = alertasPeriodo;
+
+        // Renderizar graficos
+        this.renderizarGraficos();
+    },
+
+    // Renderizar todos los graficos
+    renderizarGraficos() {
+        this.renderChartProduccionProceso();
+        this.renderChartRefilMaquina();
+        this.renderChartTendenciaDiaria();
+        this.renderChartTopClientes();
+    },
+
+    // Grafico de produccion por proceso
+    renderChartProduccionProceso() {
+        const canvas = document.getElementById('chartProduccionProceso');
+        if (!canvas) return;
+
+        // Destruir chart anterior si existe
+        if (this.charts.produccionProceso) {
+            this.charts.produccionProceso.destroy();
+        }
+
+        // Agrupar por proceso
+        const porProceso = { impresion: 0, laminacion: 0, corte: 0 };
+        this.datosFiltrados.forEach(item => {
+            const tipo = item.tipo || 'impresion';
+            const kg = parseFloat(item.pesoTotal) || parseFloat(item.totalSalida) || 0;
+            if (porProceso[tipo] !== undefined) {
+                porProceso[tipo] += kg;
+            }
+        });
+
+        this.charts.produccionProceso = new Chart(canvas, {
+            type: 'doughnut',
+            data: {
+                labels: ['Impresion', 'Laminacion', 'Corte'],
+                datasets: [{
+                    data: [porProceso.impresion, porProceso.laminacion, porProceso.corte],
+                    backgroundColor: ['#0d6efd', '#6f42c1', '#198754'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    },
+
+    // Grafico de refil por maquina
+    renderChartRefilMaquina() {
+        const canvas = document.getElementById('chartRefilMaquina');
+        if (!canvas) return;
+
+        if (this.charts.refilMaquina) {
+            this.charts.refilMaquina.destroy();
+        }
+
+        // Agrupar por maquina
+        const porMaquina = {};
+        const countPorMaquina = {};
+        this.datosFiltrados.forEach(item => {
+            const maquina = item.maquina || 'Sin asignar';
+            const refil = parseFloat(item.porcentajeRefil) || 0;
+            if (!porMaquina[maquina]) {
+                porMaquina[maquina] = 0;
+                countPorMaquina[maquina] = 0;
+            }
+            porMaquina[maquina] += refil;
+            countPorMaquina[maquina]++;
+        });
+
+        // Calcular promedio
+        const maquinas = Object.keys(porMaquina);
+        const promedios = maquinas.map(m => countPorMaquina[m] > 0 ? porMaquina[m] / countPorMaquina[m] : 0);
+        const colores = promedios.map(p => p > 6 ? '#dc3545' : p > 5 ? '#ffc107' : '#198754');
+
+        this.charts.refilMaquina = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: maquinas,
+                datasets: [{
+                    label: 'Refil Promedio %',
+                    data: promedios,
+                    backgroundColor: colores,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        max: 10,
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    },
+
+    // Grafico de tendencia diaria
+    renderChartTendenciaDiaria() {
+        const canvas = document.getElementById('chartTendenciaDiaria');
+        if (!canvas) return;
+
+        if (this.charts.tendenciaDiaria) {
+            this.charts.tendenciaDiaria.destroy();
+        }
+
+        // Agrupar por fecha
+        const porFecha = {};
+        this.datosFiltrados.forEach(item => {
+            const fecha = item.fecha || item.timestamp?.split('T')[0];
+            if (!fecha) return;
+            const kg = parseFloat(item.pesoTotal) || parseFloat(item.totalSalida) || 0;
+            porFecha[fecha] = (porFecha[fecha] || 0) + kg;
+        });
+
+        // Ordenar fechas
+        const fechas = Object.keys(porFecha).sort();
+        const valores = fechas.map(f => porFecha[f]);
+
+        this.charts.tendenciaDiaria = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: fechas.map(f => f.slice(5)), // MM-DD
+                datasets: [{
+                    label: 'Produccion (Kg)',
+                    data: valores,
+                    borderColor: '#0d6efd',
+                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0,0,0,0.05)' }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    },
+
+    // Grafico de top 5 clientes
+    renderChartTopClientes() {
+        const canvas = document.getElementById('chartTopClientes');
+        if (!canvas) return;
+
+        if (this.charts.topClientes) {
+            this.charts.topClientes.destroy();
+        }
+
+        // Agrupar por cliente
+        const porCliente = {};
+        this.datosFiltrados.forEach(item => {
+            const cliente = item.cliente || 'Sin cliente';
+            const kg = parseFloat(item.pesoTotal) || parseFloat(item.totalSalida) || 0;
+            porCliente[cliente] = (porCliente[cliente] || 0) + kg;
+        });
+
+        // Top 5
+        const sorted = Object.entries(porCliente).sort((a, b) => b[1] - a[1]).slice(0, 5);
+        const clientes = sorted.map(s => s[0]);
+        const valores = sorted.map(s => s[1]);
+
+        this.charts.topClientes = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: clientes,
+                datasets: [{
+                    label: 'Produccion (Kg)',
+                    data: valores,
+                    backgroundColor: ['#0d6efd', '#6f42c1', '#198754', '#ffc107', '#dc3545'],
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0,0,0,0.05)' }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
     },
 
     // Renderizar tabla de datos

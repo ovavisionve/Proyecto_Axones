@@ -1275,6 +1275,55 @@ const HomeModule = {
         this.cargarAlertasRecientes();
 
         return nuevaAlerta;
+    },
+
+    /**
+     * Imprime o exporta el dashboard
+     */
+    imprimirDashboard() {
+        // Crear estilos de impresion
+        const printStyles = `
+            @media print {
+                body { font-size: 12px; }
+                .navbar, #btnLogin, .btn, footer, .toast-container { display: none !important; }
+                main { margin-top: 0 !important; }
+                .card { break-inside: avoid; margin-bottom: 10px; }
+                .chart-container, canvas { max-height: 200px !important; }
+                @page { margin: 1cm; }
+            }
+        `;
+
+        // Agregar estilos temporales
+        const styleEl = document.createElement('style');
+        styleEl.id = 'printStyles';
+        styleEl.textContent = printStyles;
+        document.head.appendChild(styleEl);
+
+        // Mostrar titulo con fecha
+        const fecha = new Date().toLocaleDateString('es-VE', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+
+        // Crear encabezado de impresion
+        const printHeader = document.createElement('div');
+        printHeader.id = 'printHeader';
+        printHeader.innerHTML = `
+            <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #0d6efd; padding-bottom: 10px;">
+                <h2 style="margin: 0;">Sistema Axones - Dashboard</h2>
+                <p style="margin: 5px 0;">Inversiones Axones 2008, C.A.</p>
+                <p style="margin: 0; font-size: 0.9em; color: #666;">${fecha}</p>
+            </div>
+        `;
+        document.querySelector('main').insertBefore(printHeader, document.querySelector('main').firstChild);
+
+        // Imprimir
+        window.print();
+
+        // Remover elementos temporales despues de imprimir
+        setTimeout(() => {
+            document.getElementById('printStyles')?.remove();
+            document.getElementById('printHeader')?.remove();
+        }, 1000);
     }
 };
 

@@ -1,6 +1,7 @@
 /**
  * Modulo de Administracion - Sistema Axones
  * Panel de configuracion y gestion del sistema
+ * Con integracion API para usuarios y datos de prueba
  */
 
 const AdminModule = {
@@ -79,58 +80,70 @@ const AdminModule = {
         this.mostrarNotificacion('Umbrales guardados correctamente', 'success');
     },
 
-    // Probar conexion usando CONFIG global
+    // Probar conexion usando AxonesAPI
     async probarConexion() {
         const statusEl = document.getElementById('conexionStatus');
-        const apiUrl = (typeof CONFIG !== 'undefined') ? CONFIG.API.BASE_URL : null;
 
-        if (!apiUrl) {
-            statusEl.innerHTML = '<span class="text-warning"><i class="bi bi-exclamation-circle me-1"></i>API no configurada</span>';
+        if (typeof AxonesAPI === 'undefined') {
+            statusEl.innerHTML = '<span class="text-warning"><i class="bi bi-exclamation-circle me-1"></i>API no disponible</span>';
             return;
         }
 
         statusEl.innerHTML = '<span class="text-muted"><i class="bi bi-arrow-repeat spin me-1"></i>Probando...</span>';
 
         try {
-            const response = await fetch(apiUrl + '?action=ping', {
-                method: 'GET',
-                mode: 'cors'
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
-                    statusEl.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Conexion exitosa</span>';
-                } else {
-                    throw new Error(data.error || 'Error en respuesta');
-                }
+            const result = await AxonesAPI.ping();
+            if (result.success) {
+                statusEl.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Conexion exitosa</span>';
             } else {
-                throw new Error('Error ' + response.status);
+                throw new Error(result.error || 'Error en respuesta');
             }
         } catch (error) {
             statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle me-1"></i>Error: ${error.message}</span>`;
         }
     },
 
-    // Cargar usuarios
-    cargarUsuarios() {
-        const usuarios = JSON.parse(localStorage.getItem('axones_usuarios') || '[]');
+    // Cargar usuarios desde API y localStorage
+    async cargarUsuarios() {
         const tbody = document.getElementById('tablaUsuarios');
-
         if (!tbody) return;
 
+        let usuarios = [];
+
+        // Intentar cargar desde API
+        try {
+            if (typeof AxonesAPI !== 'undefined') {
+                const response = await AxonesAPI.getUsuarios();
+                if (response.success && response.data && response.data.length > 0) {
+                    usuarios = response.data.map(u => ({
+                        id: u.id,
+                        nombre: u.nombre,
+                        usuario: u.usuario || u.email || '',
+                        rol: u.rol,
+                        activo: u.activo !== false && u.activo !== 'false'
+                    }));
+                    console.log('Usuarios cargados desde API:', usuarios.length);
+                }
+            }
+        } catch (e) {
+            console.warn('Error cargando usuarios de API:', e);
+        }
+
+        // Fallback a localStorage
         if (usuarios.length === 0) {
-            // Crear usuarios de ejemplo
-            const usuariosDemo = [
-                { id: 1, nombre: 'Administrador', email: 'admin@axones.com', rol: 'administrador', activo: true },
-                { id: 2, nombre: 'Supervisor General', email: 'supervisor@axones.com', rol: 'supervisor', activo: true },
-                { id: 3, nombre: 'Jefe de Operaciones', email: 'operaciones@axones.com', rol: 'jefe_operaciones', activo: true },
-                { id: 4, nombre: 'Operador 1', email: 'operador1@axones.com', rol: 'operador', activo: true },
-                { id: 5, nombre: 'Operador 2', email: 'operador2@axones.com', rol: 'operador', activo: false },
+            usuarios = JSON.parse(localStorage.getItem('axones_usuarios') || '[]');
+        }
+
+        if (usuarios.length === 0) {
+            // Crear usuarios por defecto
+            usuarios = [
+                { id: 1, nombre: 'Administrador', usuario: 'admin', rol: 'administrador', activo: true },
+                { id: 2, nombre: 'Supervisor General', usuario: 'supervisor', rol: 'supervisor', activo: true },
+                { id: 3, nombre: 'Jefe de Operaciones', usuario: 'jefe', rol: 'jefe_operaciones', activo: true },
+                { id: 4, nombre: 'Operador 1', usuario: 'operador1', rol: 'operador', activo: true },
+                { id: 5, nombre: 'Operador 2', usuario: 'operador2', rol: 'operador', activo: false },
             ];
-            localStorage.setItem('axones_usuarios', JSON.stringify(usuariosDemo));
-            this.cargarUsuarios();
-            return;
+            localStorage.setItem('axones_usuarios', JSON.stringify(usuarios));
         }
 
         tbody.innerHTML = usuarios.map(u => {
@@ -142,7 +155,7 @@ const AdminModule = {
             return `
                 <tr>
                     <td><strong>${u.nombre}</strong></td>
-                    <td>${u.email}</td>
+                    <td>${u.usuario || '-'}</td>
                     <td>${rolBadge}</td>
                     <td>${estadoBadge}</td>
                     <td>
@@ -169,40 +182,77 @@ const AdminModule = {
     // Mostrar modal de usuario
     mostrarModalUsuario() {
         document.getElementById('usuarioNombre').value = '';
-        document.getElementById('usuarioEmail').value = '';
+        document.getElementById('usuarioUsername').value = '';
+        document.getElementById('usuarioPassword').value = '';
+        const emailField = document.getElementById('usuarioEmail');
+        if (emailField) emailField.value = '';
         document.getElementById('usuarioRol').value = 'operador';
 
         const modal = new bootstrap.Modal(document.getElementById('modalUsuario'));
         modal.show();
     },
 
-    // Guardar usuario
-    guardarUsuario() {
-        const nombre = document.getElementById('usuarioNombre')?.value;
-        const email = document.getElementById('usuarioEmail')?.value;
+    // Guardar usuario (API + localStorage)
+    async guardarUsuario() {
+        const nombre = document.getElementById('usuarioNombre')?.value?.trim();
+        const usuario = document.getElementById('usuarioUsername')?.value?.trim();
+        const password = document.getElementById('usuarioPassword')?.value?.trim();
+        const email = document.getElementById('usuarioEmail')?.value?.trim() || '';
         const rol = document.getElementById('usuarioRol')?.value;
 
-        if (!nombre || !email) {
-            this.mostrarNotificacion('Complete todos los campos', 'warning');
+        if (!nombre || !usuario || !password) {
+            this.mostrarNotificacion('Complete todos los campos obligatorios (Nombre, Usuario, Password)', 'warning');
+            return;
+        }
+
+        if (usuario.length < 3) {
+            this.mostrarNotificacion('El nombre de usuario debe tener al menos 3 caracteres', 'warning');
+            return;
+        }
+
+        if (password.length < 3) {
+            this.mostrarNotificacion('La contraseña debe tener al menos 3 caracteres', 'warning');
             return;
         }
 
         const usuarios = JSON.parse(localStorage.getItem('axones_usuarios') || '[]');
 
-        // Verificar email duplicado
-        if (usuarios.some(u => u.email === email)) {
-            this.mostrarNotificacion('El email ya esta registrado', 'warning');
+        // Verificar usuario duplicado
+        if (usuarios.some(u => u.usuario === usuario)) {
+            this.mostrarNotificacion('El nombre de usuario ya esta registrado', 'warning');
             return;
         }
 
-        usuarios.push({
+        const nuevoUsuario = {
             id: Date.now(),
             nombre: nombre,
+            usuario: usuario,
+            password: password,
             email: email,
             rol: rol,
             activo: true
-        });
+        };
 
+        // Guardar en API
+        try {
+            if (typeof AxonesAPI !== 'undefined') {
+                const result = await AxonesAPI.createUsuario({
+                    nombre: nombre,
+                    usuario: usuario,
+                    password: password,
+                    email: email,
+                    rol: rol
+                });
+                if (result.success) {
+                    this.mostrarNotificacion('Usuario guardado en Google Sheets', 'success');
+                }
+            }
+        } catch (e) {
+            console.warn('Error guardando usuario en API:', e);
+        }
+
+        // Guardar en localStorage
+        usuarios.push(nuevoUsuario);
         localStorage.setItem('axones_usuarios', JSON.stringify(usuarios));
 
         bootstrap.Modal.getInstance(document.getElementById('modalUsuario')).hide();
@@ -222,22 +272,46 @@ const AdminModule = {
         }
     },
 
-    // Actualizar estadisticas
-    actualizarEstadisticas() {
-        const produccion = JSON.parse(localStorage.getItem('axones_produccion') || '[]');
-        const inventario = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
-        const tintas = JSON.parse(localStorage.getItem('axones_tintas') || '[]');
+    // Actualizar estadisticas (from API + localStorage)
+    async actualizarEstadisticas() {
+        let prodCount = 0;
+        let invCount = 0;
+        let alertCount = 0;
+        let tintaCount = 0;
+
+        // Try API first
+        try {
+            if (typeof AxonesAPI !== 'undefined') {
+                const [prodResp, invResp, alertResp, tintaResp] = await Promise.allSettled([
+                    AxonesAPI.getProduccion({}),
+                    AxonesAPI.getInventario({}),
+                    AxonesAPI.getAlertas({}),
+                    AxonesAPI.getConsumoTintas({})
+                ]);
+                if (prodResp.status === 'fulfilled' && prodResp.value.success) prodCount = prodResp.value.data?.length || 0;
+                if (invResp.status === 'fulfilled' && invResp.value.success) invCount = invResp.value.data?.length || 0;
+                if (alertResp.status === 'fulfilled' && alertResp.value.success) alertCount = alertResp.value.data?.length || 0;
+                if (tintaResp.status === 'fulfilled' && tintaResp.value.success) tintaCount = tintaResp.value.data?.length || 0;
+            }
+        } catch (e) {
+            // Fallback below
+        }
+
+        // Fallback to localStorage counts
+        if (prodCount === 0) prodCount = JSON.parse(localStorage.getItem('axones_produccion') || '[]').length;
+        if (invCount === 0) invCount = JSON.parse(localStorage.getItem('axones_inventario') || '[]').length;
+        if (alertCount === 0) alertCount = JSON.parse(localStorage.getItem('axones_alertas') || '[]').length;
+        if (tintaCount === 0) tintaCount = JSON.parse(localStorage.getItem('axones_tintas') || '[]').length;
 
         const statProduccion = document.getElementById('statProduccion');
         const statInventario = document.getElementById('statInventario');
         const statAlertas = document.getElementById('statAlertas');
         const statTintas = document.getElementById('statTintas');
 
-        if (statProduccion) statProduccion.textContent = produccion.length;
-        if (statInventario) statInventario.textContent = inventario.length;
-        if (statAlertas) statAlertas.textContent = alertas.length;
-        if (statTintas) statTintas.textContent = tintas.length;
+        if (statProduccion) statProduccion.textContent = prodCount;
+        if (statInventario) statInventario.textContent = invCount;
+        if (statAlertas) statAlertas.textContent = alertCount;
+        if (statTintas) statTintas.textContent = tintaCount;
     },
 
     // Actualizar uso de storage
@@ -274,7 +348,7 @@ const AdminModule = {
             DemoData.init();
             this.actualizarEstadisticas();
             this.actualizarStorage();
-            this.mostrarNotificacion('Datos de prueba generados correctamente', 'success');
+            this.mostrarNotificacion('Datos de prueba generados y sincronizando con Google Sheets...', 'success');
         } else {
             this.mostrarNotificacion('Modulo DemoData no disponible', 'danger');
         }
@@ -374,14 +448,6 @@ const AdminModule = {
 
         // Reset input
         input.value = '';
-    },
-
-    // Toggle password visibility
-    togglePassword(inputId) {
-        const input = document.getElementById(inputId);
-        if (input) {
-            input.type = input.type === 'password' ? 'text' : 'password';
-        }
     },
 
     // Mostrar notificacion

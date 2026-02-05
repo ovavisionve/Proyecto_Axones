@@ -243,9 +243,47 @@ const Laminacion = {
     },
 
     /**
+     * Valida campos requeridos con mensajes personalizados
+     */
+    validarCamposRequeridos: function() {
+        const errores = [];
+        const fecha = document.getElementById('fecha')?.value;
+        const turno = document.querySelector('input[name="turno"]:checked');
+        const maquina = document.getElementById('maquina')?.value;
+        const cliente = document.getElementById('cliente')?.value;
+        const producto = document.getElementById('producto')?.value;
+        const ordenTrabajo = document.getElementById('ordenTrabajo')?.value;
+        const operador = document.getElementById('operador')?.value;
+
+        if (!fecha) errores.push('Fecha es requerida');
+        if (!turno) errores.push('Seleccione un turno');
+        if (!maquina) errores.push('Seleccione una maquina');
+        if (!cliente) errores.push('Seleccione un cliente');
+        if (!producto || producto.trim().length < 2) errores.push('Ingrese el nombre del producto (minimo 2 caracteres)');
+        if (!ordenTrabajo || ordenTrabajo.trim().length < 3) errores.push('Ingrese la orden de trabajo (minimo 3 caracteres)');
+        if (!operador || operador.trim().length < 3) errores.push('Ingrese el nombre del operador (minimo 3 caracteres)');
+
+        // Validar que haya al menos una bobina de entrada
+        let totalEntrada = 0;
+        for (let i = 1; i <= 14; i++) {
+            totalEntrada += parseFloat(document.getElementById('bobEnt' + i)?.value) || 0;
+        }
+        if (totalEntrada <= 0) errores.push('Ingrese al menos una bobina de entrada');
+
+        return errores;
+    },
+
+    /**
      * Guarda el registro
      */
     guardar: async function() {
+        // Validacion personalizada
+        const errores = this.validarCamposRequeridos();
+        if (errores.length > 0) {
+            this.mostrarNotificacion('Errores: ' + errores.join(', '), 'danger');
+            return;
+        }
+
         const form = document.getElementById('formLaminacion');
         if (!form.checkValidity()) {
             form.reportValidity();
@@ -463,6 +501,23 @@ const Laminacion = {
         const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
         alertas.unshift(alerta);
         localStorage.setItem('axones_alertas', JSON.stringify(alertas));
+
+        // Enviar alerta a API en background
+        if (typeof AxonesAPI !== 'undefined') {
+            AxonesAPI.createAlerta({
+                tipo: alerta.tipo,
+                nivel: alerta.nivel,
+                maquina: alerta.maquina,
+                ot: alerta.ot,
+                mensaje: alerta.mensaje,
+                refil_porcentaje: datos.porcentajeRefil,
+                producto: datos.producto,
+                cliente: datos.cliente,
+                operador: datos.operador
+            }).then(result => {
+                if (result.success) console.log('Alerta laminacion enviada a Sheets:', result.id);
+            }).catch(e => console.warn('Error enviando alerta laminacion a API:', e));
+        }
 
         this.mostrarNotificacion(
             `ALERTA: Refil ${datos.porcentajeRefil.toFixed(1)}% excedido en laminacion`,

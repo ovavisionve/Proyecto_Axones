@@ -12,7 +12,7 @@ const CONFIG = {
 
     // URLs de Google Apps Script (se configuraran en produccion)
     API: {
-        BASE_URL: 'https://script.google.com/macros/s/AKfycbxucwsxPdSffRuid9IKKuQJZKfrwi-PnU8uFx2ISI1Oifay6vwhIKqdIsT2cLjjXHxc/exec', // URL del Web App de Google Apps Script
+        BASE_URL: 'https://script.google.com/macros/s/AKfycbxsMrUSHR6QkAgiZJ8owAfBGOvfz09D4kf96fK8Dr_zeTA1PfiQs2xdxEKC2IoeA9zK/exec', // URL del Web App de Google Apps Script
         SHEETS_ID: '1TOpqDc-X4kthwYNzduGYO6MpN1dOdvbjqIIoW_oYL88', // ID del Google Sheets principal
     },
 

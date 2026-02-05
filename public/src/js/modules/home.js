@@ -156,6 +156,9 @@ const HomeModule = {
             // Inventario desde API
             await this.cargarInventarioDesdeAPI();
 
+            // Graficos Power BI (usa localStorage como cache)
+            this.cargarGraficosPowerBI();
+
         } catch (error) {
             throw error;
         }
@@ -425,6 +428,7 @@ const HomeModule = {
         this.cargarInventarioBajo();
         this.cargarEstadoMaquinas();
         this.cargarGraficos();
+        this.cargarGraficosPowerBI();
     },
 
     // Graficos
@@ -602,6 +606,337 @@ const HomeModule = {
                 }
             }
         });
+    },
+
+    // ==================== GRAFICOS POWER BI ====================
+
+    // Cargar todos los graficos Power BI
+    cargarGraficosPowerBI() {
+        const produccion = JSON.parse(localStorage.getItem('axones_produccion') || '[]');
+        const tintas = JSON.parse(localStorage.getItem('axones_tintas') || '[]');
+
+        this.renderChartPorCliente(produccion);
+        this.renderChartRefilTendencia(produccion);
+        this.renderChartPorProceso(produccion);
+        this.renderChartTintas(tintas);
+        this.renderChartEficiencia(produccion);
+    },
+
+    // Grafico: Produccion por Cliente (horizontal bar)
+    renderChartPorCliente(produccion) {
+        const canvas = document.getElementById('chartPorCliente');
+        if (!canvas) return;
+        if (this.charts.porCliente) this.charts.porCliente.destroy();
+
+        const porCliente = {};
+        produccion.forEach(p => {
+            const cliente = p.cliente || 'Sin cliente';
+            porCliente[cliente] = (porCliente[cliente] || 0) + (parseFloat(p.pesoTotal) || parseFloat(p.totalSalida) || 0);
+        });
+
+        // Top 10 clientes
+        const sorted = Object.entries(porCliente).sort((a, b) => b[1] - a[1]).slice(0, 10);
+        const labels = sorted.map(s => s[0].length > 20 ? s[0].substring(0, 18) + '...' : s[0]);
+        const data = sorted.map(s => Math.round(s[1]));
+
+        const colors = [
+            '#0d6efd', '#198754', '#ffc107', '#dc3545', '#6f42c1',
+            '#0dcaf0', '#fd7e14', '#20c997', '#6610f2', '#d63384'
+        ];
+
+        if (sorted.length === 0) {
+            this.charts.porCliente = new Chart(canvas, {
+                type: 'bar', data: { labels: ['Sin datos'], datasets: [{ data: [0], backgroundColor: '#e9ecef' }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+            return;
+        }
+
+        this.charts.porCliente = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Produccion (Kg)',
+                    data: data,
+                    backgroundColor: colors,
+                    borderWidth: 0,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => new Intl.NumberFormat('es-VE').format(ctx.raw) + ' Kg'
+                        }
+                    }
+                },
+                scales: {
+                    x: { beginAtZero: true, grid: { display: false } },
+                    y: { grid: { display: false } }
+                }
+            }
+        });
+    },
+
+    // Grafico: Tendencia de Refil (line chart con linea de umbral)
+    renderChartRefilTendencia(produccion) {
+        const canvas = document.getElementById('chartRefilTendencia');
+        if (!canvas) return;
+        if (this.charts.refilTendencia) this.charts.refilTendencia.destroy();
+
+        // Agrupar refil por dia (ultimos 30 dias)
+        const porDia = {};
+        const hoy = new Date();
+        for (let i = 29; i >= 0; i--) {
+            const fecha = new Date(hoy);
+            fecha.setDate(fecha.getDate() - i);
+            const key = fecha.toISOString().split('T')[0];
+            porDia[key] = { total: 0, count: 0 };
+        }
+
+        produccion.forEach(p => {
+            const fecha = (p.fecha || '').split('T')[0];
+            const refil = parseFloat(p.porcentajeRefil) || 0;
+            if (porDia[fecha] && refil > 0) {
+                porDia[fecha].total += refil;
+                porDia[fecha].count++;
+            }
+        });
+
+        const labels = Object.keys(porDia).map(d => {
+            const parts = d.split('-');
+            return parts[2] + '/' + parts[1];
+        });
+        const dataRefil = Object.values(porDia).map(d => d.count > 0 ? +(d.total / d.count).toFixed(1) : null);
+        const umbralMax = Array(30).fill(CONFIG.UMBRALES_REFIL.default.maximo);
+        const umbralAdv = Array(30).fill(CONFIG.UMBRALES_REFIL.default.advertencia);
+
+        this.charts.refilTendencia = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Refil Promedio (%)',
+                        data: dataRefil,
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        spanGaps: true,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#0d6efd',
+                        borderWidth: 2
+                    },
+                    {
+                        label: 'Umbral Maximo (6%)',
+                        data: umbralMax,
+                        borderColor: '#dc3545',
+                        borderDash: [8, 4],
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        fill: false
+                    },
+                    {
+                        label: 'Umbral Advertencia (5%)',
+                        data: umbralAdv,
+                        borderColor: '#ffc107',
+                        borderDash: [4, 4],
+                        borderWidth: 1,
+                        pointRadius: 0,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 12, padding: 8 } },
+                    tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + (ctx.raw || 0) + '%' } }
+                },
+                scales: {
+                    y: { beginAtZero: true, max: 12, title: { display: true, text: '%' } },
+                    x: { grid: { display: false }, ticks: { maxTicksLimit: 10 } }
+                }
+            }
+        });
+    },
+
+    // Grafico: Produccion por Proceso (doughnut)
+    renderChartPorProceso(produccion) {
+        const canvas = document.getElementById('chartPorProceso');
+        if (!canvas) return;
+        if (this.charts.porProceso) this.charts.porProceso.destroy();
+
+        const porProceso = {};
+        produccion.forEach(p => {
+            const proc = p.tipo || p.proceso || 'impresion';
+            const nombre = proc === 'impresion' ? 'Impresion' : proc === 'laminacion' ? 'Laminacion' : proc === 'corte' ? 'Corte' : proc;
+            porProceso[nombre] = (porProceso[nombre] || 0) + (parseFloat(p.pesoTotal) || parseFloat(p.totalSalida) || 0);
+        });
+
+        const labels = Object.keys(porProceso);
+        const data = Object.values(porProceso).map(v => Math.round(v));
+        const colors = ['#0d6efd', '#6f42c1', '#198754', '#fd7e14', '#0dcaf0'];
+
+        this.charts.porProceso = new Chart(canvas, {
+            type: 'doughnut',
+            data: {
+                labels: labels.length > 0 ? labels : ['Sin datos'],
+                datasets: [{
+                    data: data.length > 0 ? data : [1],
+                    backgroundColor: data.length > 0 ? colors.slice(0, labels.length) : ['#e9ecef'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '60%',
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 12, padding: 8 } },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ctx.label + ': ' + new Intl.NumberFormat('es-VE').format(ctx.raw) + ' Kg'
+                        }
+                    }
+                }
+            }
+        });
+    },
+
+    // Grafico: Consumo de Tintas (stacked bar)
+    renderChartTintas(tintas) {
+        const canvas = document.getElementById('chartTintas');
+        if (!canvas) return;
+        if (this.charts.tintas) this.charts.tintas.destroy();
+
+        // Agrupar por semana
+        const porSemana = {};
+        tintas.forEach(t => {
+            const fecha = new Date(t.fecha);
+            const semana = 'S' + this.getWeekNumber(fecha);
+            if (!porSemana[semana]) {
+                porSemana[semana] = { laminacion: 0, superficie: 0, solventes: 0 };
+            }
+            porSemana[semana].laminacion += parseFloat(t.totalTintasLaminacion) || 0;
+            porSemana[semana].superficie += parseFloat(t.totalTintasSuperficie) || 0;
+            porSemana[semana].solventes += parseFloat(t.totalSolventes) || 0;
+        });
+
+        const labels = Object.keys(porSemana).slice(-8);
+        const dataLam = labels.map(s => +(porSemana[s]?.laminacion || 0).toFixed(1));
+        const dataSup = labels.map(s => +(porSemana[s]?.superficie || 0).toFixed(1));
+        const dataSolv = labels.map(s => +(porSemana[s]?.solventes || 0).toFixed(1));
+
+        this.charts.tintas = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: labels.length > 0 ? labels : ['Sin datos'],
+                datasets: [
+                    { label: 'Tintas Laminacion', data: dataLam, backgroundColor: '#6f42c1', borderRadius: 2 },
+                    { label: 'Tintas Superficie', data: dataSup, backgroundColor: '#0dcaf0', borderRadius: 2 },
+                    { label: 'Solventes', data: dataSolv, backgroundColor: '#fd7e14', borderRadius: 2 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 10, padding: 6, font: { size: 10 } } }
+                },
+                scales: {
+                    x: { stacked: true, grid: { display: false } },
+                    y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Kg' } }
+                }
+            }
+        });
+    },
+
+    // Grafico: Eficiencia por Maquina (radar)
+    renderChartEficiencia(produccion) {
+        const canvas = document.getElementById('chartEficiencia');
+        if (!canvas) return;
+        if (this.charts.eficiencia) this.charts.eficiencia.destroy();
+
+        // Calcular eficiencia por maquina (salida / entrada * 100)
+        const porMaquina = {};
+        produccion.forEach(p => {
+            const maq = p.maquina || 'Sin asignar';
+            if (!porMaquina[maq]) {
+                porMaquina[maq] = { entrada: 0, salida: 0, tiempoEfectivo: 0, tiempoMuerto: 0 };
+            }
+            porMaquina[maq].entrada += parseFloat(p.totalMaterialEntrada) || parseFloat(p.totalEntrada) || 0;
+            porMaquina[maq].salida += parseFloat(p.pesoTotal) || parseFloat(p.totalSalida) || 0;
+            porMaquina[maq].tiempoEfectivo += parseFloat(p.tiempoEfectivo) || 0;
+            porMaquina[maq].tiempoMuerto += parseFloat(p.tiempoMuerto) || 0;
+        });
+
+        const labels = Object.keys(porMaquina);
+        const eficienciaMaterial = labels.map(m => {
+            const d = porMaquina[m];
+            return d.entrada > 0 ? +((d.salida / d.entrada) * 100).toFixed(1) : 0;
+        });
+        const eficienciaTiempo = labels.map(m => {
+            const d = porMaquina[m];
+            const total = d.tiempoEfectivo + d.tiempoMuerto;
+            return total > 0 ? +((d.tiempoEfectivo / total) * 100).toFixed(1) : 0;
+        });
+
+        this.charts.eficiencia = new Chart(canvas, {
+            type: 'radar',
+            data: {
+                labels: labels.length > 0 ? labels : ['Sin datos'],
+                datasets: [
+                    {
+                        label: 'Eficiencia Material (%)',
+                        data: eficienciaMaterial.length > 0 ? eficienciaMaterial : [0],
+                        backgroundColor: 'rgba(13, 110, 253, 0.2)',
+                        borderColor: '#0d6efd',
+                        pointBackgroundColor: '#0d6efd',
+                        borderWidth: 2
+                    },
+                    {
+                        label: 'Eficiencia Tiempo (%)',
+                        data: eficienciaTiempo.length > 0 ? eficienciaTiempo : [0],
+                        backgroundColor: 'rgba(25, 135, 84, 0.2)',
+                        borderColor: '#198754',
+                        pointBackgroundColor: '#198754',
+                        borderWidth: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 10, padding: 6, font: { size: 10 } } }
+                },
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: { stepSize: 20 }
+                    }
+                }
+            }
+        });
+    },
+
+    // Obtener numero de semana del año
+    getWeekNumber(date) {
+        const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+        return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
     },
 
     // Cargar KPIs principales

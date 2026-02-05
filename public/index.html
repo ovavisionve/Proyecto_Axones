@@ -360,12 +360,12 @@
             </div>
         </section>
 
-        <!-- Graficos de Tendencias -->
+        <!-- Graficos de Tendencias - Fila 1 -->
         <section class="row mb-4 g-3">
             <div class="col-lg-8">
                 <div class="card border-0 shadow-sm h-100">
                     <div class="card-header bg-white">
-                        <h6 class="mb-0"><i class="bi bi-graph-up text-success me-2"></i>Produccion Ultimos 7 Dias</h6>
+                        <h6 class="mb-0"><i class="bi bi-graph-up text-success me-2"></i>Produccion Mensual (Kg)</h6>
                     </div>
                     <div class="card-body">
                         <canvas id="chartProduccion" height="200"></canvas>
@@ -375,10 +375,68 @@
             <div class="col-lg-4">
                 <div class="card border-0 shadow-sm h-100">
                     <div class="card-header bg-white">
-                        <h6 class="mb-0"><i class="bi bi-pie-chart text-info me-2"></i>Refil por Maquina</h6>
+                        <h6 class="mb-0"><i class="bi bi-pie-chart text-info me-2"></i>Produccion por Maquina</h6>
                     </div>
                     <div class="card-body">
                         <canvas id="chartRefil" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Graficos Power BI - Fila 2 -->
+        <section class="row mb-4 g-3">
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white">
+                        <h6 class="mb-0"><i class="bi bi-bar-chart-line text-primary me-2"></i>Produccion por Cliente (Top 10)</h6>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="chartPorCliente" height="250"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white">
+                        <h6 class="mb-0"><i class="bi bi-activity text-danger me-2"></i>Tendencia de Refil (%) - Ultimos 30 dias</h6>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="chartRefilTendencia" height="250"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Graficos Power BI - Fila 3 -->
+        <section class="row mb-4 g-3">
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white">
+                        <h6 class="mb-0"><i class="bi bi-diagram-3 text-purple me-2" style="color:#6f42c1"></i>Produccion por Proceso</h6>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="chartPorProceso" height="220"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white">
+                        <h6 class="mb-0"><i class="bi bi-droplet-half text-warning me-2"></i>Consumo de Tintas (Kg)</h6>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="chartTintas" height="220"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white">
+                        <h6 class="mb-0"><i class="bi bi-clock-history text-secondary me-2"></i>Eficiencia por Maquina (%)</h6>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="chartEficiencia" height="220"></canvas>
                     </div>
                 </div>
             </div>

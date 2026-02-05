@@ -375,7 +375,7 @@ const Inventario = {
     /**
      * Agrega un nuevo item al inventario
      */
-    agregarItem: function() {
+    agregarItem: async function() {
         const form = document.getElementById('formAgregarItem');
         if (!form.checkValidity()) {
             form.reportValidity();
@@ -397,6 +397,25 @@ const Inventario = {
         this.filteredItems = [...this.items];
         this.renderInventario();
         this.updateTotales();
+
+        // Enviar a API
+        if (typeof AxonesAPI !== 'undefined') {
+            try {
+                await AxonesAPI.createInventario({
+                    tipo: nuevoItem.material,
+                    material: nuevoItem.material + ' ' + nuevoItem.micras + 'µ x ' + nuevoItem.ancho + 'mm',
+                    cantidad: nuevoItem.kg,
+                    unidad: 'Kg',
+                    ubicacion: nuevoItem.producto || 'Almacen',
+                    lote: '',
+                    proveedor: nuevoItem.importado ? 'Importado' : 'Nacional',
+                    observaciones: ''
+                });
+                console.log('Inventario guardado en Google Sheets');
+            } catch (e) {
+                console.warn('Error guardando inventario en API:', e);
+            }
+        }
 
         // Cerrar modal y limpiar
         bootstrap.Modal.getInstance(document.getElementById('modalAgregarItem')).hide();

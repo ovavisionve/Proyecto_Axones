@@ -12,8 +12,8 @@ const CONFIG = {
 
     // URLs de Google Apps Script - CONFIGURACION FIJA
     API: {
-        BASE_URL: 'https://script.google.com/macros/s/AKfycby6we9nx81660m7sMBvXl2rh4Inh6kBd5dze4r4y1g5Wt/exec',
-        SHEETS_ID: '1fMDXLc2AjcqCRHc5Qk04IVjv2ZoKII8_BpCu58DYEdQ',
+        BASE_URL: 'https://script.google.com/macros/s/AKfycbxsMrUSHR6QkAgiZJ8owAfBGOvfz09D4kf96fK8Dr_zeTA1PfiQs2xdxEKC2IoeA9zK/exec',
+        SHEETS_ID: '1TOpqDc-X4kthwYNzduGYO6MpN1dOdvbjqIIoW_oYL88',
     },
 
     // Configuracion de Groq para el chatbot (HARDCODEADO - NO EDITABLE DESDE UI)

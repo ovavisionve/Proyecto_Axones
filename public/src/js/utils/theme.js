@@ -61,9 +61,14 @@ const ThemeManager = {
 
         const btn = document.createElement('button');
         btn.id = 'themeToggle';
+        btn.type = 'button'; // Importante: evita comportamiento de submit
         btn.className = 'btn btn-link text-light theme-toggle me-2';
         btn.title = 'Cambiar tema';
-        btn.onclick = () => this.toggleTheme();
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.toggleTheme();
+        });
 
         const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
         btn.innerHTML = currentTheme === 'dark'

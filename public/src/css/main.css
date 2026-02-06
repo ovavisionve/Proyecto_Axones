@@ -701,6 +701,138 @@ main {
     color: #75b798;
 }
 
+/* Pagina de Etiquetas */
+[data-theme="dark"] .form-section {
+    background-color: #1a1d21 !important;
+    color: #e9ecef;
+}
+
+[data-theme="dark"] .form-section-title {
+    color: #e9ecef !important;
+    border-color: #fd7e14;
+}
+
+[data-theme="dark"] .label-preview {
+    background-color: #212529 !important;
+    border-color: #495057;
+}
+
+/* Paginas con navbar naranja (etiquetas, programacion) */
+[data-theme="dark"] .navbar[style*="fd7e14"] {
+    background-color: #b35600 !important;
+}
+
+/* Inputs en paginas especificas */
+[data-theme="dark"] input[type="number"],
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="date"],
+[data-theme="dark"] input[type="email"],
+[data-theme="dark"] input[type="password"],
+[data-theme="dark"] textarea {
+    background-color: #212529 !important;
+    border-color: #495057 !important;
+    color: #e9ecef !important;
+}
+
+/* Labels de formularios */
+[data-theme="dark"] label {
+    color: #e9ecef;
+}
+
+/* Small y textos secundarios */
+[data-theme="dark"] small {
+    color: #adb5bd;
+}
+
+/* Pagina de Checklist */
+[data-theme="dark"] .checklist-item {
+    background-color: #1a1d21;
+    border-color: #2d3238;
+}
+
+/* Pagina de Certificado */
+[data-theme="dark"] .certificate-preview {
+    background-color: #212529;
+}
+
+/* Breadcrumbs */
+[data-theme="dark"] .breadcrumb {
+    background-color: #1a1d21;
+}
+
+[data-theme="dark"] .breadcrumb-item a {
+    color: #6ea8fe;
+}
+
+[data-theme="dark"] .breadcrumb-item.active {
+    color: #adb5bd;
+}
+
+/* Offcanvas */
+[data-theme="dark"] .offcanvas {
+    background-color: #1a1d21;
+    color: #e9ecef;
+}
+
+[data-theme="dark"] .offcanvas-header {
+    border-color: #2d3238;
+}
+
+/* Popover y Tooltip */
+[data-theme="dark"] .popover {
+    background-color: #1a1d21;
+    border-color: #2d3238;
+}
+
+[data-theme="dark"] .popover-body {
+    color: #e9ecef;
+}
+
+[data-theme="dark"] .tooltip-inner {
+    background-color: #2d3238;
+}
+
+/* Strong y bold text */
+[data-theme="dark"] strong,
+[data-theme="dark"] b {
+    color: #e9ecef;
+}
+
+/* Historial section */
+[data-theme="dark"] .historial-item {
+    background-color: #1a1d21;
+    border-color: #2d3238;
+}
+
+/* Fix especifico para bobinas y paletas */
+[data-theme="dark"] .paleta-bobina-label {
+    color: #adb5bd;
+}
+
+[data-theme="dark"] .bobina-entrada,
+[data-theme="dark"] .bobina-salida {
+    background-color: #212529 !important;
+    color: #e9ecef !important;
+}
+
+/* Selectores de turno (radio buttons) */
+[data-theme="dark"] .btn-check + .btn-outline-primary,
+[data-theme="dark"] .btn-check + .btn-outline-secondary {
+    color: #e9ecef;
+    border-color: #495057;
+}
+
+[data-theme="dark"] .btn-check:checked + .btn-outline-primary {
+    background-color: var(--axones-primary);
+    color: white;
+}
+
+/* Fix para box-shadow en modo oscuro */
+[data-theme="dark"] .shadow,
+[data-theme="dark"] .shadow-sm {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.4) !important;
+}
+
 /* Boton de tema */
 .theme-toggle {
     cursor: pointer;

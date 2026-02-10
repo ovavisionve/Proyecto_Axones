@@ -333,6 +333,38 @@ const AxonesAPI = {
 
     createUsuario: async function(data) {
         return await this.post('createUsuario', data);
+    },
+
+    // ==================== ORDENES DE TRABAJO ====================
+
+    getOrdenes: async function(params = {}) {
+        return await this.get('getOrdenes', params);
+    },
+
+    createOrden: async function(data) {
+        return await this.post('createOrden', data);
+    },
+
+    updateOrden: async function(id, data) {
+        const params = { id, data: JSON.stringify(data) };
+        return await this.get('updateOrden', params);
+    },
+
+    // ==================== ALERTAS POR EMAIL ====================
+
+    /**
+     * Envia alerta por email cuando hay inventario insuficiente
+     * para una orden proxima a su fecha de inicio
+     */
+    enviarAlertaEmail: async function(data) {
+        return await this.post('enviarAlertaEmail', data);
+    },
+
+    /**
+     * Envia notificacion por email generica
+     */
+    enviarNotificacionEmail: async function(data) {
+        return await this.post('enviarNotificacionEmail', data);
     }
 };
 

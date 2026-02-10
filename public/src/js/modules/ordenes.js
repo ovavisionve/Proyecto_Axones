@@ -1,6 +1,7 @@
 /**
  * Modulo Ordenes de Trabajo - Sistema Axones
  * Gestion de ordenes pre-cargadas con verificacion de inventario
+ * Incluye alertas por email 5 dias antes de fecha de inicio
  */
 
 const Ordenes = {
@@ -10,6 +11,9 @@ const Ordenes = {
     inventario: [],
     tintas: [],
     adhesivos: [],
+
+    // Configuracion de alertas
+    DIAS_ALERTA_ANTICIPADA: 5,
 
     /**
      * Inicializa el modulo
@@ -23,6 +27,9 @@ const Ordenes = {
         this.cargarClientes();
         this.renderOrdenes();
         this.updateCounts();
+
+        // Verificar ordenes proximas y enviar alertas por email si es necesario
+        this.verificarOrdenesProximas();
     },
 
     /**
@@ -588,6 +595,203 @@ const Ordenes = {
             minimumFractionDigits: 0,
             maximumFractionDigits: 2
         }).format(num);
+    },
+
+    /**
+     * Verifica ordenes proximas a su fecha de inicio (5 dias antes)
+     * y envia alertas por email si hay problemas de inventario
+     */
+    verificarOrdenesProximas: async function() {
+        console.log('Verificando ordenes proximas a fecha de inicio...');
+
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+
+        const ordenesProximas = this.ordenes.filter(orden => {
+            if (orden.estado === 'completada') return false;
+            if (!orden.fechaEntrega) return false;
+
+            const fechaOrden = new Date(orden.fechaEntrega);
+            fechaOrden.setHours(0, 0, 0, 0);
+
+            const diasRestantes = Math.ceil((fechaOrden - hoy) / (1000 * 60 * 60 * 24));
+            return diasRestantes <= this.DIAS_ALERTA_ANTICIPADA && diasRestantes >= 0;
+        });
+
+        if (ordenesProximas.length === 0) {
+            console.log('No hay ordenes proximas que requieran verificacion');
+            return;
+        }
+
+        console.log(`Encontradas ${ordenesProximas.length} ordenes proximas a verificar`);
+
+        // Verificar inventario para cada orden proxima
+        for (const orden of ordenesProximas) {
+            const inventarioCheck = this.verificarInventarioOrden(orden);
+
+            if (inventarioCheck.alerta) {
+                // Verificar si ya enviamos alerta por email para esta orden hoy
+                const alertaEnviada = this.verificarAlertaEmailEnviada(orden.id);
+
+                if (!alertaEnviada) {
+                    await this.enviarAlertaEmailInventario(orden, inventarioCheck);
+                }
+            }
+        }
+    },
+
+    /**
+     * Verifica si ya se envio una alerta por email para esta orden hoy
+     */
+    verificarAlertaEmailEnviada: function(ordenId) {
+        const alertasEmail = JSON.parse(localStorage.getItem('axones_alertas_email') || '[]');
+        const hoy = new Date().toISOString().split('T')[0];
+
+        return alertasEmail.some(a =>
+            a.ordenId === ordenId &&
+            a.fecha.startsWith(hoy)
+        );
+    },
+
+    /**
+     * Registra que se envio una alerta por email
+     */
+    registrarAlertaEmailEnviada: function(ordenId) {
+        const alertasEmail = JSON.parse(localStorage.getItem('axones_alertas_email') || '[]');
+        alertasEmail.push({
+            ordenId: ordenId,
+            fecha: new Date().toISOString()
+        });
+
+        // Mantener solo ultimos 100 registros
+        if (alertasEmail.length > 100) {
+            alertasEmail.splice(0, alertasEmail.length - 100);
+        }
+
+        localStorage.setItem('axones_alertas_email', JSON.stringify(alertasEmail));
+    },
+
+    /**
+     * Envia alerta por email cuando una orden proxima no tiene inventario
+     */
+    enviarAlertaEmailInventario: async function(orden, inventarioCheck) {
+        console.log(`Enviando alerta por email para orden ${orden.ot}...`);
+
+        const fechaOrden = new Date(orden.fechaEntrega);
+        const hoy = new Date();
+        const diasRestantes = Math.ceil((fechaOrden - hoy) / (1000 * 60 * 60 * 24));
+
+        const datosAlerta = {
+            tipo: 'inventario_insuficiente_email',
+            nivel: 'critical',
+            ot: orden.ot,
+            cliente: orden.cliente,
+            producto: orden.producto,
+            material: orden.material,
+            micras: orden.micras || '',
+            ancho: orden.ancho || '',
+            cantidadRequerida: orden.cantidad,
+            fechaEntrega: orden.fechaEntrega,
+            diasRestantes: diasRestantes,
+            mensaje: `URGENTE: La orden ${orden.ot} para ${orden.cliente} tiene fecha de inicio en ${diasRestantes} dias y NO hay suficiente inventario de ${orden.material}. Cantidad requerida: ${orden.cantidad} Kg.`,
+            enviarEmail: true
+        };
+
+        try {
+            // Enviar a la API para que procese y envie el email
+            if (typeof AxonesAPI !== 'undefined') {
+                const result = await AxonesAPI.post('enviarAlertaEmail', datosAlerta);
+
+                if (result.success) {
+                    console.log('Alerta por email enviada exitosamente');
+                    this.registrarAlertaEmailEnviada(orden.id);
+
+                    // Tambien crear alerta local
+                    this.crearAlertaBajoStockConEmail(orden, diasRestantes);
+
+                    if (typeof Axones !== 'undefined') {
+                        Axones.showSuccess(`Alerta enviada por email: OT ${orden.ot} sin inventario`);
+                    }
+                } else {
+                    console.warn('No se pudo enviar email, guardando localmente');
+                    this.crearAlertaBajoStockConEmail(orden, diasRestantes);
+                }
+            } else {
+                // Si no hay API, al menos crear alerta local
+                this.crearAlertaBajoStockConEmail(orden, diasRestantes);
+            }
+        } catch (error) {
+            console.error('Error enviando alerta por email:', error);
+            // Crear alerta local como fallback
+            this.crearAlertaBajoStockConEmail(orden, diasRestantes);
+        }
+    },
+
+    /**
+     * Crea alerta de bajo stock con indicador de que se envio email
+     */
+    crearAlertaBajoStockConEmail: function(orden, diasRestantes) {
+        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
+
+        // Verificar si ya existe alerta similar reciente
+        const alertaExistente = alertas.find(a =>
+            a.tipo === 'inventario_insuficiente_email' &&
+            a.datos?.ordenId === orden.id &&
+            new Date(a.fecha) > new Date(Date.now() - 24 * 60 * 60 * 1000)
+        );
+
+        if (alertaExistente) return;
+
+        alertas.unshift({
+            id: Date.now(),
+            tipo: 'inventario_insuficiente_email',
+            nivel: 'critical',
+            mensaje: `ALERTA EMAIL: OT ${orden.ot} (${orden.cliente}) - Sin inventario de ${orden.material}. Fecha: ${orden.fechaEntrega} (${diasRestantes} dias)`,
+            fecha: new Date().toISOString(),
+            estado: 'pendiente',
+            emailEnviado: true,
+            datos: {
+                ordenId: orden.id,
+                ot: orden.ot,
+                cliente: orden.cliente,
+                material: orden.material,
+                fechaEntrega: orden.fechaEntrega,
+                diasRestantes: diasRestantes
+            }
+        });
+
+        localStorage.setItem('axones_alertas', JSON.stringify(alertas));
+    },
+
+    /**
+     * Obtiene ordenes pendientes para seleccionar en produccion
+     */
+    getOrdenesPendientes: function(proceso = null) {
+        let ordenes = this.ordenes.filter(o => o.estado !== 'completada');
+
+        if (proceso) {
+            ordenes = ordenes.filter(o => o.proceso === proceso);
+        }
+
+        return ordenes.sort((a, b) => {
+            const fechaA = new Date(a.fechaEntrega || '9999-12-31');
+            const fechaB = new Date(b.fechaEntrega || '9999-12-31');
+            return fechaA - fechaB;
+        });
+    },
+
+    /**
+     * Obtiene una orden por su OT
+     */
+    getOrdenByOT: function(ot) {
+        return this.ordenes.find(o => o.ot === ot);
+    },
+
+    /**
+     * Obtiene una orden por su ID
+     */
+    getOrdenById: function(id) {
+        return this.ordenes.find(o => o.id === id);
     }
 };
 

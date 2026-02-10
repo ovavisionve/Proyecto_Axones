@@ -8,6 +8,9 @@ const Laminacion = {
     // Cache de datos
     clientesCache: [],
 
+    // Orden cargada desde el modulo de ordenes
+    ordenCargada: null,
+
     /**
      * Inicializa el modulo
      */
@@ -18,6 +21,178 @@ const Laminacion = {
         this.cargarClientes();
         this.setupEventListeners();
         this.setupCalculations();
+
+        // Verificar si viene de una orden y cargar datos automaticamente
+        this.cargarDesdeOrden();
+    },
+
+    /**
+     * Carga datos desde una orden si viene con parametros en la URL
+     */
+    cargarDesdeOrden: function() {
+        const params = new URLSearchParams(window.location.search);
+        const ot = params.get('ot');
+
+        if (ot) {
+            console.log('Cargando datos desde orden:', ot);
+
+            const ordenes = JSON.parse(localStorage.getItem('axones_ordenes') || '[]');
+            const orden = ordenes.find(o => o.ot === ot);
+
+            if (orden) {
+                this.ordenCargada = orden;
+                this.precargarCamposOrden(orden);
+                this.mostrarBannerOrdenCargada(orden);
+            } else {
+                this.precargarDesdeParametros(params);
+            }
+        }
+
+        this.agregarSelectorOrdenes();
+    },
+
+    /**
+     * Precarga campos del formulario desde una orden
+     */
+    precargarCamposOrden: function(orden) {
+        const camposOrden = {
+            'ordenTrabajo': orden.ot,
+            'cliente': orden.cliente,
+            'producto': orden.producto
+        };
+
+        Object.entries(camposOrden).forEach(([campo, valor]) => {
+            const input = document.getElementById(campo);
+            if (input && valor) {
+                input.value = valor;
+                input.classList.add('precargado-orden');
+                input.setAttribute('readonly', true);
+                input.style.backgroundColor = '#e8f4e8';
+            }
+        });
+
+        const clienteSelect = document.getElementById('cliente');
+        if (clienteSelect && orden.cliente) {
+            clienteSelect.value = orden.cliente;
+            clienteSelect.dispatchEvent(new Event('change'));
+        }
+    },
+
+    /**
+     * Precarga desde parametros de URL
+     */
+    precargarDesdeParametros: function(params) {
+        const mapping = {
+            'ot': 'ordenTrabajo',
+            'cliente': 'cliente',
+            'producto': 'producto'
+        };
+
+        Object.entries(mapping).forEach(([param, campo]) => {
+            const valor = params.get(param);
+            if (valor) {
+                const input = document.getElementById(campo);
+                if (input) {
+                    input.value = valor;
+                    input.classList.add('precargado-orden');
+                    input.setAttribute('readonly', true);
+                    input.style.backgroundColor = '#e8f4e8';
+                }
+            }
+        });
+    },
+
+    /**
+     * Muestra banner indicando que se cargo una orden
+     */
+    mostrarBannerOrdenCargada: function(orden) {
+        const form = document.getElementById('formLaminacion');
+        if (!form || document.getElementById('bannerOrdenCargada')) return;
+
+        const banner = document.createElement('div');
+        banner.id = 'bannerOrdenCargada';
+        banner.className = 'alert alert-success py-2 mb-3';
+        banner.innerHTML = `
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <i class="bi bi-clipboard-check me-2"></i>
+                    <strong>Orden cargada:</strong> ${orden.ot} - ${orden.cliente}
+                    <br><small class="text-muted">Los campos verdes estan precargados. Solo complete los campos restantes.</small>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="Laminacion.descargarOrden()">
+                    <i class="bi bi-x-circle me-1"></i>Descargar orden
+                </button>
+            </div>
+        `;
+
+        const firstSection = form.querySelector('.form-section');
+        if (firstSection) {
+            firstSection.parentNode.insertBefore(banner, firstSection);
+        }
+    },
+
+    /**
+     * Descarga la orden y limpia campos precargados
+     */
+    descargarOrden: function() {
+        this.ordenCargada = null;
+
+        document.querySelectorAll('.precargado-orden').forEach(input => {
+            input.value = '';
+            input.classList.remove('precargado-orden');
+            input.removeAttribute('readonly');
+            input.style.backgroundColor = '';
+        });
+
+        const banner = document.getElementById('bannerOrdenCargada');
+        if (banner) banner.remove();
+
+        window.history.replaceState({}, document.title, window.location.pathname);
+    },
+
+    /**
+     * Agrega selector de ordenes pendientes al formulario
+     */
+    agregarSelectorOrdenes: function() {
+        const otInput = document.getElementById('ordenTrabajo');
+        if (!otInput || document.getElementById('selectorOrden')) return;
+
+        const ordenes = JSON.parse(localStorage.getItem('axones_ordenes') || '[]');
+        const ordenesPendientes = ordenes.filter(o =>
+            o.estado !== 'completada' && o.proceso === 'laminacion'
+        );
+
+        if (ordenesPendientes.length === 0) return;
+
+        const grupo = otInput.closest('.col-md-3, .col-md-4, .mb-3');
+        if (!grupo) return;
+
+        const selectorDiv = document.createElement('div');
+        selectorDiv.id = 'selectorOrden';
+        selectorDiv.className = 'mt-1';
+        selectorDiv.innerHTML = `
+            <select class="form-select form-select-sm" id="selectOrdenPendiente">
+                <option value="">-- Seleccionar orden pendiente --</option>
+                ${ordenesPendientes.map(o => `
+                    <option value="${o.ot}" data-orden='${JSON.stringify(o)}'>
+                        ${o.ot} - ${o.cliente} - ${o.producto}
+                    </option>
+                `).join('')}
+            </select>
+            <small class="text-muted">O ingrese una OT manualmente arriba</small>
+        `;
+
+        grupo.appendChild(selectorDiv);
+
+        document.getElementById('selectOrdenPendiente').addEventListener('change', (e) => {
+            if (e.target.value) {
+                const option = e.target.selectedOptions[0];
+                const orden = JSON.parse(option.dataset.orden);
+                this.ordenCargada = orden;
+                this.precargarCamposOrden(orden);
+                this.mostrarBannerOrdenCargada(orden);
+            }
+        });
     },
 
     /**

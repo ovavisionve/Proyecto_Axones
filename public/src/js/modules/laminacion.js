@@ -330,6 +330,9 @@ const Laminacion = {
                 this.mostrarToast('Registro de laminacion guardado en Google Sheets (ID: ' + result.id + ')', 'success');
                 this.guardarLocal(datos);
 
+                // Descontar materiales del inventario (adhesivo, catalizador, acetato)
+                this.descontarInventarioLaminacion(datos);
+
                 const porcentajeRefil = parseFloat(datos.porcentajeRefil) || 0;
                 const umbral = CONFIG.UMBRALES_REFIL.default;
                 if (porcentajeRefil > umbral.maximo) {
@@ -471,6 +474,88 @@ const Laminacion = {
         const laminacion = JSON.parse(localStorage.getItem('axones_laminacion') || '[]');
         laminacion.unshift(datos);
         localStorage.setItem('axones_laminacion', JSON.stringify(laminacion));
+    },
+
+    /**
+     * Descuenta adhesivo, catalizador y acetato del inventario
+     */
+    descontarInventarioLaminacion: function(datos) {
+        try {
+            const adhesivos = JSON.parse(localStorage.getItem('axones_adhesivos_inventario') || '[]');
+            let actualizado = false;
+
+            // Descontar adhesivo
+            if (datos.adhesivo && datos.adhesivo > 0) {
+                const adhesivoItem = adhesivos.find(a => a.tipo === 'adhesivo');
+                if (adhesivoItem) {
+                    adhesivoItem.cantidad = Math.max(0, (adhesivoItem.cantidad || 0) - datos.adhesivo);
+                    actualizado = true;
+                    console.log(`Descontado ${datos.adhesivo} Kg de adhesivo`);
+                }
+            }
+
+            // Descontar catalizador
+            if (datos.catalizador && datos.catalizador > 0) {
+                const catalizadorItem = adhesivos.find(a => a.tipo === 'catalizador');
+                if (catalizadorItem) {
+                    catalizadorItem.cantidad = Math.max(0, (catalizadorItem.cantidad || 0) - datos.catalizador);
+                    actualizado = true;
+                    console.log(`Descontado ${datos.catalizador} Kg de catalizador`);
+                }
+            }
+
+            // Descontar acetato
+            if (datos.acetato && datos.acetato > 0) {
+                const acetatoItem = adhesivos.find(a => a.tipo === 'acetato');
+                if (acetatoItem) {
+                    acetatoItem.cantidad = Math.max(0, (acetatoItem.cantidad || 0) - datos.acetato);
+                    actualizado = true;
+                    console.log(`Descontado ${datos.acetato} Lt de acetato`);
+                }
+            }
+
+            if (actualizado) {
+                localStorage.setItem('axones_adhesivos_inventario', JSON.stringify(adhesivos));
+                console.log('Inventario de adhesivos actualizado');
+
+                // Verificar stock bajo
+                this.verificarStockBajoAdhesivos(adhesivos);
+            }
+        } catch (error) {
+            console.warn('Error al descontar inventario de laminacion:', error);
+        }
+    },
+
+    /**
+     * Verifica si hay adhesivos con stock bajo
+     */
+    verificarStockBajoAdhesivos: function(adhesivos) {
+        const STOCK_MINIMO = 20; // Kg
+        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
+
+        adhesivos.forEach(item => {
+            if ((item.cantidad || 0) < STOCK_MINIMO) {
+                const alertaExistente = alertas.find(a =>
+                    a.tipo === 'stock_bajo' &&
+                    a.datos?.nombre === item.nombre &&
+                    new Date(a.fecha) > new Date(Date.now() - 24 * 60 * 60 * 1000)
+                );
+
+                if (!alertaExistente) {
+                    alertas.unshift({
+                        id: Date.now(),
+                        tipo: 'stock_bajo',
+                        nivel: item.cantidad < 5 ? 'danger' : 'warning',
+                        mensaje: `Stock bajo: ${item.nombre} - Quedan ${(item.cantidad || 0).toFixed(1)} ${item.unidad}`,
+                        fecha: new Date().toISOString(),
+                        estado: 'pendiente',
+                        datos: { nombre: item.nombre, cantidad: item.cantidad }
+                    });
+                }
+            }
+        });
+
+        localStorage.setItem('axones_alertas', JSON.stringify(alertas));
     },
 
     /**

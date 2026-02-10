@@ -1,12 +1,23 @@
 /**
- * Modulo Inventario de Sustratos - Sistema Axones
- * Gestion del inventario de materiales (BOPP, CAST, PEBD, etc.)
+ * Modulo Inventario General - Sistema Axones
+ * Gestion del inventario de materiales, tintas y adhesivos
  */
 
 const Inventario = {
-    // Datos del inventario
+    // Datos del inventario de materiales (sustratos)
     items: [],
     filteredItems: [],
+
+    // Datos de tintas
+    tintas: [],
+    filteredTintas: [],
+
+    // Datos de adhesivos
+    adhesivos: [],
+    filteredAdhesivos: [],
+
+    // Tab activo
+    activeTab: 'material',
 
     // Tipos de materiales
     TIPOS_MATERIAL: [
@@ -20,16 +31,37 @@ const Inventario = {
         'PEBD PIGMENT'
     ],
 
+    // Tipos de tintas
+    TIPOS_TINTA: [
+        { id: 'laminacion', nombre: 'Tinta Laminacion' },
+        { id: 'superficie', nombre: 'Tinta Superficie' },
+        { id: 'solvente', nombre: 'Solvente' }
+    ],
+
+    // Tipos de adhesivos
+    TIPOS_ADHESIVO: [
+        { id: 'adhesivo', nombre: 'Adhesivo' },
+        { id: 'catalizador', nombre: 'Catalizador' },
+        { id: 'acetato', nombre: 'Acetato' },
+        { id: 'otro', nombre: 'Otro' }
+    ],
+
     /**
      * Inicializa el modulo
      */
     init: async function() {
-        console.log('Inicializando modulo Inventario de Sustratos');
+        console.log('Inicializando modulo Inventario General');
 
         await this.loadInventario();
+        await this.loadTintas();
+        await this.loadAdhesivos();
         this.setupEventListeners();
+        this.setupTabListeners();
         this.renderInventario();
+        this.renderTintas();
+        this.renderAdhesivos();
         this.updateTotales();
+        this.updateCounts();
         this.setFechaActualizacion();
     },
 
@@ -144,6 +176,327 @@ const Inventario = {
      */
     saveInventario: function() {
         localStorage.setItem(CONFIG.CACHE.PREFIJO + 'inventario', JSON.stringify(this.items));
+    },
+
+    /**
+     * Carga tintas desde localStorage
+     */
+    loadTintas: async function() {
+        const stored = localStorage.getItem(CONFIG.CACHE.PREFIJO + 'tintas_inventario');
+        if (stored) {
+            this.tintas = JSON.parse(stored);
+        } else {
+            this.tintas = this.getDatosTintasEjemplo();
+            this.saveTintas();
+        }
+        this.filteredTintas = [...this.tintas];
+    },
+
+    /**
+     * Datos de ejemplo de tintas
+     */
+    getDatosTintasEjemplo: function() {
+        return [
+            // Tintas Laminacion
+            { id: 'TIN001', nombre: 'Blanco Lam', tipo: 'laminacion', codigo: 'BL-001', cantidad: 25.5, unidad: 'Kg' },
+            { id: 'TIN002', nombre: 'Amarillo Lam', tipo: 'laminacion', codigo: 'AM-001', cantidad: 12.3, unidad: 'Kg' },
+            { id: 'TIN003', nombre: 'Rojo Lam', tipo: 'laminacion', codigo: 'RJ-001', cantidad: 8.7, unidad: 'Kg' },
+            { id: 'TIN004', nombre: 'Azul Lam', tipo: 'laminacion', codigo: 'AZ-001', cantidad: 15.2, unidad: 'Kg' },
+            { id: 'TIN005', nombre: 'Negro Lam', tipo: 'laminacion', codigo: 'NG-001', cantidad: 20.0, unidad: 'Kg' },
+            { id: 'TIN006', nombre: 'Verde Lam', tipo: 'laminacion', codigo: 'VD-001', cantidad: 5.5, unidad: 'Kg' },
+            // Tintas Superficie
+            { id: 'TIN010', nombre: 'Blanco Sup', tipo: 'superficie', codigo: 'BS-001', cantidad: 18.0, unidad: 'Kg' },
+            { id: 'TIN011', nombre: 'Amarillo Sup', tipo: 'superficie', codigo: 'AS-001', cantidad: 9.5, unidad: 'Kg' },
+            { id: 'TIN012', nombre: 'Rojo Sup', tipo: 'superficie', codigo: 'RS-001', cantidad: 6.2, unidad: 'Kg' },
+            { id: 'TIN013', nombre: 'Azul Sup', tipo: 'superficie', codigo: 'ZS-001', cantidad: 11.0, unidad: 'Kg' },
+            // Solventes
+            { id: 'TIN020', nombre: 'Acetato de Etilo', tipo: 'solvente', codigo: 'SOL-001', cantidad: 50.0, unidad: 'Lt' },
+            { id: 'TIN021', nombre: 'Alcohol Isopropilico', tipo: 'solvente', codigo: 'SOL-002', cantidad: 35.0, unidad: 'Lt' },
+        ];
+    },
+
+    /**
+     * Guarda tintas en localStorage
+     */
+    saveTintas: function() {
+        localStorage.setItem(CONFIG.CACHE.PREFIJO + 'tintas_inventario', JSON.stringify(this.tintas));
+    },
+
+    /**
+     * Carga adhesivos desde localStorage
+     */
+    loadAdhesivos: async function() {
+        const stored = localStorage.getItem(CONFIG.CACHE.PREFIJO + 'adhesivos_inventario');
+        if (stored) {
+            this.adhesivos = JSON.parse(stored);
+        } else {
+            this.adhesivos = this.getDatosAdhesivosEjemplo();
+            this.saveAdhesivos();
+        }
+        this.filteredAdhesivos = [...this.adhesivos];
+    },
+
+    /**
+     * Datos de ejemplo de adhesivos
+     */
+    getDatosAdhesivosEjemplo: function() {
+        return [
+            { id: 'ADH001', nombre: 'Adhesivo Base', tipo: 'adhesivo', lote: 'LOT-2024-001', cantidad: 150.0, unidad: 'Kg' },
+            { id: 'ADH002', nombre: 'Adhesivo Laminacion', tipo: 'adhesivo', lote: 'LOT-2024-002', cantidad: 80.5, unidad: 'Kg' },
+            { id: 'ADH003', nombre: 'Catalizador A', tipo: 'catalizador', lote: 'CAT-2024-001', cantidad: 25.0, unidad: 'Kg' },
+            { id: 'ADH004', nombre: 'Catalizador B', tipo: 'catalizador', lote: 'CAT-2024-002', cantidad: 18.5, unidad: 'Kg' },
+            { id: 'ADH005', nombre: 'Acetato Limpieza', tipo: 'acetato', lote: 'ACE-2024-001', cantidad: 60.0, unidad: 'Lt' },
+            { id: 'ADH006', nombre: 'Acetato Industrial', tipo: 'acetato', lote: 'ACE-2024-002', cantidad: 45.0, unidad: 'Lt' },
+        ];
+    },
+
+    /**
+     * Guarda adhesivos en localStorage
+     */
+    saveAdhesivos: function() {
+        localStorage.setItem(CONFIG.CACHE.PREFIJO + 'adhesivos_inventario', JSON.stringify(this.adhesivos));
+    },
+
+    /**
+     * Configura los event listeners para los tabs
+     */
+    setupTabListeners: function() {
+        const tabs = document.querySelectorAll('#inventarioTabs button[data-bs-toggle="tab"]');
+        tabs.forEach(tab => {
+            tab.addEventListener('shown.bs.tab', (e) => {
+                const target = e.target.getAttribute('data-bs-target');
+                if (target === '#panel-material') {
+                    this.activeTab = 'material';
+                } else if (target === '#panel-tinta') {
+                    this.activeTab = 'tinta';
+                    this.renderTintas();
+                } else if (target === '#panel-adhesivo') {
+                    this.activeTab = 'adhesivo';
+                    this.renderAdhesivos();
+                }
+            });
+        });
+
+        // Filtros de tintas
+        const buscarTinta = document.getElementById('buscarTinta');
+        if (buscarTinta) {
+            buscarTinta.addEventListener('input', () => this.aplicarFiltrosTintas());
+        }
+        const filtroTipoTinta = document.getElementById('filtroTipoTinta');
+        if (filtroTipoTinta) {
+            filtroTipoTinta.addEventListener('change', () => this.aplicarFiltrosTintas());
+        }
+
+        // Filtros de adhesivos
+        const buscarAdhesivo = document.getElementById('buscarAdhesivo');
+        if (buscarAdhesivo) {
+            buscarAdhesivo.addEventListener('input', () => this.aplicarFiltrosAdhesivos());
+        }
+        const filtroTipoAdhesivo = document.getElementById('filtroTipoAdhesivo');
+        if (filtroTipoAdhesivo) {
+            filtroTipoAdhesivo.addEventListener('change', () => this.aplicarFiltrosAdhesivos());
+        }
+    },
+
+    /**
+     * Renderiza la tabla de tintas
+     */
+    renderTintas: function() {
+        const tbody = document.getElementById('tablaTintas');
+        if (!tbody) return;
+
+        if (this.filteredTintas.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No hay tintas registradas</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = this.filteredTintas.map((tinta, index) => {
+            const estadoClass = tinta.cantidad <= 5 ? 'bg-danger' : tinta.cantidad <= 15 ? 'bg-warning text-dark' : 'bg-success';
+            const estadoTexto = tinta.cantidad <= 5 ? 'Bajo' : tinta.cantidad <= 15 ? 'Medio' : 'OK';
+            const tipoTexto = tinta.tipo === 'laminacion' ? 'Laminacion' : tinta.tipo === 'superficie' ? 'Superficie' : 'Solvente';
+
+            return `
+                <tr>
+                    <td><i class="bi bi-droplet me-1" style="color: ${this.getColorTinta(tinta.nombre)};"></i>${tinta.nombre}</td>
+                    <td class="text-center"><span class="badge bg-info">${tipoTexto}</span></td>
+                    <td class="text-center">${tinta.codigo}</td>
+                    <td class="text-end">${this.formatNumber(tinta.cantidad)}</td>
+                    <td class="text-center">${tinta.unidad}</td>
+                    <td class="text-center"><span class="badge ${estadoClass}">${estadoTexto}</span></td>
+                    <td class="text-center">
+                        <button class="btn btn-sm btn-outline-primary" onclick="Inventario.editarTinta('${tinta.id}')" title="Editar">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        this.updateTotalesTintas();
+    },
+
+    /**
+     * Obtiene color para icono de tinta
+     */
+    getColorTinta: function(nombre) {
+        const colores = {
+            'blanco': '#f8f9fa', 'amarillo': '#ffc107', 'rojo': '#dc3545',
+            'azul': '#0d6efd', 'negro': '#212529', 'verde': '#198754'
+        };
+        for (const [key, color] of Object.entries(colores)) {
+            if (nombre.toLowerCase().includes(key)) return color;
+        }
+        return '#6c757d';
+    },
+
+    /**
+     * Renderiza la tabla de adhesivos
+     */
+    renderAdhesivos: function() {
+        const tbody = document.getElementById('tablaAdhesivos');
+        if (!tbody) return;
+
+        if (this.filteredAdhesivos.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No hay adhesivos registrados</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = this.filteredAdhesivos.map((adhesivo, index) => {
+            const estadoClass = adhesivo.cantidad <= 10 ? 'bg-danger' : adhesivo.cantidad <= 30 ? 'bg-warning text-dark' : 'bg-success';
+            const estadoTexto = adhesivo.cantidad <= 10 ? 'Bajo' : adhesivo.cantidad <= 30 ? 'Medio' : 'OK';
+            const tipoTexto = adhesivo.tipo.charAt(0).toUpperCase() + adhesivo.tipo.slice(1);
+
+            return `
+                <tr>
+                    <td><i class="bi bi-moisture me-1 text-warning"></i>${adhesivo.nombre}</td>
+                    <td class="text-center"><span class="badge bg-warning text-dark">${tipoTexto}</span></td>
+                    <td class="text-center">${adhesivo.lote}</td>
+                    <td class="text-end">${this.formatNumber(adhesivo.cantidad)}</td>
+                    <td class="text-center">${adhesivo.unidad}</td>
+                    <td class="text-center"><span class="badge ${estadoClass}">${estadoTexto}</span></td>
+                    <td class="text-center">
+                        <button class="btn btn-sm btn-outline-primary" onclick="Inventario.editarAdhesivo('${adhesivo.id}')" title="Editar">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        this.updateTotalesAdhesivos();
+    },
+
+    /**
+     * Aplica filtros a tintas
+     */
+    aplicarFiltrosTintas: function() {
+        const busqueda = document.getElementById('buscarTinta')?.value.toLowerCase() || '';
+        const tipo = document.getElementById('filtroTipoTinta')?.value || '';
+
+        this.filteredTintas = this.tintas.filter(tinta => {
+            if (busqueda && !tinta.nombre.toLowerCase().includes(busqueda) && !tinta.codigo.toLowerCase().includes(busqueda)) {
+                return false;
+            }
+            if (tipo && tinta.tipo !== tipo) return false;
+            return true;
+        });
+
+        this.renderTintas();
+    },
+
+    /**
+     * Aplica filtros a adhesivos
+     */
+    aplicarFiltrosAdhesivos: function() {
+        const busqueda = document.getElementById('buscarAdhesivo')?.value.toLowerCase() || '';
+        const tipo = document.getElementById('filtroTipoAdhesivo')?.value || '';
+
+        this.filteredAdhesivos = this.adhesivos.filter(adhesivo => {
+            if (busqueda && !adhesivo.nombre.toLowerCase().includes(busqueda) && !adhesivo.lote.toLowerCase().includes(busqueda)) {
+                return false;
+            }
+            if (tipo && adhesivo.tipo !== tipo) return false;
+            return true;
+        });
+
+        this.renderAdhesivos();
+    },
+
+    /**
+     * Actualiza totales de tintas
+     */
+    updateTotalesTintas: function() {
+        const tintasLam = this.tintas.filter(t => t.tipo === 'laminacion').reduce((sum, t) => sum + t.cantidad, 0);
+        const tintasSuper = this.tintas.filter(t => t.tipo === 'superficie').reduce((sum, t) => sum + t.cantidad, 0);
+        const solventes = this.tintas.filter(t => t.tipo === 'solvente').reduce((sum, t) => sum + t.cantidad, 0);
+
+        document.getElementById('totalTintasLam')?.textContent && (document.getElementById('totalTintasLam').textContent = this.formatNumber(tintasLam));
+        document.getElementById('totalTintasSuper')?.textContent && (document.getElementById('totalTintasSuper').textContent = this.formatNumber(tintasSuper));
+        document.getElementById('totalSolventes')?.textContent && (document.getElementById('totalSolventes').textContent = this.formatNumber(solventes));
+        document.getElementById('totalTintasGeneral')?.textContent && (document.getElementById('totalTintasGeneral').textContent = this.tintas.length);
+    },
+
+    /**
+     * Actualiza totales de adhesivos
+     */
+    updateTotalesAdhesivos: function() {
+        const adhesivo = this.adhesivos.filter(a => a.tipo === 'adhesivo').reduce((sum, a) => sum + a.cantidad, 0);
+        const catalizador = this.adhesivos.filter(a => a.tipo === 'catalizador').reduce((sum, a) => sum + a.cantidad, 0);
+        const acetato = this.adhesivos.filter(a => a.tipo === 'acetato').reduce((sum, a) => sum + a.cantidad, 0);
+
+        document.getElementById('totalAdhesivo')?.textContent && (document.getElementById('totalAdhesivo').textContent = this.formatNumber(adhesivo));
+        document.getElementById('totalCatalizador')?.textContent && (document.getElementById('totalCatalizador').textContent = this.formatNumber(catalizador));
+        document.getElementById('totalAcetato')?.textContent && (document.getElementById('totalAcetato').textContent = this.formatNumber(acetato));
+        document.getElementById('totalAdhesivosGeneral')?.textContent && (document.getElementById('totalAdhesivosGeneral').textContent = this.adhesivos.length);
+    },
+
+    /**
+     * Actualiza los contadores en los tabs
+     */
+    updateCounts: function() {
+        const countMaterial = document.getElementById('countMaterial');
+        const countTinta = document.getElementById('countTinta');
+        const countAdhesivo = document.getElementById('countAdhesivo');
+
+        if (countMaterial) countMaterial.textContent = this.items.length;
+        if (countTinta) countTinta.textContent = this.tintas.length;
+        if (countAdhesivo) countAdhesivo.textContent = this.adhesivos.length;
+    },
+
+    /**
+     * Editar tinta
+     */
+    editarTinta: function(id) {
+        const tinta = this.tintas.find(t => t.id === id);
+        if (!tinta) return;
+
+        const nuevaCantidad = prompt(`Editar cantidad para ${tinta.nombre}\nCantidad actual: ${tinta.cantidad} ${tinta.unidad}\n\nNueva cantidad:`, tinta.cantidad);
+
+        if (nuevaCantidad !== null) {
+            tinta.cantidad = parseFloat(nuevaCantidad) || 0;
+            this.saveTintas();
+            this.renderTintas();
+            this.updateCounts();
+            if (typeof Axones !== 'undefined') Axones.showSuccess('Cantidad actualizada');
+        }
+    },
+
+    /**
+     * Editar adhesivo
+     */
+    editarAdhesivo: function(id) {
+        const adhesivo = this.adhesivos.find(a => a.id === id);
+        if (!adhesivo) return;
+
+        const nuevaCantidad = prompt(`Editar cantidad para ${adhesivo.nombre}\nCantidad actual: ${adhesivo.cantidad} ${adhesivo.unidad}\n\nNueva cantidad:`, adhesivo.cantidad);
+
+        if (nuevaCantidad !== null) {
+            adhesivo.cantidad = parseFloat(nuevaCantidad) || 0;
+            this.saveAdhesivos();
+            this.renderAdhesivos();
+            this.updateCounts();
+            if (typeof Axones !== 'undefined') Axones.showSuccess('Cantidad actualizada');
+        }
     },
 
     /**

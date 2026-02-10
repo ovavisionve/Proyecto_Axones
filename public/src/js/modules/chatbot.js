@@ -15,15 +15,67 @@ const Chatbot = {
 
     /**
      * Inicializa el modulo de chatbot
+     * Solo accesible para administradores
      */
     init: function() {
         console.log('Inicializando modulo Chatbot');
+
+        // Verificar que el usuario sea administrador
+        if (!this.verificarAccesoAdmin()) {
+            this.mostrarAccesoDenegado();
+            return;
+        }
 
         this.setupForm();
         this.setupQuickQueries();
         this.loadCuentasPorCobrar();
         this.loadDatosProduccion();
         this.loadResumenCartera();
+    },
+
+    /**
+     * Verifica si el usuario actual es administrador
+     */
+    verificarAccesoAdmin: function() {
+        // Verificar si Auth existe y hay usuario logueado
+        if (typeof Auth !== 'undefined' && Auth.currentUser) {
+            return Auth.currentUser.rol === 'administrador';
+        }
+
+        // Si no hay Auth, verificar session storage
+        const session = JSON.parse(sessionStorage.getItem('axones_session') || '{}');
+        if (session && session.user) {
+            return session.user.rol === 'administrador';
+        }
+
+        return false;
+    },
+
+    /**
+     * Muestra mensaje de acceso denegado
+     */
+    mostrarAccesoDenegado: function() {
+        const mainContent = document.querySelector('main.container-fluid');
+        if (mainContent) {
+            mainContent.innerHTML = `
+                <div class="row justify-content-center mt-5">
+                    <div class="col-md-6">
+                        <div class="card border-warning">
+                            <div class="card-body text-center py-5">
+                                <i class="bi bi-shield-lock text-warning" style="font-size: 4rem;"></i>
+                                <h3 class="mt-3">Acceso Restringido</h3>
+                                <p class="text-muted mb-4">
+                                    El chatbot de IA solo esta disponible para administradores.
+                                </p>
+                                <a href="index.html" class="btn btn-primary">
+                                    <i class="bi bi-house me-2"></i>Volver al Inicio
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
     },
 
     /**

@@ -1324,6 +1324,139 @@ const HomeModule = {
             document.getElementById('printStyles')?.remove();
             document.getElementById('printHeader')?.remove();
         }, 1000);
+    },
+
+    /**
+     * Muestra el modal con detalle de refil por cliente y proceso
+     */
+    async mostrarDetalleRefil() {
+        const modal = new bootstrap.Modal(document.getElementById('modalDetalleRefil'));
+
+        // Obtener datos de produccion
+        let produccion = [];
+
+        try {
+            // Intentar obtener de API
+            if (typeof AxonesAPI !== 'undefined') {
+                const response = await AxonesAPI.getProduccion({});
+                if (response.success && response.data) {
+                    produccion = response.data;
+                }
+            }
+        } catch (e) {
+            console.warn('Usando datos locales para detalle de refil');
+        }
+
+        // Si no hay datos de API, usar localStorage
+        if (produccion.length === 0) {
+            produccion = JSON.parse(localStorage.getItem('axones_produccion') || '[]');
+        }
+
+        // Calcular totales generales
+        let totalEntrada = 0;
+        let totalMerma = 0;
+        let totalRegistros = produccion.length;
+
+        produccion.forEach(r => {
+            const entrada = parseFloat(r.totalEntrada) || 0;
+            const salida = parseFloat(r.totalSalida) || 0;
+            totalEntrada += entrada;
+            totalMerma += (entrada - salida);
+        });
+
+        const promedioGeneral = totalEntrada > 0 ? (totalMerma / totalEntrada * 100) : 0;
+
+        // Actualizar resumen
+        document.getElementById('modalRefilPromedio').textContent = promedioGeneral.toFixed(1) + '%';
+        document.getElementById('modalRefilRegistros').textContent = totalRegistros;
+        document.getElementById('modalRefilMerma').textContent = this.formatearNumero(totalMerma) + ' Kg';
+
+        // Calcular refil por cliente
+        const porCliente = {};
+        produccion.forEach(r => {
+            const cliente = r.cliente || 'Sin Cliente';
+            if (!porCliente[cliente]) {
+                porCliente[cliente] = { registros: 0, entrada: 0, merma: 0 };
+            }
+            const entrada = parseFloat(r.totalEntrada) || 0;
+            const salida = parseFloat(r.totalSalida) || 0;
+            porCliente[cliente].registros++;
+            porCliente[cliente].entrada += entrada;
+            porCliente[cliente].merma += (entrada - salida);
+        });
+
+        // Renderizar tabla de clientes
+        const tablaClientes = document.getElementById('tablaRefilClientes');
+        if (Object.keys(porCliente).length === 0) {
+            tablaClientes.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Sin datos disponibles</td></tr>';
+        } else {
+            tablaClientes.innerHTML = Object.keys(porCliente)
+                .sort((a, b) => {
+                    const refilA = porCliente[a].entrada > 0 ? (porCliente[a].merma / porCliente[a].entrada * 100) : 0;
+                    const refilB = porCliente[b].entrada > 0 ? (porCliente[b].merma / porCliente[b].entrada * 100) : 0;
+                    return refilB - refilA; // Ordenar de mayor a menor refil
+                })
+                .map(cliente => {
+                    const data = porCliente[cliente];
+                    const refil = data.entrada > 0 ? (data.merma / data.entrada * 100) : 0;
+                    const refilClass = refil > 6 ? 'text-danger fw-bold' : refil > 5 ? 'text-warning' : 'text-success';
+                    return `
+                        <tr>
+                            <td>${cliente}</td>
+                            <td class="text-center">${data.registros}</td>
+                            <td class="text-end">${this.formatearNumero(data.entrada)}</td>
+                            <td class="text-end">${this.formatearNumero(data.merma)}</td>
+                            <td class="text-end ${refilClass}">${refil.toFixed(1)}%</td>
+                        </tr>
+                    `;
+                }).join('');
+        }
+
+        // Calcular refil por proceso (impresion, laminacion, corte)
+        const porProceso = {
+            'Impresion': { registros: 0, entrada: 0, merma: 0 },
+            'Laminacion': { registros: 0, entrada: 0, merma: 0 },
+            'Corte': { registros: 0, entrada: 0, merma: 0 }
+        };
+
+        produccion.forEach(r => {
+            let proceso = r.proceso || r.tipo || 'Impresion';
+            // Normalizar nombre del proceso
+            if (proceso.toLowerCase().includes('lam')) {
+                proceso = 'Laminacion';
+            } else if (proceso.toLowerCase().includes('corte')) {
+                proceso = 'Corte';
+            } else {
+                proceso = 'Impresion';
+            }
+
+            const entrada = parseFloat(r.totalEntrada) || 0;
+            const salida = parseFloat(r.totalSalida) || 0;
+            porProceso[proceso].registros++;
+            porProceso[proceso].entrada += entrada;
+            porProceso[proceso].merma += (entrada - salida);
+        });
+
+        // Renderizar tabla de procesos
+        const tablaProcesos = document.getElementById('tablaRefilProcesos');
+        tablaProcesos.innerHTML = Object.keys(porProceso).map(proceso => {
+            const data = porProceso[proceso];
+            const refil = data.entrada > 0 ? (data.merma / data.entrada * 100) : 0;
+            const refilClass = refil > 6 ? 'text-danger fw-bold' : refil > 5 ? 'text-warning' : 'text-success';
+            const icono = proceso === 'Impresion' ? 'bi-printer' : proceso === 'Laminacion' ? 'bi-layers' : 'bi-scissors';
+            return `
+                <tr>
+                    <td><i class="bi ${icono} me-2 text-muted"></i>${proceso}</td>
+                    <td class="text-center">${data.registros}</td>
+                    <td class="text-end">${this.formatearNumero(data.entrada)}</td>
+                    <td class="text-end">${this.formatearNumero(data.merma)}</td>
+                    <td class="text-end ${refilClass}">${refil.toFixed(1)}%</td>
+                </tr>
+            `;
+        }).join('');
+
+        // Mostrar modal
+        modal.show();
     }
 };
 

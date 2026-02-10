@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Sistema de Ordenes de Trabajo - Sistema Axones">
+    <title>Ordenes de Trabajo - Axones</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#198754">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="src/css/main.css" rel="stylesheet">
+    <style>
+        .orden-card {
+            border-left: 4px solid #198754;
+            transition: all 0.2s;
+        }
+        .orden-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .orden-card.pendiente { border-left-color: #ffc107; }
+        .orden-card.en-proceso { border-left-color: #0d6efd; }
+        .orden-card.completada { border-left-color: #198754; }
+        .orden-card.alerta { border-left-color: #dc3545; background: #fff5f5; }
+        .spec-badge {
+            font-size: 0.75rem;
+            font-weight: normal;
+        }
+        .inventory-check {
+            font-size: 0.8rem;
+        }
+        .inventory-check.ok { color: #198754; }
+        .inventory-check.warning { color: #ffc107; }
+        .inventory-check.danger { color: #dc3545; }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="index.html">
+                <i class="bi bi-gear-wide-connected me-2"></i>
+                <span class="fw-bold">AXONES</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarMain">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">
+                            <i class="bi bi-house-door me-1"></i> Inicio
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="bi bi-clipboard-data me-1"></i> Produccion
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="impresion.html"><i class="bi bi-printer me-2"></i>Control de Impresion</a></li>
+                            <li><a class="dropdown-item" href="laminacion.html"><i class="bi bi-layers me-2"></i>Control de Laminacion</a></li>
+                            <li><a class="dropdown-item" href="corte.html"><i class="bi bi-scissors me-2"></i>Control de Corte</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="tintas.html"><i class="bi bi-droplet me-2"></i>Consumo de Tintas</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="ordenes.html">
+                            <i class="bi bi-clipboard-check me-1"></i> Ordenes
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="programacion.html">
+                            <i class="bi bi-list-task me-1"></i> Estado Ordenes
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="inventario.html">
+                            <i class="bi bi-box-seam me-1"></i> Inventario
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="reportes.html">
+                            <i class="bi bi-bar-chart me-1"></i> Reportes
+                        </a>
+                    </li>
+                </ul>
+                <div class="d-flex align-items-center">
+                    <span class="text-light me-3" id="userInfo">
+                        <i class="bi bi-person-circle me-1"></i>
+                        <span id="userName">Usuario</span>
+                    </span>
+                    <button class="btn btn-outline-light btn-sm" id="btnLogin">
+                        <i class="bi bi-box-arrow-in-right me-1"></i> Ingresar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container-fluid" style="margin-top: 70px;">
+        <!-- Header -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <h4 class="mb-1">
+                            <i class="bi bi-clipboard-check text-success me-2"></i>
+                            Ordenes de Trabajo
+                        </h4>
+                        <p class="text-muted mb-0 small">
+                            Gestion de ordenes pre-cargadas con especificaciones
+                        </p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" id="btnVerificarInventario">
+                            <i class="bi bi-box-seam me-1"></i> Verificar Inventario
+                        </button>
+                        <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuevaOrden">
+                            <i class="bi bi-plus-lg me-1"></i> Nueva Orden
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resumen -->
+        <div class="row mb-4 g-3">
+            <div class="col-6 col-md-3">
+                <div class="card border-start border-warning border-4 h-100">
+                    <div class="card-body py-2 px-3">
+                        <small class="text-muted d-block">Pendientes</small>
+                        <h4 class="mb-0" id="countPendientes">0</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-start border-primary border-4 h-100">
+                    <div class="card-body py-2 px-3">
+                        <small class="text-muted d-block">En Proceso</small>
+                        <h4 class="mb-0" id="countEnProceso">0</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-start border-success border-4 h-100">
+                    <div class="card-body py-2 px-3">
+                        <small class="text-muted d-block">Completadas (Hoy)</small>
+                        <h4 class="mb-0" id="countCompletadas">0</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-start border-danger border-4 h-100">
+                    <div class="card-body py-2 px-3">
+                        <small class="text-muted d-block">Alertas Inventario</small>
+                        <h4 class="mb-0" id="countAlertas">0</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="buscarOrden" placeholder="Buscar OT, cliente...">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select form-select-sm" id="filtroEstado">
+                    <option value="">Todos los estados</option>
+                    <option value="pendiente">Pendiente</option>
+                    <option value="en-proceso">En Proceso</option>
+                    <option value="completada">Completada</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select form-select-sm" id="filtroCliente">
+                    <option value="">Todos los clientes</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select form-select-sm" id="filtroProceso">
+                    <option value="">Todos los procesos</option>
+                    <option value="impresion">Impresion</option>
+                    <option value="laminacion">Laminacion</option>
+                    <option value="corte">Corte</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Lista de Ordenes -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-success">
+                                    <tr>
+                                        <th>OT</th>
+                                        <th>Cliente</th>
+                                        <th>Producto</th>
+                                        <th class="text-center">Proceso</th>
+                                        <th class="text-center">Material</th>
+                                        <th class="text-end">Kg Requeridos</th>
+                                        <th class="text-center">Inventario</th>
+                                        <th class="text-center">Estado</th>
+                                        <th class="text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaOrdenes">
+                                    <tr><td colspan="9" class="text-center text-muted py-3">Cargando ordenes...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Nueva Orden -->
+    <div class="modal fade" id="modalNuevaOrden" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-plus-circle me-2"></i>Nueva Orden de Trabajo
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formNuevaOrden">
+                        <div class="row g-3">
+                            <!-- Datos basicos -->
+                            <div class="col-md-4">
+                                <label class="form-label small">Numero de OT *</label>
+                                <input type="text" class="form-control form-control-sm" id="ordenOT" required placeholder="OT-2024-001">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small">Cliente *</label>
+                                <select class="form-select form-select-sm" id="ordenCliente" required>
+                                    <option value="">Seleccionar...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small">Fecha Entrega</label>
+                                <input type="date" class="form-control form-control-sm" id="ordenFechaEntrega">
+                            </div>
+
+                            <!-- Producto -->
+                            <div class="col-md-6">
+                                <label class="form-label small">Producto *</label>
+                                <input type="text" class="form-control form-control-sm" id="ordenProducto" required placeholder="Nombre del producto">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">Cantidad (Kg) *</label>
+                                <input type="number" class="form-control form-control-sm" id="ordenCantidad" required min="1" step="0.01">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">Proceso *</label>
+                                <select class="form-select form-select-sm" id="ordenProceso" required>
+                                    <option value="">Seleccionar...</option>
+                                    <option value="impresion">Impresion</option>
+                                    <option value="laminacion">Laminacion</option>
+                                    <option value="corte">Corte</option>
+                                </select>
+                            </div>
+
+                            <!-- Especificaciones de Material -->
+                            <div class="col-12">
+                                <hr>
+                                <h6 class="text-muted"><i class="bi bi-box-seam me-1"></i> Especificaciones de Material</h6>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small">Tipo de Material *</label>
+                                <select class="form-select form-select-sm" id="ordenMaterial" required>
+                                    <option value="">Seleccionar...</option>
+                                    <option value="BOPP">BOPP</option>
+                                    <option value="BOPP MATE">BOPP MATE</option>
+                                    <option value="BOPP PASTA">BOPP PASTA</option>
+                                    <option value="CAST">CAST</option>
+                                    <option value="METAL">METAL</option>
+                                    <option value="PEBD">PEBD</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small">Micras</label>
+                                <input type="number" class="form-control form-control-sm" id="ordenMicras" placeholder="ej: 25">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small">Ancho (mm)</label>
+                                <input type="number" class="form-control form-control-sm" id="ordenAncho" placeholder="ej: 680">
+                            </div>
+
+                            <!-- Verificacion de inventario -->
+                            <div class="col-12">
+                                <div class="alert alert-info py-2 mb-0" id="verificacionInventario">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Complete los datos para verificar disponibilidad de inventario
+                                </div>
+                            </div>
+
+                            <!-- Tintas (si es impresion) -->
+                            <div class="col-12" id="seccionTintas" style="display: none;">
+                                <hr>
+                                <h6 class="text-muted"><i class="bi bi-droplet me-1"></i> Tintas Requeridas</h6>
+                                <div class="row g-2">
+                                    <div class="col-md-6">
+                                        <label class="form-label small">Colores (separados por coma)</label>
+                                        <input type="text" class="form-control form-control-sm" id="ordenColores" placeholder="Blanco, Amarillo, Rojo...">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small">Tipo de Tinta</label>
+                                        <select class="form-select form-select-sm" id="ordenTipoTinta">
+                                            <option value="laminacion">Laminacion</option>
+                                            <option value="superficie">Superficie</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Observaciones -->
+                            <div class="col-12">
+                                <label class="form-label small">Observaciones</label>
+                                <textarea class="form-control form-control-sm" id="ordenObservaciones" rows="2"></textarea>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-success" id="btnGuardarOrden">
+                        <i class="bi bi-check-lg me-1"></i> Crear Orden
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Detalle Orden -->
+    <div class="modal fade" id="modalDetalleOrden" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="detalleOrdenTitulo">Detalle de Orden</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="detalleOrdenContenido">
+                    <!-- Se llena dinamicamente -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="button" class="btn btn-primary" id="btnIniciarProduccion">
+                        <i class="bi bi-play-fill me-1"></i> Iniciar Produccion
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-light border-top py-3 mt-4">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col text-center">
+                    <small class="text-muted">Sistema Axones v1.0 - Inversiones Axones 2008, C.A.</small>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="src/js/utils/config.js"></script>
+    <script src="src/js/utils/api.js"></script>
+    <script src="src/js/utils/theme.js"></script>
+    <script src="src/js/utils/auth.js"></script>
+    <script src="src/js/modules/ordenes.js"></script>
+    <script src="src/js/main.js"></script>
+</body>
+</html>

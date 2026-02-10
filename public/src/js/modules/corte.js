@@ -325,6 +325,9 @@ const Corte = {
                 this.mostrarToast('Registro de corte guardado en Google Sheets (ID: ' + result.id + ')', 'success');
                 this.guardarLocal(datos);
 
+                // Descontar material del inventario
+                this.descontarInventario(datos);
+
                 const porcentajeRefil = parseFloat(datos.porcentajeRefil) || 0;
                 const umbral = CONFIG.UMBRALES_REFIL.default;
                 if (porcentajeRefil > umbral.maximo) {
@@ -459,6 +462,41 @@ const Corte = {
         const registros = JSON.parse(localStorage.getItem(CONFIG.CACHE.PREFIJO + 'corte') || '[]');
         registros.unshift(datos);
         localStorage.setItem(CONFIG.CACHE.PREFIJO + 'corte', JSON.stringify(registros));
+    },
+
+    /**
+     * Descuenta material del inventario despues de corte
+     */
+    descontarInventario: function(datos) {
+        try {
+            const inventario = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
+            const cantidadUsada = parseFloat(datos.totalEntrada) || 0;
+
+            if (cantidadUsada <= 0) return;
+
+            let descontado = false;
+            let restante = cantidadUsada;
+
+            for (let i = 0; i < inventario.length && restante > 0; i++) {
+                const item = inventario[i];
+                const disponible = parseFloat(item.kg) || 0;
+
+                if (disponible > 0) {
+                    const aDescontar = Math.min(disponible, restante);
+                    item.kg = disponible - aDescontar;
+                    restante -= aDescontar;
+                    descontado = true;
+                    console.log(`Corte: Descontados ${aDescontar} Kg de ${item.material}`);
+                }
+            }
+
+            if (descontado) {
+                localStorage.setItem('axones_inventario', JSON.stringify(inventario));
+                console.log('Inventario actualizado despues de corte');
+            }
+        } catch (error) {
+            console.warn('Error al descontar inventario en corte:', error);
+        }
     },
 
     /**

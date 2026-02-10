@@ -314,6 +314,26 @@ const Auth = {
                 el.style.display = '';
             }
         });
+
+        // Ocultar chatbot para no-administradores
+        this.ocultarChatbotParaNoAdmins();
+    },
+
+    /**
+     * Oculta el enlace del chatbot si el usuario no es administrador
+     */
+    ocultarChatbotParaNoAdmins: function() {
+        const esAdmin = this.currentUser && this.currentUser.rol === 'administrador';
+
+        // Buscar enlaces al chatbot en el navbar
+        document.querySelectorAll('a[href="chatbot.html"]').forEach(link => {
+            const parentLi = link.closest('li.nav-item');
+            if (parentLi) {
+                parentLi.style.display = esAdmin ? '' : 'none';
+            } else {
+                link.style.display = esAdmin ? '' : 'none';
+            }
+        });
     },
 
     /**

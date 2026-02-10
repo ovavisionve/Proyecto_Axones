@@ -87,7 +87,6 @@ const CONFIG = {
         IMPRESORAS: [
             { id: 'comexi_1', nombre: 'COMEXI 1', tipo: 'impresora' },
             { id: 'comexi_2', nombre: 'COMEXI 2', tipo: 'impresora' },
-            { id: 'comexi_3', nombre: 'COMEXI 3', tipo: 'impresora' },
         ],
         LAMINADORAS: [
             { id: 'laminadora_1', nombre: 'Laminadora', tipo: 'laminadora' },

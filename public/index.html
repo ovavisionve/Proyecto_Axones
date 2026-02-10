@@ -88,7 +88,9 @@
                             <li><a class="dropdown-item" href="corte.html"><i class="bi bi-scissors me-2"></i>Corte</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="tintas.html"><i class="bi bi-droplet me-2"></i>Tintas y Solventes</a></li>
-                            <li><a class="dropdown-item" href="programacion.html"><i class="bi bi-calendar3 me-2"></i>Programacion</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="ordenes.html"><i class="bi bi-clipboard-check me-2"></i>Ordenes de Trabajo</a></li>
+                            <li><a class="dropdown-item" href="programacion.html"><i class="bi bi-list-task me-2"></i>Estado de Ordenes</a></li>
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
@@ -193,7 +195,7 @@
                 </div>
             </div>
             <div class="col-6 col-lg-3">
-                <div class="card stat-card stat-refil border-0 shadow-sm h-100">
+                <div class="card stat-card stat-refil border-0 shadow-sm h-100" style="cursor: pointer;" onclick="HomeModule.mostrarDetalleRefil()" title="Ver detalle de refil por cliente y proceso">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
@@ -485,6 +487,97 @@
             </div>
         </section>
     </main>
+
+    <!-- Modal Detalle Refil -->
+    <div class="modal fade" id="modalDetalleRefil" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-warning bg-opacity-10">
+                    <h5 class="modal-title">
+                        <i class="bi bi-recycle text-warning me-2"></i>Detalle de Refil
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Resumen General -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card bg-light border-0">
+                                <div class="card-body text-center">
+                                    <h4 class="mb-0" id="modalRefilPromedio">0%</h4>
+                                    <small class="text-muted">Promedio General</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light border-0">
+                                <div class="card-body text-center">
+                                    <h4 class="mb-0" id="modalRefilRegistros">0</h4>
+                                    <small class="text-muted">Total Registros</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light border-0">
+                                <div class="card-body text-center">
+                                    <h4 class="mb-0" id="modalRefilMerma">0 Kg</h4>
+                                    <small class="text-muted">Merma Total</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Refil por Cliente -->
+                    <div class="mb-4">
+                        <h6 class="mb-3"><i class="bi bi-people me-2"></i>Refil por Cliente</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Cliente</th>
+                                        <th class="text-center">Registros</th>
+                                        <th class="text-end">Entrada (Kg)</th>
+                                        <th class="text-end">Merma (Kg)</th>
+                                        <th class="text-end">Refil %</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaRefilClientes">
+                                    <tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Refil por Proceso/Seccion -->
+                    <div>
+                        <h6 class="mb-3"><i class="bi bi-diagram-3 me-2"></i>Refil por Proceso</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Proceso</th>
+                                        <th class="text-center">Registros</th>
+                                        <th class="text-end">Entrada (Kg)</th>
+                                        <th class="text-end">Merma (Kg)</th>
+                                        <th class="text-end">Refil %</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaRefilProcesos">
+                                    <tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <a href="reportes.html" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-bar-chart me-1"></i>Ver Reportes Completos
+                    </a>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Footer -->
     <footer class="bg-light border-top py-3">

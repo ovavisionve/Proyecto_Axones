@@ -215,7 +215,7 @@ const DemoData = {
     // Generar un registro de produccion individual
     generarRegistroProduccion(fecha, index) {
         const clientes = CONFIG.CLIENTES || ['PEPSICO ALIMENTOS', 'NESTLE VENEZUELA', 'EMPRESAS POLAR', 'KRAFT HEINZ', 'ALFONZO RIVAS'];
-        const maquinas = ['COMEXI 1', 'COMEXI 2', 'COMEXI 3'];
+        const maquinas = ['COMEXI 1', 'COMEXI 2'];
         const turnos = ['D', '1', '2', '3'];
         const operadores = ['Carlos Rodriguez', 'Juan Martinez', 'Pedro Gomez', 'Luis Hernandez', 'Miguel Torres'];
         const productos = [
@@ -388,7 +388,6 @@ const DemoData = {
         const maquinas = [
             { id: 'comexi_1', nombre: 'COMEXI 1', estado: 'active' },
             { id: 'comexi_2', nombre: 'COMEXI 2', estado: 'active' },
-            { id: 'comexi_3', nombre: 'COMEXI 3', estado: 'idle' },
             { id: 'laminadora', nombre: 'Laminadora', estado: 'active' },
             { id: 'cortadora_china', nombre: 'Cortadora China', estado: 'active' },
             { id: 'cortadora_permaco', nombre: 'Cortadora Permaco', estado: 'stopped' },

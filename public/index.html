@@ -163,6 +163,9 @@
                     </div>
                     <div class="text-end d-flex align-items-center gap-3">
                         <div>
+                            <a href="ordenes.html" class="btn btn-success btn-sm me-2" title="Crear nueva orden de trabajo">
+                                <i class="bi bi-plus-circle me-1"></i>Nueva Orden
+                            </a>
                             <button class="btn btn-outline-primary btn-sm" onclick="HomeModule.imprimirDashboard()" title="Imprimir Dashboard">
                                 <i class="bi bi-printer me-1"></i>Imprimir
                             </button>
@@ -254,7 +257,17 @@
                     </div>
                     <div class="card-body">
                         <div class="row g-3">
-                            <div class="col-6 col-md-3">
+                            <!-- Create Order - Primary Action -->
+                            <div class="col-12 col-md-6 col-lg-4">
+                                <a href="ordenes.html" class="card quick-action text-decoration-none h-100 border-success" style="border-width: 2px;">
+                                    <div class="card-body text-center py-4 bg-success bg-opacity-10">
+                                        <i class="bi bi-clipboard-plus text-success display-5 mb-2"></i>
+                                        <p class="mb-0 fw-bold text-success">Crear Orden de Trabajo</p>
+                                        <small class="text-muted">Primera accion del flujo</small>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-6 col-md-3 col-lg-2">
                                 <a href="impresion.html" class="card quick-action text-decoration-none h-100">
                                     <div class="card-body text-center py-4">
                                         <i class="bi bi-printer text-primary display-6 mb-2"></i>
@@ -262,7 +275,15 @@
                                     </div>
                                 </a>
                             </div>
-                            <div class="col-6 col-md-3">
+                            <div class="col-6 col-md-3 col-lg-2">
+                                <a href="laminacion.html" class="card quick-action text-decoration-none h-100">
+                                    <div class="card-body text-center py-4">
+                                        <i class="bi bi-layers text-info display-6 mb-2"></i>
+                                        <p class="mb-0 small fw-medium text-dark">Laminacion</p>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-6 col-md-3 col-lg-2">
                                 <a href="corte.html" class="card quick-action text-decoration-none h-100">
                                     <div class="card-body text-center py-4">
                                         <i class="bi bi-scissors text-success display-6 mb-2"></i>
@@ -270,18 +291,10 @@
                                     </div>
                                 </a>
                             </div>
-                            <div class="col-6 col-md-3">
-                                <a href="tintas.html" class="card quick-action text-decoration-none h-100">
-                                    <div class="card-body text-center py-4">
-                                        <i class="bi bi-droplet text-purple display-6 mb-2" style="color: #6f42c1;"></i>
-                                        <p class="mb-0 small fw-medium text-dark">Tintas</p>
-                                    </div>
-                                </a>
-                            </div>
-                            <div class="col-6 col-md-3">
+                            <div class="col-6 col-md-3 col-lg-2">
                                 <a href="inventario.html" class="card quick-action text-decoration-none h-100">
                                     <div class="card-body text-center py-4">
-                                        <i class="bi bi-box-seam text-info display-6 mb-2"></i>
+                                        <i class="bi bi-box-seam text-warning display-6 mb-2"></i>
                                         <p class="mb-0 small fw-medium text-dark">Inventario</p>
                                     </div>
                                 </a>

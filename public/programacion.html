@@ -115,15 +115,18 @@
                         </a>
                     </li>
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                        <a class="nav-link dropdown-toggle active" href="#" data-bs-toggle="dropdown">
                             <i class="bi bi-clipboard-data me-1"></i> Produccion
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="impresion.html"><i class="bi bi-printer me-2"></i>Control de Impresion</a></li>
-                            <li><a class="dropdown-item" href="laminacion.html"><i class="bi bi-layers me-2"></i>Control de Laminacion</a></li>
-                            <li><a class="dropdown-item" href="corte.html"><i class="bi bi-scissors me-2"></i>Control de Corte</a></li>
+                            <li><a class="dropdown-item" href="impresion.html"><i class="bi bi-printer me-2"></i>Impresion</a></li>
+                            <li><a class="dropdown-item" href="laminacion.html"><i class="bi bi-layers me-2"></i>Laminacion</a></li>
+                            <li><a class="dropdown-item" href="corte.html"><i class="bi bi-scissors me-2"></i>Corte</a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="tintas.html"><i class="bi bi-droplet me-2"></i>Consumo de Tintas</a></li>
+                            <li><a class="dropdown-item" href="tintas.html"><i class="bi bi-droplet me-2"></i>Tintas y Solventes</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="ordenes.html"><i class="bi bi-clipboard-check me-2"></i>Ordenes de Trabajo</a></li>
+                            <li><a class="dropdown-item active" href="programacion.html"><i class="bi bi-list-task me-2"></i>Estado de Ordenes</a></li>
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
@@ -132,18 +135,35 @@
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="checklist.html"><i class="bi bi-list-check me-2"></i>Lista de Chequeo</a></li>
-                            <li><a class="dropdown-item" href="certificado.html"><i class="bi bi-award me-2"></i>Certificado de Calidad</a></li>
+                            <li><a class="dropdown-item" href="certificado.html"><i class="bi bi-award me-2"></i>Certificado</a></li>
+                            <li><a class="dropdown-item" href="etiquetas.html"><i class="bi bi-tag me-2"></i>Etiquetas</a></li>
                         </ul>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link active" href="programacion.html">
-                            <i class="bi bi-list-task me-1"></i> Estado Ordenes
+                        <a class="nav-link" href="inventario.html">
+                            <i class="bi bi-box-seam me-1"></i> Inventario
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="etiquetas.html">
-                            <i class="bi bi-tag me-1"></i> Etiquetas
+                        <a class="nav-link" href="alertas.html">
+                            <i class="bi bi-bell me-1"></i> Alertas
+                            <span class="badge bg-danger ms-1" id="alertasBadge" style="display: none;">0</span>
                         </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="reportes.html">
+                            <i class="bi bi-bar-chart me-1"></i> Reportes
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="bi bi-three-dots me-1"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="chatbot.html"><i class="bi bi-chat-dots me-2"></i>Chatbot IA</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="admin.html"><i class="bi bi-gear me-2"></i>Administracion</a></li>
+                        </ul>
                     </li>
                 </ul>
                 <div class="d-flex align-items-center">

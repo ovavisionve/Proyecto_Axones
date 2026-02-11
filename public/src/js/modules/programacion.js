@@ -1,11 +1,21 @@
 /**
  * Modulo Programacion de Produccion - Sistema Axones
- * Cola de produccion estilo Kanban para gestionar OTs
+ * Tablero Kanban con drag & drop para gestionar ordenes de trabajo
  */
 
 const Programacion = {
-    // Ordenes de trabajo
+    // Datos
     ordenes: [],
+    ordenActual: null,
+
+    // Mapeo de estados/columnas
+    COLUMNAS: {
+        'pendiente': 'colPendientes',
+        'impresion': 'colImpresion',
+        'laminacion': 'colLaminacion',
+        'corte': 'colCorte',
+        'completada': 'colCompletado'
+    },
 
     /**
      * Inicializa el modulo
@@ -13,417 +23,481 @@ const Programacion = {
     init: function() {
         console.log('Inicializando modulo Programacion');
 
-        this.setDefaultDate();
         this.cargarOrdenes();
-        this.renderizarColas();
+        this.renderizarTablero();
         this.setupDragDrop();
+        this.actualizarContadores();
     },
 
     /**
-     * Establece fecha actual en filtro
-     */
-    setDefaultDate: function() {
-        const fechaInput = document.getElementById('filtroFecha');
-        if (fechaInput) {
-            fechaInput.value = new Date().toISOString().split('T')[0];
-        }
-    },
-
-    /**
-     * Carga ordenes desde localStorage o genera demo
+     * Carga ordenes desde localStorage
      */
     cargarOrdenes: function() {
-        const stored = localStorage.getItem(CONFIG.CACHE.PREFIJO + 'programacion');
+        // Cargar ordenes del modulo de Ordenes de Trabajo
+        const stored = localStorage.getItem('axones_ordenes_trabajo');
         if (stored) {
             this.ordenes = JSON.parse(stored);
         } else {
-            // Datos demo
-            this.ordenes = [
-                {
-                    id: 'OT-2024-001',
-                    cliente: 'Alimentos del Valle',
-                    producto: 'Empaque Galletas 250g',
-                    cantidad: 1500,
-                    fechaEntrega: '2024-02-10',
-                    area: 'impresion',
-                    flujo: 'normal',
-                    prioridad: 3,
-                    estado: 'pendiente',
-                    observaciones: 'Cliente frecuente'
-                },
-                {
-                    id: 'OT-2024-002',
-                    cliente: 'Lacteos Premium',
-                    producto: 'Bolsa Leche 1L',
-                    cantidad: 2000,
-                    fechaEntrega: '2024-02-08',
-                    area: 'impresion',
-                    flujo: 'normal',
-                    prioridad: 4,
-                    estado: 'en-proceso',
-                    observaciones: 'URGENTE - Cliente prioritario'
-                },
-                {
-                    id: 'OT-2024-003',
-                    cliente: 'Snacks Andinos',
-                    producto: 'Empaque Chips 150g',
-                    cantidad: 800,
-                    fechaEntrega: '2024-02-12',
-                    area: 'laminacion',
-                    flujo: 'normal',
-                    prioridad: 2,
-                    estado: 'pendiente',
-                    observaciones: ''
-                },
-                {
-                    id: 'OT-2024-004',
-                    cliente: 'Cafe Selecto',
-                    producto: 'Bolsa Cafe 500g',
-                    cantidad: 1200,
-                    fechaEntrega: '2024-02-15',
-                    area: 'corte',
-                    flujo: 'normal',
-                    prioridad: 1,
-                    estado: 'pendiente',
-                    observaciones: ''
-                },
-                {
-                    id: 'OT-2024-005',
-                    cliente: 'Panaderia Central',
-                    producto: 'Bolsa Pan Molde',
-                    cantidad: 500,
-                    fechaEntrega: '2024-02-09',
-                    area: 'impresion',
-                    flujo: 'superficie',
-                    prioridad: 2,
-                    estado: 'pendiente',
-                    observaciones: 'Sin laminacion'
-                }
-            ];
-            this.guardarOrdenes();
+            this.ordenes = [];
         }
+
+        // Ordenar por prioridad y fecha
+        this.ordenes.sort((a, b) => {
+            const prioridadOrder = { 'urgente': 0, 'alta': 1, 'normal': 2 };
+            const prioA = prioridadOrder[a.prioridad] || 2;
+            const prioB = prioridadOrder[b.prioridad] || 2;
+
+            if (prioA !== prioB) return prioA - prioB;
+
+            const fechaA = new Date(a.fechaEntrega || '9999-12-31');
+            const fechaB = new Date(b.fechaEntrega || '9999-12-31');
+            return fechaA - fechaB;
+        });
     },
 
     /**
      * Guarda ordenes en localStorage
      */
     guardarOrdenes: function() {
-        localStorage.setItem(CONFIG.CACHE.PREFIJO + 'programacion', JSON.stringify(this.ordenes));
+        localStorage.setItem('axones_ordenes_trabajo', JSON.stringify(this.ordenes));
     },
 
     /**
-     * Renderiza las colas de produccion
+     * Renderiza el tablero completo
      */
-    renderizarColas: function() {
-        const areas = ['impresion', 'laminacion', 'corte'];
-
-        areas.forEach(area => {
-            const container = document.getElementById(`cola${area.charAt(0).toUpperCase() + area.slice(1)}`);
-            if (!container) return;
-
-            const ordenes = this.ordenes.filter(o => o.area === area && o.estado !== 'completado');
-            ordenes.sort((a, b) => b.prioridad - a.prioridad);
-
-            if (ordenes.length === 0) {
-                container.innerHTML = '<div class="text-center text-muted py-4"><i class="bi bi-inbox fs-1"></i><p class="small mt-2">Sin ordenes pendientes</p></div>';
-            } else {
-                container.innerHTML = ordenes.map(o => this.renderizarTarjeta(o)).join('');
-            }
-
-            // Actualizar contador
-            const countEl = document.getElementById(`count${area.charAt(0).toUpperCase() + area.slice(1)}`);
-            if (countEl) countEl.textContent = ordenes.length;
+    renderizarTablero: function() {
+        // Limpiar todas las columnas
+        Object.values(this.COLUMNAS).forEach(colId => {
+            const col = document.getElementById(colId);
+            if (col) col.innerHTML = '';
         });
 
-        this.actualizarResumen();
+        // Distribuir ordenes en columnas segun su estado actual
+        this.ordenes.forEach(orden => {
+            const columna = this.determinarColumna(orden);
+            const container = document.getElementById(this.COLUMNAS[columna]);
+
+            if (container) {
+                container.innerHTML += this.crearTarjetaOrden(orden);
+            }
+        });
+
+        // Agregar placeholder en columnas vacias
+        Object.values(this.COLUMNAS).forEach(colId => {
+            const col = document.getElementById(colId);
+            if (col && col.children.length === 0) {
+                col.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                        <small>Sin ordenes</small>
+                    </div>
+                `;
+            }
+        });
+
+        this.actualizarContadores();
     },
 
     /**
-     * Renderiza una tarjeta de OT
+     * Determina la columna para una orden segun su estado y proceso actual
      */
-    renderizarTarjeta: function(orden) {
-        const prioridadColor = {
-            1: 'bg-secondary',
-            2: 'bg-info',
-            3: 'bg-warning',
-            4: 'bg-danger'
-        };
+    determinarColumna: function(orden) {
+        const estado = orden.estadoOrden || orden.estado || 'pendiente';
 
-        const estadoClass = orden.estado === 'en-proceso' ? 'en-proceso' : (orden.prioridad === 4 ? 'urgente' : '');
+        if (estado === 'completada') return 'completada';
+        if (estado === 'pendiente') return 'pendiente';
 
+        // Si esta en proceso, determinar por la maquina asignada
+        const maquina = (orden.maquina || '').toUpperCase();
+
+        if (maquina.includes('COMEXI')) return 'impresion';
+        if (maquina.includes('LAMINADORA')) return 'laminacion';
+        if (maquina.includes('CORTADORA')) return 'corte';
+
+        // Por defecto, basado en el proceso actual guardado
+        if (orden.procesoActual) return orden.procesoActual;
+
+        return 'pendiente';
+    },
+
+    /**
+     * Crea el HTML de una tarjeta de orden
+     */
+    crearTarjetaOrden: function(orden) {
+        const prioridad = orden.prioridad || 'normal';
+        const prioridadClass = `priority-${prioridad}`;
+        const cardClass = prioridad === 'urgente' ? 'urgente' : prioridad === 'alta' ? 'alta' : 'normal';
+
+        // Calcular dias restantes
         const diasRestantes = this.calcularDiasRestantes(orden.fechaEntrega);
-        const diasBadge = diasRestantes < 0
-            ? '<span class="badge bg-danger">Vencido</span>'
-            : diasRestantes === 0
-                ? '<span class="badge bg-warning text-dark">Hoy</span>'
-                : diasRestantes <= 2
-                    ? `<span class="badge bg-warning text-dark">${diasRestantes}d</span>`
-                    : `<span class="badge bg-light text-dark">${diasRestantes}d</span>`;
+        let fechaClass = '';
+        let fechaIcon = 'bi-calendar';
+
+        if (diasRestantes !== null) {
+            if (diasRestantes < 0) {
+                fechaClass = 'late';
+                fechaIcon = 'bi-exclamation-triangle-fill';
+            } else if (diasRestantes === 0) {
+                fechaClass = 'today';
+                fechaIcon = 'bi-clock-fill';
+            }
+        }
+
+        const fechaTexto = orden.fechaEntrega
+            ? this.formatearFecha(orden.fechaEntrega)
+            : 'Sin fecha';
 
         return `
-            <div class="card queue-card mb-2 ${estadoClass}" draggable="true" data-id="${orden.id}">
-                <div class="card-body p-2">
-                    <div class="d-flex justify-content-between align-items-start mb-1">
-                        <div>
-                            <span class="priority-badge ${prioridadColor[orden.prioridad]}">${orden.prioridad}</span>
-                            <strong class="ms-2 small">${orden.id}</strong>
-                        </div>
-                        <div>
-                            ${diasBadge}
-                            <div class="dropdown d-inline">
-                                <button class="btn btn-sm btn-link p-0 ms-1" data-bs-toggle="dropdown">
-                                    <i class="bi bi-three-dots-vertical"></i>
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end">
-                                    <li><a class="dropdown-item small" href="#" onclick="Programacion.cambiarEstado('${orden.id}', 'en-proceso')"><i class="bi bi-play-circle me-2"></i>Iniciar</a></li>
-                                    <li><a class="dropdown-item small" href="#" onclick="Programacion.avanzarArea('${orden.id}')"><i class="bi bi-arrow-right-circle me-2"></i>Avanzar</a></li>
-                                    <li><a class="dropdown-item small" href="#" onclick="Programacion.cambiarEstado('${orden.id}', 'completado')"><i class="bi bi-check-circle me-2"></i>Completar</a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item small text-danger" href="#" onclick="Programacion.eliminar('${orden.id}')"><i class="bi bi-trash me-2"></i>Eliminar</a></li>
-                                </ul>
-                            </div>
-                        </div>
+            <div class="order-card ${cardClass}" draggable="true" data-id="${orden.id}">
+                <div class="order-card-header">
+                    <span class="order-number">${orden.numeroOrden || '-'}</span>
+                    <span class="order-priority ${prioridadClass}">${prioridad.toUpperCase()}</span>
+                </div>
+                <div class="order-client">${orden.cliente || 'Sin cliente'}</div>
+                <div class="order-product">${orden.producto || 'Sin producto'}</div>
+                <div class="order-details">
+                    ${orden.pedidoKg ? `
+                        <span class="order-detail">
+                            <i class="bi bi-box-seam"></i>
+                            ${this.formatNumber(orden.pedidoKg)} Kg
+                        </span>
+                    ` : ''}
+                    ${orden.maquina ? `
+                        <span class="order-detail">
+                            <i class="bi bi-gear"></i>
+                            ${orden.maquina}
+                        </span>
+                    ` : ''}
+                    ${orden.tipoMaterial ? `
+                        <span class="order-detail">
+                            <i class="bi bi-layers"></i>
+                            ${orden.tipoMaterial}
+                        </span>
+                    ` : ''}
+                </div>
+                <div class="order-footer">
+                    <span class="order-date ${fechaClass}">
+                        <i class="bi ${fechaIcon} me-1"></i>${fechaTexto}
+                        ${diasRestantes !== null && diasRestantes >= 0 ? `(${diasRestantes}d)` : diasRestantes < 0 ? '(Vencido)' : ''}
+                    </span>
+                    <div class="order-actions">
+                        <button class="btn btn-outline-primary" onclick="Programacion.verOrden('${orden.id}')" title="Ver detalle">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <button class="btn btn-outline-success" onclick="Programacion.avanzarOrden('${orden.id}')" title="Avanzar">
+                            <i class="bi bi-arrow-right"></i>
+                        </button>
                     </div>
-                    <div class="small fw-medium">${orden.cliente}</div>
-                    <div class="small text-muted text-truncate">${orden.producto}</div>
-                    <div class="d-flex justify-content-between mt-2 small">
-                        <span><i class="bi bi-box me-1"></i>${orden.cantidad} Kg</span>
-                        <span class="badge ${orden.estado === 'en-proceso' ? 'bg-success' : 'bg-secondary'}">${orden.estado}</span>
-                    </div>
-                    ${orden.observaciones ? `<div class="small text-muted mt-1 fst-italic"><i class="bi bi-chat me-1"></i>${orden.observaciones}</div>` : ''}
                 </div>
             </div>
         `;
     },
 
     /**
-     * Calcula dias restantes hasta fecha de entrega
+     * Calcula dias restantes hasta la fecha de entrega
      */
-    calcularDiasRestantes: function(fechaEntrega) {
+    calcularDiasRestantes: function(fecha) {
+        if (!fecha) return null;
+
         const hoy = new Date();
         hoy.setHours(0, 0, 0, 0);
-        const entrega = new Date(fechaEntrega);
+        const entrega = new Date(fecha);
         entrega.setHours(0, 0, 0, 0);
+
         const diff = entrega - hoy;
         return Math.ceil(diff / (1000 * 60 * 60 * 24));
     },
 
     /**
-     * Actualiza el resumen de estadisticas
+     * Formatea una fecha
      */
-    actualizarResumen: function() {
-        const pendientes = this.ordenes.filter(o => o.estado === 'pendiente').length;
-        const enProceso = this.ordenes.filter(o => o.estado === 'en-proceso').length;
-        const completados = this.ordenes.filter(o => o.estado === 'completado').length;
-        const urgentes = this.ordenes.filter(o => o.prioridad === 4 && o.estado !== 'completado').length;
+    formatearFecha: function(fecha) {
+        if (!fecha) return '-';
+        const d = new Date(fecha);
+        return d.toLocaleDateString('es-VE', { day: '2-digit', month: 'short' });
+    },
 
-        document.getElementById('totalPendientes').textContent = pendientes;
-        document.getElementById('totalEnProceso').textContent = enProceso;
-        document.getElementById('totalCompletados').textContent = completados;
-        document.getElementById('totalUrgentes').textContent = urgentes;
+    /**
+     * Formatea numeros
+     */
+    formatNumber: function(num) {
+        return new Intl.NumberFormat('es-VE', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2
+        }).format(num);
     },
 
     /**
      * Configura drag and drop
      */
     setupDragDrop: function() {
-        document.querySelectorAll('.queue-container').forEach(container => {
+        // Drag start
+        document.addEventListener('dragstart', (e) => {
+            if (e.target.classList.contains('order-card')) {
+                e.target.classList.add('dragging');
+                e.dataTransfer.setData('text/plain', e.target.dataset.id);
+                e.dataTransfer.effectAllowed = 'move';
+            }
+        });
+
+        // Drag end
+        document.addEventListener('dragend', (e) => {
+            if (e.target.classList.contains('order-card')) {
+                e.target.classList.remove('dragging');
+            }
+            document.querySelectorAll('.kanban-body').forEach(col => {
+                col.classList.remove('drag-over');
+            });
+        });
+
+        // Drag over (allow drop)
+        document.querySelectorAll('.kanban-body').forEach(container => {
             container.addEventListener('dragover', (e) => {
                 e.preventDefault();
-                container.classList.add('bg-light');
+                e.dataTransfer.dropEffect = 'move';
+                container.classList.add('drag-over');
             });
 
-            container.addEventListener('dragleave', () => {
-                container.classList.remove('bg-light');
+            container.addEventListener('dragleave', (e) => {
+                // Solo quitar clase si salimos del contenedor
+                if (!container.contains(e.relatedTarget)) {
+                    container.classList.remove('drag-over');
+                }
             });
 
             container.addEventListener('drop', (e) => {
                 e.preventDefault();
-                container.classList.remove('bg-light');
-                const id = e.dataTransfer.getData('text/plain');
-                const nuevaArea = container.dataset.area;
-                this.moverOrden(id, nuevaArea);
+                container.classList.remove('drag-over');
+
+                const ordenId = e.dataTransfer.getData('text/plain');
+                const nuevoEstado = container.dataset.status;
+
+                this.moverOrden(ordenId, nuevoEstado);
             });
         });
-
-        // Evento en tarjetas (delegado)
-        document.addEventListener('dragstart', (e) => {
-            if (e.target.classList.contains('queue-card')) {
-                e.target.classList.add('dragging');
-                e.dataTransfer.setData('text/plain', e.target.dataset.id);
-            }
-        });
-
-        document.addEventListener('dragend', (e) => {
-            if (e.target.classList.contains('queue-card')) {
-                e.target.classList.remove('dragging');
-            }
-        });
     },
 
     /**
-     * Mueve una orden a otra area
+     * Mueve una orden a un nuevo estado/columna
      */
-    moverOrden: function(id, nuevaArea) {
-        const orden = this.ordenes.find(o => o.id === id);
-        if (orden && orden.area !== nuevaArea) {
-            orden.area = nuevaArea;
-            this.guardarOrdenes();
-            this.renderizarColas();
-            Axones.showSuccess(`OT ${id} movida a ${nuevaArea}`);
-        }
-    },
-
-    /**
-     * Cambia el estado de una orden
-     */
-    cambiarEstado: function(id, nuevoEstado) {
-        const orden = this.ordenes.find(o => o.id === id);
-        if (orden) {
-            orden.estado = nuevoEstado;
-            if (nuevoEstado === 'completado') {
-                orden.fechaCompletado = new Date().toISOString();
-            }
-            this.guardarOrdenes();
-            this.renderizarColas();
-            Axones.showSuccess(`OT ${id} marcada como ${nuevoEstado}`);
-        }
-    },
-
-    /**
-     * Avanza una orden al siguiente proceso del flujo
-     */
-    avanzarArea: function(id) {
-        const orden = this.ordenes.find(o => o.id === id);
+    moverOrden: function(ordenId, nuevoEstado) {
+        const orden = this.ordenes.find(o => o.id === ordenId);
         if (!orden) return;
 
-        const flujos = {
-            normal: ['impresion', 'laminacion', 'corte'],
-            superficie: ['impresion', 'corte'],
-            'solo-corte': ['corte']
-        };
+        const estadoAnterior = this.determinarColumna(orden);
 
-        const flujo = flujos[orden.flujo] || flujos.normal;
-        const indexActual = flujo.indexOf(orden.area);
+        if (estadoAnterior === nuevoEstado) return;
+
+        // Actualizar estado y proceso actual
+        if (nuevoEstado === 'completada') {
+            orden.estadoOrden = 'completada';
+            orden.fechaCompletado = new Date().toISOString();
+        } else if (nuevoEstado === 'pendiente') {
+            orden.estadoOrden = 'pendiente';
+            orden.procesoActual = null;
+        } else {
+            orden.estadoOrden = 'en-proceso';
+            orden.procesoActual = nuevoEstado;
+        }
+
+        this.guardarOrdenes();
+        this.renderizarTablero();
+
+        const nombreEstado = this.getNombreEstado(nuevoEstado);
+        if (typeof Axones !== 'undefined') {
+            Axones.showSuccess(`Orden ${orden.numeroOrden} movida a ${nombreEstado}`);
+        }
+    },
+
+    /**
+     * Obtiene nombre legible del estado
+     */
+    getNombreEstado: function(estado) {
+        const nombres = {
+            'pendiente': 'Pendientes',
+            'impresion': 'Impresion',
+            'laminacion': 'Laminacion',
+            'corte': 'Corte',
+            'completada': 'Completado'
+        };
+        return nombres[estado] || estado;
+    },
+
+    /**
+     * Avanza una orden al siguiente proceso
+     */
+    avanzarOrden: function(ordenId) {
+        const orden = this.ordenes.find(o => o.id === ordenId);
+        if (!orden) return;
+
+        const columnaActual = this.determinarColumna(orden);
+        const flujo = ['pendiente', 'impresion', 'laminacion', 'corte', 'completada'];
+
+        const indexActual = flujo.indexOf(columnaActual);
 
         if (indexActual < flujo.length - 1) {
-            orden.area = flujo[indexActual + 1];
-            orden.estado = 'pendiente';
-            this.guardarOrdenes();
-            this.renderizarColas();
-            Axones.showSuccess(`OT ${id} avanzada a ${orden.area}`);
-        } else {
-            // Ya esta en el ultimo proceso
-            this.cambiarEstado(id, 'completado');
+            const siguienteEstado = flujo[indexActual + 1];
+            this.moverOrden(ordenId, siguienteEstado);
         }
     },
 
     /**
-     * Elimina una orden
+     * Muestra el detalle de una orden en modal
      */
-    eliminar: function(id) {
-        if (!confirm(`¿Eliminar la orden ${id}?`)) return;
+    verOrden: function(ordenId) {
+        const orden = this.ordenes.find(o => o.id === ordenId);
+        if (!orden) return;
 
-        this.ordenes = this.ordenes.filter(o => o.id !== id);
-        this.guardarOrdenes();
-        this.renderizarColas();
-        Axones.showSuccess(`OT ${id} eliminada`);
+        this.ordenActual = orden;
+
+        // Titulo
+        document.getElementById('modalOrdenTitulo').textContent = orden.numeroOrden || 'Orden de Trabajo';
+
+        // Contenido
+        const contenido = document.getElementById('modalOrdenContenido');
+        contenido.innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-receipt me-2"></i>Datos del Pedido</h6>
+                    <table class="table table-sm">
+                        <tr><td class="text-muted" style="width:40%">Maquina:</td><td><strong>${orden.maquina || '-'}</strong></td></tr>
+                        <tr><td class="text-muted">Fecha:</td><td>${orden.fechaOrden || '-'}</td></tr>
+                        <tr><td class="text-muted">Pedido:</td><td><strong>${orden.pedidoKg ? this.formatNumber(orden.pedidoKg) + ' Kg' : '-'}</strong></td></tr>
+                        <tr><td class="text-muted">Prioridad:</td><td><span class="badge priority-${orden.prioridad || 'normal'}">${(orden.prioridad || 'normal').toUpperCase()}</span></td></tr>
+                        <tr><td class="text-muted">Estado:</td><td><span class="badge ${orden.estadoOrden === 'completada' ? 'bg-success' : orden.estadoOrden === 'en-proceso' ? 'bg-primary' : 'bg-warning text-dark'}">${orden.estadoOrden || 'pendiente'}</span></td></tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-box me-2"></i>Datos del Producto</h6>
+                    <table class="table table-sm">
+                        <tr><td class="text-muted" style="width:40%">Cliente:</td><td><strong>${orden.cliente || '-'}</strong></td></tr>
+                        <tr><td class="text-muted">RIF:</td><td>${orden.clienteRif || '-'}</td></tr>
+                        <tr><td class="text-muted">Producto:</td><td>${orden.producto || '-'}</td></tr>
+                        <tr><td class="text-muted">Estructura:</td><td>${orden.estructuraMaterial || '-'}</td></tr>
+                        <tr><td class="text-muted">Cod. Barra:</td><td>${orden.codigoBarra || '-'}</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            ${orden.tipoMaterial ? `
+            <div class="row mt-3">
+                <div class="col-12">
+                    <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-archive me-2"></i>Materia Prima</h6>
+                    <div class="row">
+                        <div class="col-md-3"><small class="text-muted">Material:</small><br><strong>${orden.tipoMaterial}</strong></div>
+                        <div class="col-md-3"><small class="text-muted">Micras:</small><br><strong>${orden.micrasMaterial || '-'}</strong></div>
+                        <div class="col-md-3"><small class="text-muted">Ancho:</small><br><strong>${orden.anchoMaterial ? orden.anchoMaterial + ' mm' : '-'}</strong></div>
+                        <div class="col-md-3"><small class="text-muted">Proveedor:</small><br><strong>${orden.proveedorMaterial || '-'}</strong></div>
+                    </div>
+                </div>
+            </div>
+            ` : ''}
+
+            ${orden.tintas && orden.tintas.length > 0 ? `
+            <div class="row mt-3">
+                <div class="col-12">
+                    <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-droplet me-2"></i>Tintas (${orden.tintas.length} colores)</h6>
+                    <div class="d-flex flex-wrap gap-2">
+                        ${orden.tintas.map(t => `<span class="badge bg-secondary">${t.color}</span>`).join('')}
+                    </div>
+                </div>
+            </div>
+            ` : ''}
+
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-calendar-check me-2"></i>Programacion</h6>
+                    <table class="table table-sm">
+                        <tr><td class="text-muted">Fecha Inicio:</td><td>${orden.fechaInicio || '-'}</td></tr>
+                        <tr><td class="text-muted">Fecha Entrega:</td><td><strong>${orden.fechaEntrega || '-'}</strong></td></tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    ${orden.observacionesGenerales ? `
+                    <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-chat-text me-2"></i>Observaciones</h6>
+                    <p class="small">${orden.observacionesGenerales}</p>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+
+        // Boton editar
+        document.getElementById('btnEditarOrden').href = `ordenes.html?edit=${orden.id}`;
+
+        // Mostrar modal
+        new bootstrap.Modal(document.getElementById('modalVerOrden')).show();
     },
 
     /**
-     * Agrega una nueva OT desde el modal
+     * Actualiza todos los contadores
      */
-    agregarOT: function() {
-        const form = document.getElementById('formNuevaOT');
-        if (!form.checkValidity()) {
-            form.reportValidity();
-            return;
-        }
-
-        const nuevaOrden = {
-            id: document.getElementById('nuevaOT').value.trim(),
-            cliente: document.getElementById('nuevoCliente').value.trim(),
-            producto: document.getElementById('nuevoProducto').value.trim(),
-            cantidad: parseFloat(document.getElementById('nuevaCantidad').value),
-            fechaEntrega: document.getElementById('nuevaFechaEntrega').value,
-            area: document.getElementById('nuevaArea').value,
-            flujo: document.getElementById('nuevoFlujo').value,
-            prioridad: parseInt(document.getElementById('nuevaPrioridad').value),
-            estado: 'pendiente',
-            observaciones: document.getElementById('nuevasObservaciones').value.trim(),
-            fechaCreacion: new Date().toISOString()
+    actualizarContadores: function() {
+        // Contadores por columna
+        const conteos = {
+            pendiente: 0,
+            impresion: 0,
+            laminacion: 0,
+            corte: 0,
+            completada: 0
         };
 
-        // Verificar duplicado
-        if (this.ordenes.some(o => o.id === nuevaOrden.id)) {
-            Axones.showError('Ya existe una OT con ese numero');
-            return;
-        }
+        this.ordenes.forEach(orden => {
+            const columna = this.determinarColumna(orden);
+            conteos[columna]++;
+        });
 
-        this.ordenes.push(nuevaOrden);
-        this.guardarOrdenes();
-        this.renderizarColas();
+        // Actualizar badges en columnas
+        Object.keys(conteos).forEach(col => {
+            const countEl = document.getElementById(`count${col.charAt(0).toUpperCase() + col.slice(1)}${col === 'completada' ? '' : ''}`);
+            if (countEl) countEl.textContent = conteos[col];
+        });
 
-        // Cerrar modal y limpiar
-        const modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevaOT'));
-        modal.hide();
-        form.reset();
+        // Corregir IDs especificos
+        const countPendientes = document.getElementById('countPendientes');
+        const countCompletado = document.getElementById('countCompletado');
+        if (countPendientes) countPendientes.textContent = conteos.pendiente;
+        if (countCompletado) countCompletado.textContent = conteos.completada;
 
-        Axones.showSuccess(`OT ${nuevaOrden.id} creada correctamente`);
+        // Resumen superior
+        const totalPendientes = conteos.pendiente;
+        const totalEnProceso = conteos.impresion + conteos.laminacion + conteos.corte;
+        const totalCompletadas = conteos.completada;
+        const totalUrgentes = this.ordenes.filter(o =>
+            o.prioridad === 'urgente' && this.determinarColumna(o) !== 'completada'
+        ).length;
+
+        document.getElementById('sumPendientes').textContent = totalPendientes;
+        document.getElementById('sumEnProceso').textContent = totalEnProceso;
+        document.getElementById('sumCompletadas').textContent = totalCompletadas;
+        document.getElementById('sumUrgentes').textContent = totalUrgentes;
+
+        // Badges de columna especificos
+        document.getElementById('countImpresion').textContent = conteos.impresion;
+        document.getElementById('countLaminacion').textContent = conteos.laminacion;
+        document.getElementById('countCorte').textContent = conteos.corte;
     },
 
     /**
-     * Filtra las ordenes
+     * Refresca el tablero
      */
-    filtrar: function() {
-        const fecha = document.getElementById('filtroFecha').value;
-        const area = document.getElementById('filtroArea').value;
-        const estado = document.getElementById('filtroEstado').value;
-        const cliente = document.getElementById('filtroCliente').value.toLowerCase();
-
-        // Recargar todas y filtrar
+    refrescar: function() {
         this.cargarOrdenes();
+        this.renderizarTablero();
 
-        if (area) {
-            this.ordenes = this.ordenes.filter(o => o.area === area);
+        if (typeof Axones !== 'undefined') {
+            Axones.showSuccess('Tablero actualizado');
         }
-
-        if (estado) {
-            this.ordenes = this.ordenes.filter(o => o.estado === estado);
-        }
-
-        if (cliente) {
-            this.ordenes = this.ordenes.filter(o =>
-                o.cliente.toLowerCase().includes(cliente) ||
-                o.producto.toLowerCase().includes(cliente) ||
-                o.id.toLowerCase().includes(cliente)
-            );
-        }
-
-        this.renderizarColas();
-    },
-
-    /**
-     * Limpia los filtros
-     */
-    limpiarFiltros: function() {
-        document.getElementById('filtroArea').value = '';
-        document.getElementById('filtroEstado').value = '';
-        document.getElementById('filtroCliente').value = '';
-        this.setDefaultDate();
-        this.cargarOrdenes();
-        this.renderizarColas();
     }
 };
 
-// Inicializar
+// Inicializar cuando el DOM este listo
 document.addEventListener('DOMContentLoaded', () => {
-    if (document.getElementById('vistaKanban')) {
+    if (document.getElementById('kanbanBoard')) {
         Programacion.init();
     }
 });
 
-// Exportar
+// Exportar modulo
 if (typeof window !== 'undefined') {
     window.Programacion = Programacion;
 }

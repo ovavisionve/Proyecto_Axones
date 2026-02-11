@@ -1,6 +1,6 @@
 /**
  * Modulo Ordenes de Trabajo - Sistema Axones
- * Gestion de ordenes pre-cargadas con verificacion de inventario
+ * Gestion completa de ordenes de trabajo con todas las especificaciones
  * Incluye alertas por email 5 dias antes de fecha de inicio
  */
 
@@ -9,11 +9,95 @@ const Ordenes = {
     ordenes: [],
     filteredOrdenes: [],
     inventario: [],
-    tintas: [],
-    adhesivos: [],
+    ordenActual: null,
 
     // Configuracion de alertas
     DIAS_ALERTA_ANTICIPADA: 5,
+
+    // Mapeo de campos del formulario completo
+    CAMPOS_ORDEN: {
+        // DATOS DEL PEDIDO
+        maquina: 'maquina',
+        planchas: 'planchas',
+        fechaOrden: 'fechaOrden',
+        numeroOrden: 'numeroOrden',
+        pedidoKg: 'pedidoKg',
+
+        // DATOS DEL PRODUCTO
+        cliente: 'cliente',
+        clienteRif: 'clienteRif',
+        producto: 'producto',
+        cpe: 'cpe',
+        mpps: 'mpps',
+        codigoBarra: 'codigoBarra',
+        estructuraMaterial: 'estructuraMaterial',
+
+        // AREA DE MONTAJE
+        frecuencia: 'frecuencia',
+        anchoCorte: 'anchoCorte',
+        anchoMontaje: 'anchoMontaje',
+        numBandas: 'numBandas',
+        numRepeticion: 'numRepeticion',
+        figuraEmbobinadoMontaje: 'figuraEmbobinadoMontaje',
+        tipoImpresion: 'tipoImpresion',
+        desarrollo: 'desarrollo',
+        numColores: 'numColores',
+        obsMontaje: 'obsMontaje',
+
+        // AREA DE IMPRESION
+        pinon: 'pinon',
+        lineaCorte: 'lineaCorte',
+        ubicFotoceldaImp: 'ubicFotoceldaImp',
+        gramajeTinta: 'gramajeTinta',
+        sustratosVirgen: 'sustratosVirgen',
+        kgIngresadoImp: 'kgIngresadoImp',
+        kgSalidaImp: 'kgSalidaImp',
+        mermaImp: 'mermaImp',
+        metrosImp: 'metrosImp',
+
+        // AREA DE LAMINACION
+        figuraEmbobinadoLam: 'figuraEmbobinadoLam',
+        gramajeAdhesivo: 'gramajeAdhesivo',
+        relacionMezcla: 'relacionMezcla',
+        obsLaminacion: 'obsLaminacion',
+        adhesivoKg: 'adhesivoKg',
+        adhesivoMetros: 'adhesivoMetros',
+        catalizadorKg: 'catalizadorKg',
+        catalizadorMetros: 'catalizadorMetros',
+        boppKg: 'boppKg',
+        boppMetros: 'boppMetros',
+        castKg: 'castKg',
+        castMetros: 'castMetros',
+
+        // DESCRIPCION MATERIA PRIMA
+        tipoMaterial: 'tipoMaterial',
+        micrasMaterial: 'micrasMaterial',
+        anchoMaterial: 'anchoMaterial',
+        kgDisponible: 'kgDisponible',
+        proveedorMaterial: 'proveedorMaterial',
+        obsMateriaPrima: 'obsMateriaPrima',
+
+        // AREA DE CORTE/EMBALAJE
+        anchoCorteFinal: 'anchoCorteFinal',
+        ubicFotoceldaCorte: 'ubicFotoceldaCorte',
+        distFotoceldaBorde: 'distFotoceldaBorde',
+        tipoEmpalme: 'tipoEmpalme',
+        maxEmpalmes: 'maxEmpalmes',
+        pesoBobina: 'pesoBobina',
+        metrosBobina: 'metrosBobina',
+        diametroBobina: 'diametroBobina',
+        anchoCore: 'anchoCore',
+        cantidadCores: 'cantidadCores',
+        diametroCore: 'diametroCore',
+        orientacionEmbalaje: 'orientacionEmbalaje',
+
+        // OBSERVACIONES Y PROGRAMACION
+        observacionesGenerales: 'observacionesGenerales',
+        fechaInicio: 'fechaInicio',
+        fechaEntrega: 'fechaEntrega',
+        prioridad: 'prioridad',
+        estadoOrden: 'estadoOrden'
+    },
 
     /**
      * Inicializa el modulo
@@ -25,179 +109,136 @@ const Ordenes = {
         await this.loadInventario();
         this.setupEventListeners();
         this.cargarClientes();
-        this.renderOrdenes();
-        this.updateCounts();
+        this.setFechaActual();
+        this.generarNumeroOrden();
+
+        // Verificar si estamos editando una orden existente
+        this.checkEditMode();
 
         // Verificar ordenes proximas y enviar alertas por email si es necesario
         this.verificarOrdenesProximas();
     },
 
     /**
-     * Carga ordenes desde localStorage
+     * Establece la fecha actual
      */
-    loadOrdenes: async function() {
-        const stored = localStorage.getItem('axones_ordenes');
-        if (stored) {
-            this.ordenes = JSON.parse(stored);
-        } else {
-            this.ordenes = this.getDatosEjemplo();
-            this.saveOrdenes();
+    setFechaActual: function() {
+        const hoy = new Date().toISOString().split('T')[0];
+        const fechaOrden = document.getElementById('fechaOrden');
+        if (fechaOrden && !fechaOrden.value) {
+            fechaOrden.value = hoy;
         }
-        this.filteredOrdenes = [...this.ordenes];
     },
 
     /**
-     * Datos de ejemplo de ordenes
+     * Genera un numero de orden automatico
      */
-    getDatosEjemplo: function() {
-        return [
-            {
-                id: 'ORD001',
-                ot: 'OT-2024-001',
-                cliente: 'PEPSICO ALIMENTOS',
-                producto: 'Bolsa Snacks 200g',
-                cantidad: 500,
-                proceso: 'impresion',
-                material: 'BOPP',
-                micras: 25,
-                ancho: 680,
-                colores: ['Blanco', 'Amarillo', 'Rojo'],
-                tipoTinta: 'laminacion',
-                fechaCreacion: new Date().toISOString(),
-                fechaEntrega: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                estado: 'pendiente',
-                observaciones: ''
-            },
-            {
-                id: 'ORD002',
-                ot: 'OT-2024-002',
-                cliente: 'NESTLE VENEZUELA',
-                producto: 'Empaque Galletas 150g',
-                cantidad: 800,
-                proceso: 'laminacion',
-                material: 'BOPP MATE',
-                micras: 20,
-                ancho: 700,
-                colores: [],
-                tipoTinta: '',
-                fechaCreacion: new Date().toISOString(),
-                fechaEntrega: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                estado: 'en-proceso',
-                observaciones: 'Urgente'
-            },
-            {
-                id: 'ORD003',
-                ot: 'OT-2024-003',
-                cliente: 'EMPRESAS POLAR',
-                producto: 'Bolsa Harina 1kg',
-                cantidad: 1200,
-                proceso: 'impresion',
-                material: 'PEBD',
-                micras: 50,
-                ancho: 660,
-                colores: ['Blanco', 'Azul', 'Amarillo'],
-                tipoTinta: 'superficie',
-                fechaCreacion: new Date().toISOString(),
-                fechaEntrega: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                estado: 'pendiente',
-                observaciones: ''
-            }
-        ];
+    generarNumeroOrden: function() {
+        const numeroOrden = document.getElementById('numeroOrden');
+        if (numeroOrden && !numeroOrden.value) {
+            const year = new Date().getFullYear();
+            const count = this.ordenes.length + 1;
+            numeroOrden.value = `OT-${year}-${String(count).padStart(4, '0')}`;
+        }
+    },
+
+    /**
+     * Carga ordenes desde localStorage
+     */
+    loadOrdenes: async function() {
+        const stored = localStorage.getItem('axones_ordenes_trabajo');
+        if (stored) {
+            this.ordenes = JSON.parse(stored);
+        } else {
+            this.ordenes = [];
+        }
+        this.filteredOrdenes = [...this.ordenes];
     },
 
     /**
      * Guarda ordenes en localStorage
      */
     saveOrdenes: function() {
-        localStorage.setItem('axones_ordenes', JSON.stringify(this.ordenes));
+        localStorage.setItem('axones_ordenes_trabajo', JSON.stringify(this.ordenes));
     },
 
     /**
      * Carga inventario desde localStorage
      */
     loadInventario: async function() {
-        // Inventario de materiales
         const invStored = localStorage.getItem('axones_inventario');
         this.inventario = invStored ? JSON.parse(invStored) : [];
-
-        // Tintas
-        const tintasStored = localStorage.getItem('axones_tintas_inventario');
-        this.tintas = tintasStored ? JSON.parse(tintasStored) : [];
-
-        // Adhesivos
-        const adhStored = localStorage.getItem('axones_adhesivos_inventario');
-        this.adhesivos = adhStored ? JSON.parse(adhStored) : [];
     },
 
     /**
      * Configura event listeners
      */
     setupEventListeners: function() {
-        // Busqueda
-        const buscar = document.getElementById('buscarOrden');
-        if (buscar) {
-            buscar.addEventListener('input', () => this.aplicarFiltros());
+        // Guardar orden
+        const btnGuardar = document.getElementById('btnGuardarOrden');
+        if (btnGuardar) {
+            btnGuardar.addEventListener('click', () => this.guardarOrden());
         }
 
-        // Filtros
-        ['filtroEstado', 'filtroCliente', 'filtroProceso'].forEach(id => {
+        // Limpiar formulario
+        const btnLimpiar = document.getElementById('btnLimpiar');
+        if (btnLimpiar) {
+            btnLimpiar.addEventListener('click', () => this.limpiarFormulario());
+        }
+
+        // Calcular merma automaticamente
+        const kgIngresado = document.getElementById('kgIngresadoImp');
+        const kgSalida = document.getElementById('kgSalidaImp');
+        if (kgIngresado && kgSalida) {
+            kgIngresado.addEventListener('input', () => this.calcularMerma());
+            kgSalida.addEventListener('input', () => this.calcularMerma());
+        }
+
+        // Verificar inventario al seleccionar material
+        const tipoMaterial = document.getElementById('tipoMaterial');
+        const micrasMaterial = document.getElementById('micrasMaterial');
+        const anchoMaterial = document.getElementById('anchoMaterial');
+        [tipoMaterial, micrasMaterial, anchoMaterial].forEach(el => {
+            if (el) {
+                el.addEventListener('change', () => this.verificarInventarioMaterial());
+            }
+        });
+
+        // Cliente RIF auto-fill
+        const clienteSelect = document.getElementById('cliente');
+        if (clienteSelect) {
+            clienteSelect.addEventListener('change', () => this.cargarDatosCliente());
+        }
+
+        // Filtros en modal
+        ['buscarOrden', 'filtroEstado', 'filtroCliente', 'filtroPrioridad'].forEach(id => {
             const el = document.getElementById(id);
             if (el) {
+                el.addEventListener('input', () => this.aplicarFiltros());
                 el.addEventListener('change', () => this.aplicarFiltros());
             }
         });
 
-        // Guardar orden
-        const btnGuardar = document.getElementById('btnGuardarOrden');
-        if (btnGuardar) {
-            btnGuardar.addEventListener('click', () => this.crearOrden());
-        }
-
-        // Verificar inventario global
-        const btnVerificar = document.getElementById('btnVerificarInventario');
-        if (btnVerificar) {
-            btnVerificar.addEventListener('click', () => this.verificarInventarioGlobal());
-        }
-
-        // Mostrar/ocultar seccion tintas segun proceso
-        const ordenProceso = document.getElementById('ordenProceso');
-        if (ordenProceso) {
-            ordenProceso.addEventListener('change', () => {
-                const seccionTintas = document.getElementById('seccionTintas');
-                if (seccionTintas) {
-                    seccionTintas.style.display = ordenProceso.value === 'impresion' ? 'block' : 'none';
-                }
-            });
-        }
-
-        // Verificar inventario al cambiar material/cantidad
-        ['ordenMaterial', 'ordenMicras', 'ordenAncho', 'ordenCantidad'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) {
-                el.addEventListener('change', () => this.verificarInventarioEnFormulario());
-            }
-        });
-
-        // Iniciar produccion
-        const btnIniciar = document.getElementById('btnIniciarProduccion');
-        if (btnIniciar) {
-            btnIniciar.addEventListener('click', () => this.iniciarProduccion());
+        // Cargar ordenes al abrir modal
+        const modalOrdenes = document.getElementById('modalListaOrdenes');
+        if (modalOrdenes) {
+            modalOrdenes.addEventListener('show.bs.modal', () => this.renderTablaOrdenes());
         }
     },
 
     /**
-     * Carga clientes en los selects
+     * Carga clientes en el select
      */
     cargarClientes: function() {
-        const clientes = CONFIG.CLIENTES || [
+        const clientes = CONFIG?.CLIENTES || [
             'PEPSICO ALIMENTOS', 'NESTLE VENEZUELA', 'EMPRESAS POLAR',
-            'KRAFT HEINZ', 'ALFONZO RIVAS', 'MONDELEZ', 'MARY'
+            'KRAFT HEINZ', 'ALFONZO RIVAS', 'MONDELEZ', 'MARY',
+            'PLUMROSE', 'KELLOGG\'S', 'BIMBO'
         ];
 
-        ['ordenCliente', 'filtroCliente'].forEach(id => {
+        ['cliente', 'filtroCliente'].forEach(id => {
             const select = document.getElementById(id);
             if (select) {
-                const currentValue = select.value;
                 const firstOption = select.options[0];
                 select.innerHTML = '';
                 select.appendChild(firstOption);
@@ -208,39 +249,294 @@ const Ordenes = {
                     option.textContent = cliente;
                     select.appendChild(option);
                 });
-
-                select.value = currentValue;
             }
         });
     },
 
     /**
-     * Aplica filtros a las ordenes
+     * Carga datos del cliente seleccionado
+     */
+    cargarDatosCliente: function() {
+        const cliente = document.getElementById('cliente')?.value;
+        const rifInput = document.getElementById('clienteRif');
+
+        // Datos de ejemplo - en produccion vendrian de la base de datos
+        const clientesRif = {
+            'PEPSICO ALIMENTOS': 'J-30123456-7',
+            'NESTLE VENEZUELA': 'J-00032456-0',
+            'EMPRESAS POLAR': 'J-00028679-8',
+            'KRAFT HEINZ': 'J-30287654-1',
+            'ALFONZO RIVAS': 'J-00112233-4',
+            'MONDELEZ': 'J-30998877-6',
+            'MARY': 'J-00445566-2'
+        };
+
+        if (rifInput && cliente) {
+            rifInput.value = clientesRif[cliente] || '';
+        }
+    },
+
+    /**
+     * Calcula la merma de impresion
+     */
+    calcularMerma: function() {
+        const kgIngresado = parseFloat(document.getElementById('kgIngresadoImp')?.value) || 0;
+        const kgSalida = parseFloat(document.getElementById('kgSalidaImp')?.value) || 0;
+        const mermaInput = document.getElementById('mermaImp');
+
+        if (mermaInput && kgIngresado > 0) {
+            const merma = ((kgIngresado - kgSalida) / kgIngresado) * 100;
+            mermaInput.value = merma.toFixed(2);
+        }
+    },
+
+    /**
+     * Verifica inventario disponible para el material seleccionado
+     */
+    verificarInventarioMaterial: function() {
+        const tipoMaterial = document.getElementById('tipoMaterial')?.value;
+        const micras = parseFloat(document.getElementById('micrasMaterial')?.value) || 0;
+        const ancho = parseFloat(document.getElementById('anchoMaterial')?.value) || 0;
+        const kgDisponible = document.getElementById('kgDisponible');
+
+        if (!tipoMaterial || !kgDisponible) return;
+
+        // Buscar en inventario
+        const disponible = this.inventario.filter(item => {
+            const matchMaterial = item.material?.includes(tipoMaterial);
+            const matchMicras = !micras || item.micras === micras;
+            const matchAncho = !ancho || item.ancho === ancho;
+            return matchMaterial && matchMicras && matchAncho;
+        });
+
+        const totalKg = disponible.reduce((sum, item) => sum + (item.kg || 0), 0);
+        kgDisponible.value = totalKg.toFixed(2);
+
+        // Cambiar color segun disponibilidad
+        const pedidoKg = parseFloat(document.getElementById('pedidoKg')?.value) || 0;
+        if (totalKg >= pedidoKg) {
+            kgDisponible.classList.remove('bg-danger', 'bg-warning', 'text-white');
+            kgDisponible.classList.add('bg-success', 'text-white');
+        } else if (totalKg > 0) {
+            kgDisponible.classList.remove('bg-danger', 'bg-success', 'text-white');
+            kgDisponible.classList.add('bg-warning');
+        } else {
+            kgDisponible.classList.remove('bg-success', 'bg-warning');
+            kgDisponible.classList.add('bg-danger', 'text-white');
+        }
+    },
+
+    /**
+     * Guarda la orden de trabajo
+     */
+    guardarOrden: function() {
+        const form = document.getElementById('formOrdenTrabajo');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        // Recopilar todos los datos del formulario
+        const ordenData = this.recopilarDatosFormulario();
+
+        // Verificar si es edicion o nueva orden
+        const ordenId = document.getElementById('ordenId')?.value;
+
+        if (ordenId) {
+            // Editar orden existente
+            const index = this.ordenes.findIndex(o => o.id === ordenId);
+            if (index !== -1) {
+                ordenData.id = ordenId;
+                ordenData.fechaModificacion = new Date().toISOString();
+                this.ordenes[index] = ordenData;
+            }
+        } else {
+            // Nueva orden
+            ordenData.id = 'OT_' + Date.now();
+            ordenData.fechaCreacion = new Date().toISOString();
+            this.ordenes.push(ordenData);
+        }
+
+        this.saveOrdenes();
+
+        // Verificar inventario
+        this.verificarYCrearAlertas(ordenData);
+
+        // Mostrar mensaje de exito
+        if (typeof Axones !== 'undefined') {
+            Axones.showSuccess(`Orden ${ordenData.numeroOrden} guardada exitosamente`);
+        } else {
+            alert(`Orden ${ordenData.numeroOrden} guardada exitosamente`);
+        }
+
+        // Limpiar formulario para nueva orden
+        this.limpiarFormulario();
+        this.generarNumeroOrden();
+    },
+
+    /**
+     * Recopila todos los datos del formulario
+     */
+    recopilarDatosFormulario: function() {
+        const data = {};
+
+        // Campos simples
+        Object.keys(this.CAMPOS_ORDEN).forEach(campo => {
+            const el = document.getElementById(campo);
+            if (el) {
+                if (el.type === 'number') {
+                    data[campo] = el.value ? parseFloat(el.value) : null;
+                } else {
+                    data[campo] = el.value || null;
+                }
+            }
+        });
+
+        // Tabla de tintas (8 posiciones)
+        data.tintas = [];
+        for (let i = 1; i <= 8; i++) {
+            const color = document.getElementById(`tinta${i}Color`)?.value;
+            if (color) {
+                data.tintas.push({
+                    posicion: i,
+                    color: color,
+                    anilox: document.getElementById(`tinta${i}Anilox`)?.value || '',
+                    viscosidad: parseFloat(document.getElementById(`tinta${i}Visc`)?.value) || null,
+                    porcentaje: parseFloat(document.getElementById(`tinta${i}Pct`)?.value) || null,
+                    observaciones: document.getElementById(`tinta${i}Obs`)?.value || ''
+                });
+            }
+        }
+
+        return data;
+    },
+
+    /**
+     * Verifica inventario y crea alertas si es necesario
+     */
+    verificarYCrearAlertas: function(orden) {
+        const tipoMaterial = orden.tipoMaterial;
+        const pedidoKg = orden.pedidoKg;
+
+        if (!tipoMaterial || !pedidoKg) return;
+
+        const disponible = this.inventario.filter(item =>
+            item.material?.includes(tipoMaterial)
+        ).reduce((sum, item) => sum + (item.kg || 0), 0);
+
+        if (disponible < pedidoKg) {
+            this.crearAlertaBajoStock(orden, disponible);
+        }
+    },
+
+    /**
+     * Crea alerta de bajo stock
+     */
+    crearAlertaBajoStock: function(orden, disponible) {
+        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
+        alertas.unshift({
+            id: Date.now(),
+            tipo: 'stock_bajo',
+            nivel: 'danger',
+            mensaje: `Inventario insuficiente para ${orden.numeroOrden}: ${orden.tipoMaterial} - Requerido: ${orden.pedidoKg} Kg, Disponible: ${disponible.toFixed(2)} Kg`,
+            fecha: new Date().toISOString(),
+            estado: 'pendiente',
+            datos: { ordenId: orden.id }
+        });
+        localStorage.setItem('axones_alertas', JSON.stringify(alertas));
+    },
+
+    /**
+     * Limpia el formulario
+     */
+    limpiarFormulario: function() {
+        document.getElementById('formOrdenTrabajo')?.reset();
+        document.getElementById('ordenId').value = '';
+        this.setFechaActual();
+        this.generarNumeroOrden();
+
+        // Resetear campo kg disponible
+        const kgDisponible = document.getElementById('kgDisponible');
+        if (kgDisponible) {
+            kgDisponible.value = '';
+            kgDisponible.classList.remove('bg-success', 'bg-warning', 'bg-danger', 'text-white');
+        }
+    },
+
+    /**
+     * Verifica si estamos en modo edicion
+     */
+    checkEditMode: function() {
+        const params = new URLSearchParams(window.location.search);
+        const ordenId = params.get('edit');
+
+        if (ordenId) {
+            const orden = this.ordenes.find(o => o.id === ordenId);
+            if (orden) {
+                this.cargarOrdenEnFormulario(orden);
+            }
+        }
+    },
+
+    /**
+     * Carga una orden en el formulario para edicion
+     */
+    cargarOrdenEnFormulario: function(orden) {
+        document.getElementById('ordenId').value = orden.id;
+
+        // Cargar campos simples
+        Object.keys(this.CAMPOS_ORDEN).forEach(campo => {
+            const el = document.getElementById(campo);
+            if (el && orden[campo] !== undefined && orden[campo] !== null) {
+                el.value = orden[campo];
+            }
+        });
+
+        // Cargar tintas
+        if (orden.tintas && Array.isArray(orden.tintas)) {
+            orden.tintas.forEach(tinta => {
+                const i = tinta.posicion;
+                if (document.getElementById(`tinta${i}Color`)) {
+                    document.getElementById(`tinta${i}Color`).value = tinta.color || '';
+                    document.getElementById(`tinta${i}Anilox`).value = tinta.anilox || '';
+                    document.getElementById(`tinta${i}Visc`).value = tinta.viscosidad || '';
+                    document.getElementById(`tinta${i}Pct`).value = tinta.porcentaje || '';
+                    document.getElementById(`tinta${i}Obs`).value = tinta.observaciones || '';
+                }
+            });
+        }
+
+        // Verificar inventario
+        this.verificarInventarioMaterial();
+    },
+
+    /**
+     * Aplica filtros a la lista de ordenes
      */
     aplicarFiltros: function() {
         const busqueda = document.getElementById('buscarOrden')?.value.toLowerCase() || '';
         const estado = document.getElementById('filtroEstado')?.value || '';
         const cliente = document.getElementById('filtroCliente')?.value || '';
-        const proceso = document.getElementById('filtroProceso')?.value || '';
+        const prioridad = document.getElementById('filtroPrioridad')?.value || '';
 
         this.filteredOrdenes = this.ordenes.filter(orden => {
             if (busqueda) {
-                const texto = `${orden.ot} ${orden.cliente} ${orden.producto}`.toLowerCase();
+                const texto = `${orden.numeroOrden} ${orden.cliente} ${orden.producto}`.toLowerCase();
                 if (!texto.includes(busqueda)) return false;
             }
-            if (estado && orden.estado !== estado) return false;
+            if (estado && orden.estadoOrden !== estado) return false;
             if (cliente && orden.cliente !== cliente) return false;
-            if (proceso && orden.proceso !== proceso) return false;
+            if (prioridad && orden.prioridad !== prioridad) return false;
             return true;
         });
 
-        this.renderOrdenes();
+        this.renderTablaOrdenes();
     },
 
     /**
-     * Renderiza la tabla de ordenes
+     * Renderiza la tabla de ordenes en el modal
      */
-    renderOrdenes: function() {
+    renderTablaOrdenes: function() {
         const tbody = document.getElementById('tablaOrdenes');
         if (!tbody) return;
 
@@ -250,47 +546,28 @@ const Ordenes = {
         }
 
         tbody.innerHTML = this.filteredOrdenes.map(orden => {
-            const inventarioCheck = this.verificarInventarioOrden(orden);
-            const estadoClass = orden.estado === 'completada' ? 'bg-success' :
-                               orden.estado === 'en-proceso' ? 'bg-primary' : 'bg-warning text-dark';
-            const estadoTexto = orden.estado === 'completada' ? 'Completada' :
-                               orden.estado === 'en-proceso' ? 'En Proceso' : 'Pendiente';
+            const estadoClass = orden.estadoOrden === 'completada' ? 'bg-success' :
+                               orden.estadoOrden === 'en-proceso' ? 'bg-primary' : 'bg-warning text-dark';
+            const prioridadClass = orden.prioridad === 'urgente' ? 'bg-danger' :
+                                  orden.prioridad === 'alta' ? 'bg-warning text-dark' : 'bg-secondary';
 
             return `
-                <tr class="${inventarioCheck.alerta ? 'table-danger' : ''}">
-                    <td><strong>${orden.ot}</strong></td>
-                    <td>${orden.cliente}</td>
-                    <td>
-                        ${orden.producto}
-                        ${orden.colores && orden.colores.length > 0 ?
-                            `<br><small class="text-muted">${orden.colores.join(', ')}</small>` : ''}
-                    </td>
+                <tr>
+                    <td><strong>${orden.numeroOrden || '-'}</strong></td>
+                    <td>${orden.fechaOrden || '-'}</td>
+                    <td>${orden.cliente || '-'}</td>
+                    <td>${orden.producto || '-'}</td>
+                    <td class="text-center"><span class="badge bg-info">${orden.maquina || '-'}</span></td>
+                    <td class="text-end">${orden.pedidoKg ? this.formatNumber(orden.pedidoKg) : '-'}</td>
+                    <td class="text-center"><span class="badge ${prioridadClass}">${orden.prioridad || 'normal'}</span></td>
+                    <td class="text-center"><span class="badge ${estadoClass}">${orden.estadoOrden || 'pendiente'}</span></td>
                     <td class="text-center">
-                        <span class="badge ${this.getProcesoClass(orden.proceso)}">${this.formatProceso(orden.proceso)}</span>
-                    </td>
-                    <td class="text-center">
-                        <span class="spec-badge badge bg-secondary">${orden.material}</span>
-                        ${orden.micras ? `<br><small>${orden.micras}µ x ${orden.ancho}mm</small>` : ''}
-                    </td>
-                    <td class="text-end">${this.formatNumber(orden.cantidad)} Kg</td>
-                    <td class="text-center">
-                        <span class="inventory-check ${inventarioCheck.class}">
-                            <i class="bi ${inventarioCheck.icon}"></i>
-                            ${inventarioCheck.texto}
-                        </span>
-                    </td>
-                    <td class="text-center">
-                        <span class="badge ${estadoClass}">${estadoTexto}</span>
-                    </td>
-                    <td class="text-center">
-                        <button class="btn btn-sm btn-outline-primary me-1" onclick="Ordenes.verDetalle('${orden.id}')" title="Ver detalle">
-                            <i class="bi bi-eye"></i>
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="Ordenes.editarOrden('${orden.id}')" title="Editar">
+                            <i class="bi bi-pencil"></i>
                         </button>
-                        ${orden.estado !== 'completada' ? `
-                            <button class="btn btn-sm btn-outline-success" onclick="Ordenes.cambiarEstado('${orden.id}')" title="Cambiar estado">
-                                <i class="bi bi-arrow-right-circle"></i>
-                            </button>
-                        ` : ''}
+                        <button class="btn btn-sm btn-outline-danger" onclick="Ordenes.eliminarOrden('${orden.id}')" title="Eliminar">
+                            <i class="bi bi-trash"></i>
+                        </button>
                     </td>
                 </tr>
             `;
@@ -298,308 +575,43 @@ const Ordenes = {
     },
 
     /**
-     * Verifica inventario para una orden
+     * Edita una orden existente
      */
-    verificarInventarioOrden: function(orden) {
-        // Buscar material en inventario
-        const materialDisponible = this.inventario.filter(item => {
-            const matchMaterial = item.material.includes(orden.material);
-            const matchMicras = !orden.micras || item.micras === orden.micras;
-            const matchAncho = !orden.ancho || item.ancho === orden.ancho;
-            return matchMaterial && matchMicras && matchAncho;
-        });
-
-        const totalDisponible = materialDisponible.reduce((sum, item) => sum + (item.kg || 0), 0);
-        const requerido = orden.cantidad;
-
-        if (totalDisponible >= requerido) {
-            return { class: 'ok', icon: 'bi-check-circle-fill', texto: 'OK', alerta: false };
-        } else if (totalDisponible >= requerido * 0.5) {
-            return { class: 'warning', icon: 'bi-exclamation-triangle-fill', texto: 'Bajo', alerta: false };
-        } else {
-            return { class: 'danger', icon: 'bi-x-circle-fill', texto: 'Falta', alerta: true };
-        }
-    },
-
-    /**
-     * Verifica inventario en el formulario de nueva orden
-     */
-    verificarInventarioEnFormulario: function() {
-        const material = document.getElementById('ordenMaterial')?.value;
-        const micras = parseInt(document.getElementById('ordenMicras')?.value) || 0;
-        const ancho = parseInt(document.getElementById('ordenAncho')?.value) || 0;
-        const cantidad = parseFloat(document.getElementById('ordenCantidad')?.value) || 0;
-
-        const alertDiv = document.getElementById('verificacionInventario');
-        if (!alertDiv || !material) return;
-
-        // Buscar en inventario
-        const disponible = this.inventario.filter(item => {
-            const matchMaterial = item.material.includes(material);
-            const matchMicras = !micras || item.micras === micras;
-            const matchAncho = !ancho || item.ancho === ancho;
-            return matchMaterial && matchMicras && matchAncho;
-        });
-
-        const totalDisponible = disponible.reduce((sum, item) => sum + (item.kg || 0), 0);
-
-        if (totalDisponible >= cantidad && cantidad > 0) {
-            alertDiv.className = 'alert alert-success py-2 mb-0';
-            alertDiv.innerHTML = `<i class="bi bi-check-circle me-1"></i> Inventario disponible: <strong>${this.formatNumber(totalDisponible)} Kg</strong> (Requerido: ${this.formatNumber(cantidad)} Kg)`;
-        } else if (totalDisponible > 0) {
-            alertDiv.className = 'alert alert-warning py-2 mb-0';
-            alertDiv.innerHTML = `<i class="bi bi-exclamation-triangle me-1"></i> Inventario insuficiente: <strong>${this.formatNumber(totalDisponible)} Kg</strong> disponibles (Requerido: ${this.formatNumber(cantidad)} Kg)`;
-        } else {
-            alertDiv.className = 'alert alert-danger py-2 mb-0';
-            alertDiv.innerHTML = `<i class="bi bi-x-circle me-1"></i> No hay inventario disponible para ${material} ${micras ? micras + 'µ' : ''} ${ancho ? 'x ' + ancho + 'mm' : ''}`;
-        }
-    },
-
-    /**
-     * Crea una nueva orden
-     */
-    crearOrden: async function() {
-        const form = document.getElementById('formNuevaOrden');
-        if (!form.checkValidity()) {
-            form.reportValidity();
-            return;
-        }
-
-        const coloresStr = document.getElementById('ordenColores')?.value || '';
-        const colores = coloresStr.split(',').map(c => c.trim()).filter(c => c);
-
-        const nuevaOrden = {
-            id: 'ORD' + Date.now(),
-            ot: document.getElementById('ordenOT').value,
-            cliente: document.getElementById('ordenCliente').value,
-            producto: document.getElementById('ordenProducto').value,
-            cantidad: parseFloat(document.getElementById('ordenCantidad').value),
-            proceso: document.getElementById('ordenProceso').value,
-            material: document.getElementById('ordenMaterial').value,
-            micras: parseInt(document.getElementById('ordenMicras').value) || null,
-            ancho: parseInt(document.getElementById('ordenAncho').value) || null,
-            colores: colores,
-            tipoTinta: document.getElementById('ordenTipoTinta')?.value || '',
-            fechaCreacion: new Date().toISOString(),
-            fechaEntrega: document.getElementById('ordenFechaEntrega').value || null,
-            estado: 'pendiente',
-            observaciones: document.getElementById('ordenObservaciones').value
-        };
-
-        // Verificar inventario antes de crear
-        const inventarioCheck = this.verificarInventarioOrden(nuevaOrden);
-        if (inventarioCheck.alerta) {
-            const confirmar = confirm('ALERTA: No hay suficiente inventario para esta orden. Continuar de todos modos?');
-            if (!confirmar) return;
-
-            // Crear alerta de bajo stock
-            this.crearAlertaBajoStock(nuevaOrden);
-        }
-
-        this.ordenes.push(nuevaOrden);
-        this.saveOrdenes();
-        this.filteredOrdenes = [...this.ordenes];
-        this.renderOrdenes();
-        this.updateCounts();
-
-        // Cerrar modal y limpiar
-        bootstrap.Modal.getInstance(document.getElementById('modalNuevaOrden')).hide();
-        form.reset();
-        document.getElementById('seccionTintas').style.display = 'none';
-        document.getElementById('verificacionInventario').className = 'alert alert-info py-2 mb-0';
-        document.getElementById('verificacionInventario').innerHTML = '<i class="bi bi-info-circle me-1"></i> Complete los datos para verificar disponibilidad de inventario';
-
-        if (typeof Axones !== 'undefined') {
-            Axones.showSuccess('Orden creada exitosamente');
-        }
-    },
-
-    /**
-     * Crea alerta de bajo stock
-     */
-    crearAlertaBajoStock: function(orden) {
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
-        alertas.unshift({
-            id: Date.now(),
-            tipo: 'stock_bajo',
-            nivel: 'danger',
-            mensaje: `Inventario insuficiente para OT ${orden.ot}: ${orden.material} ${orden.micras || ''}µ - Requerido: ${orden.cantidad} Kg`,
-            fecha: new Date().toISOString(),
-            estado: 'pendiente',
-            datos: { orden: orden.id }
-        });
-        localStorage.setItem('axones_alertas', JSON.stringify(alertas));
-    },
-
-    /**
-     * Ver detalle de orden
-     */
-    verDetalle: function(id) {
+    editarOrden: function(id) {
         const orden = this.ordenes.find(o => o.id === id);
         if (!orden) return;
 
-        this.ordenActual = orden;
+        // Cerrar modal
+        bootstrap.Modal.getInstance(document.getElementById('modalListaOrdenes'))?.hide();
 
-        document.getElementById('detalleOrdenTitulo').innerHTML = `
-            <i class="bi bi-clipboard-check me-2"></i>Orden ${orden.ot}
-        `;
+        // Cargar orden en formulario
+        this.cargarOrdenEnFormulario(orden);
 
-        const inventarioCheck = this.verificarInventarioOrden(orden);
-
-        document.getElementById('detalleOrdenContenido').innerHTML = `
-            <div class="row">
-                <div class="col-md-6">
-                    <h6 class="text-muted">Informacion General</h6>
-                    <table class="table table-sm">
-                        <tr><td><strong>Cliente:</strong></td><td>${orden.cliente}</td></tr>
-                        <tr><td><strong>Producto:</strong></td><td>${orden.producto}</td></tr>
-                        <tr><td><strong>Cantidad:</strong></td><td>${this.formatNumber(orden.cantidad)} Kg</td></tr>
-                        <tr><td><strong>Proceso:</strong></td><td>${this.formatProceso(orden.proceso)}</td></tr>
-                        <tr><td><strong>Estado:</strong></td><td><span class="badge ${orden.estado === 'completada' ? 'bg-success' : orden.estado === 'en-proceso' ? 'bg-primary' : 'bg-warning text-dark'}">${orden.estado}</span></td></tr>
-                        <tr><td><strong>Fecha Entrega:</strong></td><td>${orden.fechaEntrega || 'No especificada'}</td></tr>
-                    </table>
-                </div>
-                <div class="col-md-6">
-                    <h6 class="text-muted">Especificaciones de Material</h6>
-                    <table class="table table-sm">
-                        <tr><td><strong>Material:</strong></td><td>${orden.material}</td></tr>
-                        <tr><td><strong>Micras:</strong></td><td>${orden.micras || '-'}</td></tr>
-                        <tr><td><strong>Ancho:</strong></td><td>${orden.ancho ? orden.ancho + ' mm' : '-'}</td></tr>
-                        ${orden.colores && orden.colores.length > 0 ? `<tr><td><strong>Colores:</strong></td><td>${orden.colores.join(', ')}</td></tr>` : ''}
-                        ${orden.tipoTinta ? `<tr><td><strong>Tipo Tinta:</strong></td><td>${orden.tipoTinta}</td></tr>` : ''}
-                    </table>
-                </div>
-            </div>
-            <div class="alert ${inventarioCheck.class === 'ok' ? 'alert-success' : inventarioCheck.class === 'warning' ? 'alert-warning' : 'alert-danger'} mt-3">
-                <i class="bi ${inventarioCheck.icon} me-2"></i>
-                <strong>Estado de Inventario:</strong> ${inventarioCheck.texto}
-                ${inventarioCheck.alerta ? '<br><small>Se recomienda verificar y reabastecer el inventario antes de iniciar produccion.</small>' : ''}
-            </div>
-            ${orden.observaciones ? `<div class="mt-3"><strong>Observaciones:</strong><br>${orden.observaciones}</div>` : ''}
-        `;
-
-        const btnIniciar = document.getElementById('btnIniciarProduccion');
-        btnIniciar.style.display = orden.estado === 'pendiente' ? 'inline-block' : 'none';
-
-        new bootstrap.Modal(document.getElementById('modalDetalleOrden')).show();
+        // Scroll al inicio del formulario
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     },
 
     /**
-     * Iniciar produccion para la orden actual
+     * Elimina una orden
      */
-    iniciarProduccion: function() {
-        if (!this.ordenActual) return;
-
-        // Redirigir a la pagina de produccion correspondiente con los datos precargados
-        const params = new URLSearchParams({
-            ot: this.ordenActual.ot,
-            cliente: this.ordenActual.cliente,
-            producto: this.ordenActual.producto,
-            material: this.ordenActual.material,
-            cantidad: this.ordenActual.cantidad
-        });
-
-        let pagina = 'impresion.html';
-        if (this.ordenActual.proceso === 'laminacion') pagina = 'laminacion.html';
-        else if (this.ordenActual.proceso === 'corte') pagina = 'corte.html';
-
-        // Guardar orden como en proceso
-        this.ordenActual.estado = 'en-proceso';
-        this.saveOrdenes();
-
-        window.location.href = `${pagina}?${params.toString()}`;
-    },
-
-    /**
-     * Cambiar estado de orden
-     */
-    cambiarEstado: function(id) {
+    eliminarOrden: function(id) {
         const orden = this.ordenes.find(o => o.id === id);
         if (!orden) return;
 
-        const estados = ['pendiente', 'en-proceso', 'completada'];
-        const indexActual = estados.indexOf(orden.estado);
-        const nuevoEstado = estados[(indexActual + 1) % estados.length];
-
-        if (confirm(`Cambiar estado de "${orden.estado}" a "${nuevoEstado}"?`)) {
-            orden.estado = nuevoEstado;
+        if (confirm(`Eliminar orden ${orden.numeroOrden}?`)) {
+            this.ordenes = this.ordenes.filter(o => o.id !== id);
+            this.filteredOrdenes = this.filteredOrdenes.filter(o => o.id !== id);
             this.saveOrdenes();
-            this.renderOrdenes();
-            this.updateCounts();
+            this.renderTablaOrdenes();
 
             if (typeof Axones !== 'undefined') {
-                Axones.showSuccess(`Estado actualizado a: ${nuevoEstado}`);
+                Axones.showSuccess('Orden eliminada');
             }
         }
     },
 
     /**
-     * Verifica inventario global
-     */
-    verificarInventarioGlobal: function() {
-        const alertas = [];
-
-        this.ordenes.filter(o => o.estado !== 'completada').forEach(orden => {
-            const check = this.verificarInventarioOrden(orden);
-            if (check.alerta) {
-                alertas.push(`OT ${orden.ot}: ${orden.material} - Falta inventario`);
-            }
-        });
-
-        if (alertas.length === 0) {
-            alert('Todas las ordenes tienen inventario suficiente.');
-        } else {
-            alert(`Alertas de inventario (${alertas.length}):\n\n${alertas.join('\n')}`);
-        }
-    },
-
-    /**
-     * Actualiza contadores
-     */
-    updateCounts: function() {
-        const pendientes = this.ordenes.filter(o => o.estado === 'pendiente').length;
-        const enProceso = this.ordenes.filter(o => o.estado === 'en-proceso').length;
-        const hoy = new Date().toISOString().split('T')[0];
-        const completadas = this.ordenes.filter(o => o.estado === 'completada').length;
-        const alertas = this.ordenes.filter(o => o.estado !== 'completada' && this.verificarInventarioOrden(o).alerta).length;
-
-        document.getElementById('countPendientes')?.textContent && (document.getElementById('countPendientes').textContent = pendientes);
-        document.getElementById('countEnProceso')?.textContent && (document.getElementById('countEnProceso').textContent = enProceso);
-        document.getElementById('countCompletadas')?.textContent && (document.getElementById('countCompletadas').textContent = completadas);
-        document.getElementById('countAlertas')?.textContent && (document.getElementById('countAlertas').textContent = alertas);
-    },
-
-    /**
-     * Helpers
-     */
-    getProcesoClass: function(proceso) {
-        const clases = {
-            'impresion': 'bg-primary',
-            'laminacion': 'bg-info',
-            'corte': 'bg-secondary'
-        };
-        return clases[proceso] || 'bg-secondary';
-    },
-
-    formatProceso: function(proceso) {
-        const nombres = {
-            'impresion': 'Impresion',
-            'laminacion': 'Laminacion',
-            'corte': 'Corte'
-        };
-        return nombres[proceso] || proceso;
-    },
-
-    formatNumber: function(num) {
-        return new Intl.NumberFormat('es-VE', {
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 2
-        }).format(num);
-    },
-
-    /**
-     * Verifica ordenes proximas a su fecha de inicio (5 dias antes)
-     * y envia alertas por email si hay problemas de inventario
+     * Verifica ordenes proximas a su fecha de inicio
      */
     verificarOrdenesProximas: async function() {
         console.log('Verificando ordenes proximas a fecha de inicio...');
@@ -608,10 +620,10 @@ const Ordenes = {
         hoy.setHours(0, 0, 0, 0);
 
         const ordenesProximas = this.ordenes.filter(orden => {
-            if (orden.estado === 'completada') return false;
-            if (!orden.fechaEntrega) return false;
+            if (orden.estadoOrden === 'completada') return false;
+            if (!orden.fechaInicio && !orden.fechaEntrega) return false;
 
-            const fechaOrden = new Date(orden.fechaEntrega);
+            const fechaOrden = new Date(orden.fechaInicio || orden.fechaEntrega);
             fechaOrden.setHours(0, 0, 0, 0);
 
             const diasRestantes = Math.ceil((fechaOrden - hoy) / (1000 * 60 * 60 * 24));
@@ -625,36 +637,31 @@ const Ordenes = {
 
         console.log(`Encontradas ${ordenesProximas.length} ordenes proximas a verificar`);
 
-        // Verificar inventario para cada orden proxima
         for (const orden of ordenesProximas) {
-            const inventarioCheck = this.verificarInventarioOrden(orden);
+            const disponible = this.inventario.filter(item =>
+                item.material?.includes(orden.tipoMaterial)
+            ).reduce((sum, item) => sum + (item.kg || 0), 0);
 
-            if (inventarioCheck.alerta) {
-                // Verificar si ya enviamos alerta por email para esta orden hoy
+            if (disponible < (orden.pedidoKg || 0)) {
                 const alertaEnviada = this.verificarAlertaEmailEnviada(orden.id);
-
                 if (!alertaEnviada) {
-                    await this.enviarAlertaEmailInventario(orden, inventarioCheck);
+                    await this.enviarAlertaEmailInventario(orden, disponible);
                 }
             }
         }
     },
 
     /**
-     * Verifica si ya se envio una alerta por email para esta orden hoy
+     * Verifica si ya se envio alerta email hoy
      */
     verificarAlertaEmailEnviada: function(ordenId) {
         const alertasEmail = JSON.parse(localStorage.getItem('axones_alertas_email') || '[]');
         const hoy = new Date().toISOString().split('T')[0];
-
-        return alertasEmail.some(a =>
-            a.ordenId === ordenId &&
-            a.fecha.startsWith(hoy)
-        );
+        return alertasEmail.some(a => a.ordenId === ordenId && a.fecha.startsWith(hoy));
     },
 
     /**
-     * Registra que se envio una alerta por email
+     * Registra alerta email enviada
      */
     registrarAlertaEmailEnviada: function(ordenId) {
         const alertasEmail = JSON.parse(localStorage.getItem('axones_alertas_email') || '[]');
@@ -662,78 +669,58 @@ const Ordenes = {
             ordenId: ordenId,
             fecha: new Date().toISOString()
         });
-
-        // Mantener solo ultimos 100 registros
         if (alertasEmail.length > 100) {
             alertasEmail.splice(0, alertasEmail.length - 100);
         }
-
         localStorage.setItem('axones_alertas_email', JSON.stringify(alertasEmail));
     },
 
     /**
-     * Envia alerta por email cuando una orden proxima no tiene inventario
+     * Envia alerta por email
      */
-    enviarAlertaEmailInventario: async function(orden, inventarioCheck) {
-        console.log(`Enviando alerta por email para orden ${orden.ot}...`);
+    enviarAlertaEmailInventario: async function(orden, disponible) {
+        console.log(`Enviando alerta por email para orden ${orden.numeroOrden}...`);
 
-        const fechaOrden = new Date(orden.fechaEntrega);
+        const fechaOrden = new Date(orden.fechaInicio || orden.fechaEntrega);
         const hoy = new Date();
         const diasRestantes = Math.ceil((fechaOrden - hoy) / (1000 * 60 * 60 * 24));
 
         const datosAlerta = {
             tipo: 'inventario_insuficiente_email',
             nivel: 'critical',
-            ot: orden.ot,
+            numeroOrden: orden.numeroOrden,
             cliente: orden.cliente,
             producto: orden.producto,
-            material: orden.material,
-            micras: orden.micras || '',
-            ancho: orden.ancho || '',
-            cantidadRequerida: orden.cantidad,
+            material: orden.tipoMaterial,
+            cantidadRequerida: orden.pedidoKg,
+            cantidadDisponible: disponible,
             fechaEntrega: orden.fechaEntrega,
             diasRestantes: diasRestantes,
-            mensaje: `URGENTE: La orden ${orden.ot} para ${orden.cliente} tiene fecha de inicio en ${diasRestantes} dias y NO hay suficiente inventario de ${orden.material}. Cantidad requerida: ${orden.cantidad} Kg.`,
+            mensaje: `URGENTE: La orden ${orden.numeroOrden} para ${orden.cliente} tiene fecha en ${diasRestantes} dias y NO hay suficiente inventario de ${orden.tipoMaterial}. Requerido: ${orden.pedidoKg} Kg, Disponible: ${disponible.toFixed(2)} Kg.`,
             enviarEmail: true
         };
 
         try {
-            // Enviar a la API para que procese y envie el email
             if (typeof AxonesAPI !== 'undefined') {
                 const result = await AxonesAPI.post('enviarAlertaEmail', datosAlerta);
-
                 if (result.success) {
                     console.log('Alerta por email enviada exitosamente');
                     this.registrarAlertaEmailEnviada(orden.id);
-
-                    // Tambien crear alerta local
-                    this.crearAlertaBajoStockConEmail(orden, diasRestantes);
-
-                    if (typeof Axones !== 'undefined') {
-                        Axones.showSuccess(`Alerta enviada por email: OT ${orden.ot} sin inventario`);
-                    }
-                } else {
-                    console.warn('No se pudo enviar email, guardando localmente');
-                    this.crearAlertaBajoStockConEmail(orden, diasRestantes);
                 }
-            } else {
-                // Si no hay API, al menos crear alerta local
-                this.crearAlertaBajoStockConEmail(orden, diasRestantes);
             }
+            // Crear alerta local
+            this.crearAlertaConEmail(orden, diasRestantes, disponible);
         } catch (error) {
             console.error('Error enviando alerta por email:', error);
-            // Crear alerta local como fallback
-            this.crearAlertaBajoStockConEmail(orden, diasRestantes);
+            this.crearAlertaConEmail(orden, diasRestantes, disponible);
         }
     },
 
     /**
-     * Crea alerta de bajo stock con indicador de que se envio email
+     * Crea alerta con indicador de email
      */
-    crearAlertaBajoStockConEmail: function(orden, diasRestantes) {
+    crearAlertaConEmail: function(orden, diasRestantes, disponible) {
         const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
-
-        // Verificar si ya existe alerta similar reciente
         const alertaExistente = alertas.find(a =>
             a.tipo === 'inventario_insuficiente_email' &&
             a.datos?.ordenId === orden.id &&
@@ -746,15 +733,15 @@ const Ordenes = {
             id: Date.now(),
             tipo: 'inventario_insuficiente_email',
             nivel: 'critical',
-            mensaje: `ALERTA EMAIL: OT ${orden.ot} (${orden.cliente}) - Sin inventario de ${orden.material}. Fecha: ${orden.fechaEntrega} (${diasRestantes} dias)`,
+            mensaje: `ALERTA: ${orden.numeroOrden} (${orden.cliente}) - Sin inventario de ${orden.tipoMaterial}. Fecha: ${orden.fechaEntrega} (${diasRestantes} dias). Disponible: ${disponible.toFixed(2)} Kg`,
             fecha: new Date().toISOString(),
             estado: 'pendiente',
             emailEnviado: true,
             datos: {
                 ordenId: orden.id,
-                ot: orden.ot,
+                numeroOrden: orden.numeroOrden,
                 cliente: orden.cliente,
-                material: orden.material,
+                material: orden.tipoMaterial,
                 fechaEntrega: orden.fechaEntrega,
                 diasRestantes: diasRestantes
             }
@@ -764,16 +751,33 @@ const Ordenes = {
     },
 
     /**
-     * Obtiene ordenes pendientes para seleccionar en produccion
+     * Obtiene ordenes pendientes para produccion
      */
     getOrdenesPendientes: function(proceso = null) {
-        let ordenes = this.ordenes.filter(o => o.estado !== 'completada');
+        let ordenes = this.ordenes.filter(o => o.estadoOrden !== 'completada');
 
+        // Filtrar por proceso/maquina si se especifica
         if (proceso) {
-            ordenes = ordenes.filter(o => o.proceso === proceso);
+            ordenes = ordenes.filter(o => {
+                if (proceso === 'impresion') {
+                    return o.maquina?.includes('COMEXI');
+                } else if (proceso === 'laminacion') {
+                    return o.maquina?.includes('Laminadora');
+                } else if (proceso === 'corte') {
+                    return o.maquina?.includes('Cortadora');
+                }
+                return true;
+            });
         }
 
         return ordenes.sort((a, b) => {
+            // Primero por prioridad
+            const prioridadOrder = { 'urgente': 0, 'alta': 1, 'normal': 2 };
+            const prioridadA = prioridadOrder[a.prioridad] || 2;
+            const prioridadB = prioridadOrder[b.prioridad] || 2;
+            if (prioridadA !== prioridadB) return prioridadA - prioridadB;
+
+            // Luego por fecha
             const fechaA = new Date(a.fechaEntrega || '9999-12-31');
             const fechaB = new Date(b.fechaEntrega || '9999-12-31');
             return fechaA - fechaB;
@@ -781,23 +785,33 @@ const Ordenes = {
     },
 
     /**
-     * Obtiene una orden por su OT
+     * Obtiene una orden por numero de OT
      */
-    getOrdenByOT: function(ot) {
-        return this.ordenes.find(o => o.ot === ot);
+    getOrdenByNumero: function(numero) {
+        return this.ordenes.find(o => o.numeroOrden === numero);
     },
 
     /**
-     * Obtiene una orden por su ID
+     * Obtiene una orden por ID
      */
     getOrdenById: function(id) {
         return this.ordenes.find(o => o.id === id);
+    },
+
+    /**
+     * Formatea numero
+     */
+    formatNumber: function(num) {
+        return new Intl.NumberFormat('es-VE', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2
+        }).format(num);
     }
 };
 
 // Inicializar cuando el DOM este listo
 document.addEventListener('DOMContentLoaded', () => {
-    if (document.getElementById('tablaOrdenes')) {
+    if (document.getElementById('formOrdenTrabajo')) {
         Ordenes.init();
     }
 });

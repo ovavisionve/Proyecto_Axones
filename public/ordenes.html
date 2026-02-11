@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Sistema de Ordenes de Trabajo - Sistema Axones">
-    <title>Ordenes de Trabajo - Axones</title>
+    <meta name="description" content="Orden de Trabajo - Sistema Axones">
+    <title>Orden de Trabajo - Axones</title>
 
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#198754">
+    <meta name="theme-color" content="#0d6efd">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <link rel="apple-touch-icon" href="icons/icon-192x192.png">
 
@@ -17,8 +17,46 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <link href="src/css/main.css" rel="stylesheet">
     <style>
+        .section-header {
+            background: linear-gradient(135deg, #0d6efd, #0b5ed7);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem 0.375rem 0 0;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        .section-body {
+            border: 1px solid #dee2e6;
+            border-top: none;
+            border-radius: 0 0 0.375rem 0.375rem;
+            padding: 1rem;
+            background: #fff;
+        }
+        .form-label {
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+            color: #495057;
+        }
+        .form-control, .form-select {
+            font-size: 0.85rem;
+        }
+        .table-tintas th, .table-tintas td {
+            font-size: 0.75rem;
+            padding: 0.4rem;
+            text-align: center;
+            vertical-align: middle;
+        }
+        .table-tintas th {
+            background: #e9ecef;
+        }
+        .table-tintas input {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.4rem;
+            text-align: center;
+        }
         .orden-card {
-            border-left: 4px solid #198754;
+            border-left: 4px solid #0d6efd;
             transition: all 0.2s;
         }
         .orden-card:hover {
@@ -27,22 +65,23 @@
         .orden-card.pendiente { border-left-color: #ffc107; }
         .orden-card.en-proceso { border-left-color: #0d6efd; }
         .orden-card.completada { border-left-color: #198754; }
-        .orden-card.alerta { border-left-color: #dc3545; background: #fff5f5; }
-        .spec-badge {
+        .required-field::after {
+            content: " *";
+            color: #dc3545;
+        }
+        .btn-section {
             font-size: 0.75rem;
-            font-weight: normal;
+            padding: 0.25rem 0.5rem;
         }
-        .inventory-check {
-            font-size: 0.8rem;
+        @media print {
+            .no-print { display: none !important; }
+            .section-header { background: #333 !important; -webkit-print-color-adjust: exact; }
         }
-        .inventory-check.ok { color: #198754; }
-        .inventory-check.warning { color: #ffc107; }
-        .inventory-check.danger { color: #dc3545; }
     </style>
 </head>
 <body>
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-success fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top no-print">
         <div class="container-fluid">
             <a class="navbar-brand d-flex align-items-center" href="index.html">
                 <i class="bi bi-gear-wide-connected me-2"></i>
@@ -70,7 +109,7 @@
                             <li><a class="dropdown-item" href="tintas.html"><i class="bi bi-droplet me-2"></i>Tintas y Solventes</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item active" href="ordenes.html"><i class="bi bi-clipboard-check me-2"></i>Ordenes de Trabajo</a></li>
-                            <li><a class="dropdown-item" href="programacion.html"><i class="bi bi-list-task me-2"></i>Estado de Ordenes</a></li>
+                            <li><a class="dropdown-item" href="programacion.html"><i class="bi bi-kanban me-2"></i>Programacion</a></li>
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
@@ -126,184 +165,399 @@
     <!-- Main Content -->
     <main class="container-fluid" style="margin-top: 70px;">
         <!-- Header -->
-        <div class="row mb-3">
+        <div class="row mb-3 no-print">
             <div class="col-12">
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <div>
                         <h4 class="mb-1">
-                            <i class="bi bi-clipboard-check text-success me-2"></i>
-                            Ordenes de Trabajo
+                            <i class="bi bi-clipboard-check text-primary me-2"></i>
+                            Orden de Trabajo
                         </h4>
                         <p class="text-muted mb-0 small">
-                            Gestion de ordenes pre-cargadas con especificaciones
+                            Crear y gestionar ordenes de trabajo con todas las especificaciones
                         </p>
                     </div>
                     <div class="d-flex gap-2">
-                        <button class="btn btn-outline-secondary btn-sm" id="btnVerificarInventario">
-                            <i class="bi bi-box-seam me-1"></i> Verificar Inventario
+                        <button class="btn btn-outline-secondary btn-sm" id="btnListaOrdenes" data-bs-toggle="modal" data-bs-target="#modalListaOrdenes">
+                            <i class="bi bi-list-ul me-1"></i> Ver Ordenes
                         </button>
-                        <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuevaOrden">
-                            <i class="bi bi-plus-lg me-1"></i> Nueva Orden
+                        <button class="btn btn-outline-info btn-sm" id="btnImprimir" onclick="window.print()">
+                            <i class="bi bi-printer me-1"></i> Imprimir
+                        </button>
+                        <button class="btn btn-outline-warning btn-sm" id="btnLimpiar">
+                            <i class="bi bi-eraser me-1"></i> Limpiar
+                        </button>
+                        <button class="btn btn-primary btn-sm" id="btnGuardarOrden">
+                            <i class="bi bi-save me-1"></i> Guardar Orden
                         </button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Resumen -->
-        <div class="row mb-4 g-3">
-            <div class="col-6 col-md-3">
-                <div class="card border-start border-warning border-4 h-100">
-                    <div class="card-body py-2 px-3">
-                        <small class="text-muted d-block">Pendientes</small>
-                        <h4 class="mb-0" id="countPendientes">0</h4>
+        <!-- Work Order Form -->
+        <form id="formOrdenTrabajo">
+            <!-- Row 1: DATOS DEL PEDIDO + DATOS DEL PRODUCTO -->
+            <div class="row g-3 mb-3">
+                <!-- DATOS DEL PEDIDO -->
+                <div class="col-lg-6">
+                    <div class="section-header">
+                        <i class="bi bi-receipt me-2"></i>DATOS DEL PEDIDO
+                    </div>
+                    <div class="section-body">
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="form-label required-field">Maquina</label>
+                                <select class="form-select form-select-sm" id="maquina" required>
+                                    <option value="">Seleccionar...</option>
+                                    <option value="COMEXI 1">COMEXI 1</option>
+                                    <option value="COMEXI 2">COMEXI 2</option>
+                                    <option value="COMEXI 3">COMEXI 3</option>
+                                    <option value="Laminadora">Laminadora</option>
+                                    <option value="Cortadora China">Cortadora China</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Planchas</label>
+                                <input type="text" class="form-control form-control-sm" id="planchas" placeholder="N/A">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label required-field">Fecha</label>
+                                <input type="date" class="form-control form-control-sm" id="fechaOrden" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label required-field">N° Orden</label>
+                                <input type="text" class="form-control form-control-sm" id="numeroOrden" required placeholder="OT-2024-001">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label required-field">Pedido (Kg)</label>
+                                <input type="number" class="form-control form-control-sm" id="pedidoKg" required step="0.01" min="0">
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="col-6 col-md-3">
-                <div class="card border-start border-primary border-4 h-100">
-                    <div class="card-body py-2 px-3">
-                        <small class="text-muted d-block">En Proceso</small>
-                        <h4 class="mb-0" id="countEnProceso">0</h4>
-                    </div>
-                </div>
-            </div>
-            <div class="col-6 col-md-3">
-                <div class="card border-start border-success border-4 h-100">
-                    <div class="card-body py-2 px-3">
-                        <small class="text-muted d-block">Completadas (Hoy)</small>
-                        <h4 class="mb-0" id="countCompletadas">0</h4>
-                    </div>
-                </div>
-            </div>
-            <div class="col-6 col-md-3">
-                <div class="card border-start border-danger border-4 h-100">
-                    <div class="card-body py-2 px-3">
-                        <small class="text-muted d-block">Alertas Inventario</small>
-                        <h4 class="mb-0" id="countAlertas">0</h4>
-                    </div>
-                </div>
-            </div>
-        </div>
 
-        <!-- Filtros -->
-        <div class="row mb-3">
-            <div class="col-md-3">
-                <div class="input-group input-group-sm">
-                    <span class="input-group-text"><i class="bi bi-search"></i></span>
-                    <input type="text" class="form-control" id="buscarOrden" placeholder="Buscar OT, cliente...">
+                <!-- DATOS DEL PRODUCTO -->
+                <div class="col-lg-6">
+                    <div class="section-header">
+                        <i class="bi bi-box me-2"></i>DATOS DEL PRODUCTO
+                    </div>
+                    <div class="section-body">
+                        <div class="row g-2">
+                            <div class="col-md-8">
+                                <label class="form-label required-field">Cliente</label>
+                                <select class="form-select form-select-sm" id="cliente" required>
+                                    <option value="">Seleccionar...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">RIF</label>
+                                <input type="text" class="form-control form-control-sm" id="clienteRif" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label required-field">Producto</label>
+                                <input type="text" class="form-control form-control-sm" id="producto" required placeholder="Nombre del producto">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">C.P.E.</label>
+                                <input type="text" class="form-control form-control-sm" id="cpe" placeholder="Codigo">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">M.P.P.S.</label>
+                                <input type="text" class="form-control form-control-sm" id="mpps" placeholder="Codigo">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Codigo de Barra</label>
+                                <input type="text" class="form-control form-control-sm" id="codigoBarra" placeholder="Codigo de barras">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label required-field">Estructura Material</label>
+                                <input type="text" class="form-control form-control-sm" id="estructuraMaterial" required placeholder="ej: BOPP 20 + CAST 30">
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="col-md-2">
-                <select class="form-select form-select-sm" id="filtroEstado">
-                    <option value="">Todos los estados</option>
-                    <option value="pendiente">Pendiente</option>
-                    <option value="en-proceso">En Proceso</option>
-                    <option value="completada">Completada</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <select class="form-select form-select-sm" id="filtroCliente">
-                    <option value="">Todos los clientes</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <select class="form-select form-select-sm" id="filtroProceso">
-                    <option value="">Todos los procesos</option>
-                    <option value="impresion">Impresion</option>
-                    <option value="laminacion">Laminacion</option>
-                    <option value="corte">Corte</option>
-                </select>
-            </div>
-        </div>
 
-        <!-- Lista de Ordenes -->
-        <div class="row">
-            <div class="col-12">
-                <div class="card border-0 shadow-sm">
-                    <div class="card-body p-0">
+            <!-- Row 2: AREA DE MONTAJE -->
+            <div class="row g-3 mb-3">
+                <div class="col-12">
+                    <div class="section-header">
+                        <i class="bi bi-wrench me-2"></i>AREA DE MONTAJE
+                    </div>
+                    <div class="section-body">
+                        <div class="row g-2">
+                            <div class="col-md-2">
+                                <label class="form-label">Frecuencia</label>
+                                <input type="number" class="form-control form-control-sm" id="frecuencia" step="0.01">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Ancho Corte (mm)</label>
+                                <input type="number" class="form-control form-control-sm" id="anchoCorte" step="0.01">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Ancho Montaje (mm)</label>
+                                <input type="number" class="form-control form-control-sm" id="anchoMontaje" step="0.01">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">N° Bandas</label>
+                                <input type="number" class="form-control form-control-sm" id="numBandas" min="1">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">N° Repeticion</label>
+                                <input type="number" class="form-control form-control-sm" id="numRepeticion" min="1">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Figura Embobinado</label>
+                                <select class="form-select form-select-sm" id="figuraEmbobinadoMontaje">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="I">I - Interior</option>
+                                    <option value="E">E - Exterior</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Tipo Impresion</label>
+                                <select class="form-select form-select-sm" id="tipoImpresion">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="Superficie">Superficie</option>
+                                    <option value="Laminacion">Laminacion</option>
+                                    <option value="Mixta">Mixta</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Desarrollo (mm)</label>
+                                <input type="number" class="form-control form-control-sm" id="desarrollo" step="0.01">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">N° Colores</label>
+                                <input type="number" class="form-control form-control-sm" id="numColores" min="1" max="8">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Observaciones Montaje</label>
+                                <input type="text" class="form-control form-control-sm" id="obsMontaje">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 3: AREA DE IMPRESION -->
+            <div class="row g-3 mb-3">
+                <div class="col-12">
+                    <div class="section-header">
+                        <i class="bi bi-printer me-2"></i>AREA DE IMPRESION
+                    </div>
+                    <div class="section-body">
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-2">
+                                <label class="form-label">Pinon</label>
+                                <input type="number" class="form-control form-control-sm" id="pinon" min="1">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Linea de Corte</label>
+                                <input type="text" class="form-control form-control-sm" id="lineaCorte">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Ubic. Fotocelda</label>
+                                <select class="form-select form-select-sm" id="ubicFotoceldaImp">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="Izquierda">Izquierda</option>
+                                    <option value="Centro">Centro</option>
+                                    <option value="Derecha">Derecha</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Gramaje Tinta</label>
+                                <input type="number" class="form-control form-control-sm" id="gramajeTinta" step="0.01">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Sustratos Virgen</label>
+                                <input type="text" class="form-control form-control-sm" id="sustratosVirgen">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Kg Ingresado</label>
+                                <input type="number" class="form-control form-control-sm" id="kgIngresadoImp" step="0.01">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Kg Salida</label>
+                                <input type="number" class="form-control form-control-sm" id="kgSalidaImp" step="0.01">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Merma (%)</label>
+                                <input type="number" class="form-control form-control-sm" id="mermaImp" step="0.01" readonly>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Metros</label>
+                                <input type="number" class="form-control form-control-sm" id="metrosImp" step="0.01">
+                            </div>
+                        </div>
+
+                        <!-- Tabla de Tintas (8 posiciones) -->
+                        <h6 class="mb-2 small fw-bold"><i class="bi bi-droplet me-1"></i>DESCRIPCION DE TINTAS</h6>
                         <div class="table-responsive">
-                            <table class="table table-hover mb-0">
-                                <thead class="table-success">
+                            <table class="table table-bordered table-tintas mb-0">
+                                <thead>
                                     <tr>
-                                        <th>OT</th>
-                                        <th>Cliente</th>
-                                        <th>Producto</th>
-                                        <th class="text-center">Proceso</th>
-                                        <th class="text-center">Material</th>
-                                        <th class="text-end">Kg Requeridos</th>
-                                        <th class="text-center">Inventario</th>
-                                        <th class="text-center">Estado</th>
-                                        <th class="text-center">Acciones</th>
+                                        <th style="width: 40px;">POS</th>
+                                        <th>COLOR</th>
+                                        <th>ANILOX</th>
+                                        <th>VISC.</th>
+                                        <th>%</th>
+                                        <th>OBSERVACIONES</th>
                                     </tr>
                                 </thead>
-                                <tbody id="tablaOrdenes">
-                                    <tr><td colspan="9" class="text-center text-muted py-3">Cargando ordenes...</td></tr>
+                                <tbody>
+                                    <tr>
+                                        <td class="fw-bold">1</td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta1Color"></td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta1Anilox"></td>
+                                        <td><input type="number" class="form-control form-control-sm" id="tinta1Visc" step="0.1"></td>
+                                        <td><input type="number" class="form-control form-control-sm" id="tinta1Pct" step="0.1"></td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta1Obs"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold">2</td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta2Color"></td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta2Anilox"></td>
+                                        <td><input type="number" class="form-control form-control-sm" id="tinta2Visc" step="0.1"></td>
+                                        <td><input type="number" class="form-control form-control-sm" id="tinta2Pct" step="0.1"></td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta2Obs"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold">3</td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta3Color"></td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta3Anilox"></td>
+                                        <td><input type="number" class="form-control form-control-sm" id="tinta3Visc" step="0.1"></td>
+                                        <td><input type="number" class="form-control form-control-sm" id="tinta3Pct" step="0.1"></td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta3Obs"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold">4</td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta4Color"></td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta4Anilox"></td>
+                                        <td><input type="number" class="form-control form-control-sm" id="tinta4Visc" step="0.1"></td>
+                                        <td><input type="number" class="form-control form-control-sm" id="tinta4Pct" step="0.1"></td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta4Obs"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold">5</td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta5Color"></td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta5Anilox"></td>
+                                        <td><input type="number" class="form-control form-control-sm" id="tinta5Visc" step="0.1"></td>
+                                        <td><input type="number" class="form-control form-control-sm" id="tinta5Pct" step="0.1"></td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta5Obs"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold">6</td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta6Color"></td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta6Anilox"></td>
+                                        <td><input type="number" class="form-control form-control-sm" id="tinta6Visc" step="0.1"></td>
+                                        <td><input type="number" class="form-control form-control-sm" id="tinta6Pct" step="0.1"></td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta6Obs"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold">7</td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta7Color"></td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta7Anilox"></td>
+                                        <td><input type="number" class="form-control form-control-sm" id="tinta7Visc" step="0.1"></td>
+                                        <td><input type="number" class="form-control form-control-sm" id="tinta7Pct" step="0.1"></td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta7Obs"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold">8</td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta8Color"></td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta8Anilox"></td>
+                                        <td><input type="number" class="form-control form-control-sm" id="tinta8Visc" step="0.1"></td>
+                                        <td><input type="number" class="form-control form-control-sm" id="tinta8Pct" step="0.1"></td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta8Obs"></td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </main>
 
-    <!-- Modal Nueva Orden -->
-    <div class="modal fade" id="modalNuevaOrden" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header bg-success text-white">
-                    <h5 class="modal-title">
-                        <i class="bi bi-plus-circle me-2"></i>Nueva Orden de Trabajo
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="formNuevaOrden">
-                        <div class="row g-3">
-                            <!-- Datos basicos -->
-                            <div class="col-md-4">
-                                <label class="form-label small">Numero de OT *</label>
-                                <input type="text" class="form-control form-control-sm" id="ordenOT" required placeholder="OT-2024-001">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label small">Cliente *</label>
-                                <select class="form-select form-select-sm" id="ordenCliente" required>
+            <!-- Row 4: AREA DE LAMINACION -->
+            <div class="row g-3 mb-3">
+                <div class="col-12">
+                    <div class="section-header">
+                        <i class="bi bi-layers me-2"></i>AREA DE LAMINACION
+                    </div>
+                    <div class="section-body">
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-2">
+                                <label class="form-label">Figura Embobinado</label>
+                                <select class="form-select form-select-sm" id="figuraEmbobinadoLam">
                                     <option value="">Seleccionar...</option>
+                                    <option value="I">I - Interior</option>
+                                    <option value="E">E - Exterior</option>
                                 </select>
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label small">Fecha Entrega</label>
-                                <input type="date" class="form-control form-control-sm" id="ordenFechaEntrega">
+                            <div class="col-md-2">
+                                <label class="form-label">Gramaje Adhesivo</label>
+                                <input type="number" class="form-control form-control-sm" id="gramajeAdhesivo" step="0.01">
                             </div>
-
-                            <!-- Producto -->
+                            <div class="col-md-2">
+                                <label class="form-label">Relacion Mezcla</label>
+                                <input type="text" class="form-control form-control-sm" id="relacionMezcla" placeholder="ej: 100:50">
+                            </div>
                             <div class="col-md-6">
-                                <label class="form-label small">Producto *</label>
-                                <input type="text" class="form-control form-control-sm" id="ordenProducto" required placeholder="Nombre del producto">
+                                <label class="form-label">Observaciones Laminacion</label>
+                                <input type="text" class="form-control form-control-sm" id="obsLaminacion">
                             </div>
-                            <div class="col-md-3">
-                                <label class="form-label small">Cantidad (Kg) *</label>
-                                <input type="number" class="form-control form-control-sm" id="ordenCantidad" required min="1" step="0.01">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label small">Proceso *</label>
-                                <select class="form-select form-select-sm" id="ordenProceso" required>
-                                    <option value="">Seleccionar...</option>
-                                    <option value="impresion">Impresion</option>
-                                    <option value="laminacion">Laminacion</option>
-                                    <option value="corte">Corte</option>
-                                </select>
-                            </div>
+                        </div>
 
-                            <!-- Especificaciones de Material -->
-                            <div class="col-12">
-                                <hr>
-                                <h6 class="text-muted"><i class="bi bi-box-seam me-1"></i> Especificaciones de Material</h6>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label small">Tipo de Material *</label>
-                                <select class="form-select form-select-sm" id="ordenMaterial" required>
+                        <!-- Tabla de Materiales Laminacion -->
+                        <h6 class="mb-2 small fw-bold"><i class="bi bi-box-seam me-1"></i>MATERIALES</h6>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-tintas mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>MATERIAL</th>
+                                        <th>KG</th>
+                                        <th>METROS</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="text-start fw-bold">Adhesivo</td>
+                                        <td><input type="number" class="form-control form-control-sm" id="adhesivoKg" step="0.01"></td>
+                                        <td><input type="number" class="form-control form-control-sm" id="adhesivoMetros" step="0.01"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-start fw-bold">Catalizador</td>
+                                        <td><input type="number" class="form-control form-control-sm" id="catalizadorKg" step="0.01"></td>
+                                        <td><input type="number" class="form-control form-control-sm" id="catalizadorMetros" step="0.01"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-start fw-bold">BOPP</td>
+                                        <td><input type="number" class="form-control form-control-sm" id="boppKg" step="0.01"></td>
+                                        <td><input type="number" class="form-control form-control-sm" id="boppMetros" step="0.01"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-start fw-bold">Cast</td>
+                                        <td><input type="number" class="form-control form-control-sm" id="castKg" step="0.01"></td>
+                                        <td><input type="number" class="form-control form-control-sm" id="castMetros" step="0.01"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 5: DESCRIPCION MATERIA PRIMA -->
+            <div class="row g-3 mb-3">
+                <div class="col-12">
+                    <div class="section-header">
+                        <i class="bi bi-archive me-2"></i>DESCRIPCION MATERIA PRIMA
+                    </div>
+                    <div class="section-body">
+                        <div class="row g-2">
+                            <div class="col-md-3">
+                                <label class="form-label">Tipo Material</label>
+                                <select class="form-select form-select-sm" id="tipoMaterial">
                                     <option value="">Seleccionar...</option>
                                     <option value="BOPP">BOPP</option>
                                     <option value="BOPP MATE">BOPP MATE</option>
@@ -311,85 +565,234 @@
                                     <option value="CAST">CAST</option>
                                     <option value="METAL">METAL</option>
                                     <option value="PEBD">PEBD</option>
+                                    <option value="PET">PET</option>
+                                    <option value="PA">PA (Nylon)</option>
                                 </select>
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label small">Micras</label>
-                                <input type="number" class="form-control form-control-sm" id="ordenMicras" placeholder="ej: 25">
+                            <div class="col-md-2">
+                                <label class="form-label">Micras</label>
+                                <input type="number" class="form-control form-control-sm" id="micrasMaterial" step="0.1">
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label small">Ancho (mm)</label>
-                                <input type="number" class="form-control form-control-sm" id="ordenAncho" placeholder="ej: 680">
+                            <div class="col-md-2">
+                                <label class="form-label">Ancho (mm)</label>
+                                <input type="number" class="form-control form-control-sm" id="anchoMaterial" step="0.01">
                             </div>
-
-                            <!-- Verificacion de inventario -->
-                            <div class="col-12">
-                                <div class="alert alert-info py-2 mb-0" id="verificacionInventario">
-                                    <i class="bi bi-info-circle me-1"></i>
-                                    Complete los datos para verificar disponibilidad de inventario
-                                </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Kg Disponible</label>
+                                <input type="number" class="form-control form-control-sm" id="kgDisponible" step="0.01" readonly>
                             </div>
-
-                            <!-- Tintas (si es impresion) -->
-                            <div class="col-12" id="seccionTintas" style="display: none;">
-                                <hr>
-                                <h6 class="text-muted"><i class="bi bi-droplet me-1"></i> Tintas Requeridas</h6>
-                                <div class="row g-2">
-                                    <div class="col-md-6">
-                                        <label class="form-label small">Colores (separados por coma)</label>
-                                        <input type="text" class="form-control form-control-sm" id="ordenColores" placeholder="Blanco, Amarillo, Rojo...">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label small">Tipo de Tinta</label>
-                                        <select class="form-select form-select-sm" id="ordenTipoTinta">
-                                            <option value="laminacion">Laminacion</option>
-                                            <option value="superficie">Superficie</option>
-                                        </select>
-                                    </div>
-                                </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Proveedor</label>
+                                <input type="text" class="form-control form-control-sm" id="proveedorMaterial">
                             </div>
-
-                            <!-- Observaciones -->
-                            <div class="col-12">
-                                <label class="form-label small">Observaciones</label>
-                                <textarea class="form-control form-control-sm" id="ordenObservaciones" rows="2"></textarea>
+                            <div class="col-md-12">
+                                <label class="form-label">Observaciones Materia Prima</label>
+                                <input type="text" class="form-control form-control-sm" id="obsMateriaPrima">
                             </div>
                         </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-success" id="btnGuardarOrden">
-                        <i class="bi bi-check-lg me-1"></i> Crear Orden
-                    </button>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Modal Detalle Orden -->
-    <div class="modal fade" id="modalDetalleOrden" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="detalleOrdenTitulo">Detalle de Orden</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <!-- Row 6: AREA DE CORTE / EMBALAJE -->
+            <div class="row g-3 mb-3">
+                <div class="col-12">
+                    <div class="section-header">
+                        <i class="bi bi-scissors me-2"></i>AREA DE CORTE / EMBALAJE
+                    </div>
+                    <div class="section-body">
+                        <div class="row g-2">
+                            <div class="col-md-2">
+                                <label class="form-label">Ancho Corte (mm)</label>
+                                <input type="number" class="form-control form-control-sm" id="anchoCorteFinal" step="0.01">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Ubic. Fotocelda</label>
+                                <select class="form-select form-select-sm" id="ubicFotoceldaCorte">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="Izquierda">Izquierda</option>
+                                    <option value="Centro">Centro</option>
+                                    <option value="Derecha">Derecha</option>
+                                    <option value="N/A">N/A</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Dist. Fotocelda Borde</label>
+                                <input type="number" class="form-control form-control-sm" id="distFotoceldaBorde" step="0.01">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Tipo Empalme</label>
+                                <select class="form-select form-select-sm" id="tipoEmpalme">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="Bandera">Bandera</option>
+                                    <option value="Inline">Inline</option>
+                                    <option value="Ninguno">Ninguno</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Max. Empalmes</label>
+                                <input type="number" class="form-control form-control-sm" id="maxEmpalmes" min="0">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Peso Bobina (Kg)</label>
+                                <input type="number" class="form-control form-control-sm" id="pesoBobina" step="0.01">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Metros/Bobina</label>
+                                <input type="number" class="form-control form-control-sm" id="metrosBobina" step="0.01">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Diametro Bobina (cm)</label>
+                                <input type="number" class="form-control form-control-sm" id="diametroBobina" step="0.01">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Ancho Core (mm)</label>
+                                <input type="number" class="form-control form-control-sm" id="anchoCore" step="0.01">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Cantidad Cores</label>
+                                <input type="number" class="form-control form-control-sm" id="cantidadCores" min="1">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Diametro Core (mm)</label>
+                                <input type="number" class="form-control form-control-sm" id="diametroCore" step="0.01">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Orientacion Emb.</label>
+                                <select class="form-select form-select-sm" id="orientacionEmbalaje">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="Vertical">Vertical</option>
+                                    <option value="Horizontal">Horizontal</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="modal-body" id="detalleOrdenContenido">
-                    <!-- Se llena dinamicamente -->
+            </div>
+
+            <!-- Row 7: OBSERVACIONES GENERALES + PROGRAMACION -->
+            <div class="row g-3 mb-3">
+                <div class="col-lg-8">
+                    <div class="section-header">
+                        <i class="bi bi-chat-text me-2"></i>OBSERVACIONES GENERALES
+                    </div>
+                    <div class="section-body">
+                        <textarea class="form-control form-control-sm" id="observacionesGenerales" rows="3" placeholder="Instrucciones especiales, notas adicionales..."></textarea>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="section-header">
+                        <i class="bi bi-calendar-check me-2"></i>PROGRAMACION
+                    </div>
+                    <div class="section-body">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label">Fecha Inicio</label>
+                                <input type="date" class="form-control form-control-sm" id="fechaInicio">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">Fecha Entrega</label>
+                                <input type="date" class="form-control form-control-sm" id="fechaEntrega">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">Prioridad</label>
+                                <select class="form-select form-select-sm" id="prioridad">
+                                    <option value="normal">Normal</option>
+                                    <option value="alta">Alta</option>
+                                    <option value="urgente">Urgente</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">Estado</label>
+                                <select class="form-select form-select-sm" id="estadoOrden">
+                                    <option value="pendiente">Pendiente</option>
+                                    <option value="en-proceso">En Proceso</option>
+                                    <option value="completada">Completada</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hidden field for ID -->
+            <input type="hidden" id="ordenId">
+        </form>
+    </main>
+
+    <!-- Modal Lista de Ordenes -->
+    <div class="modal fade" id="modalListaOrdenes" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-list-ul me-2"></i>Lista de Ordenes de Trabajo
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Filtros -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-3">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                <input type="text" class="form-control" id="buscarOrden" placeholder="Buscar OT, cliente...">
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select form-select-sm" id="filtroEstado">
+                                <option value="">Todos los estados</option>
+                                <option value="pendiente">Pendiente</option>
+                                <option value="en-proceso">En Proceso</option>
+                                <option value="completada">Completada</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select form-select-sm" id="filtroCliente">
+                                <option value="">Todos los clientes</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select form-select-sm" id="filtroPrioridad">
+                                <option value="">Todas las prioridades</option>
+                                <option value="normal">Normal</option>
+                                <option value="alta">Alta</option>
+                                <option value="urgente">Urgente</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Tabla de Ordenes -->
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead class="table-primary">
+                                <tr>
+                                    <th>N° Orden</th>
+                                    <th>Fecha</th>
+                                    <th>Cliente</th>
+                                    <th>Producto</th>
+                                    <th class="text-center">Maquina</th>
+                                    <th class="text-end">Kg</th>
+                                    <th class="text-center">Prioridad</th>
+                                    <th class="text-center">Estado</th>
+                                    <th class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaOrdenes">
+                                <tr><td colspan="9" class="text-center text-muted py-3">Cargando ordenes...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                    <button type="button" class="btn btn-primary" id="btnIniciarProduccion">
-                        <i class="bi bi-play-fill me-1"></i> Iniciar Produccion
-                    </button>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Footer -->
-    <footer class="bg-light border-top py-3 mt-4">
+    <footer class="bg-light border-top py-3 mt-4 no-print">
         <div class="container-fluid">
             <div class="row">
                 <div class="col text-center">

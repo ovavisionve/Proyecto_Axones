@@ -37,7 +37,13 @@ const Corte = {
         if (ot) {
             console.log('Cargando datos desde orden:', ot);
 
-            const ordenes = JSON.parse(localStorage.getItem('axones_ordenes') || '[]');
+            let ordenes = [];
+            try {
+                ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
+            } catch (e) {
+                console.warn('Error parseando ordenes:', e);
+                ordenes = [];
+            }
             const orden = ordenes.find(o => o.ot === ot);
 
             if (orden) {
@@ -157,9 +163,18 @@ const Corte = {
         const otInput = document.getElementById('ordenTrabajo');
         if (!otInput || document.getElementById('selectorOrden')) return;
 
-        const ordenes = JSON.parse(localStorage.getItem('axones_ordenes') || '[]');
+        let ordenes = [];
+        try {
+            ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
+        } catch (e) {
+            console.warn('Error parseando ordenes:', e);
+            return;
+        }
+
+        // Filtrar ordenes pendientes (usan estadoOrden y maquina con Cortadora)
         const ordenesPendientes = ordenes.filter(o =>
-            o.estado !== 'completada' && o.proceso === 'corte'
+            o.estadoOrden !== 'completada' &&
+            (o.maquina?.includes('Cortadora') || !o.maquina)
         );
 
         if (ordenesPendientes.length === 0) return;
@@ -174,8 +189,8 @@ const Corte = {
             <select class="form-select form-select-sm" id="selectOrdenPendiente">
                 <option value="">-- Seleccionar orden pendiente --</option>
                 ${ordenesPendientes.map(o => `
-                    <option value="${o.ot}" data-orden='${JSON.stringify(o)}'>
-                        ${o.ot} - ${o.cliente} - ${o.producto}
+                    <option value="${o.numeroOrden || o.ot}" data-orden='${JSON.stringify(o).replace(/'/g, "&#39;")}'>
+                        ${o.numeroOrden || o.ot} - ${o.cliente} - ${o.producto}
                     </option>
                 `).join('')}
             </select>
@@ -184,15 +199,23 @@ const Corte = {
 
         grupo.appendChild(selectorDiv);
 
-        document.getElementById('selectOrdenPendiente').addEventListener('change', (e) => {
-            if (e.target.value) {
-                const option = e.target.selectedOptions[0];
-                const orden = JSON.parse(option.dataset.orden);
-                this.ordenCargada = orden;
-                this.precargarCamposOrden(orden);
-                this.mostrarBannerOrdenCargada(orden);
-            }
-        });
+        // Event listener (elemento ya existe en DOM)
+        const selectElement = document.getElementById('selectOrdenPendiente');
+        if (selectElement) {
+            selectElement.addEventListener('change', (e) => {
+                if (e.target.value) {
+                    const option = e.target.selectedOptions[0];
+                    try {
+                        const orden = JSON.parse(option.dataset.orden.replace(/&#39;/g, "'"));
+                        this.ordenCargada = orden;
+                        this.precargarCamposOrden(orden);
+                        this.mostrarBannerOrdenCargada(orden);
+                    } catch (err) {
+                        console.warn('Error parseando orden seleccionada:', err);
+                    }
+                }
+            });
+        }
     },
 
     /**

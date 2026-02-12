@@ -369,12 +369,109 @@ const Ordenes = {
     },
 
     /**
+     * Valida las fechas de la orden
+     * @returns {object} - {valido: boolean, mensaje: string}
+     */
+    validarFechas: function() {
+        const fechaOrden = document.getElementById('fechaOrden')?.value;
+        const fechaInicio = document.getElementById('fechaInicio')?.value;
+        const fechaEntrega = document.getElementById('fechaEntrega')?.value;
+
+        if (!fechaOrden) {
+            return { valido: false, mensaje: 'La fecha de orden es requerida' };
+        }
+
+        if (fechaInicio && fechaOrden > fechaInicio) {
+            return { valido: false, mensaje: 'La fecha de inicio no puede ser anterior a la fecha de orden' };
+        }
+
+        if (fechaEntrega && fechaInicio && fechaInicio > fechaEntrega) {
+            return { valido: false, mensaje: 'La fecha de entrega no puede ser anterior a la fecha de inicio' };
+        }
+
+        if (fechaEntrega && fechaOrden > fechaEntrega) {
+            return { valido: false, mensaje: 'La fecha de entrega no puede ser anterior a la fecha de orden' };
+        }
+
+        return { valido: true };
+    },
+
+    /**
+     * Valida que el numero de orden sea unico
+     * @returns {object} - {valido: boolean, mensaje: string}
+     */
+    validarNumeroOrdenUnico: function() {
+        const numeroOrden = document.getElementById('numeroOrden')?.value;
+        const ordenId = document.getElementById('ordenId')?.value;
+
+        if (!numeroOrden) {
+            return { valido: false, mensaje: 'El numero de orden es requerido' };
+        }
+
+        // Verificar si ya existe una orden con este numero (excluyendo la actual si es edicion)
+        const ordenExistente = this.ordenes.find(o =>
+            o.numeroOrden === numeroOrden && o.id !== ordenId
+        );
+
+        if (ordenExistente) {
+            return { valido: false, mensaje: `Ya existe una orden con el numero ${numeroOrden}` };
+        }
+
+        return { valido: true };
+    },
+
+    /**
+     * Valida que pedidoKg sea mayor a 0
+     * @returns {object} - {valido: boolean, mensaje: string}
+     */
+    validarCantidad: function() {
+        const pedidoKg = parseFloat(document.getElementById('pedidoKg')?.value) || 0;
+
+        if (pedidoKg <= 0) {
+            return { valido: false, mensaje: 'La cantidad del pedido debe ser mayor a 0 Kg' };
+        }
+
+        return { valido: true };
+    },
+
+    /**
      * Guarda la orden de trabajo
      */
     guardarOrden: function() {
         const form = document.getElementById('formOrdenTrabajo');
         if (!form.checkValidity()) {
             form.reportValidity();
+            return;
+        }
+
+        // Validaciones adicionales
+        const validacionFechas = this.validarFechas();
+        if (!validacionFechas.valido) {
+            if (typeof Axones !== 'undefined') {
+                Axones.showError(validacionFechas.mensaje);
+            } else {
+                alert(validacionFechas.mensaje);
+            }
+            return;
+        }
+
+        const validacionNumero = this.validarNumeroOrdenUnico();
+        if (!validacionNumero.valido) {
+            if (typeof Axones !== 'undefined') {
+                Axones.showError(validacionNumero.mensaje);
+            } else {
+                alert(validacionNumero.mensaje);
+            }
+            return;
+        }
+
+        const validacionCantidad = this.validarCantidad();
+        if (!validacionCantidad.valido) {
+            if (typeof Axones !== 'undefined') {
+                Axones.showError(validacionCantidad.mensaje);
+            } else {
+                alert(validacionCantidad.mensaje);
+            }
             return;
         }
 

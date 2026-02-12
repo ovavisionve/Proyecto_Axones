@@ -63,6 +63,24 @@ const Inventario = {
         this.updateTotales();
         this.updateCounts();
         this.setFechaActualizacion();
+
+        // Verificar alertas pendientes y resolver las que ya tienen stock
+        this.verificarAlertasPendientes();
+    },
+
+    /**
+     * Verifica y resuelve alertas pendientes que ya tienen stock disponible
+     */
+    verificarAlertasPendientes: function() {
+        if (typeof InventarioService !== 'undefined') {
+            const alertasResueltas = InventarioService.verificarYResolverAlertasPendientes();
+            if (alertasResueltas > 0) {
+                console.log(`Inventario: ${alertasResueltas} alerta(s) resuelta(s) automaticamente`);
+                if (typeof Axones !== 'undefined') {
+                    Axones.showSuccess(`${alertasResueltas} alerta(s) de stock resuelta(s)`);
+                }
+            }
+        }
     },
 
     /**
@@ -464,7 +482,8 @@ const Inventario = {
     },
 
     /**
-     * Editar tinta
+     * Editar tinta (agregar o ajustar cantidad)
+     * Resuelve alertas automaticamente si se incrementa el stock
      */
     editarTinta: function(id) {
         const tinta = this.tintas.find(t => t.id === id);
@@ -473,7 +492,20 @@ const Inventario = {
         const nuevaCantidad = prompt(`Editar cantidad para ${tinta.nombre}\nCantidad actual: ${tinta.cantidad} ${tinta.unidad}\n\nNueva cantidad:`, tinta.cantidad);
 
         if (nuevaCantidad !== null) {
-            tinta.cantidad = parseFloat(nuevaCantidad) || 0;
+            const cantidadAnterior = tinta.cantidad;
+            const cantidadNueva = parseFloat(nuevaCantidad) || 0;
+
+            // Si se incremento la cantidad, usar InventarioService para agregar y resolver alertas
+            if (cantidadNueva > cantidadAnterior && typeof InventarioService !== 'undefined') {
+                const diferencia = cantidadNueva - cantidadAnterior;
+                InventarioService.agregarTinta({
+                    nombre: tinta.nombre,
+                    cantidad: diferencia,
+                    unidad: tinta.unidad
+                });
+            }
+
+            tinta.cantidad = cantidadNueva;
             this.saveTintas();
             this.renderTintas();
             this.updateCounts();
@@ -482,7 +514,8 @@ const Inventario = {
     },
 
     /**
-     * Editar adhesivo
+     * Editar adhesivo (agregar o ajustar cantidad)
+     * Resuelve alertas automaticamente si se incrementa el stock
      */
     editarAdhesivo: function(id) {
         const adhesivo = this.adhesivos.find(a => a.id === id);
@@ -491,7 +524,21 @@ const Inventario = {
         const nuevaCantidad = prompt(`Editar cantidad para ${adhesivo.nombre}\nCantidad actual: ${adhesivo.cantidad} ${adhesivo.unidad}\n\nNueva cantidad:`, adhesivo.cantidad);
 
         if (nuevaCantidad !== null) {
-            adhesivo.cantidad = parseFloat(nuevaCantidad) || 0;
+            const cantidadAnterior = adhesivo.cantidad;
+            const cantidadNueva = parseFloat(nuevaCantidad) || 0;
+
+            // Si se incremento la cantidad, usar InventarioService para agregar y resolver alertas
+            if (cantidadNueva > cantidadAnterior && typeof InventarioService !== 'undefined') {
+                const diferencia = cantidadNueva - cantidadAnterior;
+                InventarioService.agregarAdhesivo({
+                    tipo: adhesivo.tipo,
+                    nombre: adhesivo.nombre,
+                    cantidad: diferencia,
+                    unidad: adhesivo.unidad
+                });
+            }
+
+            adhesivo.cantidad = cantidadNueva;
             this.saveAdhesivos();
             this.renderAdhesivos();
             this.updateCounts();
@@ -727,6 +774,7 @@ const Inventario = {
 
     /**
      * Agrega un nuevo item al inventario
+     * Usa InventarioService para resolver alertas automaticamente
      */
     agregarItem: async function() {
         const form = document.getElementById('formAgregarItem');
@@ -745,7 +793,27 @@ const Inventario = {
             importado: document.getElementById('nuevoImportado').checked,
         };
 
-        this.items.push(nuevoItem);
+        // Usar InventarioService si esta disponible (resuelve alertas automaticamente)
+        if (typeof InventarioService !== 'undefined') {
+            const resultado = InventarioService.agregarMaterial(nuevoItem);
+            if (resultado.exito) {
+                console.log('Material agregado via InventarioService');
+            }
+        }
+
+        // Tambien agregar al array local para mantener sincronizado
+        const existente = this.items.find(i =>
+            i.material === nuevoItem.material &&
+            i.micras === nuevoItem.micras &&
+            i.ancho === nuevoItem.ancho
+        );
+
+        if (existente) {
+            existente.kg = (parseFloat(existente.kg) || 0) + nuevoItem.kg;
+        } else {
+            this.items.push(nuevoItem);
+        }
+
         this.saveInventario();
         this.filteredItems = [...this.items];
         this.renderInventario();
@@ -774,7 +842,19 @@ const Inventario = {
         bootstrap.Modal.getInstance(document.getElementById('modalAgregarItem')).hide();
         form.reset();
 
-        Axones.showSuccess('Item agregado al inventario');
+        // Mostrar mensaje indicando si se resolvieron alertas
+        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
+        const alertasResueltas = alertas.filter(a =>
+            a.estado === 'resuelta' &&
+            a.fechaResolucion &&
+            new Date(a.fechaResolucion) > new Date(Date.now() - 5000) // Resueltas en los ultimos 5 segundos
+        ).length;
+
+        if (alertasResueltas > 0) {
+            Axones.showSuccess(`Item agregado. ${alertasResueltas} alerta(s) de stock resuelta(s) automaticamente.`);
+        } else {
+            Axones.showSuccess('Item agregado al inventario');
+        }
     },
 
     /**
@@ -798,6 +878,7 @@ const Inventario = {
 
     /**
      * Usar material en una OT (descontar del inventario)
+     * Usa InventarioService para registrar movimiento y verificar stock bajo
      */
     usarMaterial: function(id) {
         const item = this.items.find(i => i.id === id);
@@ -812,12 +893,32 @@ const Inventario = {
 
         if (cantidad !== null) {
             const cantidadUsar = parseFloat(cantidad) || 0;
+            if (cantidadUsar <= 0) return;
+
             if (cantidadUsar > item.kg) {
                 Axones.showError('La cantidad excede el disponible');
                 return;
             }
 
-            item.kg -= cantidadUsar;
+            // Usar InventarioService si esta disponible
+            if (typeof InventarioService !== 'undefined') {
+                const resultado = InventarioService.descontarMaterial(cantidadUsar, {
+                    material: item.material,
+                    micras: item.micras,
+                    ancho: item.ancho,
+                    producto: item.producto
+                }, 'manual');
+
+                if (resultado.exito) {
+                    // Recargar inventario desde localStorage para mantener sincronizado
+                    this.items = InventarioService.getMateriales();
+                    this.filteredItems = [...this.items];
+                }
+            } else {
+                // Fallback sin servicio
+                item.kg -= cantidadUsar;
+            }
+
             this.saveInventario();
             this.renderInventario();
             this.updateTotales();

@@ -273,11 +273,271 @@ const InventarioService = {
             this.registrarMovimiento('material', 'entrada', item.kg, 'compra', item);
 
             console.log(`InventarioService: Agregados ${item.kg} Kg de ${item.material}`);
+
+            // Verificar y resolver alertas pendientes relacionadas con este material
+            this.resolverAlertasPorMaterial(item.material);
+
             return { exito: true };
         } catch (error) {
             console.error('Error agregando material:', error);
             return { exito: false, mensaje: error.message };
         }
+    },
+
+    /**
+     * Agrega tinta al inventario
+     * @param {object} tinta - Datos de la tinta {nombre, cantidad, unidad}
+     */
+    agregarTinta: function(tinta) {
+        try {
+            const tintas = this.getTintas();
+
+            const existente = tintas.find(t =>
+                t.nombre?.toLowerCase() === tinta.nombre?.toLowerCase() ||
+                t.codigo === tinta.codigo
+            );
+
+            if (existente) {
+                existente.cantidad = (parseFloat(existente.cantidad) || 0) + (parseFloat(tinta.cantidad) || 0);
+            } else {
+                tinta.id = tinta.id || 'TINTA' + Date.now();
+                tintas.push(tinta);
+            }
+
+            this.saveTintas(tintas);
+            this.registrarMovimiento('tinta', 'entrada', tinta.cantidad, 'compra', tinta);
+
+            console.log(`InventarioService: Agregados ${tinta.cantidad} ${tinta.unidad || 'Kg'} de tinta ${tinta.nombre}`);
+
+            // Resolver alertas de tinta
+            this.resolverAlertasPorTinta(tinta.nombre);
+
+            return { exito: true };
+        } catch (error) {
+            console.error('Error agregando tinta:', error);
+            return { exito: false, mensaje: error.message };
+        }
+    },
+
+    /**
+     * Agrega adhesivo/catalizador/acetato al inventario
+     * @param {object} item - Datos {tipo, nombre, cantidad, unidad}
+     */
+    agregarAdhesivo: function(item) {
+        try {
+            const adhesivos = this.getAdhesivos();
+
+            const existente = adhesivos.find(a => a.tipo === item.tipo);
+
+            if (existente) {
+                existente.cantidad = (parseFloat(existente.cantidad) || 0) + (parseFloat(item.cantidad) || 0);
+            } else {
+                item.id = item.id || 'ADH' + Date.now();
+                adhesivos.push(item);
+            }
+
+            this.saveAdhesivos(adhesivos);
+            this.registrarMovimiento('adhesivo', 'entrada', item.cantidad, 'compra', item);
+
+            console.log(`InventarioService: Agregados ${item.cantidad} ${item.unidad || 'Kg'} de ${item.tipo}`);
+
+            // Resolver alertas de adhesivos
+            this.resolverAlertasPorAdhesivo(item.tipo);
+
+            return { exito: true };
+        } catch (error) {
+            console.error('Error agregando adhesivo:', error);
+            return { exito: false, mensaje: error.message };
+        }
+    },
+
+    /**
+     * Resuelve alertas pendientes cuando se repone material
+     * @param {string} material - Nombre del material agregado
+     */
+    resolverAlertasPorMaterial: function(material) {
+        const alertas = JSON.parse(localStorage.getItem(this.STORAGE_KEYS.alertas) || '[]');
+        const inventario = this.getMateriales();
+        let alertasResueltas = 0;
+
+        // Calcular total disponible del material
+        const totalDisponible = inventario
+            .filter(i => i.material?.includes(material))
+            .reduce((sum, i) => sum + (parseFloat(i.kg) || 0), 0);
+
+        alertas.forEach(alerta => {
+            // Buscar alertas de stock bajo o inventario insuficiente relacionadas
+            if ((alerta.tipo === 'stock_bajo' || alerta.tipo === 'inventario_insuficiente_email' || alerta.tipo === 'stock_bajo_material') &&
+                alerta.estado === 'pendiente') {
+
+                const relacionada = alerta.datos?.material?.includes(material) ||
+                                   alerta.mensaje?.includes(material);
+
+                if (relacionada) {
+                    // Verificar si el stock ahora es suficiente
+                    const cantidadRequerida = alerta.datos?.cantidadRequerida || this.STOCK_MINIMO.material;
+
+                    if (totalDisponible >= cantidadRequerida) {
+                        alerta.estado = 'resuelta';
+                        alerta.fechaResolucion = new Date().toISOString();
+                        alerta.resolucion = `Inventario repuesto automaticamente. Stock actual: ${totalDisponible.toFixed(2)} Kg`;
+                        alertasResueltas++;
+                        console.log(`Alerta resuelta: ${alerta.mensaje}`);
+                    }
+                }
+            }
+        });
+
+        if (alertasResueltas > 0) {
+            localStorage.setItem(this.STORAGE_KEYS.alertas, JSON.stringify(alertas));
+            console.log(`InventarioService: ${alertasResueltas} alerta(s) resuelta(s) por reposicion de ${material}`);
+        }
+
+        return alertasResueltas;
+    },
+
+    /**
+     * Resuelve alertas pendientes cuando se repone tinta
+     * @param {string} nombreTinta - Nombre de la tinta agregada
+     */
+    resolverAlertasPorTinta: function(nombreTinta) {
+        const alertas = JSON.parse(localStorage.getItem(this.STORAGE_KEYS.alertas) || '[]');
+        const tintas = this.getTintas();
+        let alertasResueltas = 0;
+
+        // Buscar la tinta y su cantidad actual
+        const tinta = tintas.find(t =>
+            t.nombre?.toLowerCase().includes(nombreTinta.toLowerCase())
+        );
+        const cantidadActual = tinta ? (parseFloat(tinta.cantidad) || 0) : 0;
+
+        alertas.forEach(alerta => {
+            if (alerta.tipo === 'stock_bajo_tinta' && alerta.estado === 'pendiente') {
+                const relacionada = alerta.datos?.nombre?.toLowerCase().includes(nombreTinta.toLowerCase()) ||
+                                   alerta.mensaje?.toLowerCase().includes(nombreTinta.toLowerCase());
+
+                if (relacionada && cantidadActual >= this.STOCK_MINIMO.tinta) {
+                    alerta.estado = 'resuelta';
+                    alerta.fechaResolucion = new Date().toISOString();
+                    alerta.resolucion = `Tinta repuesta. Stock actual: ${cantidadActual.toFixed(2)} ${tinta?.unidad || 'Kg'}`;
+                    alertasResueltas++;
+                    console.log(`Alerta de tinta resuelta: ${alerta.mensaje}`);
+                }
+            }
+        });
+
+        if (alertasResueltas > 0) {
+            localStorage.setItem(this.STORAGE_KEYS.alertas, JSON.stringify(alertas));
+        }
+
+        return alertasResueltas;
+    },
+
+    /**
+     * Resuelve alertas pendientes cuando se repone adhesivo/catalizador/acetato
+     * @param {string} tipo - Tipo de adhesivo (adhesivo, catalizador, acetato)
+     */
+    resolverAlertasPorAdhesivo: function(tipo) {
+        const alertas = JSON.parse(localStorage.getItem(this.STORAGE_KEYS.alertas) || '[]');
+        const adhesivos = this.getAdhesivos();
+        let alertasResueltas = 0;
+
+        const item = adhesivos.find(a => a.tipo === tipo);
+        const cantidadActual = item ? (parseFloat(item.cantidad) || 0) : 0;
+        const minimo = this.STOCK_MINIMO[tipo] || 10;
+
+        alertas.forEach(alerta => {
+            if (alerta.tipo === 'stock_bajo_adhesivo' && alerta.estado === 'pendiente') {
+                const relacionada = alerta.datos?.tipo === tipo ||
+                                   alerta.mensaje?.toLowerCase().includes(tipo.toLowerCase());
+
+                if (relacionada && cantidadActual >= minimo) {
+                    alerta.estado = 'resuelta';
+                    alerta.fechaResolucion = new Date().toISOString();
+                    alerta.resolucion = `${tipo} repuesto. Stock actual: ${cantidadActual.toFixed(2)} ${item?.unidad || 'Kg'}`;
+                    alertasResueltas++;
+                    console.log(`Alerta de ${tipo} resuelta: ${alerta.mensaje}`);
+                }
+            }
+        });
+
+        if (alertasResueltas > 0) {
+            localStorage.setItem(this.STORAGE_KEYS.alertas, JSON.stringify(alertas));
+        }
+
+        return alertasResueltas;
+    },
+
+    /**
+     * Verifica todas las alertas pendientes contra el inventario actual
+     * Util para ejecutar periodicamente o al iniciar la aplicacion
+     */
+    verificarYResolverAlertasPendientes: function() {
+        const alertas = JSON.parse(localStorage.getItem(this.STORAGE_KEYS.alertas) || '[]');
+        const inventario = this.getMateriales();
+        const tintas = this.getTintas();
+        const adhesivos = this.getAdhesivos();
+        let alertasResueltas = 0;
+
+        alertas.forEach(alerta => {
+            if (alerta.estado !== 'pendiente') return;
+
+            let resuelta = false;
+
+            // Verificar alertas de material
+            if (alerta.tipo === 'stock_bajo' || alerta.tipo === 'inventario_insuficiente_email') {
+                const material = alerta.datos?.material;
+                if (material) {
+                    const totalDisponible = inventario
+                        .filter(i => i.material?.includes(material))
+                        .reduce((sum, i) => sum + (parseFloat(i.kg) || 0), 0);
+
+                    const cantidadRequerida = alerta.datos?.cantidadRequerida || this.STOCK_MINIMO.material;
+                    if (totalDisponible >= cantidadRequerida) {
+                        resuelta = true;
+                        alerta.resolucion = `Stock verificado: ${totalDisponible.toFixed(2)} Kg disponibles`;
+                    }
+                }
+            }
+
+            // Verificar alertas de tinta
+            if (alerta.tipo === 'stock_bajo_tinta') {
+                const nombreTinta = alerta.datos?.nombre;
+                if (nombreTinta) {
+                    const tinta = tintas.find(t => t.nombre?.includes(nombreTinta));
+                    if (tinta && (parseFloat(tinta.cantidad) || 0) >= this.STOCK_MINIMO.tinta) {
+                        resuelta = true;
+                        alerta.resolucion = `Tinta verificada: ${tinta.cantidad} ${tinta.unidad || 'Kg'} disponibles`;
+                    }
+                }
+            }
+
+            // Verificar alertas de adhesivos
+            if (alerta.tipo === 'stock_bajo_adhesivo') {
+                const tipo = alerta.datos?.tipo;
+                if (tipo) {
+                    const item = adhesivos.find(a => a.tipo === tipo);
+                    const minimo = this.STOCK_MINIMO[tipo] || 10;
+                    if (item && (parseFloat(item.cantidad) || 0) >= minimo) {
+                        resuelta = true;
+                        alerta.resolucion = `${tipo} verificado: ${item.cantidad} ${item.unidad || 'Kg'} disponibles`;
+                    }
+                }
+            }
+
+            if (resuelta) {
+                alerta.estado = 'resuelta';
+                alerta.fechaResolucion = new Date().toISOString();
+                alertasResueltas++;
+            }
+        });
+
+        if (alertasResueltas > 0) {
+            localStorage.setItem(this.STORAGE_KEYS.alertas, JSON.stringify(alertas));
+            console.log(`InventarioService: ${alertasResueltas} alerta(s) resuelta(s) en verificacion global`);
+        }
+
+        return alertasResueltas;
     },
 
     /**

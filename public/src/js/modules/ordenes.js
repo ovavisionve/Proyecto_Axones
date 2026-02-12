@@ -292,29 +292,48 @@ const Ordenes = {
 
     /**
      * Verifica inventario disponible para el material seleccionado
+     * Usa el servicio centralizado de inventario si esta disponible
      */
     verificarInventarioMaterial: function() {
         const tipoMaterial = document.getElementById('tipoMaterial')?.value;
         const micras = parseFloat(document.getElementById('micrasMaterial')?.value) || 0;
         const ancho = parseFloat(document.getElementById('anchoMaterial')?.value) || 0;
         const kgDisponible = document.getElementById('kgDisponible');
+        const pedidoKg = parseFloat(document.getElementById('pedidoKg')?.value) || 0;
 
         if (!tipoMaterial || !kgDisponible) return;
 
-        // Buscar en inventario
-        const disponible = this.inventario.filter(item => {
-            const matchMaterial = item.material?.includes(tipoMaterial);
-            const matchMicras = !micras || item.micras === micras;
-            const matchAncho = !ancho || item.ancho === ancho;
-            return matchMaterial && matchMicras && matchAncho;
-        });
+        let totalKg = 0;
 
-        const totalKg = disponible.reduce((sum, item) => sum + (item.kg || 0), 0);
+        // Usar servicio centralizado si esta disponible
+        if (typeof InventarioService !== 'undefined') {
+            const resultado = InventarioService.verificarDisponibilidad({
+                tipoMaterial,
+                micrasMaterial: micras,
+                anchoMaterial: ancho,
+                pedidoKg
+            });
+            totalKg = resultado.disponible;
+
+            // Mostrar mensaje informativo si hay problemas de stock
+            if (!resultado.suficiente && pedidoKg > 0) {
+                this.mostrarAlertaInventario(resultado.mensaje, resultado.faltante);
+            }
+        } else {
+            // Fallback: buscar en inventario local
+            const disponible = this.inventario.filter(item => {
+                const matchMaterial = item.material?.includes(tipoMaterial);
+                const matchMicras = !micras || item.micras === micras;
+                const matchAncho = !ancho || item.ancho === ancho;
+                return matchMaterial && matchMicras && matchAncho;
+            });
+            totalKg = disponible.reduce((sum, item) => sum + (item.kg || 0), 0);
+        }
+
         kgDisponible.value = totalKg.toFixed(2);
 
         // Cambiar color segun disponibilidad
-        const pedidoKg = parseFloat(document.getElementById('pedidoKg')?.value) || 0;
-        if (totalKg >= pedidoKg) {
+        if (totalKg >= pedidoKg && pedidoKg > 0) {
             kgDisponible.classList.remove('bg-danger', 'bg-warning', 'text-white');
             kgDisponible.classList.add('bg-success', 'text-white');
         } else if (totalKg > 0) {
@@ -324,6 +343,29 @@ const Ordenes = {
             kgDisponible.classList.remove('bg-success', 'bg-warning');
             kgDisponible.classList.add('bg-danger', 'text-white');
         }
+    },
+
+    /**
+     * Muestra alerta de inventario insuficiente
+     */
+    mostrarAlertaInventario: function(mensaje, faltante) {
+        // Eliminar alerta anterior si existe
+        const alertaAnterior = document.getElementById('alertaInventarioOrden');
+        if (alertaAnterior) alertaAnterior.remove();
+
+        const kgDisponible = document.getElementById('kgDisponible');
+        if (!kgDisponible) return;
+
+        const alerta = document.createElement('div');
+        alerta.id = 'alertaInventarioOrden';
+        alerta.className = 'alert alert-warning py-1 mt-1 small';
+        alerta.innerHTML = `
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            <strong>Atencion:</strong> ${mensaje}
+            <br><small>Faltan aproximadamente ${faltante.toFixed(2)} Kg de material para esta orden.</small>
+        `;
+
+        kgDisponible.closest('.col-md-3, .col-md-4, .mb-3')?.appendChild(alerta);
     },
 
     /**

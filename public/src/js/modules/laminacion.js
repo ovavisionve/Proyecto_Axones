@@ -652,53 +652,123 @@ const Laminacion = {
     },
 
     /**
-     * Descuenta adhesivo, catalizador y acetato del inventario
+     * Descuenta adhesivo, catalizador, acetato y material del inventario
      */
     descontarInventarioLaminacion: function(datos) {
         try {
+            // 1. Descontar adhesivos/catalizador/acetato
             const adhesivos = JSON.parse(localStorage.getItem('axones_adhesivos_inventario') || '[]');
-            let actualizado = false;
+            let adhesivosActualizados = false;
 
-            // Descontar adhesivo
-            if (datos.adhesivo && datos.adhesivo > 0) {
+            // Descontar adhesivo (usar consumoAdhesivo del formulario)
+            const consumoAdhesivo = datos.consumoAdhesivo || 0;
+            if (consumoAdhesivo > 0) {
                 const adhesivoItem = adhesivos.find(a => a.tipo === 'adhesivo');
                 if (adhesivoItem) {
-                    adhesivoItem.cantidad = Math.max(0, (adhesivoItem.cantidad || 0) - datos.adhesivo);
-                    actualizado = true;
-                    console.log(`Descontado ${datos.adhesivo} Kg de adhesivo`);
+                    adhesivoItem.cantidad = Math.max(0, (adhesivoItem.cantidad || 0) - consumoAdhesivo);
+                    adhesivosActualizados = true;
+                    console.log(`Inventario: Descontados ${consumoAdhesivo} Kg de adhesivo (Quedan: ${adhesivoItem.cantidad} Kg)`);
                 }
             }
 
-            // Descontar catalizador
-            if (datos.catalizador && datos.catalizador > 0) {
+            // Descontar catalizador (usar consumoCatalizador del formulario)
+            const consumoCatalizador = datos.consumoCatalizador || 0;
+            if (consumoCatalizador > 0) {
                 const catalizadorItem = adhesivos.find(a => a.tipo === 'catalizador');
                 if (catalizadorItem) {
-                    catalizadorItem.cantidad = Math.max(0, (catalizadorItem.cantidad || 0) - datos.catalizador);
-                    actualizado = true;
-                    console.log(`Descontado ${datos.catalizador} Kg de catalizador`);
+                    catalizadorItem.cantidad = Math.max(0, (catalizadorItem.cantidad || 0) - consumoCatalizador);
+                    adhesivosActualizados = true;
+                    console.log(`Inventario: Descontados ${consumoCatalizador} Kg de catalizador (Quedan: ${catalizadorItem.cantidad} Kg)`);
                 }
             }
 
-            // Descontar acetato
-            if (datos.acetato && datos.acetato > 0) {
+            // Descontar acetato (usar consumoAcetato del formulario)
+            const consumoAcetato = datos.consumoAcetato || 0;
+            if (consumoAcetato > 0) {
                 const acetatoItem = adhesivos.find(a => a.tipo === 'acetato');
                 if (acetatoItem) {
-                    acetatoItem.cantidad = Math.max(0, (acetatoItem.cantidad || 0) - datos.acetato);
-                    actualizado = true;
-                    console.log(`Descontado ${datos.acetato} Lt de acetato`);
+                    acetatoItem.cantidad = Math.max(0, (acetatoItem.cantidad || 0) - consumoAcetato);
+                    adhesivosActualizados = true;
+                    console.log(`Inventario: Descontados ${consumoAcetato} Lt de acetato (Quedan: ${acetatoItem.cantidad} Lt)`);
                 }
             }
 
-            if (actualizado) {
+            if (adhesivosActualizados) {
                 localStorage.setItem('axones_adhesivos_inventario', JSON.stringify(adhesivos));
-                console.log('Inventario de adhesivos actualizado');
-
-                // Verificar stock bajo
+                console.log('Inventario de adhesivos actualizado despues de laminacion');
                 this.verificarStockBajoAdhesivos(adhesivos);
+            }
+
+            // 2. Descontar material de sustrato (bobinas de entrada)
+            const inventario = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
+            const cantidadUsada = parseFloat(datos.totalEntrada) || 0;
+
+            if (cantidadUsada > 0) {
+                let descontado = false;
+                let restante = cantidadUsada;
+
+                for (let i = 0; i < inventario.length && restante > 0; i++) {
+                    const item = inventario[i];
+
+                    // Intentar coincidir por producto o cliente
+                    const coincideProducto = item.producto &&
+                        (item.producto.toLowerCase().includes(datos.producto?.toLowerCase() || '') ||
+                         datos.producto?.toLowerCase().includes(item.producto.toLowerCase()));
+
+                    if (coincideProducto || !item.producto) {
+                        const disponible = parseFloat(item.kg) || 0;
+                        if (disponible > 0) {
+                            const aDescontar = Math.min(disponible, restante);
+                            item.kg = disponible - aDescontar;
+                            restante -= aDescontar;
+                            descontado = true;
+                            console.log(`Inventario: Descontados ${aDescontar} Kg de ${item.material} (Quedan: ${item.kg} Kg)`);
+                        }
+                    }
+                }
+
+                if (descontado) {
+                    localStorage.setItem('axones_inventario', JSON.stringify(inventario));
+                    console.log('Inventario de materiales actualizado despues de laminacion');
+                    this.verificarStockBajoMaterial(inventario);
+                }
             }
         } catch (error) {
             console.warn('Error al descontar inventario de laminacion:', error);
         }
+    },
+
+    /**
+     * Verifica si hay materiales con stock bajo
+     */
+    verificarStockBajoMaterial: function(inventario) {
+        const STOCK_MINIMO = 200; // Kg
+        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
+
+        inventario.forEach(item => {
+            if ((item.kg || 0) < STOCK_MINIMO && (item.kg || 0) > 0) {
+                const alertaExistente = alertas.find(a =>
+                    a.tipo === 'stock_bajo' &&
+                    a.datos?.material === item.material &&
+                    new Date(a.fecha) > new Date(Date.now() - 24 * 60 * 60 * 1000)
+                );
+
+                if (!alertaExistente) {
+                    alertas.unshift({
+                        id: Date.now(),
+                        tipo: 'stock_bajo',
+                        nivel: item.kg < 50 ? 'danger' : 'warning',
+                        mensaje: `Stock bajo en laminacion: ${item.material} ${item.micras || ''}µ - Quedan ${(item.kg || 0).toFixed(1)} Kg`,
+                        fecha: new Date().toISOString(),
+                        estado: 'pendiente',
+                        datos: { material: item.material, cantidad: item.kg }
+                    });
+                    console.log('Alerta de stock bajo generada para', item.material);
+                }
+            }
+        });
+
+        localStorage.setItem('axones_alertas', JSON.stringify(alertas));
     },
 
     /**

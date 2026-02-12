@@ -653,24 +653,68 @@ const Corte = {
 
             for (let i = 0; i < inventario.length && restante > 0; i++) {
                 const item = inventario[i];
-                const disponible = parseFloat(item.kg) || 0;
 
-                if (disponible > 0) {
-                    const aDescontar = Math.min(disponible, restante);
-                    item.kg = disponible - aDescontar;
-                    restante -= aDescontar;
-                    descontado = true;
-                    console.log(`Corte: Descontados ${aDescontar} Kg de ${item.material}`);
+                // Intentar coincidir por producto o cliente
+                const coincideProducto = item.producto &&
+                    (item.producto.toLowerCase().includes(datos.producto?.toLowerCase() || '') ||
+                     datos.producto?.toLowerCase().includes(item.producto.toLowerCase()));
+
+                if (coincideProducto || !item.producto) {
+                    const disponible = parseFloat(item.kg) || 0;
+                    if (disponible > 0) {
+                        const aDescontar = Math.min(disponible, restante);
+                        item.kg = disponible - aDescontar;
+                        restante -= aDescontar;
+                        descontado = true;
+                        console.log(`Inventario (Corte): Descontados ${aDescontar} Kg de ${item.material} (Quedan: ${item.kg} Kg)`);
+                    }
                 }
             }
 
             if (descontado) {
                 localStorage.setItem('axones_inventario', JSON.stringify(inventario));
                 console.log('Inventario actualizado despues de corte');
+
+                // Verificar stock bajo y generar alertas
+                this.verificarStockBajo(inventario);
             }
         } catch (error) {
             console.warn('Error al descontar inventario en corte:', error);
         }
+    },
+
+    /**
+     * Verifica si hay materiales con stock bajo y genera alertas
+     */
+    verificarStockBajo: function(inventario) {
+        const STOCK_MINIMO = 200; // Kg
+        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
+
+        inventario.forEach(item => {
+            if ((item.kg || 0) < STOCK_MINIMO && (item.kg || 0) > 0) {
+                // Verificar si ya existe una alerta reciente para este material
+                const alertaExistente = alertas.find(a =>
+                    a.tipo === 'stock_bajo' &&
+                    a.datos?.material === item.material &&
+                    new Date(a.fecha) > new Date(Date.now() - 24 * 60 * 60 * 1000) // Ultimas 24 horas
+                );
+
+                if (!alertaExistente) {
+                    alertas.unshift({
+                        id: Date.now(),
+                        tipo: 'stock_bajo',
+                        nivel: item.kg < 50 ? 'danger' : 'warning',
+                        mensaje: `Stock bajo en corte: ${item.material} ${item.micras || ''}µ - Quedan ${(item.kg || 0).toFixed(1)} Kg`,
+                        fecha: new Date().toISOString(),
+                        estado: 'pendiente',
+                        datos: { material: item.material, cantidad: item.kg }
+                    });
+                    console.log('Alerta de stock bajo generada para', item.material);
+                }
+            }
+        });
+
+        localStorage.setItem('axones_alertas', JSON.stringify(alertas));
     },
 
     /**

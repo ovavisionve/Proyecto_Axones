@@ -4,6 +4,9 @@
  */
 
 const Inventario = {
+    // Version de datos - incrementar cuando se actualicen los datos base
+    DATA_VERSION: '2026-02-26',
+
     // Datos del inventario de materiales (sustratos)
     items: [],
     filteredItems: [],
@@ -54,6 +57,9 @@ const Inventario = {
     init: async function() {
         console.log('Inicializando modulo Inventario General');
 
+        // Verificar y migrar datos si hay nueva version
+        this.verificarMigracionDatos();
+
         await this.loadInventario();
         await this.loadTintas();
         await this.loadAdhesivos();
@@ -68,6 +74,36 @@ const Inventario = {
 
         // Verificar alertas pendientes y resolver las que ya tienen stock
         this.verificarAlertasPendientes();
+    },
+
+    /**
+     * Verifica si hay una nueva version de datos y migra si es necesario
+     * Esto permite actualizar los datos cuando se cambia el codigo
+     */
+    verificarMigracionDatos: function() {
+        const versionKey = CONFIG.CACHE.PREFIJO + 'inventario_version';
+        const versionActual = localStorage.getItem(versionKey);
+
+        if (versionActual !== this.DATA_VERSION) {
+            console.log(`Inventario: Migrando datos de version ${versionActual || 'antigua'} a ${this.DATA_VERSION}`);
+
+            // Limpiar datos antiguos para forzar recarga
+            localStorage.removeItem(CONFIG.CACHE.PREFIJO + 'inventario');
+            localStorage.removeItem(CONFIG.CACHE.PREFIJO + 'tintas_inventario');
+            localStorage.removeItem(CONFIG.CACHE.PREFIJO + 'adhesivos_inventario');
+
+            // Guardar nueva version
+            localStorage.setItem(versionKey, this.DATA_VERSION);
+
+            console.log('Inventario: Datos migrados. Se cargaran los nuevos datos del Excel.');
+
+            // Mostrar notificacion al usuario
+            setTimeout(() => {
+                if (typeof Axones !== 'undefined') {
+                    Axones.showSuccess('Inventario actualizado con datos del Excel 26-02-2026');
+                }
+            }, 1000);
+        }
     },
 
     /**

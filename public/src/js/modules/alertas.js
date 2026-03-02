@@ -5,6 +5,9 @@
  */
 
 const AlertasModule = {
+    // Version de alertas - incrementar para forzar regeneracion
+    ALERTAS_VERSION: '2026-03-02',
+
     // Configuracion
     config: {
         alertasPorPagina: 10,
@@ -19,10 +22,30 @@ const AlertasModule = {
     // Inicializar modulo
     init() {
         console.log('Inicializando modulo de Alertas...');
+
+        // Verificar si necesita regenerar alertas
+        this.verificarVersionAlertas();
+
         this.cargarMaquinas();
         this.cargarAlertas();
         this.configurarEventos();
         this.generarAlertasDemo();
+    },
+
+    // Verifica si hay una nueva version y limpia alertas viejas
+    verificarVersionAlertas() {
+        const versionKey = 'axones_alertas_version';
+        const versionActual = localStorage.getItem(versionKey);
+
+        if (versionActual !== this.ALERTAS_VERSION) {
+            console.log(`AlertasModule: Migrando alertas de version ${versionActual || 'antigua'} a ${this.ALERTAS_VERSION}`);
+
+            // Limpiar alertas viejas de demo para regenerar con datos reales
+            localStorage.removeItem('axones_alertas');
+            localStorage.setItem(versionKey, this.ALERTAS_VERSION);
+
+            console.log('AlertasModule: Alertas limpiadas. Se generaran alertas del inventario real.');
+        }
     },
 
     // Configurar eventos
@@ -471,8 +494,25 @@ const AlertasModule = {
         return nuevaAlerta;
     },
 
-    // Generar alertas de demo
+    // Generar alertas de demo (solo si no hay inventario real)
     generarAlertasDemo() {
+        // Verificar si hay inventario real cargado
+        const tieneInventario = localStorage.getItem('axones_inventario');
+        const inventario = tieneInventario ? JSON.parse(tieneInventario) : [];
+
+        // Si hay inventario real con mas de 10 items, no generar demo
+        // El escaneo de inventario generara las alertas reales
+        if (inventario.length > 10) {
+            console.log('AlertasModule: Inventario real detectado, saltando alertas demo');
+            // Escanear inventario y generar alertas reales si no hay alertas
+            const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
+            if (alertas.length === 0 && typeof InventarioService !== 'undefined') {
+                InventarioService.escanearInventarioYGenerarAlertas();
+                this.cargarAlertas();
+            }
+            return;
+        }
+
         const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
 
         // Solo generar si no hay alertas
@@ -558,6 +598,10 @@ const AlertasModule = {
             'maquina_detenida': 'bi-cpu',
             'tiempo_muerto_alto': 'bi-clock-history',
             'stock_bajo': 'bi-box',
+            'stock_bajo_material': 'bi-box-seam',
+            'stock_bajo_tinta': 'bi-paint-bucket',
+            'stock_bajo_adhesivo': 'bi-droplet',
+            'inventario_insuficiente': 'bi-exclamation-diamond',
         };
         return iconos[tipo] || 'bi-bell';
     },
@@ -570,6 +614,10 @@ const AlertasModule = {
             'maquina_detenida': 'Maquina Detenida',
             'tiempo_muerto_alto': 'Tiempo Muerto Alto',
             'stock_bajo': 'Stock Bajo',
+            'stock_bajo_material': 'Stock Bajo Material',
+            'stock_bajo_tinta': 'Stock Bajo Tinta',
+            'stock_bajo_adhesivo': 'Stock Bajo Quimico',
+            'inventario_insuficiente': 'Inventario Insuficiente',
         };
         return textos[tipo] || 'Alerta';
     },

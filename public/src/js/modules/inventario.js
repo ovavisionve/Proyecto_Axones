@@ -74,6 +74,21 @@ const Inventario = {
 
         // Verificar alertas pendientes y resolver las que ya tienen stock
         this.verificarAlertasPendientes();
+
+        // Escanear inventario y generar alertas basadas en stock real
+        this.generarAlertasDeInventarioReal();
+    },
+
+    /**
+     * Genera alertas automaticas basadas en el inventario real
+     */
+    generarAlertasDeInventarioReal: function() {
+        if (typeof InventarioService !== 'undefined') {
+            const resultado = InventarioService.escanearInventarioYGenerarAlertas();
+            if (resultado.totalAlertas > 0) {
+                console.log(`Inventario: ${resultado.totalAlertas} alertas generadas (${resultado.criticas} criticas, ${resultado.altas} altas, ${resultado.advertencias} advertencias)`);
+            }
+        }
     },
 
     /**

@@ -731,6 +731,178 @@ const InventarioService = {
                 bajoStock: adhesivos.filter(a => (a.cantidad || 0) < (this.STOCK_MINIMO[a.tipo] || 10) && (a.cantidad || 0) > 0).length
             }
         };
+    },
+
+    /**
+     * Escanea todo el inventario y genera alertas basadas en el stock real
+     * Limpia alertas de demo y crea alertas reales
+     */
+    escanearInventarioYGenerarAlertas: function() {
+        console.log('InventarioService: Escaneando inventario para generar alertas...');
+
+        const materiales = this.getMateriales();
+        const tintas = this.getTintas();
+        const adhesivos = this.getAdhesivos();
+
+        // Obtener alertas existentes y filtrar las de demo/viejas de stock
+        let alertas = JSON.parse(localStorage.getItem(this.STORAGE_KEYS.alertas) || '[]');
+
+        // Limpiar alertas de stock (demo y reales viejas) para regenerar
+        alertas = alertas.filter(a =>
+            !['stock_bajo', 'stock_bajo_tinta', 'stock_bajo_adhesivo', 'stock_bajo_material'].includes(a.tipo)
+        );
+
+        const nuevasAlertas = [];
+
+        // Escanear materiales (sustratos)
+        materiales.forEach(item => {
+            const kg = parseFloat(item.kg) || 0;
+
+            // Alerta si stock bajo (menos de 200 Kg)
+            if (kg < this.STOCK_MINIMO.material && kg > 0) {
+                const nivel = kg < 50 ? 'critical' : (kg < 100 ? 'danger' : 'warning');
+                nuevasAlertas.push({
+                    id: Date.now() + Math.random() * 1000,
+                    tipo: 'stock_bajo_material',
+                    nivel: nivel,
+                    mensaje: `Stock bajo: ${item.material} ${item.micras || ''}μ - Solo ${kg.toFixed(2)} Kg disponibles`,
+                    fecha: new Date().toISOString(),
+                    estado: 'pendiente',
+                    maquina: null,
+                    ot: null,
+                    datos: {
+                        material: item.material,
+                        micras: item.micras,
+                        ancho: item.ancho,
+                        cantidad: kg,
+                        minimo: this.STOCK_MINIMO.material
+                    }
+                });
+            }
+
+            // Alerta CRITICA si agotado (0 Kg)
+            if (kg === 0) {
+                nuevasAlertas.push({
+                    id: Date.now() + Math.random() * 1000,
+                    tipo: 'stock_bajo_material',
+                    nivel: 'critical',
+                    mensaje: `AGOTADO: ${item.material} ${item.micras || ''}μ - Sin existencias`,
+                    fecha: new Date().toISOString(),
+                    estado: 'pendiente',
+                    maquina: null,
+                    ot: null,
+                    datos: {
+                        material: item.material,
+                        micras: item.micras,
+                        cantidad: 0,
+                        agotado: true
+                    }
+                });
+            }
+        });
+
+        // Escanear tintas
+        tintas.forEach(tinta => {
+            const cantidad = parseFloat(tinta.cantidad) || 0;
+
+            if (cantidad < this.STOCK_MINIMO.tinta && cantidad > 0) {
+                const nivel = cantidad < 1 ? 'critical' : (cantidad < 3 ? 'danger' : 'warning');
+                nuevasAlertas.push({
+                    id: Date.now() + Math.random() * 1000,
+                    tipo: 'stock_bajo_tinta',
+                    nivel: nivel,
+                    mensaje: `Stock bajo tinta: ${tinta.nombre} - Solo ${cantidad.toFixed(2)} Kg`,
+                    fecha: new Date().toISOString(),
+                    estado: 'pendiente',
+                    maquina: null,
+                    ot: null,
+                    datos: {
+                        nombre: tinta.nombre,
+                        tipo: tinta.tipo,
+                        cantidad: cantidad,
+                        minimo: this.STOCK_MINIMO.tinta
+                    }
+                });
+            }
+
+            if (cantidad === 0) {
+                nuevasAlertas.push({
+                    id: Date.now() + Math.random() * 1000,
+                    tipo: 'stock_bajo_tinta',
+                    nivel: 'critical',
+                    mensaje: `AGOTADO: Tinta ${tinta.nombre} - Sin existencias`,
+                    fecha: new Date().toISOString(),
+                    estado: 'pendiente',
+                    maquina: null,
+                    ot: null,
+                    datos: {
+                        nombre: tinta.nombre,
+                        cantidad: 0,
+                        agotado: true
+                    }
+                });
+            }
+        });
+
+        // Escanear adhesivos/quimicos
+        adhesivos.forEach(item => {
+            const cantidad = parseFloat(item.cantidad) || 0;
+            const minimo = this.STOCK_MINIMO[item.tipo] || this.STOCK_MINIMO.adhesivo;
+
+            if (cantidad < minimo && cantidad > 0) {
+                const nivel = cantidad < minimo / 4 ? 'critical' : (cantidad < minimo / 2 ? 'danger' : 'warning');
+                nuevasAlertas.push({
+                    id: Date.now() + Math.random() * 1000,
+                    tipo: 'stock_bajo_adhesivo',
+                    nivel: nivel,
+                    mensaje: `Stock bajo: ${item.nombre} (${item.tipo}) - Solo ${cantidad.toFixed(2)} ${item.unidad || 'Kg'}`,
+                    fecha: new Date().toISOString(),
+                    estado: 'pendiente',
+                    maquina: null,
+                    ot: null,
+                    datos: {
+                        nombre: item.nombre,
+                        tipo: item.tipo,
+                        cantidad: cantidad,
+                        minimo: minimo
+                    }
+                });
+            }
+
+            if (cantidad === 0) {
+                nuevasAlertas.push({
+                    id: Date.now() + Math.random() * 1000,
+                    tipo: 'stock_bajo_adhesivo',
+                    nivel: 'critical',
+                    mensaje: `AGOTADO: ${item.nombre} (${item.tipo}) - Sin existencias`,
+                    fecha: new Date().toISOString(),
+                    estado: 'pendiente',
+                    maquina: null,
+                    ot: null,
+                    datos: {
+                        nombre: item.nombre,
+                        tipo: item.tipo,
+                        cantidad: 0,
+                        agotado: true
+                    }
+                });
+            }
+        });
+
+        // Agregar nuevas alertas al inicio
+        alertas = [...nuevasAlertas, ...alertas];
+
+        // Guardar
+        localStorage.setItem(this.STORAGE_KEYS.alertas, JSON.stringify(alertas));
+
+        console.log(`InventarioService: Generadas ${nuevasAlertas.length} alertas de inventario real`);
+
+        return {
+            totalAlertas: nuevasAlertas.length,
+            criticas: nuevasAlertas.filter(a => a.nivel === 'critical').length,
+            altas: nuevasAlertas.filter(a => a.nivel === 'danger').length,
+            advertencias: nuevasAlertas.filter(a => a.nivel === 'warning').length
+        };
     }
 };
 

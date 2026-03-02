@@ -21,7 +21,7 @@ const Inventario = {
 
     // Tipos de materiales
     TIPOS_MATERIAL: [
-        'BOPP',
+        'BOPP NORMAL',
         'BOPP MATE',
         'BOPP PASTA',
         'CAST',
@@ -35,13 +35,15 @@ const Inventario = {
     TIPOS_TINTA: [
         { id: 'laminacion', nombre: 'Tinta Laminacion' },
         { id: 'superficie', nombre: 'Tinta Superficie' },
+        { id: 'prueba_laminacion', nombre: 'Prueba Laminacion' },
         { id: 'solvente', nombre: 'Solvente' }
     ],
 
-    // Tipos de adhesivos
+    // Tipos de quimicos/adhesivos
     TIPOS_ADHESIVO: [
         { id: 'adhesivo', nombre: 'Adhesivo' },
         { id: 'catalizador', nombre: 'Catalizador' },
+        { id: 'solvente', nombre: 'Solvente' },
         { id: 'acetato', nombre: 'Acetato' },
         { id: 'otro', nombre: 'Otro' }
     ],
@@ -122,70 +124,183 @@ const Inventario = {
     },
 
     /**
-     * Datos de ejemplo basados en el inventario de Axones
+     * Datos reales del inventario de Axones (basado en Excel 26-02-2026)
      */
     getDatosEjemplo: function() {
         return [
-            // BOPP
-            { id: 'INV001', material: 'BOPP', micras: 15, ancho: 700, kg: 73.00, producto: 'CHARMY', importado: false },
-            { id: 'INV002', material: 'BOPP', micras: 17, ancho: 620, kg: 283.20, producto: 'TOM 80', importado: false },
-            { id: 'INV003', material: 'BOPP', micras: 17, ancho: 710, kg: 46.00, producto: 'TOM 28', importado: false },
-            { id: 'INV004', material: 'BOPP', micras: 17, ancho: 610, kg: 2215.02, producto: 'HASHI - CHUNKY', importado: false },
-            { id: 'INV005', material: 'BOPP', micras: 17, ancho: 630, kg: 690.98, producto: 'NATY', importado: false },
-            { id: 'INV006', material: 'BOPP', micras: 20, ancho: 740, kg: 0, producto: 'CALI DONA', importado: false },
-            { id: 'INV007', material: 'BOPP', micras: 25, ancho: 560, kg: 6256.43, producto: 'GRANOS', importado: true },
-            { id: 'INV008', material: 'BOPP', micras: 25, ancho: 680, kg: 1150.40, producto: 'AVENAS / CARAOTAS ALVARIGUA', importado: false },
-            { id: 'INV009', material: 'BOPP', micras: 25, ancho: 680, kg: 1860.50, producto: '', importado: true },
-            { id: 'INV010', material: 'BOPP', micras: 30, ancho: 740, kg: 4596.30, producto: 'MICAELA', importado: true },
-            { id: 'INV011', material: 'BOPP', micras: 35, ancho: 700, kg: 4206.36, producto: 'MASANTON', importado: true },
-            { id: 'INV012', material: 'BOPP', micras: 40, ancho: 1000, kg: 556.00, producto: '', importado: false },
+            // BOPP NORMAL
+            { id: 'INV001', material: 'BOPP NORMAL', micras: 15, ancho: 700, kg: 73.0, producto: 'CHARMY', importado: false },
+            { id: 'INV003', material: 'BOPP NORMAL', micras: 17, ancho: 620, kg: 283.2, producto: 'TOM 80', importado: false },
+            { id: 'INV005', material: 'BOPP NORMAL', micras: 17, ancho: 710, kg: 46.0, producto: 'TOM 28', importado: false },
+            { id: 'INV007', material: 'BOPP NORMAL', micras: 20, ancho: 610, kg: 2215.02, producto: 'HASHI - CHUNCHY', importado: false },
+            { id: 'INV009', material: 'BOPP NORMAL', micras: 20, ancho: 630, kg: 0, producto: 'NATY', importado: false },
+            { id: 'INV011', material: 'BOPP NORMAL', micras: 20, ancho: 740, kg: 0, producto: 'CALI DONA', importado: false },
+            { id: 'INV013', material: 'BOPP NORMAL', micras: 20, ancho: 780, kg: 0, producto: 'CALI POLET - OSTIS', importado: false },
+            { id: 'INV015', material: 'BOPP NORMAL', micras: 20, ancho: 800, kg: 0, producto: 'YICITOS', importado: false },
+            { id: 'INV017', material: 'BOPP NORMAL', micras: 25, ancho: 460, kg: 0, producto: 'LECHE', importado: false },
+            { id: 'INV019', material: 'BOPP NORMAL', micras: 25, ancho: 490, kg: 538.1, producto: '', importado: false },
+            { id: 'INV021', material: 'BOPP NORMAL', micras: 25, ancho: 560, kg: 9648.67, producto: 'GRANOS', importado: true },
+            { id: 'INV023', material: 'BOPP NORMAL', micras: 25, ancho: 580, kg: 0, producto: 'GRANOS', importado: false },
+            { id: 'INV025', material: 'BOPP NORMAL', micras: 25, ancho: 620, kg: 0, producto: 'GISELA LARGA', importado: false },
+            { id: 'INV027', material: 'BOPP NORMAL', micras: 25, ancho: 635, kg: 134.4, producto: 'GELATINA', importado: false },
+            { id: 'INV029', material: 'BOPP NORMAL', micras: 25, ancho: 640, kg: 379.7, producto: '', importado: false },
+            { id: 'INV030', material: 'BOPP NORMAL', micras: 25, ancho: 670, kg: 273.4, producto: '', importado: false },
+            { id: 'INV032', material: 'BOPP NORMAL', micras: 25, ancho: 680, kg: 858.0, producto: 'AVENAS / CARAOTAS ALVARIGUA', importado: false },
+            { id: 'INV034', material: 'BOPP NORMAL', micras: 25, ancho: 680, kg: 2843.42, producto: '', importado: true },
+            { id: 'INV036', material: 'BOPP NORMAL', micras: 25, ancho: 740, kg: 206.67, producto: 'ETIQUETA Y BARITO', importado: false },
+            { id: 'INV038', material: 'BOPP NORMAL', micras: 25, ancho: 760, kg: 5249.76, producto: 'LECHE 200g CREMA A.', importado: false },
+            { id: 'INV040', material: 'BOPP NORMAL', micras: 25, ancho: 770, kg: 0, producto: 'NUTRITONY', importado: false },
+            { id: 'INV042', material: 'BOPP NORMAL', micras: 25, ancho: 780, kg: 0, producto: 'CALI POLET-OSTIS', importado: false },
+            { id: 'INV044', material: 'BOPP NORMAL', micras: 25, ancho: 815, kg: 0, producto: 'CAFE 200', importado: false },
+            { id: 'INV046', material: 'BOPP NORMAL', micras: 25, ancho: 1120, kg: 0, producto: 'PUIG 24g', importado: false },
+            { id: 'INV048', material: 'BOPP NORMAL', micras: 30, ancho: 440, kg: 0, producto: 'PUIG 240g', importado: false },
+            { id: 'INV050', material: 'BOPP NORMAL', micras: 30, ancho: 450, kg: 0, producto: '', importado: false },
+            { id: 'INV052', material: 'BOPP NORMAL', micras: 30, ancho: 460, kg: 0, producto: 'LECHE', importado: false },
+            { id: 'INV054', material: 'BOPP NORMAL', micras: 30, ancho: 620, kg: 136.8, producto: '', importado: false },
+            { id: 'INV056', material: 'BOPP NORMAL', micras: 30, ancho: 700, kg: 0, producto: 'CAFE 500g', importado: false },
+            { id: 'INV058', material: 'BOPP NORMAL', micras: 30, ancho: 720, kg: 365.78, producto: '', importado: false },
+            { id: 'INV060', material: 'BOPP NORMAL', micras: 30, ancho: 740, kg: 4596.3, producto: 'MICAELA', importado: true },
+            { id: 'INV062', material: 'BOPP NORMAL', micras: 30, ancho: 760, kg: 0, producto: 'TRINKETS 40g', importado: false },
+            { id: 'INV064', material: 'BOPP NORMAL', micras: 30, ancho: 760, kg: 2348.6, producto: '', importado: true },
+            { id: 'INV066', material: 'BOPP NORMAL', micras: 30, ancho: 770, kg: 0, producto: 'LECHE', importado: false },
+            { id: 'INV068', material: 'BOPP NORMAL', micras: 30, ancho: 800, kg: 0, producto: 'DAMASCO', importado: false },
+            { id: 'INV070', material: 'BOPP NORMAL', micras: 30, ancho: 815, kg: 0, producto: 'CAFE 200g', importado: false },
+            { id: 'INV072', material: 'BOPP NORMAL', micras: 30, ancho: 870, kg: 0, producto: 'TRINKETS 70g', importado: false },
+            { id: 'INV074', material: 'BOPP NORMAL', micras: 30, ancho: 870, kg: 7767.86, producto: '', importado: true },
+            { id: 'INV076', material: 'BOPP NORMAL', micras: 35, ancho: 700, kg: 889.2, producto: '', importado: false },
+            { id: 'INV078', material: 'BOPP NORMAL', micras: 35, ancho: 700, kg: 1487.98, producto: 'MASANTONI- FINA', importado: true },
+            { id: 'INV080', material: 'BOPP NORMAL', micras: 40, ancho: 1000, kg: 556.0, producto: '', importado: false },
 
             // BOPP MATE
-            { id: 'INV020', material: 'BOPP MATE', micras: 17, ancho: 620, kg: 1246.10, producto: '', importado: false },
-            { id: 'INV021', material: 'BOPP MATE', micras: 17, ancho: 460, kg: 267.68, producto: 'LECHE 900g Y 1 kg', importado: false },
-            { id: 'INV022', material: 'BOPP MATE', micras: 20, ancho: 700, kg: 499.56, producto: 'CAFE 500g', importado: true },
-            { id: 'INV023', material: 'BOPP MATE', micras: 25, ancho: 815, kg: 1826.52, producto: 'CAFE 200g', importado: true },
-            { id: 'INV024', material: 'BOPP MATE', micras: 25, ancho: 740, kg: 2274.10, producto: 'BUDARE', importado: false },
-
-            // CAST
-            { id: 'INV030', material: 'CAST', micras: 20, ancho: 580, kg: 11.00, producto: 'GRANOS', importado: false },
-            { id: 'INV031', material: 'CAST', micras: 25, ancho: 620, kg: 2155.70, producto: 'SIRENA LARGA', importado: false },
-            { id: 'INV032', material: 'CAST', micras: 25, ancho: 680, kg: 5915.34, producto: '', importado: true },
-            { id: 'INV033', material: 'CAST', micras: 25, ancho: 700, kg: 1449.68, producto: '', importado: true },
-            { id: 'INV034', material: 'CAST', micras: 30, ancho: 600, kg: 170.00, producto: '', importado: false },
-            { id: 'INV035', material: 'CAST', micras: 30, ancho: 700, kg: 959.34, producto: 'MI MASA 90', importado: true },
-
-            // BOPP PASTA
-            { id: 'INV040', material: 'BOPP PASTA', micras: 25, ancho: 430, kg: 877.80, producto: 'SIRENA 500', importado: false },
-            { id: 'INV041', material: 'BOPP PASTA', micras: 25, ancho: 470, kg: 780.55, producto: 'INALSA', importado: false },
-            { id: 'INV042', material: 'BOPP PASTA', micras: 25, ancho: 490, kg: 4657.95, producto: '', importado: true },
-            { id: 'INV043', material: 'BOPP PASTA', micras: 25, ancho: 620, kg: 2023.86, producto: '', importado: true },
+            { id: 'INV002', material: 'BOPP MATE', micras: 20, ancho: 470, kg: 54.0, producto: '', importado: false },
+            { id: 'INV004', material: 'BOPP MATE', micras: 20, ancho: 590, kg: 0, producto: 'YOCOIMA 200', importado: false },
+            { id: 'INV006', material: 'BOPP MATE', micras: 20, ancho: 630, kg: 0, producto: 'NATY', importado: false },
+            { id: 'INV008', material: 'BOPP MATE', micras: 20, ancho: 640, kg: 0, producto: 'YOCOIMA 500', importado: false },
+            { id: 'INV010', material: 'BOPP MATE', micras: 20, ancho: 680, kg: 0, producto: 'ESPIGA-AVENA DONA', importado: false },
+            { id: 'INV012', material: 'BOPP MATE', micras: 20, ancho: 690, kg: 0, producto: '', importado: false },
+            { id: 'INV014', material: 'BOPP MATE', micras: 20, ancho: 700, kg: 499.56, producto: 'CAFE 500g', importado: true },
+            { id: 'INV016', material: 'BOPP MATE', micras: 20, ancho: 740, kg: 0, producto: 'BARITOS', importado: false },
+            { id: 'INV018', material: 'BOPP MATE', micras: 20, ancho: 755, kg: 0, producto: 'YOCOIMA 100', importado: false },
+            { id: 'INV020', material: 'BOPP MATE', micras: 20, ancho: 760, kg: 0, producto: '', importado: false },
+            { id: 'INV022', material: 'BOPP MATE', micras: 20, ancho: 815, kg: 1826.52, producto: 'CAFE 200g', importado: true },
+            { id: 'INV024', material: 'BOPP MATE', micras: 25, ancho: 580, kg: 0, producto: 'CACAO', importado: false },
+            { id: 'INV026', material: 'BOPP MATE', micras: 25, ancho: 740, kg: 0, producto: 'BUDARE', importado: false },
+            { id: 'INV028', material: 'BOPP MATE', micras: 25, ancho: 800, kg: 0, producto: '', importado: false },
 
             // METAL
-            { id: 'INV050', material: 'METAL', micras: 20, ancho: 610, kg: 2332.92, producto: 'HASHI - CHUNKY', importado: false },
-            { id: 'INV051', material: 'METAL', micras: 20, ancho: 620, kg: 250.60, producto: '', importado: false },
-            { id: 'INV052', material: 'METAL', micras: 20, ancho: 740, kg: 1343.89, producto: 'ETIQUETA Y BARITOS', importado: false },
-            { id: 'INV053', material: 'METAL', micras: 20, ancho: 780, kg: 274.52, producto: 'POLET-OSTI', importado: false },
+            { id: 'INV031', material: 'METAL', micras: 17, ancho: 620, kg: 498.0, producto: '', importado: false },
+            { id: 'INV033', material: 'METAL', micras: 20, ancho: 460, kg: 0, producto: 'LECHE 900g Y 1 kg', importado: false },
+            { id: 'INV035', material: 'METAL', micras: 20, ancho: 610, kg: 1593.4, producto: 'HASHI - CHUNCHY', importado: false },
+            { id: 'INV037', material: 'METAL', micras: 20, ancho: 620, kg: 250.6, producto: '', importado: false },
+            { id: 'INV039', material: 'METAL', micras: 20, ancho: 630, kg: 0, producto: 'NATY', importado: false },
+            { id: 'INV041', material: 'METAL', micras: 20, ancho: 635, kg: 0, producto: 'GELATINA', importado: false },
+            { id: 'INV043', material: 'METAL', micras: 20, ancho: 660, kg: 0, producto: 'OSTIS - MARGARINA', importado: false },
+            { id: 'INV045', material: 'METAL', micras: 20, ancho: 680, kg: 0, producto: 'ESPIGA', importado: false },
+            { id: 'INV047', material: 'METAL', micras: 20, ancho: 700, kg: 0, producto: 'CAFE 500 GR', importado: false },
+            { id: 'INV049', material: 'METAL', micras: 20, ancho: 720, kg: 1634.0, producto: '', importado: false },
+            { id: 'INV051', material: 'METAL', micras: 20, ancho: 740, kg: 1343.89, producto: 'ETIQUETA Y BARITOS', importado: false },
+            { id: 'INV053', material: 'METAL', micras: 20, ancho: 760, kg: 0, producto: 'LECHE 200g CREMA A', importado: false },
+            { id: 'INV055', material: 'METAL', micras: 20, ancho: 770, kg: 0, producto: 'NUTRITONI', importado: false },
+            { id: 'INV057', material: 'METAL', micras: 20, ancho: 780, kg: 274.52, producto: 'POLET-OSTI', importado: false },
+            { id: 'INV059', material: 'METAL', micras: 20, ancho: 800, kg: 403.68, producto: 'DAMASCO - YIICITOS', importado: false },
+            { id: 'INV061', material: 'METAL', micras: 20, ancho: 815, kg: 0, producto: 'CAFE 200', importado: false },
+            { id: 'INV063', material: 'METAL', micras: 25, ancho: 740, kg: 21.0, producto: '', importado: false },
+            { id: 'INV065', material: 'METAL', micras: 30, ancho: 460, kg: 340.32, producto: '', importado: false },
+            { id: 'INV067', material: 'METAL', micras: 30, ancho: 510, kg: 17.0, producto: '', importado: false },
+            { id: 'INV069', material: 'METAL', micras: 30, ancho: 590, kg: 221.74, producto: 'YOCOIMA 200', importado: false },
+            { id: 'INV071', material: 'METAL', micras: 30, ancho: 640, kg: 0, producto: 'YOCOIMA 500', importado: false },
+            { id: 'INV073', material: 'METAL', micras: 30, ancho: 700, kg: 1187.76, producto: 'CAFE 500 ALVARIGUA', importado: true },
+            { id: 'INV075', material: 'METAL', micras: 30, ancho: 755, kg: 0, producto: 'YOCOIMA 100', importado: false },
+            { id: 'INV077', material: 'METAL', micras: 30, ancho: 815, kg: 1412.56, producto: 'CAFE 200 MATE', importado: false },
+            { id: 'INV079', material: 'METAL', micras: 30, ancho: 815, kg: 3899.02, producto: '', importado: true },
 
             // PERLADO
-            { id: 'INV060', material: 'PERLADO', micras: 30, ancho: 740, kg: 602.77, producto: 'CALI', importado: false },
-            { id: 'INV061', material: 'PERLADO', micras: 30, ancho: 900, kg: 98.00, producto: '', importado: false },
+            { id: 'INV081', material: 'PERLADO', micras: 30, ancho: 740, kg: 602.77, producto: 'CALI', importado: false },
+            { id: 'INV082', material: 'PERLADO', micras: 30, ancho: 900, kg: 98.0, producto: '', importado: false },
+
+            // CAST
+            { id: 'INV083', material: 'CAST', micras: 20, ancho: 580, kg: 11.0, producto: 'GRANOS', importado: false },
+            { id: 'INV085', material: 'CAST', micras: 25, ancho: 430, kg: 800.4, producto: 'SIRENA 500', importado: false },
+            { id: 'INV087', material: 'CAST', micras: 25, ancho: 470, kg: 1130.79, producto: 'INALSA', importado: false },
+            { id: 'INV089', material: 'CAST', micras: 25, ancho: 490, kg: 6329.25, producto: '', importado: true },
+            { id: 'INV091', material: 'CAST', micras: 25, ancho: 490, kg: 2351.05, producto: 'SIRENA CORTA', importado: false },
+            { id: 'INV093', material: 'CAST', micras: 25, ancho: 520, kg: 0, producto: 'GISELA CORTA', importado: false },
+            { id: 'INV095', material: 'CAST', micras: 25, ancho: 560, kg: 148.43, producto: 'GRANOS', importado: false },
+            { id: 'INV097', material: 'CAST', micras: 25, ancho: 560, kg: 9998.52, producto: '', importado: true },
+            { id: 'INV099', material: 'CAST', micras: 25, ancho: 570, kg: 0, producto: 'OJO D\u00B4VITA', importado: false },
+            { id: 'INV101', material: 'CAST', micras: 25, ancho: 574, kg: 0, producto: 'INALSA', importado: false },
+            { id: 'INV103', material: 'CAST', micras: 25, ancho: 580, kg: 0, producto: 'GRANOS', importado: false },
+            { id: 'INV105', material: 'CAST', micras: 25, ancho: 620, kg: 888.66, producto: '', importado: true },
+            { id: 'INV107', material: 'CAST', micras: 25, ancho: 620, kg: 2155.7, producto: 'SIRENA LARGA', importado: false },
+            { id: 'INV109', material: 'CAST', micras: 25, ancho: 660, kg: 0, producto: '', importado: false },
+            { id: 'INV111', material: 'CAST', micras: 25, ancho: 674, kg: 0, producto: 'INALSA', importado: false },
+            { id: 'INV113', material: 'CAST', micras: 25, ancho: 680, kg: 370.72, producto: 'AVENA Y ZAFIRO', importado: false },
+            { id: 'INV115', material: 'CAST', micras: 25, ancho: 680, kg: 6710.46, producto: '', importado: true },
+            { id: 'INV117', material: 'CAST', micras: 25, ancho: 700, kg: 1449.68, producto: '', importado: true },
+            { id: 'INV119', material: 'CAST', micras: 25, ancho: 700, kg: 1225.3, producto: 'FINA BLOQ', importado: false },
+            { id: 'INV121', material: 'CAST', micras: 25, ancho: 720, kg: 3.0, producto: 'INALSA', importado: false },
+            { id: 'INV123', material: 'CAST', micras: 25, ancho: 740, kg: 620.48, producto: 'MICAELA', importado: true },
+            { id: 'INV125', material: 'CAST', micras: 25, ancho: 760, kg: 400.52, producto: '', importado: false },
+            { id: 'INV127', material: 'CAST', micras: 25, ancho: 800, kg: 155.0, producto: 'BABO 72', importado: false },
+            { id: 'INV129', material: 'CAST', micras: 30, ancho: 430, kg: 1256.8, producto: '', importado: false },
+            { id: 'INV131', material: 'CAST', micras: 30, ancho: 600, kg: 2324.4, producto: '', importado: false },
+            { id: 'INV133', material: 'CAST', micras: 30, ancho: 700, kg: 959.34, producto: 'MI MASA900 G', importado: true },
+            { id: 'INV135', material: 'CAST', micras: 30, ancho: 740, kg: 0, producto: 'BUDARE', importado: false },
+            { id: 'INV137', material: 'CAST', micras: 35, ancho: 770, kg: 0, producto: 'BUDARE', importado: false },
+
+            // BOPP PASTA
+            { id: 'INV139', material: 'BOPP PASTA', micras: 25, ancho: 430, kg: 877.8, producto: 'SIRENA 500', importado: false },
+            { id: 'INV141', material: 'BOPP PASTA', micras: 25, ancho: 470, kg: 780.55, producto: 'INALSA', importado: false },
+            { id: 'INV143', material: 'BOPP PASTA', micras: 25, ancho: 490, kg: 927.4, producto: 'SIRENA CORTA', importado: false },
+            { id: 'INV145', material: 'BOPP PASTA', micras: 25, ancho: 490, kg: 5867.7, producto: '', importado: true },
+            { id: 'INV147', material: 'BOPP PASTA', micras: 25, ancho: 520, kg: 0, producto: 'GISELA CORTA', importado: false },
+            { id: 'INV149', material: 'BOPP PASTA', micras: 25, ancho: 574, kg: 0, producto: 'INALSA', importado: false },
+            { id: 'INV151', material: 'BOPP PASTA', micras: 25, ancho: 620, kg: 499.15, producto: 'SIRENA LARGA', importado: false },
+            { id: 'INV153', material: 'BOPP PASTA', micras: 25, ancho: 620, kg: 2023.86, producto: '', importado: true },
+            { id: 'INV155', material: 'BOPP PASTA', micras: 25, ancho: 674, kg: 0, producto: 'INALSA', importado: false },
 
             // PEBD
-            { id: 'INV070', material: 'PEBD', micras: 25, ancho: 650, kg: 0, producto: 'DON JULIAN', importado: false },
-            { id: 'INV071', material: 'PEBD', micras: 28, ancho: 670, kg: 6820.50, producto: 'ARROZ SANTONI / ALICIA', importado: false },
-            { id: 'INV072', material: 'PEBD', micras: 28, ancho: 760, kg: 1865.00, producto: 'BUDARE - FATY', importado: false },
-            { id: 'INV073', material: 'PEBD', micras: 30, ancho: 690, kg: 0, producto: 'DELICIAS - DUQUESA', importado: false },
-            { id: 'INV074', material: 'PEBD', micras: 30, ancho: 990, kg: 1301.50, producto: '', importado: false },
-            { id: 'INV075', material: 'PEBD', micras: 35, ancho: 750, kg: 0, producto: 'LECHE LAM', importado: false },
-            { id: 'INV076', material: 'PEBD', micras: 38, ancho: 750, kg: 0, producto: 'PAVECA', importado: false },
-            { id: 'INV077', material: 'PEBD', micras: 50, ancho: 630, kg: 2818.00, producto: 'MARY DORADO', importado: false },
-            { id: 'INV078', material: 'PEBD', micras: 50, ancho: 660, kg: 1541.00, producto: 'MARY ESMERALDA', importado: false },
+            { id: 'INV084', material: 'PEBD', micras: 20, ancho: 760, kg: 369.0, producto: '', importado: false },
+            { id: 'INV086', material: 'PEBD', micras: 22, ancho: 660, kg: 0, producto: 'ARROZ DON JULIAN', importado: false },
+            { id: 'INV088', material: 'PEBD', micras: 25, ancho: 630, kg: 0, producto: 'MARY PREM', importado: false },
+            { id: 'INV090', material: 'PEBD', micras: 25, ancho: 650, kg: 0, producto: 'MARY TRAD', importado: false },
+            { id: 'INV092', material: 'PEBD', micras: 25, ancho: 660, kg: 0, producto: 'DON JULIAN', importado: false },
+            { id: 'INV094', material: 'PEBD', micras: 25, ancho: 970, kg: 0, producto: 'MARY TRAD', importado: false },
+            { id: 'INV096', material: 'PEBD', micras: 26, ancho: 630, kg: 419.5, producto: 'MARY PREMIUM', importado: false },
+            { id: 'INV098', material: 'PEBD', micras: 26, ancho: 650, kg: 60.0, producto: 'MARY', importado: false },
+            { id: 'INV100', material: 'PEBD', micras: 26, ancho: 660, kg: 0, producto: 'DON JULIAN', importado: false },
+            { id: 'INV102', material: 'PEBD', micras: 28, ancho: 660, kg: 0, producto: '', importado: false },
+            { id: 'INV104', material: 'PEBD', micras: 28, ancho: 670, kg: 0, producto: 'ARROZ SANTONI /ALICIA', importado: false },
+            { id: 'INV106', material: 'PEBD', micras: 28, ancho: 670, kg: 12563.5, producto: 'ARROZ SANTONI /ALICIA', importado: false },
+            { id: 'INV108', material: 'PEBD', micras: 28, ancho: 760, kg: 1890.5, producto: 'BUDARE - FATY', importado: false },
+            { id: 'INV110', material: 'PEBD', micras: 28, ancho: 690, kg: 154.0, producto: '', importado: false },
+            { id: 'INV112', material: 'PEBD', micras: 28, ancho: 990, kg: 0, producto: '', importado: false },
+            { id: 'INV114', material: 'PEBD', micras: 30, ancho: 570, kg: 0, producto: 'D\u00B4VITA', importado: false },
+            { id: 'INV116', material: 'PEBD', micras: 30, ancho: 670, kg: 0, producto: 'SANTONI', importado: false },
+            { id: 'INV118', material: 'PEBD', micras: 30, ancho: 690, kg: 0, producto: 'DELICIAS - DUQUESA', importado: false },
+            { id: 'INV120', material: 'PEBD', micras: 30, ancho: 750, kg: 58.0, producto: 'HARINA URBANO', importado: false },
+            { id: 'INV122', material: 'PEBD', micras: 30, ancho: 760, kg: 0, producto: 'HARINA', importado: false },
+            { id: 'INV124', material: 'PEBD', micras: 30, ancho: 990, kg: 0, producto: '', importado: false },
+            { id: 'INV126', material: 'PEBD', micras: 35, ancho: 650, kg: 0, producto: 'GELATINA JUMPI', importado: false },
+            { id: 'INV128', material: 'PEBD', micras: 35, ancho: 750, kg: 0, producto: 'LECHE LAM', importado: false },
+            { id: 'INV130', material: 'PEBD', micras: 35, ancho: 770, kg: 0, producto: 'LECHE', importado: false },
+            { id: 'INV132', material: 'PEBD', micras: 35, ancho: 990, kg: 1226.5, producto: '', importado: false },
+            { id: 'INV134', material: 'PEBD', micras: 38, ancho: 750, kg: 0, producto: 'PAVECA', importado: false },
+            { id: 'INV136', material: 'PEBD', micras: 40, ancho: 670, kg: 189.5, producto: 'ZAFIRO VIEJO', importado: false },
+            { id: 'INV138', material: 'PEBD', micras: 40, ancho: 690, kg: 0, producto: '', importado: false },
+            { id: 'INV140', material: 'PEBD', micras: 40, ancho: 780, kg: 0, producto: 'NUTRITONY', importado: false },
+            { id: 'INV142', material: 'PEBD', micras: 40, ancho: 990, kg: 0, producto: 'DON JULIAN 2,5', importado: false },
+            { id: 'INV144', material: 'PEBD', micras: 45, ancho: 690, kg: 476.5, producto: '', importado: false },
+            { id: 'INV146', material: 'PEBD', micras: 50, ancho: 440, kg: 234.5, producto: '', importado: false },
+            { id: 'INV148', material: 'PEBD', micras: 50, ancho: 470, kg: 937.0, producto: 'LECHE', importado: false },
+            { id: 'INV150', material: 'PEBD', micras: 50, ancho: 630, kg: 2818.0, producto: 'MARY DORADO', importado: false },
+            { id: 'INV152', material: 'PEBD', micras: 50, ancho: 660, kg: 1541.0, producto: 'MARY ESMERALDA', importado: false },
+            { id: 'INV154', material: 'PEBD', micras: 50, ancho: 670, kg: 100.5, producto: '', importado: false },
 
             // PEBD PIGMENT
-            { id: 'INV080', material: 'PEBD PIGMENT', micras: 25, ancho: 740, kg: 170.00, producto: 'MAYONESA', importado: false },
-            { id: 'INV081', material: 'PEBD PIGMENT', micras: 25, ancho: 450, kg: 1179.00, producto: 'DETERGENTE', importado: false },
-            { id: 'INV082', material: 'PEBD PIGMENT', micras: 35, ancho: 670, kg: 1569.50, producto: 'MARGARINA', importado: false },
+            { id: 'INV156', material: 'PEBD PIGMENT', micras: 25, ancho: 740, kg: 170.0, producto: 'MAYONESA', importado: false },
+            { id: 'INV157', material: 'PEBD PIGMENT', micras: 25, ancho: 450, kg: 1179.0, producto: 'DETERGENTE', importado: false },
+            { id: 'INV158', material: 'PEBD PIGMENT', micras: 35, ancho: 670, kg: 1569.5, producto: 'MARGARINA', importado: false },
         ];
     },
 
@@ -211,25 +326,73 @@ const Inventario = {
     },
 
     /**
-     * Datos de ejemplo de tintas
+     * Datos reales de tintas (basado en Excel 26-02-2026)
      */
     getDatosTintasEjemplo: function() {
         return [
-            // Tintas Laminacion
-            { id: 'TIN001', nombre: 'Blanco Lam', tipo: 'laminacion', codigo: 'BL-001', cantidad: 25.5, unidad: 'Kg' },
-            { id: 'TIN002', nombre: 'Amarillo Lam', tipo: 'laminacion', codigo: 'AM-001', cantidad: 12.3, unidad: 'Kg' },
-            { id: 'TIN003', nombre: 'Rojo Lam', tipo: 'laminacion', codigo: 'RJ-001', cantidad: 8.7, unidad: 'Kg' },
-            { id: 'TIN004', nombre: 'Azul Lam', tipo: 'laminacion', codigo: 'AZ-001', cantidad: 15.2, unidad: 'Kg' },
-            { id: 'TIN005', nombre: 'Negro Lam', tipo: 'laminacion', codigo: 'NG-001', cantidad: 20.0, unidad: 'Kg' },
-            { id: 'TIN006', nombre: 'Verde Lam', tipo: 'laminacion', codigo: 'VD-001', cantidad: 5.5, unidad: 'Kg' },
-            // Tintas Superficie
-            { id: 'TIN010', nombre: 'Blanco Sup', tipo: 'superficie', codigo: 'BS-001', cantidad: 18.0, unidad: 'Kg' },
-            { id: 'TIN011', nombre: 'Amarillo Sup', tipo: 'superficie', codigo: 'AS-001', cantidad: 9.5, unidad: 'Kg' },
-            { id: 'TIN012', nombre: 'Rojo Sup', tipo: 'superficie', codigo: 'RS-001', cantidad: 6.2, unidad: 'Kg' },
-            { id: 'TIN013', nombre: 'Azul Sup', tipo: 'superficie', codigo: 'ZS-001', cantidad: 11.0, unidad: 'Kg' },
-            // Solventes
-            { id: 'TIN020', nombre: 'Acetato de Etilo', tipo: 'solvente', codigo: 'SOL-001', cantidad: 50.0, unidad: 'Lt' },
-            { id: 'TIN021', nombre: 'Alcohol Isopropilico', tipo: 'solvente', codigo: 'SOL-002', cantidad: 35.0, unidad: 'Lt' },
+            // Tintas Laminacion (43 items)
+            { id: 'TIN001', nombre: 'BLANCO', tipo: 'laminacion', codigo: 'BL-2036', cantidad: 987.0, unidad: 'Kg' },
+            { id: 'TIN002', nombre: 'BLANCO LAMINACION', tipo: 'laminacion', codigo: 'TINLAM-0001', cantidad: 0, unidad: 'Kg' },
+            { id: 'TIN003', nombre: 'NEGRO', tipo: 'laminacion', codigo: 'BL-2054', cantidad: 221.0, unidad: 'Kg' },
+            { id: 'TIN004', nombre: 'NEGRO', tipo: 'laminacion', codigo: 'TINLAM-0005', cantidad: 0, unidad: 'Kg' },
+            { id: 'TIN005', nombre: 'NEGRO POLYESTER', tipo: 'laminacion', codigo: 'BL-1280', cantidad: 76.0, unidad: 'Kg' },
+            { id: 'TIN006', nombre: 'NEGRO POLYESTER', tipo: 'laminacion', codigo: 'TINLAM-0008', cantidad: 0, unidad: 'Kg' },
+            { id: 'TIN007', nombre: 'AMARILLO PROCESO', tipo: 'laminacion', codigo: 'BL-1132', cantidad: 992.0, unidad: 'Kg' },
+            { id: 'TIN008', nombre: 'AMARILLO PROCESO', tipo: 'laminacion', codigo: 'TINLAM-0002', cantidad: 0, unidad: 'Kg' },
+            { id: 'TIN009', nombre: 'ROJO 485 2X', tipo: 'laminacion', codigo: 'BL-0897', cantidad: 71.2, unidad: 'Kg' },
+            { id: 'TIN010', nombre: 'ROJO P-485 2X-C', tipo: 'laminacion', codigo: 'TINLAM-0007', cantidad: 18.0, unidad: 'Kg' },
+            { id: 'TIN011', nombre: 'ROJO 485 "C"', tipo: 'laminacion', codigo: 'BL-2037', cantidad: 195.4, unidad: 'Kg' },
+            { id: 'TIN012', nombre: 'CYAN', tipo: 'laminacion', codigo: 'BL-1964', cantidad: 355.0, unidad: 'Kg' },
+            { id: 'TIN013', nombre: 'AZUL PROCESO', tipo: 'laminacion', codigo: 'BL-1535', cantidad: 156.0, unidad: 'Kg' },
+            { id: 'TIN014', nombre: 'AZUL PROCESO', tipo: 'laminacion', codigo: 'TINLAM-0003', cantidad: 18.0, unidad: 'Kg' },
+            { id: 'TIN015', nombre: 'AZUL FONDO SUPERIOR', tipo: 'laminacion', codigo: 'BL-2163', cantidad: 198.0, unidad: 'Kg' },
+            { id: 'TIN016', nombre: 'AZUL ESPIGA SUPERIOR', tipo: 'laminacion', codigo: 'BL-2164', cantidad: 0, unidad: 'Kg' },
+            { id: 'TIN017', nombre: 'AZUL BUDARE LAMINACION', tipo: 'laminacion', codigo: 'BL-2260', cantidad: 0, unidad: 'Kg' },
+            { id: 'TIN018', nombre: 'MAGENTA', tipo: 'laminacion', codigo: 'BL-1706', cantidad: 272.0, unidad: 'Kg' },
+            { id: 'TIN019', nombre: 'MAGENTA TRAMA DIGITAL', tipo: 'laminacion', codigo: 'BL-2003', cantidad: 54.0, unidad: 'Kg' },
+            { id: 'TIN020', nombre: 'REFLEX', tipo: 'laminacion', codigo: 'BL-1007', cantidad: 201.0, unidad: 'Kg' },
+            { id: 'TIN021', nombre: 'NARANJA BUDARE LAMINACION', tipo: 'laminacion', codigo: 'BL-2259', cantidad: 0, unidad: 'Kg' },
+            { id: 'TIN022', nombre: 'NARANJA 021', tipo: 'laminacion', codigo: 'BL-0985', cantidad: 68.0, unidad: 'Kg' },
+            { id: 'TIN023', nombre: 'NARANJA MARY', tipo: 'laminacion', codigo: 'BL-2152', cantidad: 322.2, unidad: 'Kg' },
+            { id: 'TIN024', nombre: 'EXTENDER', tipo: 'laminacion', codigo: 'BL-1883', cantidad: 84.9, unidad: 'Kg' },
+            { id: 'TIN025', nombre: 'EXTENDER', tipo: 'laminacion', codigo: 'TINLAM-0006', cantidad: 36.0, unidad: 'Kg' },
+            { id: 'TIN026', nombre: 'CREMA MARY', tipo: 'laminacion', codigo: 'BL-2169', cantidad: 57.0, unidad: 'Kg' },
+            { id: 'TIN027', nombre: 'OCRE ESPIGA MARY', tipo: 'laminacion', codigo: 'BL-2170', cantidad: 54.0, unidad: 'Kg' },
+            { id: 'TIN028', nombre: 'DORADO ALVARIGUA', tipo: 'laminacion', codigo: 'BL-2134', cantidad: 34.0, unidad: 'Kg' },
+            { id: 'TIN029', nombre: 'CREMA ALVARIGUA', tipo: 'laminacion', codigo: 'BL-2136', cantidad: 31.0, unidad: 'Kg' },
+            { id: 'TIN030', nombre: 'VERDE "C"', tipo: 'laminacion', codigo: 'BL-1718', cantidad: 89.0, unidad: 'Kg' },
+            { id: 'TIN031', nombre: 'VERDE BABO', tipo: 'laminacion', codigo: 'BL-2188', cantidad: 18.0, unidad: 'Kg' },
+            { id: 'TIN032', nombre: 'VIOLETA PANTONE', tipo: 'laminacion', codigo: 'BL-0928', cantidad: 34.0, unidad: 'Kg' },
+            { id: 'TIN033', nombre: 'MORADO NONNA', tipo: 'laminacion', codigo: 'DL FL 30136', cantidad: 70.0, unidad: 'Kg' },
+            { id: 'TIN034', nombre: 'CREMA AMANECER (FAVICA)', tipo: 'laminacion', codigo: 'FL 1024 (20KG)', cantidad: 80.0, unidad: 'Kg' },
+            { id: 'TIN035', nombre: 'CREMA AMANECER (BARNIVENCA)', tipo: 'laminacion', codigo: '2042', cantidad: 66.0, unidad: 'Kg' },
+            { id: 'TIN036', nombre: 'MARRON AMANECER', tipo: 'laminacion', codigo: '30125 (17KG)', cantidad: 133.6, unidad: 'Kg' },
+            { id: 'TIN037', nombre: 'MARRON P-4725 LAMINACION', tipo: 'laminacion', codigo: 'BL-2210', cantidad: 28.8, unidad: 'Kg' },
+            { id: 'TIN038', nombre: 'BEIGE (TINTA FLEX)', tipo: 'laminacion', codigo: '467 8018 (17KG)', cantidad: 68.0, unidad: 'Kg' },
+            { id: 'TIN039', nombre: 'COMPUESTO DE CERA', tipo: 'laminacion', codigo: 'SP-0915', cantidad: 18.0, unidad: 'Kg' },
+            { id: 'TIN040', nombre: 'VERDE "P" 340-C', tipo: 'laminacion', codigo: 'BL-2162', cantidad: 0, unidad: 'Kg' },
+            { id: 'TIN041', nombre: 'VERDE 355', tipo: 'laminacion', codigo: 'BL-2119', cantidad: 0, unidad: 'Kg' },
+            { id: 'TIN042', nombre: 'VERDE MARY LAMINACION', tipo: 'laminacion', codigo: 'BL-1913', cantidad: 0, unidad: 'Kg' },
+            { id: 'TIN043', nombre: 'VERDE DAMASCO', tipo: 'laminacion', codigo: 'BL-2105', cantidad: 0, unidad: 'Kg' },
+
+            // Tintas Superficie (14 items)
+            { id: 'TIN044', nombre: 'BLANCO', tipo: 'superficie', codigo: 'BN-1093', cantidad: 705.4, unidad: 'Kg' },
+            { id: 'TIN045', nombre: 'NEGRO', tipo: 'superficie', codigo: 'BF-0387', cantidad: 141.0, unidad: 'Kg' },
+            { id: 'TIN046', nombre: 'MAGENTA', tipo: 'superficie', codigo: 'BN-1649', cantidad: 250.0, unidad: 'Kg' },
+            { id: 'TIN047', nombre: 'MAGENTA', tipo: 'superficie', codigo: 'BF-1718', cantidad: 0, unidad: 'Kg' },
+            { id: 'TIN048', nombre: 'CYAN', tipo: 'superficie', codigo: 'BN-1650', cantidad: 221.0, unidad: 'Kg' },
+            { id: 'TIN049', nombre: 'AZUL 293', tipo: 'superficie', codigo: 'BF-1857', cantidad: 30.0, unidad: 'Kg' },
+            { id: 'TIN050', nombre: 'AZUL REFLEX', tipo: 'superficie', codigo: 'BF-1570', cantidad: 221.0, unidad: 'Kg' },
+            { id: 'TIN051', nombre: 'AZUL PROCESO FLEXO SUPERFICIE', tipo: 'superficie', codigo: 'BF-0134', cantidad: 17.0, unidad: 'Kg' },
+            { id: 'TIN052', nombre: 'AMARILLO', tipo: 'superficie', codigo: 'BF-1564', cantidad: 357.0, unidad: 'Kg' },
+            { id: 'TIN053', nombre: 'AMARILLO PROCESO', tipo: 'superficie', codigo: 'TINSUP-0002', cantidad: 0, unidad: 'Kg' },
+            { id: 'TIN054', nombre: 'ROJO 485 2X', tipo: 'superficie', codigo: 'BN-1674', cantidad: 87.0, unidad: 'Kg' },
+            { id: 'TIN055', nombre: 'NARANJA 021', tipo: 'superficie', codigo: 'BF-1757', cantidad: 150.0, unidad: 'Kg' },
+            { id: 'TIN056', nombre: 'DORADO ALVARIGUA', tipo: 'superficie', codigo: 'BF-1874', cantidad: 104.0, unidad: 'Kg' },
+            { id: 'TIN057', nombre: 'BARNIZ SOBRE IMPRE', tipo: 'superficie', codigo: 'BN-1692', cantidad: 218.0, unidad: 'Kg' },
+
+            // Prueba Laminacion (1 item)
+            { id: 'TIN058', nombre: 'BLANCO', tipo: 'prueba_laminacion', codigo: 'BL-1745', cantidad: 20.0, unidad: 'Kg' },
         ];
     },
 
@@ -255,16 +418,21 @@ const Inventario = {
     },
 
     /**
-     * Datos de ejemplo de adhesivos
+     * Datos reales de quimicos/adhesivos (basado en Excel 26-02-2026)
      */
     getDatosAdhesivosEjemplo: function() {
         return [
-            { id: 'ADH001', nombre: 'Adhesivo Base', tipo: 'adhesivo', lote: 'LOT-2024-001', cantidad: 150.0, unidad: 'Kg' },
-            { id: 'ADH002', nombre: 'Adhesivo Laminacion', tipo: 'adhesivo', lote: 'LOT-2024-002', cantidad: 80.5, unidad: 'Kg' },
-            { id: 'ADH003', nombre: 'Catalizador A', tipo: 'catalizador', lote: 'CAT-2024-001', cantidad: 25.0, unidad: 'Kg' },
-            { id: 'ADH004', nombre: 'Catalizador B', tipo: 'catalizador', lote: 'CAT-2024-002', cantidad: 18.5, unidad: 'Kg' },
-            { id: 'ADH005', nombre: 'Acetato Limpieza', tipo: 'acetato', lote: 'ACE-2024-001', cantidad: 60.0, unidad: 'Lt' },
-            { id: 'ADH006', nombre: 'Acetato Industrial', tipo: 'acetato', lote: 'ACE-2024-002', cantidad: 45.0, unidad: 'Lt' },
+            // Solventes
+            { id: 'QUI001', nombre: 'ALCOHOL ISOPROPILICO (IPA)', tipo: 'solvente', lote: '', cantidad: 454.06, unidad: 'Lt' },
+            { id: 'QUI002', nombre: 'ACETATO N-PROPYL', tipo: 'solvente', lote: '', cantidad: 608.23, unidad: 'Lt' },
+            { id: 'QUI003', nombre: 'METHOXY PROPANOL', tipo: 'solvente', lote: '', cantidad: 323.0, unidad: 'Lt' },
+            // Adhesivo
+            { id: 'QUI004', nombre: 'ADHESIVO', tipo: 'adhesivo', lote: '', cantidad: 420.0, unidad: 'Kg' },
+            // Catalizadores
+            { id: 'QUI005', nombre: 'CATALIZADOR', tipo: 'catalizador', lote: '', cantidad: 210.0, unidad: 'Kg' },
+            { id: 'QUI007', nombre: 'CATALIZADOR 403', tipo: 'catalizador', lote: '', cantidad: 0, unidad: 'Kg' },
+            // Solvente recuperado
+            { id: 'QUI006', nombre: 'SOLVENTE RECUPERADO', tipo: 'solvente', lote: '', cantidad: 0, unidad: 'Lt' },
         ];
     },
 
@@ -331,7 +499,7 @@ const Inventario = {
         tbody.innerHTML = this.filteredTintas.map((tinta, index) => {
             const estadoClass = tinta.cantidad <= 5 ? 'bg-danger' : tinta.cantidad <= 15 ? 'bg-warning text-dark' : 'bg-success';
             const estadoTexto = tinta.cantidad <= 5 ? 'Bajo' : tinta.cantidad <= 15 ? 'Medio' : 'OK';
-            const tipoTexto = tinta.tipo === 'laminacion' ? 'Laminacion' : tinta.tipo === 'superficie' ? 'Superficie' : 'Solvente';
+            const tipoTexto = tinta.tipo === 'laminacion' ? 'Laminacion' : tinta.tipo === 'superficie' ? 'Superficie' : tinta.tipo === 'prueba_laminacion' ? 'Prueba Lam.' : 'Solvente';
 
             return `
                 <tr>
@@ -359,7 +527,11 @@ const Inventario = {
     getColorTinta: function(nombre) {
         const colores = {
             'blanco': '#f8f9fa', 'amarillo': '#ffc107', 'rojo': '#dc3545',
-            'azul': '#0d6efd', 'negro': '#212529', 'verde': '#198754'
+            'azul': '#0d6efd', 'negro': '#212529', 'verde': '#198754',
+            'cyan': '#0dcaf0', 'magenta': '#d63384', 'naranja': '#fd7e14',
+            'reflex': '#4b0082', 'violeta': '#7b2d8e', 'morado': '#6f42c1',
+            'dorado': '#d4a017', 'crema': '#f5deb3', 'marron': '#8b4513',
+            'ocre': '#cc7722', 'beige': '#f5f5dc', 'barniz': '#e8d5b7'
         };
         for (const [key, color] of Object.entries(colores)) {
             if (nombre.toLowerCase().includes(key)) return color;
@@ -461,10 +633,13 @@ const Inventario = {
         const adhesivo = this.adhesivos.filter(a => a.tipo === 'adhesivo').reduce((sum, a) => sum + a.cantidad, 0);
         const catalizador = this.adhesivos.filter(a => a.tipo === 'catalizador').reduce((sum, a) => sum + a.cantidad, 0);
         const acetato = this.adhesivos.filter(a => a.tipo === 'acetato').reduce((sum, a) => sum + a.cantidad, 0);
+        const solventeQuimico = this.adhesivos.filter(a => a.tipo === 'solvente').reduce((sum, a) => sum + a.cantidad, 0);
 
         document.getElementById('totalAdhesivo')?.textContent && (document.getElementById('totalAdhesivo').textContent = this.formatNumber(adhesivo));
         document.getElementById('totalCatalizador')?.textContent && (document.getElementById('totalCatalizador').textContent = this.formatNumber(catalizador));
         document.getElementById('totalAcetato')?.textContent && (document.getElementById('totalAcetato').textContent = this.formatNumber(acetato));
+        const elSolventeQ = document.getElementById('totalSolventeQuimico');
+        if (elSolventeQ) elSolventeQ.textContent = this.formatNumber(solventeQuimico);
         document.getElementById('totalAdhesivosGeneral')?.textContent && (document.getElementById('totalAdhesivosGeneral').textContent = this.adhesivos.length);
     },
 

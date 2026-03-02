@@ -6,7 +6,7 @@
 
 const AlertasModule = {
     // Version de alertas - incrementar para forzar regeneracion
-    ALERTAS_VERSION: '2026-03-02',
+    ALERTAS_VERSION: '2026-03-02-v2',
 
     // Configuracion
     config: {
@@ -399,6 +399,21 @@ const AlertasModule = {
                             <td class="text-muted">% Refil</td>
                             <td class="text-danger fw-bold">${alerta.datos.porcentajeRefil}%</td>
                         </tr>` : ''}
+                        ${alerta.datos && alerta.datos.material ? `
+                        <tr>
+                            <td class="text-muted">Material</td>
+                            <td>${alerta.datos.material} ${alerta.datos.micras ? alerta.datos.micras + 'μ' : ''}</td>
+                        </tr>` : ''}
+                        ${alerta.datos && alerta.datos.cantidad !== undefined ? `
+                        <tr>
+                            <td class="text-muted">Stock Actual</td>
+                            <td class="${alerta.datos.cantidad === 0 ? 'text-danger fw-bold' : 'text-warning fw-bold'}">${parseFloat(alerta.datos.cantidad).toFixed(1)} Kg</td>
+                        </tr>` : ''}
+                        ${alerta.datos && alerta.datos.minimo ? `
+                        <tr>
+                            <td class="text-muted">Stock Minimo</td>
+                            <td>${alerta.datos.minimo} Kg</td>
+                        </tr>` : ''}
                     </tbody>
                 </table>
             </div>
@@ -494,30 +509,31 @@ const AlertasModule = {
         return nuevaAlerta;
     },
 
-    // Generar alertas de demo (solo si no hay inventario real)
+    // Generar alertas desde inventario real o datos demo como fallback
     generarAlertasDemo() {
         // Verificar si hay inventario real cargado
         const tieneInventario = localStorage.getItem('axones_inventario');
         const inventario = tieneInventario ? JSON.parse(tieneInventario) : [];
 
-        // Si hay inventario real con mas de 10 items, no generar demo
-        // El escaneo de inventario generara las alertas reales
-        if (inventario.length > 10) {
-            console.log('AlertasModule: Inventario real detectado, saltando alertas demo');
-            // Escanear inventario y generar alertas reales si no hay alertas
-            const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
-            if (alertas.length === 0 && typeof InventarioService !== 'undefined') {
-                InventarioService.escanearInventarioYGenerarAlertas();
-                this.cargarAlertas();
-            }
+        // Si hay inventario real, siempre escanear y generar alertas reales
+        if (inventario.length > 10 && typeof InventarioService !== 'undefined') {
+            console.log('AlertasModule: Inventario real detectado, generando alertas reales desde inventario...');
+            const resultado = InventarioService.escanearInventarioYGenerarAlertas();
+            console.log(`AlertasModule: ${resultado.totalAlertas} alertas generadas (${resultado.criticas} criticas, ${resultado.altas} altas, ${resultado.advertencias} advertencias)`);
+            this.cargarAlertas();
             return;
         }
 
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
+        // Si no hay InventarioService pero si inventario, avisar en consola
+        if (inventario.length > 10 && typeof InventarioService === 'undefined') {
+            console.warn('AlertasModule: Inventario real existe pero InventarioService no esta cargado. Verifica que inventario-service.js este incluido en esta pagina.');
+        }
 
-        // Solo generar si no hay alertas
+        // Fallback: solo generar demo si no hay inventario real Y no hay alertas
+        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
         if (alertas.length > 0) return;
 
+        console.log('AlertasModule: Sin inventario real, generando alertas de ejemplo');
         const alertasDemo = [
             {
                 id: Date.now() - 1000,

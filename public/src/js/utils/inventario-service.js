@@ -762,7 +762,7 @@ const InventarioService = {
             if (kg < this.STOCK_MINIMO.material && kg > 0) {
                 const nivel = kg < 50 ? 'critical' : (kg < 100 ? 'danger' : 'warning');
                 nuevasAlertas.push({
-                    id: Date.now() + Math.random() * 1000,
+                    id: Math.floor(Date.now() + Math.random() * 10000),
                     tipo: 'stock_bajo_material',
                     nivel: nivel,
                     mensaje: `Stock bajo: ${item.material} ${item.micras || ''}μ - Solo ${kg.toFixed(2)} Kg disponibles`,
@@ -783,7 +783,7 @@ const InventarioService = {
             // Alerta CRITICA si agotado (0 Kg)
             if (kg === 0) {
                 nuevasAlertas.push({
-                    id: Date.now() + Math.random() * 1000,
+                    id: Math.floor(Date.now() + Math.random() * 10000),
                     tipo: 'stock_bajo_material',
                     nivel: 'critical',
                     mensaje: `AGOTADO: ${item.material} ${item.micras || ''}μ - Sin existencias`,
@@ -808,7 +808,7 @@ const InventarioService = {
             if (cantidad < this.STOCK_MINIMO.tinta && cantidad > 0) {
                 const nivel = cantidad < 1 ? 'critical' : (cantidad < 3 ? 'danger' : 'warning');
                 nuevasAlertas.push({
-                    id: Date.now() + Math.random() * 1000,
+                    id: Math.floor(Date.now() + Math.random() * 10000),
                     tipo: 'stock_bajo_tinta',
                     nivel: nivel,
                     mensaje: `Stock bajo tinta: ${tinta.nombre} - Solo ${cantidad.toFixed(2)} Kg`,
@@ -827,7 +827,7 @@ const InventarioService = {
 
             if (cantidad === 0) {
                 nuevasAlertas.push({
-                    id: Date.now() + Math.random() * 1000,
+                    id: Math.floor(Date.now() + Math.random() * 10000),
                     tipo: 'stock_bajo_tinta',
                     nivel: 'critical',
                     mensaje: `AGOTADO: Tinta ${tinta.nombre} - Sin existencias`,
@@ -852,7 +852,7 @@ const InventarioService = {
             if (cantidad < minimo && cantidad > 0) {
                 const nivel = cantidad < minimo / 4 ? 'critical' : (cantidad < minimo / 2 ? 'danger' : 'warning');
                 nuevasAlertas.push({
-                    id: Date.now() + Math.random() * 1000,
+                    id: Math.floor(Date.now() + Math.random() * 10000),
                     tipo: 'stock_bajo_adhesivo',
                     nivel: nivel,
                     mensaje: `Stock bajo: ${item.nombre} (${item.tipo}) - Solo ${cantidad.toFixed(2)} ${item.unidad || 'Kg'}`,
@@ -871,7 +871,7 @@ const InventarioService = {
 
             if (cantidad === 0) {
                 nuevasAlertas.push({
-                    id: Date.now() + Math.random() * 1000,
+                    id: Math.floor(Date.now() + Math.random() * 10000),
                     tipo: 'stock_bajo_adhesivo',
                     nivel: 'critical',
                     mensaje: `AGOTADO: ${item.nombre} (${item.tipo}) - Sin existencias`,

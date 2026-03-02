@@ -80,12 +80,14 @@ const HomeModule = {
 
     // Cargar todos los datos del dashboard
     async cargarDatos() {
-        // Intentar cargar desde API primero
+        // Siempre cargar datos locales primero para mostrar KPIs inmediatamente
+        this.cargarDatosDesdeLocal();
+
+        // Luego intentar mejorar con datos de la API
         try {
             await this.cargarDatosDesdeAPI();
         } catch (error) {
-            console.warn('Error cargando desde API, usando localStorage:', error);
-            this.cargarDatosDesdeLocal();
+            console.warn('API no disponible, usando datos locales:', error.message);
         }
     },
 

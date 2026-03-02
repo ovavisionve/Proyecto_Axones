@@ -135,52 +135,85 @@ const Chatbot = {
     },
 
     /**
-     * Carga las cuentas por cobrar
+     * Carga las cuentas por cobrar desde Google Sheets o localStorage
      */
     loadCuentasPorCobrar: async function() {
-        // En desarrollo, usar datos de ejemplo
-        this.cuentasPorCobrar = [
-            {
-                cliente: 'Rosa Azul C.A.',
-                clienteId: 'rosa_azul',
-                facturas: [
-                    { numero: 'FAC-2024-001', monto: 15000, fecha: '2025-11-15', vencimiento: '2025-12-15', estado: 'vencida', diasMora: 46 },
-                    { numero: 'FAC-2024-015', monto: 8500, fecha: '2025-12-20', vencimiento: '2026-01-20', estado: 'vencida', diasMora: 10 },
-                    { numero: 'FAC-2025-003', monto: 12000, fecha: '2026-01-10', vencimiento: '2026-02-10', estado: 'pendiente', diasMora: 0 },
-                ],
-                totalDeuda: 35500,
-                totalVencido: 23500,
-            },
-            {
-                cliente: 'Alimentos del Sur',
-                clienteId: 'alimentos_del_sur',
-                facturas: [
-                    { numero: 'FAC-2024-008', monto: 22000, fecha: '2025-10-01', vencimiento: '2025-11-01', estado: 'vencida', diasMora: 90 },
-                    { numero: 'FAC-2025-001', monto: 5000, fecha: '2026-01-05', vencimiento: '2026-02-05', estado: 'pendiente', diasMora: 0 },
-                ],
-                totalDeuda: 27000,
-                totalVencido: 22000,
-            },
-            {
-                cliente: 'Plasticos Nacionales',
-                clienteId: 'plasticos_nacionales',
-                facturas: [
-                    { numero: 'FAC-2025-002', monto: 18000, fecha: '2026-01-08', vencimiento: '2026-02-08', estado: 'pendiente', diasMora: 0 },
-                ],
-                totalDeuda: 18000,
-                totalVencido: 0,
-            },
-            {
-                cliente: 'Envases Premium',
-                clienteId: 'envases_premium',
-                facturas: [
-                    { numero: 'FAC-2024-012', monto: 9500, fecha: '2025-12-01', vencimiento: '2026-01-01', estado: 'vencida', diasMora: 29 },
-                    { numero: 'FAC-2025-004', monto: 7500, fecha: '2026-01-15', vencimiento: '2026-02-15', estado: 'pendiente', diasMora: 0 },
-                ],
-                totalDeuda: 17000,
-                totalVencido: 9500,
-            },
-        ];
+        // Intentar cargar desde API primero
+        if (typeof AxonesAPI !== 'undefined' && CONFIG.API.BASE_URL !== '') {
+            try {
+                const response = await AxonesAPI.getCuentasPorCobrar();
+                if (response.success && response.data && response.data.length > 0) {
+                    this.cuentasPorCobrar = this.procesarCuentasDesdeAPI(response.data);
+                    console.log('Chatbot: Cuentas por cobrar cargadas desde API');
+                    return;
+                }
+            } catch (error) {
+                console.warn('Error cargando cuentas por cobrar desde API:', error);
+            }
+        }
+
+        // Intentar cargar desde localStorage (cache)
+        const cached = localStorage.getItem('axones_cuentas_por_cobrar');
+        if (cached) {
+            try {
+                this.cuentasPorCobrar = JSON.parse(cached);
+                console.log('Chatbot: Cuentas por cobrar cargadas desde cache');
+                return;
+            } catch (e) {
+                console.warn('Error parseando cache de cuentas por cobrar');
+            }
+        }
+
+        // Si no hay datos, mostrar array vacio con mensaje
+        this.cuentasPorCobrar = [];
+        console.log('Chatbot: No hay datos de cuentas por cobrar. Configure la hoja de Google Sheets.');
+    },
+
+    /**
+     * Procesa datos de cuentas desde la API
+     */
+    procesarCuentasDesdeAPI: function(data) {
+        // Agrupar facturas por cliente
+        const clientesMap = {};
+
+        data.forEach(factura => {
+            const clienteId = factura.cliente_id || factura.cliente?.toLowerCase().replace(/\s+/g, '_');
+            if (!clientesMap[clienteId]) {
+                clientesMap[clienteId] = {
+                    cliente: factura.cliente,
+                    clienteId: clienteId,
+                    facturas: [],
+                    totalDeuda: 0,
+                    totalVencido: 0
+                };
+            }
+
+            const vencimiento = new Date(factura.vencimiento);
+            const hoy = new Date();
+            const diasMora = vencimiento < hoy ? Math.floor((hoy - vencimiento) / (1000 * 60 * 60 * 24)) : 0;
+            const estado = diasMora > 0 ? 'vencida' : 'pendiente';
+
+            clientesMap[clienteId].facturas.push({
+                numero: factura.numero,
+                monto: parseFloat(factura.monto) || 0,
+                fecha: factura.fecha,
+                vencimiento: factura.vencimiento,
+                estado: estado,
+                diasMora: diasMora
+            });
+
+            clientesMap[clienteId].totalDeuda += parseFloat(factura.monto) || 0;
+            if (estado === 'vencida') {
+                clientesMap[clienteId].totalVencido += parseFloat(factura.monto) || 0;
+            }
+        });
+
+        const cuentas = Object.values(clientesMap);
+
+        // Guardar en cache
+        localStorage.setItem('axones_cuentas_por_cobrar', JSON.stringify(cuentas));
+
+        return cuentas;
     },
 
     /**
@@ -603,27 +636,64 @@ const Chatbot = {
     },
 
     /**
-     * Responde sobre produccion de un cliente
+     * Responde sobre produccion de un cliente desde datos reales
      */
     responderProduccionCliente: function(nombreCliente) {
-        // Datos de ejemplo - en produccion se cargarian de Sheets
-        return `Produccion del mes anterior para **${nombreCliente}**:\n\n` +
-               `- **Kg procesados:** 12,450 kg\n` +
-               `- **Pedidos completados:** 8\n` +
-               `- **Valor total:** $18,500\n\n` +
-               `Correlacion con pagos: El cliente tiene $35,500 en facturas pendientes.`;
+        // Buscar ordenes del cliente
+        const ordenes = JSON.parse(localStorage.getItem('axones_ordenes') || '[]');
+        const ordenesCliente = ordenes.filter(o =>
+            o.cliente && o.cliente.toLowerCase().includes(nombreCliente.toLowerCase())
+        );
+
+        const totalKg = ordenesCliente.reduce((sum, o) => sum + (parseFloat(o.pedidoKg) || 0), 0);
+        const ordenesCompletadas = ordenesCliente.filter(o => o.estado === 'completado').length;
+
+        // Buscar deuda del cliente
+        const cuentaCliente = this.cuentasPorCobrar.find(c =>
+            c.cliente.toLowerCase().includes(nombreCliente.toLowerCase())
+        );
+        const deuda = cuentaCliente ? cuentaCliente.totalDeuda : 0;
+
+        if (ordenesCliente.length === 0) {
+            return `No se encontraron ordenes para el cliente **${nombreCliente}**.`;
+        }
+
+        return `Produccion para **${nombreCliente}**:\n\n` +
+               `- **Kg procesados:** ${Axones.formatNumber(totalKg)} kg\n` +
+               `- **Ordenes totales:** ${ordenesCliente.length}\n` +
+               `- **Ordenes completadas:** ${ordenesCompletadas}\n` +
+               (deuda > 0 ? `\n**Deuda pendiente:** $${Axones.formatNumber(deuda)}` : '\n*Sin deuda registrada*');
     },
 
     /**
-     * Responde sobre pagos recientes
+     * Responde sobre pagos recientes desde datos reales
      */
     responderPagosRecientes: function() {
-        // Datos de ejemplo
-        return '**Pagos recibidos esta semana:**\n\n' +
-               '- 28/01: Plasticos Nacionales - $5,000\n' +
-               '- 27/01: Rosa Azul C.A. - $3,500\n' +
-               '- 25/01: Envases Premium - $2,000\n\n' +
-               '**Total de la semana:** $10,500';
+        // Buscar pagos en localStorage o API
+        const pagos = JSON.parse(localStorage.getItem('axones_pagos') || '[]');
+
+        if (pagos.length === 0) {
+            return '**Pagos recientes:**\n\n' +
+                   'No hay pagos registrados en el sistema.\n\n' +
+                   '*Para registrar pagos, configure la hoja de Google Sheets correspondiente.*';
+        }
+
+        // Filtrar pagos de la ultima semana
+        const hoy = new Date();
+        const hace7Dias = new Date(hoy.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const pagosRecientes = pagos.filter(p => new Date(p.fecha) >= hace7Dias);
+
+        if (pagosRecientes.length === 0) {
+            return '**Pagos de esta semana:**\n\nNo hay pagos registrados en los ultimos 7 dias.';
+        }
+
+        const total = pagosRecientes.reduce((sum, p) => sum + (parseFloat(p.monto) || 0), 0);
+        const lista = pagosRecientes.slice(0, 5).map(p => {
+            const fecha = new Date(p.fecha).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit' });
+            return `- ${fecha}: ${p.cliente} - $${Axones.formatNumber(p.monto)}`;
+        }).join('\n');
+
+        return `**Pagos recibidos esta semana:**\n\n${lista}\n\n**Total de la semana:** $${Axones.formatNumber(total)}`;
     },
 
     /**

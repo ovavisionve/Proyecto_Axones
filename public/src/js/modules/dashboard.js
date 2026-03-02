@@ -37,22 +37,60 @@ const Dashboard = {
     },
 
     /**
-     * Carga los KPIs principales
+     * Carga los KPIs principales desde datos reales
      */
     loadKPIs: async function() {
-        // En desarrollo, usar datos de ejemplo
-        const kpis = {
-            produccionTotal: 45600,
-            produccionMeta: 50000,
-            desperdicioPromedio: 3.8,
-            desperdicioMeta: 5.0,
-            eficienciaGeneral: 91.2,
-            alertasPendientes: 3,
-            clientesActivos: 24,
-            pedidosPendientes: 12,
-        };
-
+        // Calcular KPIs desde datos reales en localStorage
+        const kpis = this.calcularKPIsReales();
         this.renderKPIs(kpis);
+    },
+
+    /**
+     * Calcula KPIs desde datos reales
+     */
+    calcularKPIsReales: function() {
+        // Inventario
+        const inventario = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
+        const produccionTotal = inventario.reduce((sum, item) => sum + (parseFloat(item.kg) || 0), 0);
+
+        // Ordenes
+        const ordenes = JSON.parse(localStorage.getItem('axones_ordenes') || '[]');
+        const ordenesCompletadas = ordenes.filter(o => o.estado === 'completado');
+        const pedidosPendientes = ordenes.filter(o => o.estado !== 'completado' && o.estado !== 'cancelado').length;
+
+        // Calcular desperdicio promedio
+        let desperdicioPromedio = 0;
+        if (ordenesCompletadas.length > 0) {
+            const totalRefil = ordenesCompletadas.reduce((sum, o) => sum + (parseFloat(o.refil) || 0), 0);
+            desperdicioPromedio = totalRefil / ordenesCompletadas.length;
+        }
+
+        // Alertas pendientes
+        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
+        const alertasPendientes = alertas.filter(a => a.estado === 'pendiente' || a.estado === 'activa').length;
+
+        // Clientes unicos de ordenes
+        const clientesUnicos = new Set(ordenes.map(o => o.cliente).filter(c => c));
+
+        // Meta de produccion (estimada basada en inventario inicial)
+        const produccionMeta = Math.max(produccionTotal * 1.1, 50000);
+
+        // Eficiencia (basada en ordenes completadas vs totales)
+        let eficienciaGeneral = 100;
+        if (ordenes.length > 0) {
+            eficienciaGeneral = (ordenesCompletadas.length / ordenes.length) * 100;
+        }
+
+        return {
+            produccionTotal: produccionTotal,
+            produccionMeta: produccionMeta,
+            desperdicioPromedio: desperdicioPromedio,
+            desperdicioMeta: 5.0,
+            eficienciaGeneral: eficienciaGeneral,
+            alertasPendientes: alertasPendientes,
+            clientesActivos: clientesUnicos.size,
+            pedidosPendientes: pedidosPendientes,
+        };
     },
 
     /**
@@ -110,14 +148,41 @@ const Dashboard = {
     },
 
     /**
-     * Carga datos para el grafico de produccion
+     * Carga datos para el grafico de produccion desde ordenes reales
      */
     loadProduccionChart: async function() {
-        // Datos de ejemplo - ultimos 7 dias
         const labels = this.getLast7Days();
-        const data = [3200, 3450, 2980, 3600, 3800, 3200, 2800];
+        const data = this.calcularProduccionPorDia();
 
         this.renderProduccionChart(labels, data);
+    },
+
+    /**
+     * Calcula produccion real por dia de los ultimos 7 dias
+     */
+    calcularProduccionPorDia: function() {
+        const ordenes = JSON.parse(localStorage.getItem('axones_ordenes') || '[]');
+        const hoy = new Date();
+        const produccionPorDia = [];
+
+        for (let i = 6; i >= 0; i--) {
+            const fecha = new Date(hoy);
+            fecha.setDate(fecha.getDate() - i);
+            const fechaStr = fecha.toISOString().split('T')[0];
+
+            // Sumar produccion de ordenes de ese dia
+            const produccionDia = ordenes
+                .filter(o => {
+                    if (!o.fechaCreacion) return false;
+                    const fechaOrden = new Date(o.fechaCreacion).toISOString().split('T')[0];
+                    return fechaOrden === fechaStr;
+                })
+                .reduce((sum, o) => sum + (parseFloat(o.pedidoKg) || 0), 0);
+
+            produccionPorDia.push(produccionDia);
+        }
+
+        return produccionPorDia;
     },
 
     /**
@@ -168,14 +233,46 @@ const Dashboard = {
     },
 
     /**
-     * Carga datos para el grafico de desperdicio
+     * Carga datos para el grafico de desperdicio desde ordenes reales
      */
     loadDesperdicioChart: async function() {
         const labels = this.getLast7Days();
-        const data = [3.2, 4.1, 2.8, 5.2, 3.6, 4.8, 3.4];
+        const data = this.calcularDesperdicioPorDia();
         const umbral = 5.0;
 
         this.renderDesperdicioChart(labels, data, umbral);
+    },
+
+    /**
+     * Calcula desperdicio real por dia de los ultimos 7 dias
+     */
+    calcularDesperdicioPorDia: function() {
+        const ordenes = JSON.parse(localStorage.getItem('axones_ordenes') || '[]');
+        const hoy = new Date();
+        const desperdicioPorDia = [];
+
+        for (let i = 6; i >= 0; i--) {
+            const fecha = new Date(hoy);
+            fecha.setDate(fecha.getDate() - i);
+            const fechaStr = fecha.toISOString().split('T')[0];
+
+            // Calcular promedio de refil de ordenes de ese dia
+            const ordenesDia = ordenes.filter(o => {
+                if (!o.fechaCreacion) return false;
+                const fechaOrden = new Date(o.fechaCreacion).toISOString().split('T')[0];
+                return fechaOrden === fechaStr && o.refil !== undefined;
+            });
+
+            let promedioDia = 0;
+            if (ordenesDia.length > 0) {
+                const totalRefil = ordenesDia.reduce((sum, o) => sum + (parseFloat(o.refil) || 0), 0);
+                promedioDia = totalRefil / ordenesDia.length;
+            }
+
+            desperdicioPorDia.push(parseFloat(promedioDia.toFixed(2)));
+        }
+
+        return desperdicioPorDia;
     },
 
     /**
@@ -236,19 +333,64 @@ const Dashboard = {
     },
 
     /**
-     * Carga ranking de operadores
+     * Carga ranking de operadores desde datos reales
      */
     loadOperadoresRanking: async function() {
-        // Datos de ejemplo
-        const operadores = [
-            { nombre: 'Maria Garcia', desperdicio: 2.8, produccion: 4200, eficiencia: 94 },
-            { nombre: 'Carlos Perez', desperdicio: 3.2, produccion: 3900, eficiencia: 91 },
-            { nombre: 'Ana Martinez', desperdicio: 3.5, produccion: 3800, eficiencia: 89 },
-            { nombre: 'Luis Rodriguez', desperdicio: 4.1, produccion: 3600, eficiencia: 86 },
-            { nombre: 'Pedro Sanchez', desperdicio: 4.8, produccion: 3400, eficiencia: 82 },
-        ];
-
+        const operadores = this.calcularRankingOperadores();
         this.renderOperadoresRanking(operadores);
+    },
+
+    /**
+     * Calcula ranking de operadores desde ordenes reales
+     */
+    calcularRankingOperadores: function() {
+        const ordenes = JSON.parse(localStorage.getItem('axones_ordenes') || '[]');
+
+        // Agrupar por operador/registrador
+        const operadoresMap = {};
+
+        ordenes.forEach(orden => {
+            const nombre = orden.registradoPorNombre || orden.operador || 'Sin asignar';
+            if (!operadoresMap[nombre]) {
+                operadoresMap[nombre] = {
+                    nombre: nombre,
+                    ordenes: 0,
+                    ordenesCompletadas: 0,
+                    totalRefil: 0,
+                    totalKg: 0
+                };
+            }
+            operadoresMap[nombre].ordenes++;
+            operadoresMap[nombre].totalKg += parseFloat(orden.pedidoKg) || 0;
+            if (orden.estado === 'completado') {
+                operadoresMap[nombre].ordenesCompletadas++;
+                operadoresMap[nombre].totalRefil += parseFloat(orden.refil) || 0;
+            }
+        });
+
+        // Convertir a array y calcular metricas
+        const operadores = Object.values(operadoresMap).map(op => ({
+            nombre: op.nombre,
+            desperdicio: op.ordenesCompletadas > 0 ? (op.totalRefil / op.ordenesCompletadas) : 0,
+            produccion: op.totalKg,
+            eficiencia: op.ordenes > 0 ? Math.round((op.ordenesCompletadas / op.ordenes) * 100) : 0
+        }));
+
+        // Ordenar por menor desperdicio (mejor)
+        operadores.sort((a, b) => a.desperdicio - b.desperdicio);
+
+        // Si no hay datos, mostrar mensaje
+        if (operadores.length === 0) {
+            return [{
+                nombre: 'Sin datos',
+                desperdicio: 0,
+                produccion: 0,
+                eficiencia: 0
+            }];
+        }
+
+        // Limitar a top 5
+        return operadores.slice(0, 5);
     },
 
     /**

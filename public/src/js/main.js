@@ -85,28 +85,63 @@ const Axones = {
     },
 
     /**
-     * Carga estadisticas del dashboard
+     * Carga estadisticas del dashboard desde datos reales
      */
     loadDashboardStats: async function() {
-        // En desarrollo, mostrar datos de ejemplo
-        if (CONFIG.API.BASE_URL === '') {
-            this.updateStats({
-                produccion: '2,450',
-                desperdicio: '3.2',
-                alertas: '2',
-                operadores: '4',
-            });
-            return;
+        // Cargar estadisticas reales desde localStorage
+        const stats = this.calcularEstadisticasReales();
+        this.updateStats(stats);
+
+        // Si hay API configurada, intentar sincronizar
+        if (CONFIG.API.BASE_URL !== '') {
+            try {
+                const response = await fetch(CONFIG.API.BASE_URL + '?action=getStats');
+                const data = await response.json();
+                if (data) {
+                    this.updateStats(data);
+                }
+            } catch (error) {
+                console.warn('Error cargando estadisticas de API, usando datos locales:', error);
+            }
+        }
+    },
+
+    /**
+     * Calcula estadisticas reales desde localStorage
+     */
+    calcularEstadisticasReales: function() {
+        // Obtener alertas pendientes
+        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
+        const alertasPendientes = alertas.filter(a => a.estado === 'pendiente' || a.estado === 'activa').length;
+
+        // Obtener ordenes
+        const ordenes = JSON.parse(localStorage.getItem('axones_ordenes') || '[]');
+        const ordenesActivas = ordenes.filter(o => o.estado !== 'completado' && o.estado !== 'cancelado').length;
+
+        // Calcular produccion del inventario
+        const inventario = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
+        const totalKg = inventario.reduce((sum, item) => sum + (parseFloat(item.kg) || 0), 0);
+
+        // Calcular desperdicio promedio de ordenes completadas
+        const ordenesCompletadas = ordenes.filter(o => o.estado === 'completado' && o.refil);
+        let desperdicioPromedio = 0;
+        if (ordenesCompletadas.length > 0) {
+            desperdicioPromedio = ordenesCompletadas.reduce((sum, o) => sum + (parseFloat(o.refil) || 0), 0) / ordenesCompletadas.length;
         }
 
-        // En produccion, cargar desde Apps Script
-        try {
-            const response = await fetch(CONFIG.API.BASE_URL + '?action=getStats');
-            const data = await response.json();
-            this.updateStats(data);
-        } catch (error) {
-            console.error('Error cargando estadisticas:', error);
-        }
+        return {
+            produccion: this.formatNumber(totalKg),
+            desperdicio: desperdicioPromedio.toFixed(1),
+            alertas: alertasPendientes.toString(),
+            operadores: ordenesActivas.toString(),
+        };
+    },
+
+    /**
+     * Formatea numero con separadores de miles
+     */
+    formatNumber: function(num) {
+        return num.toLocaleString('es-VE', { maximumFractionDigits: 0 });
     },
 
     /**
@@ -129,45 +164,86 @@ const Axones = {
     },
 
     /**
-     * Carga alertas recientes
+     * Carga alertas recientes desde localStorage
      */
     loadRecentAlerts: async function() {
         const tbody = document.getElementById('alertasRecientes');
         if (!tbody) return;
 
-        // En desarrollo, mostrar datos de ejemplo
-        if (CONFIG.API.BASE_URL === '') {
-            const alertasDemo = [
-                {
-                    fecha: '30/01/2026 10:45',
-                    tipo: 'Desperdicio Alto',
-                    maquina: 'Extrusora 1',
-                    operador: 'Carlos Perez',
-                    mensaje: 'Desperdicio 6.2% - Excede umbral de 5%',
-                    estado: 'pendiente',
-                },
-                {
-                    fecha: '30/01/2026 09:30',
-                    tipo: 'Desperdicio Alto',
-                    maquina: 'Impresora 2',
-                    operador: 'Maria Garcia',
-                    mensaje: 'Desperdicio 5.5% - Excede umbral de 5%',
-                    estado: 'atendida',
-                },
-            ];
+        // Cargar alertas reales desde localStorage
+        const alertasStorage = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
 
-            this.renderAlerts(alertasDemo);
-            return;
+        // Convertir formato y tomar las 5 mas recientes
+        const alertasRecientes = alertasStorage
+            .slice(0, 5)
+            .map(a => ({
+                fecha: this.formatearFechaAlerta(a.fecha),
+                tipo: this.obtenerTipoAlertaTexto(a.tipo),
+                maquina: a.maquina || '-',
+                operador: a.datos?.operador || '-',
+                mensaje: a.mensaje,
+                estado: a.estado,
+            }));
+
+        if (alertasRecientes.length > 0) {
+            this.renderAlerts(alertasRecientes);
+        } else {
+            // Mostrar mensaje si no hay alertas
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="text-center text-muted py-4">
+                        <i class="bi bi-check-circle fs-4 d-block mb-2"></i>
+                        No hay alertas pendientes
+                    </td>
+                </tr>
+            `;
         }
 
-        // En produccion, cargar desde Apps Script
-        try {
-            const response = await fetch(CONFIG.API.BASE_URL + '?action=getRecentAlerts&limit=5');
-            const data = await response.json();
-            this.renderAlerts(data);
-        } catch (error) {
-            console.error('Error cargando alertas:', error);
+        // Si hay API, intentar sincronizar
+        if (CONFIG.API.BASE_URL !== '') {
+            try {
+                const response = await fetch(CONFIG.API.BASE_URL + '?action=getRecentAlerts&limit=5');
+                const data = await response.json();
+                if (data && data.length > 0) {
+                    this.renderAlerts(data);
+                }
+            } catch (error) {
+                console.warn('Error sincronizando alertas con API:', error);
+            }
         }
+    },
+
+    /**
+     * Formatea fecha de alerta
+     */
+    formatearFechaAlerta: function(fechaISO) {
+        if (!fechaISO) return '-';
+        const fecha = new Date(fechaISO);
+        return fecha.toLocaleDateString('es-VE', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    },
+
+    /**
+     * Obtiene texto legible del tipo de alerta
+     */
+    obtenerTipoAlertaTexto: function(tipo) {
+        const tipos = {
+            'stock_bajo': 'Stock Bajo',
+            'stock_bajo_material': 'Stock Bajo Material',
+            'stock_bajo_tinta': 'Stock Bajo Tinta',
+            'stock_bajo_adhesivo': 'Stock Bajo Quimico',
+            'refil_alto': 'Refil Alto',
+            'refil_critico': 'Refil Critico',
+            'tiempo_muerto_alto': 'Tiempo Muerto',
+            'produccion_baja': 'Produccion Baja',
+            'maquina_detenida': 'Maquina Detenida',
+        };
+        return tipos[tipo] || tipo || 'Alerta';
     },
 
     /**

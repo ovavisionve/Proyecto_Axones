@@ -24,6 +24,60 @@ const Laminacion = {
 
         // Verificar si viene de una orden y cargar datos automaticamente
         this.cargarDesdeOrden();
+
+        // Inicializar controles de tiempo
+        this.inicializarControlTiempo();
+    },
+
+    /**
+     * Inicializa los controles de tiempo (Play/Pausa/Completado)
+     */
+    inicializarControlTiempo: function() {
+        const form = document.getElementById('formLaminacion');
+        if (!form || document.getElementById('controlTiempoLaminacion')) return;
+
+        const panelHTML = `
+            <div id="controlTiempoLaminacion" class="card mb-3 border-warning">
+                <div class="card-header bg-warning text-dark py-2">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span><i class="bi bi-stopwatch me-2"></i>Control de Tiempo - Laminacion</span>
+                        <span id="ordenActivaLaminacion" class="badge bg-dark">Sin orden</span>
+                    </div>
+                </div>
+                <div class="card-body py-2" id="contenedorControlTiempoLam" data-orden-id="" data-fase="laminacion">
+                    <div class="text-center text-muted py-3">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Seleccione o ingrese una orden de trabajo para activar el cronometro
+                    </div>
+                </div>
+            </div>
+        `;
+
+        form.insertAdjacentHTML('afterbegin', panelHTML);
+    },
+
+    /**
+     * Actualiza el control de tiempo cuando se carga una orden
+     */
+    actualizarControlTiempo: function(ordenId, numeroOrden) {
+        const contenedor = document.getElementById('contenedorControlTiempoLam');
+        const labelOrden = document.getElementById('ordenActivaLaminacion');
+
+        if (!contenedor) return;
+
+        if (ordenId && typeof ControlTiempo !== 'undefined') {
+            contenedor.setAttribute('data-orden-id', ordenId);
+            labelOrden.textContent = numeroOrden || ordenId;
+            ControlTiempo.renderControles(ordenId, 'laminacion', 'contenedorControlTiempoLam');
+        } else {
+            contenedor.innerHTML = `
+                <div class="text-center text-muted py-3">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Seleccione o ingrese una orden de trabajo para activar el cronometro
+                </div>
+            `;
+            labelOrden.textContent = 'Sin orden';
+        }
     },
 
     /**
@@ -62,7 +116,7 @@ const Laminacion = {
      */
     precargarCamposOrden: function(orden) {
         const camposOrden = {
-            'ordenTrabajo': orden.ot,
+            'ordenTrabajo': orden.ot || orden.numeroOrden,
             'cliente': orden.cliente,
             'producto': orden.producto
         };
@@ -82,6 +136,9 @@ const Laminacion = {
             clienteSelect.value = orden.cliente;
             clienteSelect.dispatchEvent(new Event('change'));
         }
+
+        // Actualizar control de tiempo
+        this.actualizarControlTiempo(orden.id || orden.ot, orden.numeroOrden || orden.ot);
     },
 
     /**

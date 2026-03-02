@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Registro de Incidencias - Sistema Axones">
+    <title>Incidencias - Axones</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#212529">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="src/css/main.css" rel="stylesheet">
+    <style>
+        .stat-card {
+            transition: all 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="index.html">
+                <i class="bi bi-gear-wide-connected me-2"></i>
+                <span class="fw-bold">AXONES</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarMain">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">
+                            <i class="bi bi-house-door me-1"></i> Inicio
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="bi bi-clipboard-data me-1"></i> Produccion
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="impresion.html"><i class="bi bi-printer me-2"></i>Control de Impresion</a></li>
+                            <li><a class="dropdown-item" href="laminacion.html"><i class="bi bi-layers me-2"></i>Control de Laminacion</a></li>
+                            <li><a class="dropdown-item" href="corte.html"><i class="bi bi-scissors me-2"></i>Control de Corte</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="tintas.html"><i class="bi bi-droplet me-2"></i>Consumo de Tintas</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="bi bi-check2-square me-1"></i> Calidad
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="checklist.html"><i class="bi bi-list-check me-2"></i>Lista de Chequeo</a></li>
+                            <li><a class="dropdown-item" href="certificado.html"><i class="bi bi-award me-2"></i>Certificado de Calidad</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="programacion.html">
+                            <i class="bi bi-list-task me-1"></i> Estado Ordenes
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="inventario.html">
+                            <i class="bi bi-box-seam me-1"></i> Inventario
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="incidencias.html">
+                            <i class="bi bi-exclamation-triangle me-1"></i> Incidencias
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="alertas.html">
+                            <i class="bi bi-bell me-1"></i> Alertas
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="reportes.html">
+                            <i class="bi bi-file-earmark-bar-graph me-1"></i> Reportes
+                        </a>
+                    </li>
+                </ul>
+                <div class="d-flex align-items-center">
+                    <span class="text-light me-3" id="userInfo">
+                        <i class="bi bi-person-circle me-1"></i>
+                        <span id="userName">Usuario</span>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container-fluid py-4" style="margin-top: 70px;">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="mb-0">
+                    <i class="bi bi-exclamation-triangle text-warning me-2"></i>
+                    Registro de Incidencias
+                </h2>
+                <p class="text-muted mb-0">Seguimiento de problemas en produccion</p>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-secondary" onclick="Incidencias.exportarCSV()">
+                    <i class="bi bi-download me-1"></i> Exportar
+                </button>
+                <button class="btn btn-primary" id="btnNuevaIncidencia">
+                    <i class="bi bi-plus-lg me-1"></i> Nueva Incidencia
+                </button>
+            </div>
+        </div>
+
+        <!-- Contadores -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="card stat-card border-danger">
+                    <div class="card-body text-center">
+                        <i class="bi bi-exclamation-circle text-danger display-6"></i>
+                        <h3 class="mb-0 mt-2" id="contAbiertas">0</h3>
+                        <small class="text-muted">Abiertas</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card border-warning">
+                    <div class="card-body text-center">
+                        <i class="bi bi-hourglass-split text-warning display-6"></i>
+                        <h3 class="mb-0 mt-2" id="contEnProceso">0</h3>
+                        <small class="text-muted">En Proceso</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card border-dark">
+                    <div class="card-body text-center">
+                        <i class="bi bi-lightning text-dark display-6"></i>
+                        <h3 class="mb-0 mt-2" id="contCriticas">0</h3>
+                        <small class="text-muted">Criticas</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card border-secondary">
+                    <div class="card-body text-center">
+                        <i class="bi bi-list-ul text-secondary display-6"></i>
+                        <h3 class="mb-0 mt-2" id="contTotal">0</h3>
+                        <small class="text-muted">Total</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="card mb-4">
+            <div class="card-body py-2">
+                <div class="row g-2 align-items-center">
+                    <div class="col-md-3">
+                        <input type="text" class="form-control form-control-sm" id="buscarIncidencia"
+                               placeholder="Buscar incidencia...">
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select form-select-sm" id="filtroCategoria">
+                            <option value="">Todas las categorias</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select form-select-sm" id="filtroSeveridad">
+                            <option value="">Todas las severidades</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select form-select-sm" id="filtroEstado">
+                            <option value="">Todos los estados</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 text-end">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('buscarIncidencia').value='';Incidencias.aplicarFiltros();">
+                            <i class="bi bi-x-circle me-1"></i> Limpiar filtros
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lista de Incidencias -->
+        <div id="listaIncidencias">
+            <div class="text-center text-muted py-5">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Nueva/Editar Incidencia -->
+    <div class="modal fade" id="modalIncidencia" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title" id="modalIncidenciaLabel">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Nueva Incidencia
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formIncidencia">
+                        <input type="hidden" id="incidenciaId">
+
+                        <div class="row g-3">
+                            <!-- Categoria y Severidad -->
+                            <div class="col-md-6">
+                                <label class="form-label">Categoria <span class="text-danger">*</span></label>
+                                <select class="form-select" id="incCategoria" required>
+                                    <option value="">Seleccione categoria...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Severidad <span class="text-danger">*</span></label>
+                                <select class="form-select" id="incSeveridad" required>
+                                    <option value="">Seleccione severidad...</option>
+                                </select>
+                            </div>
+
+                            <!-- Relacion -->
+                            <div class="col-md-6">
+                                <label class="form-label" id="labelRelacion">Relacionado con</label>
+                                <select class="form-select" id="incRelacion">
+                                    <option value="">Seleccione categoria primero...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Orden de Trabajo</label>
+                                <input type="text" class="form-control" id="incOrdenTrabajo" placeholder="OT-2026-0001">
+                            </div>
+
+                            <!-- Titulo -->
+                            <div class="col-12">
+                                <label class="form-label">Titulo <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="incTitulo" required
+                                       placeholder="Describa brevemente la incidencia">
+                            </div>
+
+                            <!-- Descripcion -->
+                            <div class="col-12">
+                                <label class="form-label">Descripcion <span class="text-danger">*</span></label>
+                                <textarea class="form-control" id="incDescripcion" rows="4" required
+                                          placeholder="Describa en detalle la incidencia, causas posibles y acciones tomadas..."></textarea>
+                            </div>
+
+                            <!-- Fecha y Reportado por -->
+                            <div class="col-md-6">
+                                <label class="form-label">Fecha y Hora <span class="text-danger">*</span></label>
+                                <input type="datetime-local" class="form-control" id="incFecha" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Reportado por <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="incReportadoPor" required
+                                       placeholder="Nombre del supervisor">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-warning" id="btnGuardarIncidencia">
+                        <i class="bi bi-check-lg me-1"></i> Guardar Incidencia
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Config y Utils -->
+    <script src="src/js/config.js"></script>
+    <script src="src/js/utils/api.js"></script>
+    <script src="src/js/app.js"></script>
+
+    <!-- Modulo Incidencias -->
+    <script src="src/js/modules/incidencias.js"></script>
+</body>
+</html>

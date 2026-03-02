@@ -112,11 +112,60 @@ const Ordenes = {
         this.setFechaActual();
         this.generarNumeroOrden();
 
+        // Inicializar memoria de clientes desde ordenes existentes
+        if (typeof ClienteMemoria !== 'undefined') {
+            ClienteMemoria.reconstruirDesdeOrdenes();
+        }
+
+        // Configurar autocomplete para productos
+        this.setupProductoAutocomplete();
+
         // Verificar si estamos editando una orden existente
         this.checkEditMode();
 
         // Verificar ordenes proximas y enviar alertas por email si es necesario
         this.verificarOrdenesProximas();
+    },
+
+    /**
+     * Configura autocomplete para el campo producto basado en cliente
+     */
+    setupProductoAutocomplete: function() {
+        const productoInput = document.getElementById('producto');
+        const clienteSelect = document.getElementById('cliente');
+        if (!productoInput || !clienteSelect) return;
+
+        // Crear datalist
+        let datalist = document.getElementById('productosDatalist');
+        if (!datalist) {
+            datalist = document.createElement('datalist');
+            datalist.id = 'productosDatalist';
+            document.body.appendChild(datalist);
+            productoInput.setAttribute('list', 'productosDatalist');
+        }
+
+        // Actualizar datalist cuando cambia el cliente
+        clienteSelect.addEventListener('change', () => {
+            const cliente = clienteSelect.value;
+            if (cliente && typeof ClienteMemoria !== 'undefined') {
+                const productos = ClienteMemoria.getProductosCliente(cliente);
+                datalist.innerHTML = productos.map(p => `<option value="${p}">`).join('');
+            } else {
+                datalist.innerHTML = '';
+            }
+        });
+
+        // Cuando selecciona un producto del datalist, aplicar sugerencia
+        productoInput.addEventListener('change', () => {
+            const cliente = clienteSelect.value;
+            const producto = productoInput.value;
+            if (cliente && producto && typeof ClienteMemoria !== 'undefined') {
+                const config = ClienteMemoria.getConfigProducto(cliente, producto);
+                if (config && confirm(`Cargar configuracion anterior para "${producto}"?`)) {
+                    this.aplicarSugerenciaProducto(cliente, producto);
+                }
+            }
+        });
     },
 
     /**
@@ -255,6 +304,7 @@ const Ordenes = {
 
     /**
      * Carga datos del cliente seleccionado
+     * Incluye sugerencias basadas en ordenes anteriores
      */
     cargarDatosCliente: function() {
         const cliente = document.getElementById('cliente')?.value;
@@ -273,6 +323,119 @@ const Ordenes = {
 
         if (rifInput && cliente) {
             rifInput.value = clientesRif[cliente] || '';
+        }
+
+        // Cargar sugerencias de memoria si esta disponible
+        if (cliente && typeof ClienteMemoria !== 'undefined') {
+            this.mostrarSugerenciasCliente(cliente);
+        }
+    },
+
+    /**
+     * Muestra sugerencias basadas en ordenes anteriores del cliente
+     */
+    mostrarSugerenciasCliente: function(cliente) {
+        const sugerencias = ClienteMemoria.getSugerencias(cliente);
+        if (!sugerencias || sugerencias.productos.length === 0) return;
+
+        // Eliminar panel anterior si existe
+        const panelAnterior = document.getElementById('panelSugerencias');
+        if (panelAnterior) panelAnterior.remove();
+
+        // Crear panel de sugerencias
+        const clienteSelect = document.getElementById('cliente');
+        const panel = document.createElement('div');
+        panel.id = 'panelSugerencias';
+        panel.className = 'alert alert-info py-2 mt-2';
+        panel.innerHTML = `
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <span><i class="bi bi-lightbulb me-2"></i><strong>Sugerencias para ${cliente}</strong></span>
+                <button type="button" class="btn-close btn-sm" onclick="document.getElementById('panelSugerencias').remove()"></button>
+            </div>
+            <div class="mb-2">
+                <small class="text-muted">Productos anteriores:</small>
+                <div class="d-flex flex-wrap gap-1 mt-1">
+                    ${sugerencias.productos.map(p => `
+                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                onclick="Ordenes.aplicarSugerenciaProducto('${cliente}', '${p.nombre.replace(/'/g, "\\'")}')">
+                            ${p.nombre} <span class="badge bg-secondary">${p.count}</span>
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+            ${sugerencias.materiales.length > 0 ? `
+            <div>
+                <small class="text-muted">Materiales frecuentes:</small>
+                <div class="d-flex flex-wrap gap-1 mt-1">
+                    ${sugerencias.materiales.map(m => `
+                        <span class="badge bg-secondary">${m.tipo} ${m.micras}u x ${m.ancho}mm</span>
+                    `).join('')}
+                </div>
+            </div>
+            ` : ''}
+        `;
+
+        // Insertar despues del selector de cliente
+        clienteSelect.closest('.col-md-6, .col-md-4, .mb-3')?.appendChild(panel);
+    },
+
+    /**
+     * Aplica sugerencia de producto seleccionado
+     */
+    aplicarSugerenciaProducto: function(cliente, producto) {
+        const config = ClienteMemoria.getConfigProducto(cliente, producto);
+        if (!config) return;
+
+        // Llenar producto
+        const productoInput = document.getElementById('producto');
+        if (productoInput) productoInput.value = producto;
+
+        // Llenar campos de configuracion
+        const camposConfig = {
+            'cpe': config.cpe,
+            'mpps': config.mpps,
+            'codigoBarra': config.codigoBarra,
+            'estructuraMaterial': config.estructuraMaterial,
+            'tipoMaterial': config.tipoMaterial,
+            'micrasMaterial': config.micrasMaterial,
+            'anchoMaterial': config.anchoMaterial,
+            'frecuencia': config.frecuencia,
+            'desarrollo': config.desarrollo,
+            'numColores': config.numColores
+        };
+
+        Object.entries(camposConfig).forEach(([campo, valor]) => {
+            const input = document.getElementById(campo);
+            if (input && valor) {
+                input.value = valor;
+                // Resaltar campos pre-llenados
+                input.classList.add('bg-light', 'border-info');
+                input.setAttribute('title', 'Pre-llenado desde orden anterior');
+            }
+        });
+
+        // Llenar tintas si existen
+        if (config.tintas && Array.isArray(config.tintas)) {
+            config.tintas.forEach(tinta => {
+                const i = tinta.posicion;
+                const colorInput = document.getElementById(`tinta${i}Color`);
+                if (colorInput) {
+                    colorInput.value = tinta.color || '';
+                    document.getElementById(`tinta${i}Anilox`).value = tinta.anilox || '';
+                    document.getElementById(`tinta${i}Visc`).value = tinta.viscosidad || '';
+                    document.getElementById(`tinta${i}Pct`).value = tinta.porcentaje || '';
+                }
+            });
+        }
+
+        // Verificar inventario con los nuevos datos
+        this.verificarInventarioMaterial();
+
+        // Cerrar panel de sugerencias
+        document.getElementById('panelSugerencias')?.remove();
+
+        if (typeof Axones !== 'undefined') {
+            Axones.showSuccess(`Datos de "${producto}" cargados desde orden anterior`);
         }
     },
 
@@ -497,6 +660,11 @@ const Ordenes = {
         }
 
         this.saveOrdenes();
+
+        // Aprender de esta orden para sugerencias futuras
+        if (typeof ClienteMemoria !== 'undefined') {
+            ClienteMemoria.aprenderDeOrden(ordenData);
+        }
 
         // Verificar inventario
         this.verificarYCrearAlertas(ordenData);

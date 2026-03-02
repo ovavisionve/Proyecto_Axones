@@ -27,6 +27,62 @@ const Impresion = {
 
         // Verificar si viene de una orden y cargar datos automaticamente
         this.cargarDesdeOrden();
+
+        // Inicializar controles de tiempo
+        this.inicializarControlTiempo();
+    },
+
+    /**
+     * Inicializa los controles de tiempo (Play/Pausa/Completado)
+     */
+    inicializarControlTiempo: function() {
+        // Crear contenedor para controles de tiempo si no existe
+        const form = document.getElementById('formImpresion');
+        if (!form || document.getElementById('controlTiempoImpresion')) return;
+
+        // Insertar panel de control de tiempo al inicio del formulario
+        const panelHTML = `
+            <div id="controlTiempoImpresion" class="card mb-3 border-primary">
+                <div class="card-header bg-primary text-white py-2">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span><i class="bi bi-stopwatch me-2"></i>Control de Tiempo - Impresion</span>
+                        <span id="ordenActivaImpresion" class="badge bg-light text-primary">Sin orden</span>
+                    </div>
+                </div>
+                <div class="card-body py-2" id="contenedorControlTiempo" data-orden-id="" data-fase="impresion">
+                    <div class="text-center text-muted py-3">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Seleccione o ingrese una orden de trabajo para activar el cronometro
+                    </div>
+                </div>
+            </div>
+        `;
+
+        form.insertAdjacentHTML('afterbegin', panelHTML);
+    },
+
+    /**
+     * Actualiza el control de tiempo cuando se carga una orden
+     */
+    actualizarControlTiempo: function(ordenId, numeroOrden) {
+        const contenedor = document.getElementById('contenedorControlTiempo');
+        const labelOrden = document.getElementById('ordenActivaImpresion');
+
+        if (!contenedor) return;
+
+        if (ordenId && typeof ControlTiempo !== 'undefined') {
+            contenedor.setAttribute('data-orden-id', ordenId);
+            labelOrden.textContent = numeroOrden || ordenId;
+            ControlTiempo.renderControles(ordenId, 'impresion', 'contenedorControlTiempo');
+        } else {
+            contenedor.innerHTML = `
+                <div class="text-center text-muted py-3">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Seleccione o ingrese una orden de trabajo para activar el cronometro
+                </div>
+            `;
+            labelOrden.textContent = 'Sin orden';
+        }
     },
 
     /**
@@ -68,7 +124,7 @@ const Impresion = {
      */
     precargarCamposOrden: function(orden) {
         const camposOrden = {
-            'ordenTrabajo': orden.ot,
+            'ordenTrabajo': orden.ot || orden.numeroOrden,
             'cliente': orden.cliente,
             'producto': orden.producto
         };
@@ -90,6 +146,9 @@ const Impresion = {
             clienteSelect.value = orden.cliente;
             clienteSelect.dispatchEvent(new Event('change'));
         }
+
+        // Actualizar control de tiempo
+        this.actualizarControlTiempo(orden.id || orden.ot, orden.numeroOrden || orden.ot);
     },
 
     /**

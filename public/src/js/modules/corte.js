@@ -25,6 +25,60 @@ const Corte = {
 
         // Verificar si viene de una orden y cargar datos automaticamente
         this.cargarDesdeOrden();
+
+        // Inicializar controles de tiempo
+        this.inicializarControlTiempo();
+    },
+
+    /**
+     * Inicializa los controles de tiempo (Play/Pausa/Completado)
+     */
+    inicializarControlTiempo: function() {
+        const form = document.getElementById('formCorte');
+        if (!form || document.getElementById('controlTiempoCorte')) return;
+
+        const panelHTML = `
+            <div id="controlTiempoCorte" class="card mb-3 border-success">
+                <div class="card-header bg-success text-white py-2">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span><i class="bi bi-stopwatch me-2"></i>Control de Tiempo - Corte</span>
+                        <span id="ordenActivaCorte" class="badge bg-light text-success">Sin orden</span>
+                    </div>
+                </div>
+                <div class="card-body py-2" id="contenedorControlTiempoCorte" data-orden-id="" data-fase="corte">
+                    <div class="text-center text-muted py-3">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Seleccione o ingrese una orden de trabajo para activar el cronometro
+                    </div>
+                </div>
+            </div>
+        `;
+
+        form.insertAdjacentHTML('afterbegin', panelHTML);
+    },
+
+    /**
+     * Actualiza el control de tiempo cuando se carga una orden
+     */
+    actualizarControlTiempo: function(ordenId, numeroOrden) {
+        const contenedor = document.getElementById('contenedorControlTiempoCorte');
+        const labelOrden = document.getElementById('ordenActivaCorte');
+
+        if (!contenedor) return;
+
+        if (ordenId && typeof ControlTiempo !== 'undefined') {
+            contenedor.setAttribute('data-orden-id', ordenId);
+            labelOrden.textContent = numeroOrden || ordenId;
+            ControlTiempo.renderControles(ordenId, 'corte', 'contenedorControlTiempoCorte');
+        } else {
+            contenedor.innerHTML = `
+                <div class="text-center text-muted py-3">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Seleccione o ingrese una orden de trabajo para activar el cronometro
+                </div>
+            `;
+            labelOrden.textContent = 'Sin orden';
+        }
     },
 
     /**
@@ -63,7 +117,7 @@ const Corte = {
      */
     precargarCamposOrden: function(orden) {
         const camposOrden = {
-            'ordenTrabajo': orden.ot,
+            'ordenTrabajo': orden.ot || orden.numeroOrden,
             'cliente': orden.cliente,
             'producto': orden.producto
         };
@@ -82,6 +136,9 @@ const Corte = {
         if (clienteSelect && orden.cliente) {
             clienteSelect.value = orden.cliente;
         }
+
+        // Actualizar control de tiempo
+        this.actualizarControlTiempo(orden.id || orden.ot, orden.numeroOrden || orden.ot);
     },
 
     /**

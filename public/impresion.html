@@ -186,14 +186,14 @@
                             <div class="col-12">
                                 <label class="form-label small">Turno</label>
                                 <div class="btn-group w-100" role="group">
-                                    <input type="radio" class="btn-check" name="turno" id="turnoD" value="D">
-                                    <label class="btn btn-outline-primary turno-btn" for="turnoD">D</label>
-                                    <input type="radio" class="btn-check" name="turno" id="turno1" value="1">
-                                    <label class="btn btn-outline-primary turno-btn" for="turno1">1ro</label>
-                                    <input type="radio" class="btn-check" name="turno" id="turno2" value="2">
-                                    <label class="btn btn-outline-primary turno-btn" for="turno2">2do</label>
-                                    <input type="radio" class="btn-check" name="turno" id="turno3" value="3">
-                                    <label class="btn btn-outline-primary turno-btn" for="turno3">3ro</label>
+                                    <input type="radio" class="btn-check" name="turno" id="turnoDiurno" value="diurno">
+                                    <label class="btn btn-outline-primary turno-btn" for="turnoDiurno">
+                                        <i class="bi bi-sun me-1"></i> Diurno (7am - 7pm)
+                                    </label>
+                                    <input type="radio" class="btn-check" name="turno" id="turnoNocturno" value="nocturno">
+                                    <label class="btn btn-outline-primary turno-btn" for="turnoNocturno">
+                                        <i class="bi bi-moon me-1"></i> Nocturno (7pm - 7am)
+                                    </label>
                                 </div>
                             </div>
                             <!-- Cliente -->
@@ -222,11 +222,31 @@
                                 <label for="fecha" class="form-label small">Fecha</label>
                                 <input type="date" class="form-control form-control-sm" id="fecha" required>
                             </div>
-                            <!-- OT y Operador -->
-                            <div class="col-6">
+                            <!-- OT -->
+                            <div class="col-12">
                                 <label for="ordenTrabajo" class="form-label small">Orden de Trabajo</label>
                                 <input type="text" class="form-control form-control-sm" id="ordenTrabajo" placeholder="Ej: 015 EN-26" required>
                             </div>
+                            <!-- Colores y Pistas -->
+                            <div class="col-6">
+                                <label for="totalColores" class="form-label small">Total de Colores</label>
+                                <select class="form-select form-select-sm" id="totalColores">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="1">1 Color</option>
+                                    <option value="2">2 Colores</option>
+                                    <option value="3">3 Colores</option>
+                                    <option value="4">4 Colores</option>
+                                    <option value="5">5 Colores</option>
+                                    <option value="6">6 Colores</option>
+                                    <option value="7">7 Colores</option>
+                                    <option value="8">8 Colores</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label for="numPistas" class="form-label small">N° de Pistas</label>
+                                <input type="number" class="form-control form-control-sm" id="numPistas" min="1" max="12" placeholder="Ej: 4">
+                            </div>
+                            <!-- Operador -->
                             <div class="col-6">
                                 <label for="operador" class="form-label small">Operador</label>
                                 <input type="text" class="form-control form-control-sm" id="operador" placeholder="Nombre operador" required>

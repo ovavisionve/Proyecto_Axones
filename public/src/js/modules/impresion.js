@@ -917,6 +917,8 @@ const Impresion = {
             maquina: document.getElementById('maquina').value,
             fecha: document.getElementById('fecha').value,
             ordenTrabajo: document.getElementById('ordenTrabajo').value,
+            totalColores: parseInt(document.getElementById('totalColores')?.value) || 0,
+            numPistas: parseInt(document.getElementById('numPistas')?.value) || 0,
             operador: document.getElementById('operador').value,
             ayudante: document.getElementById('ayudante').value,
             supervisor: document.getElementById('supervisor').value,

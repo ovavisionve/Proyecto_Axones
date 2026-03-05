@@ -206,7 +206,7 @@
                     </div>
                     <div class="section-body">
                         <div class="row g-2">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <label class="form-label required-field">Maquina</label>
                                 <select class="form-select form-select-sm" id="maquina" required>
                                     <option value="">Seleccionar...</option>
@@ -217,19 +217,23 @@
                                     <option value="Cortadora China">Cortadora China</option>
                                 </select>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4" id="planchasContainer" style="display: none;">
                                 <label class="form-label">Planchas</label>
-                                <input type="text" class="form-control form-control-sm" id="planchas" placeholder="N/A">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label required-field">Fecha</label>
-                                <input type="date" class="form-control form-control-sm" id="fechaOrden" required>
+                                <select class="form-select form-select-sm" id="planchas">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="067">067</option>
+                                    <option value="045">045</option>
+                                </select>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label required-field">N° Orden</label>
-                                <input type="text" class="form-control form-control-sm" id="numeroOrden" required placeholder="OT-2024-001">
+                                <input type="text" class="form-control form-control-sm" id="numeroOrden" required readonly placeholder="OT-2026-0001" style="background-color: #e9ecef;">
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
+                                <label class="form-label required-field">Fecha</label>
+                                <input type="date" class="form-control form-control-sm" id="fechaOrden" required>
+                            </div>
+                            <div class="col-md-6">
                                 <label class="form-label required-field">Pedido (Kg)</label>
                                 <input type="number" class="form-control form-control-sm" id="pedidoKg" required step="0.01" min="0">
                             </div>
@@ -292,47 +296,66 @@
                                 <input type="number" class="form-control form-control-sm" id="frecuencia" step="0.01">
                             </div>
                             <div class="col-md-2">
+                                <label class="form-label">Repeticiones</label>
+                                <input type="number" class="form-control form-control-sm" id="numRepeticion" min="1">
+                            </div>
+                            <div class="col-md-2">
                                 <label class="form-label">Ancho Corte (mm)</label>
                                 <input type="number" class="form-control form-control-sm" id="anchoCorte" step="0.01">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">N° Banda</label>
+                                <select class="form-select form-select-sm" id="numBandas">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                    <option value="7">7</option>
+                                    <option value="8">8</option>
+                                </select>
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label">Ancho Montaje (mm)</label>
                                 <input type="number" class="form-control form-control-sm" id="anchoMontaje" step="0.01">
                             </div>
                             <div class="col-md-2">
-                                <label class="form-label">N° Bandas</label>
-                                <input type="number" class="form-control form-control-sm" id="numBandas" min="1">
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label">N° Repeticion</label>
-                                <input type="number" class="form-control form-control-sm" id="numRepeticion" min="1">
-                            </div>
-                            <div class="col-md-2">
                                 <label class="form-label">Figura Embobinado</label>
                                 <select class="form-select form-select-sm" id="figuraEmbobinadoMontaje">
                                     <option value="">Seleccionar...</option>
-                                    <option value="I">I - Interior</option>
-                                    <option value="E">E - Exterior</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                    <option value="7">7</option>
+                                    <option value="8">8</option>
                                 </select>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <label class="form-label">Tipo Impresion</label>
                                 <select class="form-select form-select-sm" id="tipoImpresion">
                                     <option value="">Seleccionar...</option>
                                     <option value="Superficie">Superficie</option>
-                                    <option value="Laminacion">Laminacion</option>
-                                    <option value="Mixta">Mixta</option>
+                                    <option value="Reverso">Reverso</option>
                                 </select>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <label class="form-label">Desarrollo (mm)</label>
                                 <input type="number" class="form-control form-control-sm" id="desarrollo" step="0.01">
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-2">
+                                <label class="form-label">Pinon</label>
+                                <input type="number" class="form-control form-control-sm" id="pinon" readonly style="background-color: #e9ecef;" title="Automatico: Desarrollo / 5">
+                            </div>
+                            <div class="col-md-2">
                                 <label class="form-label">N° Colores</label>
                                 <input type="number" class="form-control form-control-sm" id="numColores" min="1" max="8">
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-4">
                                 <label class="form-label">Observaciones Montaje</label>
                                 <input type="text" class="form-control form-control-sm" id="obsMontaje">
                             </div>
@@ -350,47 +373,42 @@
                     <div class="section-body">
                         <div class="row g-2 mb-3">
                             <div class="col-md-2">
-                                <label class="form-label">Pinon</label>
-                                <input type="number" class="form-control form-control-sm" id="pinon" min="1">
-                            </div>
-                            <div class="col-md-2">
                                 <label class="form-label">Linea de Corte</label>
-                                <input type="text" class="form-control form-control-sm" id="lineaCorte">
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label">Ubic. Fotocelda</label>
-                                <select class="form-select form-select-sm" id="ubicFotoceldaImp">
+                                <select class="form-select form-select-sm" id="lineaCorte">
                                     <option value="">Seleccionar...</option>
-                                    <option value="Izquierda">Izquierda</option>
-                                    <option value="Centro">Centro</option>
-                                    <option value="Derecha">Derecha</option>
+                                    <option value="3mm">3mm</option>
+                                    <option value="5mm">5mm</option>
                                 </select>
                             </div>
-                            <div class="col-md-2">
-                                <label class="form-label">Gramaje Tinta</label>
-                                <input type="number" class="form-control form-control-sm" id="gramajeTinta" step="0.01">
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label">Sustratos Virgen</label>
-                                <input type="text" class="form-control form-control-sm" id="sustratosVirgen">
+                            <div class="col-md-4">
+                                <label class="form-label">Sustratos Virgen (SKU)</label>
+                                <select class="form-select form-select-sm" id="sustratosVirgen">
+                                    <option value="">Seleccionar del inventario...</option>
+                                </select>
+                                <small class="text-muted" id="sustratosVirgenInfo"></small>
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label">Kg Ingresado</label>
                                 <input type="number" class="form-control form-control-sm" id="kgIngresadoImp" step="0.01">
                             </div>
                             <div class="col-md-2">
-                                <label class="form-label">Kg Salida</label>
-                                <input type="number" class="form-control form-control-sm" id="kgSalidaImp" step="0.01">
+                                <label class="form-label">Metros</label>
+                                <input type="number" class="form-control form-control-sm" id="metrosImp" step="0.01" readonly style="background-color: #e9ecef;" title="Calculado automaticamente">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label text-muted">Kg Salida <small>(al completar)</small></label>
+                                <input type="number" class="form-control form-control-sm" id="kgSalidaImp" step="0.01" placeholder="Al finalizar">
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label">Merma (%)</label>
-                                <input type="number" class="form-control form-control-sm" id="mermaImp" step="0.01" readonly>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label">Metros</label>
-                                <input type="number" class="form-control form-control-sm" id="metrosImp" step="0.01">
+                                <input type="number" class="form-control form-control-sm" id="mermaImp" step="0.01" readonly style="background-color: #e9ecef;">
                             </div>
                         </div>
+                        <!-- Campos ocultos para calculos -->
+                        <input type="hidden" id="sustratosVirgenAncho">
+                        <input type="hidden" id="sustratosVirgenMicraje">
+                        <input type="hidden" id="sustratosVirgenTipo">
+                        <input type="hidden" id="sustratosVirgenDensidad">
 
                         <!-- Tabla de Tintas (8 posiciones) -->
                         <h6 class="mb-2 small fw-bold"><i class="bi bi-droplet me-1"></i>DESCRIPCION DE TINTAS</h6>
@@ -490,13 +508,19 @@
                                 <label class="form-label">Figura Embobinado</label>
                                 <select class="form-select form-select-sm" id="figuraEmbobinadoLam">
                                     <option value="">Seleccionar...</option>
-                                    <option value="I">I - Interior</option>
-                                    <option value="E">E - Exterior</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                    <option value="7">7</option>
+                                    <option value="8">8</option>
                                 </select>
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label">Gramaje Adhesivo</label>
-                                <input type="number" class="form-control form-control-sm" id="gramajeAdhesivo" step="0.01">
+                                <input type="text" class="form-control form-control-sm" id="gramajeAdhesivo" placeholder="ej: 2,5">
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label">Relacion Mezcla</label>

@@ -180,15 +180,32 @@ const Ordenes = {
     },
 
     /**
-     * Genera un numero de orden automatico
+     * Genera un numero de orden automatico correlativo
+     * Formato: OT-YYYY-XXXX donde XXXX es el siguiente numero disponible
      */
     generarNumeroOrden: function() {
         const numeroOrden = document.getElementById('numeroOrden');
-        if (numeroOrden && !numeroOrden.value) {
-            const year = new Date().getFullYear();
-            const count = this.ordenes.length + 1;
-            numeroOrden.value = `OT-${year}-${String(count).padStart(4, '0')}`;
-        }
+        if (!numeroOrden) return;
+
+        // Solo generar si esta vacio o es una nueva orden
+        if (numeroOrden.value && this.ordenActual) return;
+
+        const year = new Date().getFullYear();
+
+        // Buscar el ultimo numero usado en este año
+        let maxNum = 0;
+        this.ordenes.forEach(orden => {
+            if (orden.numeroOrden) {
+                const match = orden.numeroOrden.match(/OT-(\d{4})-(\d+)/);
+                if (match && parseInt(match[1]) === year) {
+                    const num = parseInt(match[2]);
+                    if (num > maxNum) maxNum = num;
+                }
+            }
+        });
+
+        const nextNum = maxNum + 1;
+        numeroOrden.value = `OT-${year}-${String(nextNum).padStart(4, '0')}`;
     },
 
     /**
@@ -235,11 +252,33 @@ const Ordenes = {
             btnLimpiar.addEventListener('click', () => this.limpiarFormulario());
         }
 
-        // Calcular merma automaticamente
+        // Mostrar/ocultar planchas segun maquina seleccionada
+        const maquinaSelect = document.getElementById('maquina');
+        if (maquinaSelect) {
+            maquinaSelect.addEventListener('change', () => this.togglePlanchas());
+        }
+
+        // Calcular pinon automaticamente cuando cambia desarrollo
+        const desarrolloInput = document.getElementById('desarrollo');
+        if (desarrolloInput) {
+            desarrolloInput.addEventListener('input', () => this.calcularPinon());
+        }
+
+        // Cargar sustratos virgen del inventario
+        this.cargarSustratosVirgen();
+
+        // Calcular metros cuando cambia sustrato o kg ingresado
+        const sustratosSelect = document.getElementById('sustratosVirgen');
         const kgIngresado = document.getElementById('kgIngresadoImp');
         const kgSalida = document.getElementById('kgSalidaImp');
-        if (kgIngresado && kgSalida) {
+        if (sustratosSelect) {
+            sustratosSelect.addEventListener('change', () => this.onSustratoChange());
+        }
+        if (kgIngresado) {
+            kgIngresado.addEventListener('input', () => this.calcularMetros());
             kgIngresado.addEventListener('input', () => this.calcularMerma());
+        }
+        if (kgSalida) {
             kgSalida.addEventListener('input', () => this.calcularMerma());
         }
 
@@ -273,6 +312,162 @@ const Ordenes = {
         if (modalOrdenes) {
             modalOrdenes.addEventListener('show.bs.modal', () => this.renderTablaOrdenes());
         }
+    },
+
+    /**
+     * Muestra/oculta campo de planchas segun maquina
+     */
+    togglePlanchas: function() {
+        const maquina = document.getElementById('maquina')?.value || '';
+        const planchasContainer = document.getElementById('planchasContainer');
+        if (planchasContainer) {
+            // Mostrar planchas solo para maquinas COMEXI
+            if (maquina.toUpperCase().includes('COMEXI')) {
+                planchasContainer.style.display = 'block';
+            } else {
+                planchasContainer.style.display = 'none';
+                document.getElementById('planchas').value = '';
+            }
+        }
+    },
+
+    /**
+     * Calcula pinon automaticamente (desarrollo / 5)
+     */
+    calcularPinon: function() {
+        const desarrollo = parseFloat(document.getElementById('desarrollo')?.value) || 0;
+        const pinonInput = document.getElementById('pinon');
+        if (pinonInput && desarrollo > 0) {
+            pinonInput.value = Math.round(desarrollo / 5);
+        }
+    },
+
+    /**
+     * Carga sustratos virgen desde el inventario
+     */
+    cargarSustratosVirgen: function() {
+        const select = document.getElementById('sustratosVirgen');
+        if (!select) return;
+
+        // Limpiar opciones excepto la primera
+        select.innerHTML = '<option value="">Seleccionar del inventario...</option>';
+
+        // Cargar inventario
+        const inventario = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
+
+        // Filtrar solo sustratos y agregar al select
+        inventario.forEach(item => {
+            if (item.tipo === 'sustrato' || item.categoria === 'sustratos') {
+                const option = document.createElement('option');
+                const ancho = item.ancho || item.anchoMm || '';
+                const micraje = item.micraje || item.micras || '';
+                const material = item.material || item.nombre || '';
+                const sku = item.sku || item.codigo || item.id || '';
+
+                option.value = JSON.stringify({
+                    sku: sku,
+                    ancho: parseFloat(ancho) || 0,
+                    micraje: parseFloat(micraje) || 0,
+                    material: material,
+                    kg: parseFloat(item.kg) || 0
+                });
+                option.textContent = `${sku} - ${material} ${ancho}mm x ${micraje}mic (${item.kg || 0} kg)`;
+                select.appendChild(option);
+            }
+        });
+
+        // Si no hay sustratos, mostrar mensaje
+        if (select.options.length === 1) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = '-- No hay sustratos en inventario --';
+            option.disabled = true;
+            select.appendChild(option);
+        }
+    },
+
+    /**
+     * Maneja cambio de sustrato seleccionado
+     */
+    onSustratoChange: function() {
+        const select = document.getElementById('sustratosVirgen');
+        const infoSpan = document.getElementById('sustratosVirgenInfo');
+        if (!select || !select.value) {
+            if (infoSpan) infoSpan.textContent = '';
+            return;
+        }
+
+        try {
+            const data = JSON.parse(select.value);
+
+            // Guardar datos en campos ocultos para calculos
+            document.getElementById('sustratosVirgenAncho').value = data.ancho;
+            document.getElementById('sustratosVirgenMicraje').value = data.micraje;
+            document.getElementById('sustratosVirgenTipo').value = data.material;
+
+            // Determinar densidad segun material
+            const densidad = this.obtenerDensidadMaterial(data.material);
+            document.getElementById('sustratosVirgenDensidad').value = densidad;
+
+            // Mostrar info
+            if (infoSpan) {
+                infoSpan.textContent = `Ancho: ${data.ancho}mm | Micraje: ${data.micraje} | Densidad: ${densidad}`;
+            }
+
+            // Calcular metros si hay kg ingresado
+            this.calcularMetros();
+        } catch (e) {
+            console.warn('Error parseando sustrato:', e);
+        }
+    },
+
+    /**
+     * Obtiene densidad segun tipo de material
+     */
+    obtenerDensidadMaterial: function(material) {
+        const mat = (material || '').toUpperCase();
+        if (mat.includes('BOPP') || mat.includes('OPP')) {
+            if (mat.includes('PERLADO')) return 0.80;
+            return 0.90;
+        }
+        if (mat.includes('PE') || mat.includes('PEBD') || mat.includes('PEAD')) {
+            return 0.93;
+        }
+        if (mat.includes('PET')) return 1.38;
+        if (mat.includes('PA') || mat.includes('NYLON')) return 1.14;
+        if (mat.includes('CAST')) return 0.92;
+        // Default para otros materiales
+        return 0.90;
+    },
+
+    /**
+     * Calcula metros segun formula:
+     * Gramaje = Ancho(m) x Micraje x Densidad
+     * Metros = Kg / Ancho(m) / Gramaje
+     */
+    calcularMetros: function() {
+        const kgIngresado = parseFloat(document.getElementById('kgIngresadoImp')?.value) || 0;
+        const ancho = parseFloat(document.getElementById('sustratosVirgenAncho')?.value) || 0;
+        const micraje = parseFloat(document.getElementById('sustratosVirgenMicraje')?.value) || 0;
+        const densidad = parseFloat(document.getElementById('sustratosVirgenDensidad')?.value) || 0.90;
+
+        const metrosInput = document.getElementById('metrosImp');
+        if (!metrosInput || kgIngresado <= 0 || ancho <= 0 || micraje <= 0) {
+            if (metrosInput) metrosInput.value = '';
+            return;
+        }
+
+        // Convertir ancho a metros
+        const anchoM = ancho / 1000;
+
+        // Calcular gramaje (g/m2)
+        const gramaje = anchoM * micraje * densidad;
+
+        // Calcular metros
+        // Formula: Kg * 1000 / (ancho_m * gramaje)
+        const metros = (kgIngresado * 1000) / (anchoM * gramaje * 1000);
+
+        metrosInput.value = metros.toFixed(2);
     },
 
     /**

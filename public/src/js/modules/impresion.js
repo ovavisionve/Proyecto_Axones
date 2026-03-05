@@ -248,13 +248,10 @@ const Impresion = {
             return;
         }
 
-        // Filtrar ordenes pendientes (usan estadoOrden y maquina con COMEXI para impresion)
-        const ordenesPendientes = ordenes.filter(o =>
-            o.estadoOrden !== 'completada' &&
-            (o.maquina?.includes('COMEXI') || !o.maquina)
-        );
+        // Mostrar todas las ordenes disponibles (excepto completadas)
+        const ordenesDisponibles = ordenes.filter(o => o.estadoOrden !== 'completada');
 
-        if (ordenesPendientes.length === 0) return;
+        if (ordenesDisponibles.length === 0) return;
 
         // Crear grupo con selector
         const grupo = otInput.closest('.col-md-3, .col-md-4, .mb-3');
@@ -265,8 +262,8 @@ const Impresion = {
         selectorDiv.className = 'mt-1';
         selectorDiv.innerHTML = `
             <select class="form-select form-select-sm" id="selectOrdenPendiente">
-                <option value="">-- Seleccionar orden pendiente --</option>
-                ${ordenesPendientes.map(o => `
+                <option value="">-- Seleccionar orden de trabajo --</option>
+                ${ordenesDisponibles.map(o => `
                     <option value="${o.numeroOrden || o.ot}" data-orden='${JSON.stringify(o).replace(/'/g, "&#39;")}'>
                         ${o.numeroOrden || o.ot} - ${o.cliente} - ${o.producto}
                     </option>

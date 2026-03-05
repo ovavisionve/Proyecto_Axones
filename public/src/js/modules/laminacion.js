@@ -646,6 +646,7 @@ const Laminacion = {
             fecha: document.getElementById('fecha').value,
             ordenTrabajo: document.getElementById('ordenTrabajo').value,
             otImpresion: document.getElementById('otImpresion').value,
+            numPistas: parseInt(document.getElementById('numPistas')?.value) || 0,
             operador: document.getElementById('operador').value,
             ayudante: document.getElementById('ayudante').value,
             supervisor: document.getElementById('supervisor').value,

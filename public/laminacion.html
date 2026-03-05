@@ -188,14 +188,14 @@
                             <div class="col-12">
                                 <label class="form-label small">Turno</label>
                                 <div class="btn-group w-100" role="group">
-                                    <input type="radio" class="btn-check" name="turno" id="turnoD" value="D">
-                                    <label class="btn btn-outline-secondary turno-btn" for="turnoD" style="border-color: #6f42c1;">D</label>
-                                    <input type="radio" class="btn-check" name="turno" id="turno1" value="1">
-                                    <label class="btn btn-outline-secondary turno-btn" for="turno1" style="border-color: #6f42c1;">1ro</label>
-                                    <input type="radio" class="btn-check" name="turno" id="turno2" value="2">
-                                    <label class="btn btn-outline-secondary turno-btn" for="turno2" style="border-color: #6f42c1;">2do</label>
-                                    <input type="radio" class="btn-check" name="turno" id="turno3" value="3">
-                                    <label class="btn btn-outline-secondary turno-btn" for="turno3" style="border-color: #6f42c1;">3ro</label>
+                                    <input type="radio" class="btn-check" name="turno" id="turnoDiurno" value="diurno">
+                                    <label class="btn btn-outline-secondary turno-btn" for="turnoDiurno" style="border-color: #6f42c1;">
+                                        <i class="bi bi-sun me-1"></i> Diurno (7am - 7pm)
+                                    </label>
+                                    <input type="radio" class="btn-check" name="turno" id="turnoNocturno" value="nocturno">
+                                    <label class="btn btn-outline-secondary turno-btn" for="turnoNocturno" style="border-color: #6f42c1;">
+                                        <i class="bi bi-moon me-1"></i> Nocturno (7pm - 7am)
+                                    </label>
                                 </div>
                             </div>
                             <!-- Cliente -->
@@ -230,6 +230,11 @@
                             <div class="col-6">
                                 <label for="otImpresion" class="form-label small">OT Impresion Origen</label>
                                 <input type="text" class="form-control form-control-sm" id="otImpresion" placeholder="OT de impresion">
+                            </div>
+                            <!-- N° de Pistas -->
+                            <div class="col-6">
+                                <label for="numPistas" class="form-label small">N° de Pistas</label>
+                                <input type="number" class="form-control form-control-sm" id="numPistas" min="1" max="12" placeholder="Ej: 4">
                             </div>
                             <!-- Operador y Ayudante -->
                             <div class="col-6">

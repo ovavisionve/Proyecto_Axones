@@ -1,16 +1,35 @@
 /**
  * Modulo Control de Corte - Sistema Axones
  * Maneja el formulario digital de Control de Produccion de Corte
- * Actualizado para 4 paletas con 48 bobinas cada una
+ * Actualizado para paletas dinamicas ilimitadas con cantidad de rollos
  */
 
 const Corte = {
-    // Configuracion de paletas
-    NUM_PALETAS: 4,
+    // Configuracion de paletas - ahora dinamica
     BOBINAS_POR_PALETA: 48,
+    paletas: [], // Array de paletas dinamicas
+    contadorPaletas: 0,
+
+    // Temporizador
+    temporizador: null,
+    tiempoInicio: null,
+    tiempoAcumulado: 0,
+    temporizadorActivo: false,
 
     // Orden cargada desde el modulo de ordenes
     ordenCargada: null,
+
+    // Colores para paletas
+    coloresPaletas: [
+        { border: 'success', bg: 'success', text: 'white' },
+        { border: 'primary', bg: 'primary', text: 'white' },
+        { border: 'warning', bg: 'warning', text: 'dark' },
+        { border: 'info', bg: 'info', text: 'white' },
+        { border: 'danger', bg: 'danger', text: 'white' },
+        { border: 'secondary', bg: 'secondary', text: 'white' },
+        { border: 'dark', bg: 'dark', text: 'white' },
+        { border: 'primary', bg: 'primary', text: 'white' },
+    ],
 
     /**
      * Inicializa el modulo
@@ -19,15 +38,536 @@ const Corte = {
         console.log('Inicializando modulo Control de Corte');
 
         this.setDefaultDate();
-        this.generarInputsPaletas();
+        this.inicializarPaletasDinamicas();
         this.setupEventListeners();
         this.setupCalculations();
+        this.setupTemporizador();
 
         // Verificar si viene de una orden y cargar datos automaticamente
         this.cargarDesdeOrden();
 
         // Inicializar controles de tiempo
         this.inicializarControlTiempo();
+    },
+
+    /**
+     * Inicializa el sistema de paletas dinamicas
+     */
+    inicializarPaletasDinamicas: function() {
+        // Agregar 4 paletas iniciales
+        for (let i = 0; i < 4; i++) {
+            this.agregarPaleta();
+        }
+        this.actualizarResumenPaletas();
+    },
+
+    /**
+     * Agrega una nueva paleta
+     */
+    agregarPaleta: function() {
+        this.contadorPaletas++;
+        const numPaleta = this.contadorPaletas;
+        const colorIndex = (numPaleta - 1) % this.coloresPaletas.length;
+        const color = this.coloresPaletas[colorIndex];
+
+        const paleta = {
+            id: numPaleta,
+            bobinas: [],
+            rollos: 0,
+            total: 0
+        };
+        this.paletas.push(paleta);
+
+        const container = document.getElementById('paletasContainer');
+        if (!container) return;
+
+        const paletaHTML = `
+            <div class="col-lg-3 col-md-6" id="paletaWrapper${numPaleta}">
+                <div class="card border-${color.border}">
+                    <div class="card-header bg-${color.bg} text-${color.text} py-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong>Paleta #${String(numPaleta).padStart(2, '0')}</strong>
+                            <div>
+                                <span class="badge bg-light text-dark me-1" id="countPaleta${numPaleta}">0/${this.BOBINAS_POR_PALETA}</span>
+                                <button type="button" class="btn btn-sm btn-light" onclick="Corte.eliminarPaleta(${numPaleta})" title="Eliminar paleta">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-2">
+                        <div class="row g-1 mb-2">
+                            <div class="col-6">
+                                <label class="form-label small mb-0">Rollos</label>
+                                <input type="number" class="form-control form-control-sm" id="rollosPaleta${numPaleta}"
+                                       min="0" value="0" onchange="Corte.actualizarRollos(${numPaleta})">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small mb-0">Total Kg</label>
+                                <input type="text" class="form-control form-control-sm total-highlight text-center"
+                                       id="totalPaleta${numPaleta}" readonly value="0">
+                            </div>
+                        </div>
+                        <div class="row g-1" id="paleta${numPaleta}Container" style="max-height: 300px; overflow-y: auto;">
+                            ${this.generarInputsBobinas(numPaleta)}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        container.insertAdjacentHTML('beforeend', paletaHTML);
+
+        // Agregar event listeners para las bobinas
+        document.querySelectorAll(`.bobina-paleta${numPaleta}`).forEach(input => {
+            input.addEventListener('input', () => this.calcularTotalesPaleta(numPaleta));
+        });
+
+        this.actualizarResumenPaletas();
+        this.calcularTotales();
+    },
+
+    /**
+     * Genera los inputs de bobinas para una paleta
+     */
+    generarInputsBobinas: function(numPaleta) {
+        let html = '';
+        for (let b = 1; b <= this.BOBINAS_POR_PALETA; b++) {
+            html += `
+                <div class="paleta-col">
+                    <span class="paleta-bobina-label">${b}</span>
+                    <input type="number" class="form-control form-control-sm paleta-bobina bobina-paleta${numPaleta}"
+                           id="p${numPaleta}b${b}" step="0.01" min="0" placeholder="0">
+                </div>
+            `;
+        }
+        return html;
+    },
+
+    /**
+     * Elimina una paleta
+     */
+    eliminarPaleta: function(numPaleta) {
+        if (this.paletas.length <= 1) {
+            alert('Debe mantener al menos una paleta');
+            return;
+        }
+
+        if (!confirm(`¿Eliminar Paleta #${String(numPaleta).padStart(2, '0')}?`)) {
+            return;
+        }
+
+        // Remover del DOM
+        const wrapper = document.getElementById(`paletaWrapper${numPaleta}`);
+        if (wrapper) wrapper.remove();
+
+        // Remover del array
+        this.paletas = this.paletas.filter(p => p.id !== numPaleta);
+
+        this.actualizarResumenPaletas();
+        this.calcularTotales();
+    },
+
+    /**
+     * Actualiza los rollos de una paleta
+     */
+    actualizarRollos: function(numPaleta) {
+        const input = document.getElementById(`rollosPaleta${numPaleta}`);
+        const paleta = this.paletas.find(p => p.id === numPaleta);
+        if (paleta && input) {
+            paleta.rollos = parseInt(input.value) || 0;
+        }
+        this.actualizarResumenPaletas();
+        this.calcularTotales();
+    },
+
+    /**
+     * Actualiza la tabla de resumen de paletas
+     */
+    actualizarResumenPaletas: function() {
+        const tbody = document.getElementById('resumenPaletasBody');
+        if (!tbody) return;
+
+        let html = '';
+        this.paletas.forEach(paleta => {
+            const colorIndex = (paleta.id - 1) % this.coloresPaletas.length;
+            const color = this.coloresPaletas[colorIndex];
+            const bobinas = this.contarBobinasPaleta(paleta.id);
+            const peso = this.calcularPesoPaleta(paleta.id);
+            const rollos = document.getElementById(`rollosPaleta${paleta.id}`)?.value || 0;
+
+            html += `
+                <tr>
+                    <td><span class="badge bg-${color.bg} text-${color.text}">Paleta #${String(paleta.id).padStart(2, '0')}</span></td>
+                    <td class="text-center">${bobinas}</td>
+                    <td class="text-center">${rollos}</td>
+                    <td class="text-end">${peso.toFixed(2)}</td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="Corte.eliminarPaleta(${paleta.id})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+    },
+
+    /**
+     * Cuenta bobinas con valor en una paleta
+     */
+    contarBobinasPaleta: function(numPaleta) {
+        let count = 0;
+        document.querySelectorAll(`.bobina-paleta${numPaleta}`).forEach(input => {
+            if (parseFloat(input.value) > 0) count++;
+        });
+        return count;
+    },
+
+    /**
+     * Calcula peso total de una paleta
+     */
+    calcularPesoPaleta: function(numPaleta) {
+        let total = 0;
+        document.querySelectorAll(`.bobina-paleta${numPaleta}`).forEach(input => {
+            total += parseFloat(input.value) || 0;
+        });
+        return total;
+    },
+
+    /**
+     * Configura el temporizador de turno
+     */
+    setupTemporizador: function() {
+        const btnIniciar = document.getElementById('btnIniciarTemporizador');
+        const btnPausar = document.getElementById('btnPausarTemporizador');
+        const btnDetener = document.getElementById('btnDetenerTemporizador');
+
+        if (btnIniciar) {
+            btnIniciar.addEventListener('click', () => this.iniciarTemporizador());
+        }
+        if (btnPausar) {
+            btnPausar.addEventListener('click', () => this.pausarTemporizador());
+        }
+        if (btnDetener) {
+            btnDetener.addEventListener('click', () => this.detenerTemporizador());
+        }
+
+        // Restaurar temporizador si habia uno activo
+        this.restaurarTemporizador();
+    },
+
+    /**
+     * Inicia el temporizador
+     */
+    iniciarTemporizador: function() {
+        if (this.temporizadorActivo) return;
+
+        this.temporizadorActivo = true;
+        this.tiempoInicio = Date.now();
+
+        // Guardar estado
+        localStorage.setItem('corte_temporizador_inicio', this.tiempoInicio);
+        localStorage.setItem('corte_temporizador_acumulado', this.tiempoAcumulado);
+
+        this.temporizador = setInterval(() => this.actualizarTemporizador(), 1000);
+
+        document.getElementById('btnIniciarTemporizador').disabled = true;
+        document.getElementById('btnPausarTemporizador').disabled = false;
+        document.getElementById('btnDetenerTemporizador').disabled = false;
+    },
+
+    /**
+     * Pausa el temporizador
+     */
+    pausarTemporizador: function() {
+        if (!this.temporizadorActivo) return;
+
+        this.temporizadorActivo = false;
+        this.tiempoAcumulado += Date.now() - this.tiempoInicio;
+        clearInterval(this.temporizador);
+
+        localStorage.setItem('corte_temporizador_acumulado', this.tiempoAcumulado);
+        localStorage.removeItem('corte_temporizador_inicio');
+
+        document.getElementById('btnIniciarTemporizador').disabled = false;
+        document.getElementById('btnPausarTemporizador').disabled = true;
+    },
+
+    /**
+     * Detiene y reinicia el temporizador
+     */
+    detenerTemporizador: function() {
+        if (!confirm('¿Detener y reiniciar el temporizador?')) return;
+
+        this.temporizadorActivo = false;
+        this.tiempoAcumulado = 0;
+        this.tiempoInicio = null;
+        clearInterval(this.temporizador);
+
+        localStorage.removeItem('corte_temporizador_inicio');
+        localStorage.removeItem('corte_temporizador_acumulado');
+
+        document.getElementById('temporizadorDisplay').textContent = '00:00:00';
+        document.getElementById('kgPorHora').value = '0';
+        document.getElementById('tiempoEfectivo').value = '00:00';
+
+        document.getElementById('btnIniciarTemporizador').disabled = false;
+        document.getElementById('btnPausarTemporizador').disabled = true;
+        document.getElementById('btnDetenerTemporizador').disabled = true;
+    },
+
+    /**
+     * Actualiza la visualizacion del temporizador
+     */
+    actualizarTemporizador: function() {
+        const tiempoTotal = this.tiempoAcumulado + (this.temporizadorActivo ? Date.now() - this.tiempoInicio : 0);
+        const segundos = Math.floor(tiempoTotal / 1000);
+        const horas = Math.floor(segundos / 3600);
+        const minutos = Math.floor((segundos % 3600) / 60);
+        const segs = segundos % 60;
+
+        document.getElementById('temporizadorDisplay').textContent =
+            `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}:${String(segs).padStart(2, '0')}`;
+
+        document.getElementById('tiempoEfectivo').value =
+            `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}`;
+
+        // Calcular kg/hora
+        const pesoTotal = parseFloat(document.getElementById('pesoTotalSalida')?.value) || 0;
+        if (horas > 0 || minutos > 0) {
+            const horasDecimal = horas + (minutos / 60);
+            const kgHora = horasDecimal > 0 ? (pesoTotal / horasDecimal).toFixed(1) : '0';
+            document.getElementById('kgPorHora').value = kgHora;
+        }
+    },
+
+    /**
+     * Restaura el temporizador si habia uno activo
+     */
+    restaurarTemporizador: function() {
+        const inicio = localStorage.getItem('corte_temporizador_inicio');
+        const acumulado = localStorage.getItem('corte_temporizador_acumulado');
+
+        if (acumulado) {
+            this.tiempoAcumulado = parseInt(acumulado) || 0;
+        }
+
+        if (inicio) {
+            this.tiempoInicio = parseInt(inicio);
+            this.temporizadorActivo = true;
+            this.temporizador = setInterval(() => this.actualizarTemporizador(), 1000);
+
+            document.getElementById('btnIniciarTemporizador').disabled = true;
+            document.getElementById('btnPausarTemporizador').disabled = false;
+            document.getElementById('btnDetenerTemporizador').disabled = false;
+
+            this.actualizarTemporizador();
+        } else if (this.tiempoAcumulado > 0) {
+            this.actualizarTemporizador();
+            document.getElementById('btnDetenerTemporizador').disabled = false;
+        }
+    },
+
+    /**
+     * Configura los event listeners
+     */
+    setupEventListeners: function() {
+        // Boton guardar
+        const btnGuardar = document.getElementById('btnGuardar');
+        if (btnGuardar) {
+            btnGuardar.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.guardar();
+            });
+        }
+
+        // Boton limpiar
+        const btnLimpiar = document.getElementById('btnLimpiar');
+        if (btnLimpiar) {
+            btnLimpiar.addEventListener('click', () => this.limpiar());
+        }
+
+        // Boton agregar paleta
+        const btnAgregarPaleta = document.getElementById('btnAgregarPaleta');
+        if (btnAgregarPaleta) {
+            btnAgregarPaleta.addEventListener('click', () => this.agregarPaleta());
+        }
+
+        // Submit del formulario
+        const form = document.getElementById('formCorte');
+        if (form) {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.guardar();
+            });
+        }
+    },
+
+    /**
+     * Configura los calculos automaticos
+     */
+    setupCalculations: function() {
+        // Calcular total de bobinas de entrada
+        document.querySelectorAll('.bobina-entrada').forEach(input => {
+            input.addEventListener('input', () => this.calcularTotales());
+        });
+
+        // Calcular total de scrap
+        document.querySelectorAll('.scrap-input').forEach(input => {
+            input.addEventListener('input', () => this.calcularTotales());
+        });
+    },
+
+    /**
+     * Calcula los totales de una paleta especifica
+     */
+    calcularTotalesPaleta: function(numPaleta) {
+        let total = 0;
+        let count = 0;
+
+        document.querySelectorAll(`.bobina-paleta${numPaleta}`).forEach(input => {
+            const valor = parseFloat(input.value) || 0;
+            if (valor > 0) {
+                total += valor;
+                count++;
+            }
+        });
+
+        // Actualizar total de la paleta
+        const totalInput = document.getElementById(`totalPaleta${numPaleta}`);
+        if (totalInput) {
+            totalInput.value = total.toFixed(2);
+        }
+
+        // Actualizar contador de bobinas
+        const countBadge = document.getElementById(`countPaleta${numPaleta}`);
+        if (countBadge) {
+            countBadge.textContent = `${count}/${this.BOBINAS_POR_PALETA}`;
+        }
+
+        // Actualizar resumen de paletas
+        this.actualizarResumenPaletas();
+
+        // Recalcular totales generales
+        this.calcularTotales();
+    },
+
+    /**
+     * Calcula todos los totales
+     */
+    calcularTotales: function() {
+        // Total bobinas de entrada
+        let totalEntrada = 0;
+        document.querySelectorAll('.bobina-entrada').forEach(input => {
+            totalEntrada += parseFloat(input.value) || 0;
+        });
+        const totalEntradaInput = document.getElementById('totalEntrada');
+        if (totalEntradaInput) totalEntradaInput.value = totalEntrada.toFixed(2);
+
+        // Totales de salida (suma de todas las paletas)
+        let pesoSalida = 0;
+        let bobinasSalida = 0;
+        let rollosSalida = 0;
+        let paletasConDatos = 0;
+
+        this.paletas.forEach(paleta => {
+            const peso = this.calcularPesoPaleta(paleta.id);
+            const bobinas = this.contarBobinasPaleta(paleta.id);
+            const rollos = parseInt(document.getElementById(`rollosPaleta${paleta.id}`)?.value) || 0;
+
+            pesoSalida += peso;
+            bobinasSalida += bobinas;
+            rollosSalida += rollos;
+            if (peso > 0 || bobinas > 0) paletasConDatos++;
+        });
+
+        // Actualizar campos de resumen
+        const numBobinasSalida = document.getElementById('numBobinasSalida');
+        const numRollosSalida = document.getElementById('numRollosSalida');
+        const pesoTotalSalida = document.getElementById('pesoTotalSalida');
+        const numPaletas = document.getElementById('numPaletas');
+
+        if (numBobinasSalida) numBobinasSalida.value = bobinasSalida;
+        if (numRollosSalida) numRollosSalida.value = rollosSalida;
+        if (pesoTotalSalida) pesoTotalSalida.value = pesoSalida.toFixed(2);
+        if (numPaletas) numPaletas.value = paletasConDatos;
+
+        // Actualizar totales en resumen de tabla
+        const resumenBobTotal = document.getElementById('resumenBobTotal');
+        const resumenRollosTotal = document.getElementById('resumenRollosTotal');
+        const resumenPesoTotal = document.getElementById('resumenPesoTotal');
+
+        if (resumenBobTotal) resumenBobTotal.textContent = bobinasSalida;
+        if (resumenRollosTotal) resumenRollosTotal.textContent = rollosSalida;
+        if (resumenPesoTotal) resumenPesoTotal.textContent = pesoSalida.toFixed(2);
+
+        // Calcular scrap
+        let totalScrap = 0;
+        document.querySelectorAll('.scrap-input').forEach(input => {
+            totalScrap += parseFloat(input.value) || 0;
+        });
+        const totalScrapInput = document.getElementById('totalScrap');
+        if (totalScrapInput) totalScrapInput.value = totalScrap.toFixed(2);
+
+        // Calcular merma
+        const merma = totalEntrada - pesoSalida - totalScrap;
+        const mermaInput = document.getElementById('merma');
+        const porcentajeMerma = document.getElementById('porcentajeMerma');
+        if (mermaInput) mermaInput.value = merma.toFixed(2);
+        if (porcentajeMerma && totalEntrada > 0) {
+            porcentajeMerma.value = ((merma / totalEntrada) * 100).toFixed(2) + '%';
+        }
+
+        // Calcular porcentaje de refil
+        if (totalEntrada > 0) {
+            const pctRefil = (totalScrap / totalEntrada) * 100;
+            const porcentajeRefil = document.getElementById('porcentajeRefil');
+            if (porcentajeRefil) porcentajeRefil.value = pctRefil.toFixed(2) + '%';
+
+            // Actualizar indicador
+            const indicador = document.getElementById('indicadorRefil');
+            if (indicador) {
+                if (pctRefil <= 3) {
+                    indicador.className = 'alert alert-success py-1 px-2 mb-0 small text-center';
+                    indicador.innerHTML = '<i class="bi bi-check-circle me-1"></i> Excelente';
+                } else if (pctRefil <= 5) {
+                    indicador.className = 'alert alert-warning py-1 px-2 mb-0 small text-center';
+                    indicador.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i> Aceptable';
+                } else {
+                    indicador.className = 'alert alert-danger py-1 px-2 mb-0 small text-center';
+                    indicador.innerHTML = '<i class="bi bi-x-circle me-1"></i> Alto';
+                }
+            }
+        }
+
+        // Actualizar footer
+        this.actualizarFooter(totalEntrada, pesoSalida, merma, totalScrap, paletasConDatos, bobinasSalida);
+
+        // Actualizar kg/hora si temporizador activo
+        if (this.temporizadorActivo) {
+            this.actualizarTemporizador();
+        }
+    },
+
+    /**
+     * Actualiza el footer con totales
+     */
+    actualizarFooter: function(entrada, salida, merma, scrap, paletas, bobinas) {
+        const footerEntrada = document.getElementById('footerEntrada');
+        const footerSalida = document.getElementById('footerSalida');
+        const footerMerma = document.getElementById('footerMerma');
+        const footerRefil = document.getElementById('footerRefil');
+        const footerPaletas = document.getElementById('footerPaletas');
+        const footerBobinas = document.getElementById('footerBobinas');
+
+        if (footerEntrada) footerEntrada.textContent = entrada.toFixed(2);
+        if (footerSalida) footerSalida.textContent = salida.toFixed(2);
+        if (footerMerma) footerMerma.textContent = merma.toFixed(2);
+        if (footerRefil && entrada > 0) footerRefil.textContent = ((scrap / entrada) * 100).toFixed(2);
+        if (footerPaletas) footerPaletas.textContent = paletas;
+        if (footerBobinas) footerBobinas.textContent = bobinas;
     },
 
     /**
@@ -283,189 +823,6 @@ const Corte = {
         if (fechaInput) {
             fechaInput.value = new Date().toISOString().split('T')[0];
         }
-    },
-
-    /**
-     * Genera los inputs de bobinas para cada paleta
-     */
-    generarInputsPaletas: function() {
-        for (let p = 1; p <= this.NUM_PALETAS; p++) {
-            const container = document.getElementById(`paleta${p}Container`);
-            if (!container) continue;
-
-            let html = '';
-            for (let b = 1; b <= this.BOBINAS_POR_PALETA; b++) {
-                html += `
-                    <div class="paleta-col">
-                        <span class="paleta-bobina-label">${b}</span>
-                        <input type="number" class="form-control form-control-sm paleta-bobina bobina-paleta${p}"
-                               id="p${p}b${b}" step="0.01" min="0" placeholder="0">
-                    </div>
-                `;
-            }
-            container.innerHTML = html;
-        }
-    },
-
-    /**
-     * Configura los event listeners
-     */
-    setupEventListeners: function() {
-        // Boton guardar
-        const btnGuardar = document.getElementById('btnGuardar');
-        if (btnGuardar) {
-            btnGuardar.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.guardar();
-            });
-        }
-
-        // Boton limpiar
-        const btnLimpiar = document.getElementById('btnLimpiar');
-        if (btnLimpiar) {
-            btnLimpiar.addEventListener('click', () => this.limpiar());
-        }
-
-        // Submit del formulario
-        const form = document.getElementById('formCorte');
-        if (form) {
-            form.addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.guardar();
-            });
-        }
-    },
-
-    /**
-     * Configura los calculos automaticos
-     */
-    setupCalculations: function() {
-        // Calcular total de bobinas de entrada
-        document.querySelectorAll('.bobina-entrada').forEach(input => {
-            input.addEventListener('input', () => this.calcularTotales());
-        });
-
-        // Calcular con bobinas de salida (paletas)
-        for (let p = 1; p <= this.NUM_PALETAS; p++) {
-            document.querySelectorAll(`.bobina-paleta${p}`).forEach(input => {
-                input.addEventListener('input', () => this.calcularTotalesPaleta(p));
-            });
-        }
-
-        // Calcular total de scrap
-        document.querySelectorAll('.scrap-input').forEach(input => {
-            input.addEventListener('input', () => this.calcularTotales());
-        });
-    },
-
-    /**
-     * Calcula los totales de una paleta especifica
-     */
-    calcularTotalesPaleta: function(numPaleta) {
-        let total = 0;
-        let count = 0;
-
-        document.querySelectorAll(`.bobina-paleta${numPaleta}`).forEach(input => {
-            const valor = parseFloat(input.value) || 0;
-            if (valor > 0) {
-                total += valor;
-                count++;
-            }
-        });
-
-        // Actualizar total de la paleta
-        const totalInput = document.getElementById(`totalPaleta${numPaleta}`);
-        if (totalInput) {
-            totalInput.value = total.toFixed(2);
-        }
-
-        // Actualizar contador de bobinas
-        const countBadge = document.getElementById(`countPaleta${numPaleta}`);
-        if (countBadge) {
-            countBadge.textContent = `${count}/${this.BOBINAS_POR_PALETA}`;
-        }
-
-        // Actualizar resumen
-        const resumenBob = document.getElementById(`resumenBob${numPaleta}`);
-        const resumenPeso = document.getElementById(`resumenPeso${numPaleta}`);
-        if (resumenBob) resumenBob.textContent = count;
-        if (resumenPeso) resumenPeso.textContent = total.toFixed(2);
-
-        // Recalcular totales generales
-        this.calcularTotales();
-    },
-
-    /**
-     * Calcula todos los totales
-     */
-    calcularTotales: function() {
-        // Total bobinas de entrada
-        let totalEntrada = 0;
-        document.querySelectorAll('.bobina-entrada').forEach(input => {
-            totalEntrada += parseFloat(input.value) || 0;
-        });
-        document.getElementById('totalEntrada').value = totalEntrada.toFixed(2);
-
-        // Totales de salida (suma de todas las paletas)
-        let pesoSalida = 0;
-        let bobinasSalida = 0;
-        let paletasUsadas = 0;
-
-        for (let p = 1; p <= this.NUM_PALETAS; p++) {
-            let totalPaleta = 0;
-            let countPaleta = 0;
-
-            document.querySelectorAll(`.bobina-paleta${p}`).forEach(input => {
-                const valor = parseFloat(input.value) || 0;
-                if (valor > 0) {
-                    totalPaleta += valor;
-                    countPaleta++;
-                }
-            });
-
-            pesoSalida += totalPaleta;
-            bobinasSalida += countPaleta;
-            if (countPaleta > 0) paletasUsadas++;
-        }
-
-        // Actualizar campos de resumen
-        document.getElementById('pesoTotalSalida').value = pesoSalida.toFixed(2);
-        document.getElementById('numBobinasSalida').value = bobinasSalida;
-        document.getElementById('numPaletas').value = paletasUsadas;
-
-        // Actualizar resumen total
-        const resumenBobTotal = document.getElementById('resumenBobTotal');
-        const resumenPesoTotal = document.getElementById('resumenPesoTotal');
-        if (resumenBobTotal) resumenBobTotal.textContent = bobinasSalida;
-        if (resumenPesoTotal) resumenPesoTotal.textContent = pesoSalida.toFixed(2);
-
-        // Total scrap
-        const scrapRefile = parseFloat(document.getElementById('scrapRefile').value) || 0;
-        const scrapImpreso = parseFloat(document.getElementById('scrapImpreso').value) || 0;
-        const totalScrap = scrapRefile + scrapImpreso;
-        document.getElementById('totalScrap').value = totalScrap.toFixed(2);
-
-        // Merma
-        const merma = totalEntrada - pesoSalida - totalScrap;
-        document.getElementById('merma').value = merma.toFixed(2);
-
-        // Porcentaje de Refil
-        let porcentajeRefil = 0;
-        if (totalEntrada > 0) {
-            porcentajeRefil = ((merma + totalScrap) / totalEntrada) * 100;
-        }
-        document.getElementById('porcentajeRefil').value = porcentajeRefil.toFixed(2) + '%';
-
-        // Actualizar indicador
-        this.actualizarIndicadorRefil(porcentajeRefil, totalEntrada);
-
-        // Actualizar footer
-        document.getElementById('footerEntrada').textContent = totalEntrada.toFixed(0);
-        document.getElementById('footerSalida').textContent = pesoSalida.toFixed(0);
-        document.getElementById('footerMerma').textContent = merma.toFixed(2);
-        document.getElementById('footerRefil').textContent = porcentajeRefil.toFixed(2);
-        document.getElementById('footerPaletas').textContent = paletasUsadas;
-        document.getElementById('footerBobinas').textContent = bobinasSalida;
     },
 
     /**

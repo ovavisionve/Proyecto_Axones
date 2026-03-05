@@ -207,14 +207,14 @@
                             <div class="col-12">
                                 <label class="form-label small">Turno</label>
                                 <div class="btn-group w-100" role="group">
-                                    <input type="radio" class="btn-check" name="turno" id="turnoD" value="D">
-                                    <label class="btn btn-outline-success turno-btn" for="turnoD">D</label>
-                                    <input type="radio" class="btn-check" name="turno" id="turno1" value="1">
-                                    <label class="btn btn-outline-success turno-btn" for="turno1">1ro</label>
-                                    <input type="radio" class="btn-check" name="turno" id="turno2" value="2">
-                                    <label class="btn btn-outline-success turno-btn" for="turno2">2do</label>
-                                    <input type="radio" class="btn-check" name="turno" id="turno3" value="3">
-                                    <label class="btn btn-outline-success turno-btn" for="turno3">3ro</label>
+                                    <input type="radio" class="btn-check" name="turno" id="turnoDiurno" value="diurno">
+                                    <label class="btn btn-outline-success turno-btn" for="turnoDiurno">
+                                        <i class="bi bi-sun me-1"></i> Diurno (7am - 7pm)
+                                    </label>
+                                    <input type="radio" class="btn-check" name="turno" id="turnoNocturno" value="nocturno">
+                                    <label class="btn btn-outline-success turno-btn" for="turnoNocturno">
+                                        <i class="bi bi-moon me-1"></i> Nocturno (7pm - 7am)
+                                    </label>
                                 </div>
                             </div>
                             <!-- Producto -->
@@ -350,6 +350,46 @@
 
                 <!-- Columna Derecha -->
                 <div class="col-lg-6">
+                    <!-- Temporizador de Turno -->
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="bi bi-stopwatch me-1"></i> Temporizador de Turno
+                        </div>
+                        <div class="row g-2 align-items-center">
+                            <div class="col-6">
+                                <div class="d-flex align-items-center justify-content-center">
+                                    <div class="text-center">
+                                        <div class="display-6 fw-bold text-success" id="temporizadorDisplay">00:00:00</div>
+                                        <small class="text-muted">Tiempo transcurrido</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="d-grid gap-1">
+                                    <button type="button" class="btn btn-success btn-sm" id="btnIniciarTemporizador">
+                                        <i class="bi bi-play-fill me-1"></i> Iniciar
+                                    </button>
+                                    <button type="button" class="btn btn-warning btn-sm" id="btnPausarTemporizador" disabled>
+                                        <i class="bi bi-pause-fill me-1"></i> Pausar
+                                    </button>
+                                    <button type="button" class="btn btn-danger btn-sm" id="btnDetenerTemporizador" disabled>
+                                        <i class="bi bi-stop-fill me-1"></i> Detener
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row g-2 mt-2">
+                            <div class="col-6">
+                                <label class="form-label small">Kg/Hora (estimado)</label>
+                                <input type="text" class="form-control form-control-sm total-highlight" id="kgPorHora" readonly value="0">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small">Tiempo Efectivo</label>
+                                <input type="text" class="form-control form-control-sm total-highlight" id="tiempoEfectivo" readonly value="00:00">
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Resumen del Turno -->
                     <div class="form-section">
                         <div class="form-section-title">
@@ -361,16 +401,26 @@
                                 <input type="text" class="form-control form-control-sm total-highlight" id="numBobinasSalida" readonly value="0">
                             </div>
                             <div class="col-3">
+                                <label class="form-label small">N° Rollos</label>
+                                <input type="text" class="form-control form-control-sm total-highlight" id="numRollosSalida" readonly value="0">
+                            </div>
+                            <div class="col-3">
                                 <label class="form-label small">Peso Total (Kg)</label>
                                 <input type="text" class="form-control form-control-sm total-highlight" id="pesoTotalSalida" readonly>
                             </div>
                             <div class="col-3">
+                                <label class="form-label small">N° Paletas</label>
+                                <input type="text" class="form-control form-control-sm total-highlight" id="numPaletas" readonly value="0">
+                            </div>
+                        </div>
+                        <div class="row g-2 mt-2">
+                            <div class="col-6">
                                 <label class="form-label small">Merma (Kg)</label>
                                 <input type="text" class="form-control form-control-sm total-highlight" id="merma" readonly>
                             </div>
-                            <div class="col-3">
-                                <label class="form-label small">N° Paletas</label>
-                                <input type="text" class="form-control form-control-sm total-highlight" id="numPaletas" readonly value="0">
+                            <div class="col-6">
+                                <label class="form-label small">% Merma</label>
+                                <input type="text" class="form-control form-control-sm total-highlight" id="porcentajeMerma" readonly>
                             </div>
                         </div>
                     </div>
@@ -378,94 +428,18 @@
                 </div>
             </div>
 
-            <!-- Paletas de Salida - Full Width -->
+            <!-- Paletas de Salida - Full Width - Dinamicas -->
             <div class="row">
                 <div class="col-12">
                     <div class="form-section">
-                        <div class="form-section-title">
-                            <i class="bi bi-box-seam me-1"></i> Bobinas de Salida por Paleta - Peso Neto (Kg)
+                        <div class="form-section-title d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-box-seam me-1"></i> Bobinas de Salida por Paleta - Peso Neto (Kg)</span>
+                            <button type="button" class="btn btn-success btn-sm" id="btnAgregarPaleta">
+                                <i class="bi bi-plus-circle me-1"></i> Agregar Paleta
+                            </button>
                         </div>
-                        <div class="row g-3">
-                            <!-- Paleta #01 -->
-                            <div class="col-lg-3 col-md-6">
-                                <div class="card border-success">
-                                    <div class="card-header bg-success text-white py-2">
-                                        <strong>Paleta #01</strong>
-                                        <span class="float-end badge bg-light text-dark" id="countPaleta1">0/48</span>
-                                    </div>
-                                    <div class="card-body p-2">
-                                        <div class="row g-1" id="paleta1Container">
-                                            <!-- Bobinas 1-48 generadas por JS -->
-                                        </div>
-                                        <div class="mt-2 pt-2 border-top">
-                                            <div class="row">
-                                                <div class="col-6"><span class="small fw-bold">TOTAL:</span></div>
-                                                <div class="col-6"><input type="text" class="form-control form-control-sm total-highlight text-center" id="totalPaleta1" readonly value="0"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Paleta #02 -->
-                            <div class="col-lg-3 col-md-6">
-                                <div class="card border-primary">
-                                    <div class="card-header bg-primary text-white py-2">
-                                        <strong>Paleta #02</strong>
-                                        <span class="float-end badge bg-light text-dark" id="countPaleta2">0/48</span>
-                                    </div>
-                                    <div class="card-body p-2">
-                                        <div class="row g-1" id="paleta2Container">
-                                            <!-- Bobinas 1-48 generadas por JS -->
-                                        </div>
-                                        <div class="mt-2 pt-2 border-top">
-                                            <div class="row">
-                                                <div class="col-6"><span class="small fw-bold">TOTAL:</span></div>
-                                                <div class="col-6"><input type="text" class="form-control form-control-sm total-highlight text-center" id="totalPaleta2" readonly value="0"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Paleta #03 -->
-                            <div class="col-lg-3 col-md-6">
-                                <div class="card border-warning">
-                                    <div class="card-header bg-warning text-dark py-2">
-                                        <strong>Paleta #03</strong>
-                                        <span class="float-end badge bg-dark text-light" id="countPaleta3">0/48</span>
-                                    </div>
-                                    <div class="card-body p-2">
-                                        <div class="row g-1" id="paleta3Container">
-                                            <!-- Bobinas 1-48 generadas por JS -->
-                                        </div>
-                                        <div class="mt-2 pt-2 border-top">
-                                            <div class="row">
-                                                <div class="col-6"><span class="small fw-bold">TOTAL:</span></div>
-                                                <div class="col-6"><input type="text" class="form-control form-control-sm total-highlight text-center" id="totalPaleta3" readonly value="0"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Paleta #04 -->
-                            <div class="col-lg-3 col-md-6">
-                                <div class="card border-info">
-                                    <div class="card-header bg-info text-white py-2">
-                                        <strong>Paleta #04</strong>
-                                        <span class="float-end badge bg-light text-dark" id="countPaleta4">0/48</span>
-                                    </div>
-                                    <div class="card-body p-2">
-                                        <div class="row g-1" id="paleta4Container">
-                                            <!-- Bobinas 1-48 generadas por JS -->
-                                        </div>
-                                        <div class="mt-2 pt-2 border-top">
-                                            <div class="row">
-                                                <div class="col-6"><span class="small fw-bold">TOTAL:</span></div>
-                                                <div class="col-6"><input type="text" class="form-control form-control-sm total-highlight text-center" id="totalPaleta4" readonly value="0"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="row g-3" id="paletasContainer">
+                            <!-- Paletas generadas dinamicamente por JS -->
                         </div>
                     </div>
                 </div>
@@ -533,42 +507,29 @@
                         <div class="form-section-title">
                             <i class="bi bi-bar-chart me-1"></i> Resumen de Paletas
                         </div>
-                        <div class="table-responsive">
+                        <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
                             <table class="table table-sm table-bordered mb-0">
-                                <thead class="table-light">
+                                <thead class="table-light sticky-top">
                                     <tr>
                                         <th>Paleta</th>
                                         <th class="text-center">Bobinas</th>
+                                        <th class="text-center">Rollos</th>
                                         <th class="text-end">Peso (Kg)</th>
+                                        <th class="text-center">Acciones</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="resumenPaletasBody">
+                                    <!-- Generado dinamicamente por JS -->
+                                </tbody>
+                                <tfoot class="table-success fw-bold">
                                     <tr>
-                                        <td><span class="badge bg-success">Paleta #01</span></td>
-                                        <td class="text-center" id="resumenBob1">0</td>
-                                        <td class="text-end" id="resumenPeso1">0.00</td>
-                                    </tr>
-                                    <tr>
-                                        <td><span class="badge bg-primary">Paleta #02</span></td>
-                                        <td class="text-center" id="resumenBob2">0</td>
-                                        <td class="text-end" id="resumenPeso2">0.00</td>
-                                    </tr>
-                                    <tr>
-                                        <td><span class="badge bg-warning text-dark">Paleta #03</span></td>
-                                        <td class="text-center" id="resumenBob3">0</td>
-                                        <td class="text-end" id="resumenPeso3">0.00</td>
-                                    </tr>
-                                    <tr>
-                                        <td><span class="badge bg-info">Paleta #04</span></td>
-                                        <td class="text-center" id="resumenBob4">0</td>
-                                        <td class="text-end" id="resumenPeso4">0.00</td>
-                                    </tr>
-                                    <tr class="table-success fw-bold">
                                         <td>TOTAL</td>
                                         <td class="text-center" id="resumenBobTotal">0</td>
+                                        <td class="text-center" id="resumenRollosTotal">0</td>
                                         <td class="text-end" id="resumenPesoTotal">0.00</td>
+                                        <td></td>
                                     </tr>
-                                </tbody>
+                                </tfoot>
                             </table>
                         </div>
                     </div>

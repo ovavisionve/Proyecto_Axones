@@ -36,13 +36,16 @@ const Impresion = {
      * Inicializa los controles de tiempo (Play/Pausa/Completado)
      */
     inicializarControlTiempo: function() {
-        // Crear contenedor para controles de tiempo si no existe
         const form = document.getElementById('formImpresion');
-        if (!form || document.getElementById('controlTiempoImpresion')) return;
+        if (!form || document.getElementById('panelComandasImpresion')) return;
 
-        // Insertar panel de control de tiempo al inicio del formulario
+        // Insertar panel de comandas + control de tiempo al inicio
         const panelHTML = `
-            <div id="controlTiempoImpresion" class="card mb-3 border-primary">
+            <!-- Panel de Comandas (Selector de OT tipo restaurante) -->
+            <div id="panelComandasImpresion" class="mb-3"></div>
+
+            <!-- Panel de Control de Tiempo -->
+            <div id="controlTiempoImpresion" class="card mb-3 border-primary" style="display: none;">
                 <div class="card-header bg-primary text-white py-2">
                     <div class="d-flex align-items-center justify-content-between">
                         <span><i class="bi bi-stopwatch me-2"></i>Control de Tiempo - Impresion</span>
@@ -52,13 +55,26 @@ const Impresion = {
                 <div class="card-body py-2" id="contenedorControlTiempo" data-orden-id="" data-fase="impresion">
                     <div class="text-center text-muted py-3">
                         <i class="bi bi-info-circle me-2"></i>
-                        Seleccione o ingrese una orden de trabajo para activar el cronometro
+                        Seleccione una orden de trabajo arriba
                     </div>
                 </div>
             </div>
         `;
 
         form.insertAdjacentHTML('afterbegin', panelHTML);
+
+        // Renderizar panel de comandas
+        if (typeof ControlTiempo !== 'undefined') {
+            ControlTiempo.renderPanelComandas('impresion', 'panelComandasImpresion', (orden) => {
+                this.ordenCargada = orden;
+                this.precargarCamposOrden(orden);
+                this.mostrarBannerOrdenCargada(orden);
+
+                // Mostrar panel de control de tiempo
+                const panelTiempo = document.getElementById('controlTiempoImpresion');
+                if (panelTiempo) panelTiempo.style.display = 'block';
+            });
+        }
     },
 
     /**

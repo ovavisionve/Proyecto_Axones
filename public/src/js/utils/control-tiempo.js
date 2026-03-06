@@ -299,25 +299,166 @@ const ControlTiempo = {
     },
 
     /**
-     * Pausa con motivo (modal)
+     * Pausa con motivo (modal OBLIGATORIO)
      */
     pausaConMotivo: function(ordenId, fase) {
-        const motivo = prompt('Motivo de la pausa (opcional):');
-        const resultado = this.pausa(ordenId, fase, motivo);
+        // Crear modal si no existe
+        let modal = document.getElementById('modalMotivoPausa');
+        if (!modal) {
+            const modalHTML = `
+                <div class="modal fade" id="modalMotivoPausa" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header bg-warning text-dark">
+                                <h5 class="modal-title">
+                                    <i class="bi bi-pause-circle me-2"></i>Motivo de la Pausa
+                                </h5>
+                            </div>
+                            <div class="modal-body">
+                                <p class="text-muted mb-3">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Es <strong>obligatorio</strong> indicar el motivo de la pausa para continuar.
+                                </p>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Seleccione el motivo:</label>
+                                    <select class="form-select mb-2" id="selectMotivoPausa">
+                                        <option value="">-- Seleccionar motivo --</option>
+                                        <option value="Cambio de bobina">Cambio de bobina</option>
+                                        <option value="Ajuste de maquina">Ajuste de maquina</option>
+                                        <option value="Falla mecanica">Falla mecanica</option>
+                                        <option value="Falla electrica">Falla electrica</option>
+                                        <option value="Cambio de tinta">Cambio de tinta</option>
+                                        <option value="Limpieza de rodillos">Limpieza de rodillos</option>
+                                        <option value="Problema de calidad">Problema de calidad</option>
+                                        <option value="Falta de material">Falta de material</option>
+                                        <option value="Almuerzo/Descanso">Almuerzo/Descanso</option>
+                                        <option value="Reunion/Capacitacion">Reunion/Capacitacion</option>
+                                        <option value="otro">Otro (especificar)</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3" id="containerOtroMotivo" style="display: none;">
+                                    <label class="form-label">Especifique el motivo:</label>
+                                    <textarea class="form-control" id="txtOtroMotivo" rows="2"
+                                              placeholder="Describa el motivo de la pausa..."></textarea>
+                                </div>
+                                <div class="alert alert-danger py-2 d-none" id="alertMotivoPausa">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>
+                                    Debe seleccionar o ingresar un motivo
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="btnCancelarPausa">
+                                    <i class="bi bi-x-circle me-1"></i>Cancelar
+                                </button>
+                                <button type="button" class="btn btn-warning" id="btnConfirmarPausa">
+                                    <i class="bi bi-pause-fill me-1"></i>Confirmar Pausa
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+            modal = document.getElementById('modalMotivoPausa');
 
-        if (resultado.exito) {
-            // Actualizar UI
-            const contenedor = document.querySelector(`[data-orden-id="${ordenId}"][data-fase="${fase}"]`);
-            if (contenedor) {
-                this.renderControles(ordenId, fase, contenedor.id);
-            }
-
-            if (typeof Axones !== 'undefined') {
-                Axones.showWarning('Orden pausada');
-            }
+            // Event listener para mostrar/ocultar campo "otro"
+            document.getElementById('selectMotivoPausa').addEventListener('change', function() {
+                const containerOtro = document.getElementById('containerOtroMotivo');
+                containerOtro.style.display = this.value === 'otro' ? 'block' : 'none';
+            });
         }
 
-        return resultado;
+        // Guardar datos de la orden actual
+        modal.dataset.ordenId = ordenId;
+        modal.dataset.fase = fase;
+
+        // Limpiar campos
+        document.getElementById('selectMotivoPausa').value = '';
+        document.getElementById('txtOtroMotivo').value = '';
+        document.getElementById('containerOtroMotivo').style.display = 'none';
+        document.getElementById('alertMotivoPausa').classList.add('d-none');
+
+        // Configurar boton confirmar
+        const btnConfirmar = document.getElementById('btnConfirmarPausa');
+        const self = this;
+
+        // Remover listeners anteriores
+        const newBtnConfirmar = btnConfirmar.cloneNode(true);
+        btnConfirmar.parentNode.replaceChild(newBtnConfirmar, btnConfirmar);
+
+        newBtnConfirmar.addEventListener('click', function() {
+            const select = document.getElementById('selectMotivoPausa');
+            const txtOtro = document.getElementById('txtOtroMotivo');
+            const alert = document.getElementById('alertMotivoPausa');
+
+            let motivo = select.value;
+            if (motivo === 'otro') {
+                motivo = txtOtro.value.trim();
+            }
+
+            if (!motivo) {
+                alert.classList.remove('d-none');
+                select.focus();
+                return;
+            }
+
+            alert.classList.add('d-none');
+
+            // Ejecutar pausa
+            const ordenIdActual = modal.dataset.ordenId;
+            const faseActual = modal.dataset.fase;
+            const resultado = self.pausa(ordenIdActual, faseActual, motivo);
+
+            if (resultado.exito) {
+                // Cerrar modal
+                const bsModal = bootstrap.Modal.getInstance(modal);
+                if (bsModal) bsModal.hide();
+
+                // Actualizar UI
+                const contenedor = document.querySelector(`[data-orden-id="${ordenIdActual}"][data-fase="${faseActual}"]`);
+                if (contenedor) {
+                    self.renderControles(ordenIdActual, faseActual, contenedor.id);
+                }
+
+                // Mostrar notificacion
+                self.mostrarNotificacion(`Pausa registrada: ${motivo}`, 'warning');
+            }
+        });
+
+        // Mostrar modal
+        const bsModal = new bootstrap.Modal(modal);
+        bsModal.show();
+    },
+
+    /**
+     * Muestra notificacion toast
+     */
+    mostrarNotificacion: function(mensaje, tipo = 'info') {
+        let container = document.querySelector('.toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            document.body.appendChild(container);
+        }
+
+        const bgClass = tipo === 'success' ? 'bg-success' :
+                       tipo === 'warning' ? 'bg-warning text-dark' :
+                       tipo === 'danger' ? 'bg-danger' : 'bg-info';
+
+        const toastHtml = `
+            <div class="toast align-items-center ${bgClass} border-0" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">${mensaje}</div>
+                    <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `;
+
+        container.insertAdjacentHTML('beforeend', toastHtml);
+        const toastEl = container.lastElementChild;
+        const toast = new bootstrap.Toast(toastEl, { autohide: true, delay: 4000 });
+        toast.show();
+        toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
     },
 
     /**
@@ -437,6 +578,141 @@ const ControlTiempo = {
         this.detenerIntervalo(ordenId, fase);
 
         return { exito: true, mensaje: 'Registro reiniciado' };
+    }
+};
+
+    /**
+     * Renderiza panel de comandas (selector de OT tipo restaurante)
+     */
+    renderPanelComandas: function(fase, contenedorId, onSeleccionarOrden) {
+        const contenedor = document.getElementById(contenedorId);
+        if (!contenedor) return;
+
+        // Obtener ordenes disponibles
+        let ordenes = [];
+        try {
+            ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
+        } catch (e) {
+            ordenes = [];
+        }
+
+        const ordenesDisponibles = ordenes.filter(o => o.estadoOrden !== 'completada');
+
+        // Colores por prioridad
+        const coloresPrioridad = {
+            'urgente': { bg: 'danger', text: 'white', icon: 'exclamation-triangle-fill' },
+            'alta': { bg: 'warning', text: 'dark', icon: 'exclamation-circle' },
+            'normal': { bg: 'primary', text: 'white', icon: 'clipboard-check' }
+        };
+
+        let cardsHTML = '';
+        if (ordenesDisponibles.length === 0) {
+            cardsHTML = `
+                <div class="col-12 text-center py-4">
+                    <i class="bi bi-inbox fs-1 text-muted d-block mb-2"></i>
+                    <p class="text-muted mb-2">No hay ordenes de trabajo pendientes</p>
+                    <a href="ordenes.html" class="btn btn-primary btn-sm">
+                        <i class="bi bi-plus-circle me-1"></i>Crear Nueva OT
+                    </a>
+                </div>
+            `;
+        } else {
+            ordenesDisponibles.forEach(orden => {
+                const prioridad = orden.prioridad || 'normal';
+                const color = coloresPrioridad[prioridad] || coloresPrioridad.normal;
+                const tiempoRegistro = this.getRegistroOrden(orden.id || orden.numeroOrden, fase);
+                const tiempoActual = this.formatearTiempo(this.getTiempoActual(orden.id || orden.numeroOrden, fase));
+
+                cardsHTML += `
+                    <div class="col-md-4 col-lg-3 mb-2">
+                        <div class="card comanda-card h-100 border-${color.bg} cursor-pointer"
+                             onclick="ControlTiempo.seleccionarComanda('${orden.id || orden.numeroOrden}', '${fase}', '${contenedorId}')"
+                             style="cursor: pointer; transition: transform 0.2s;"
+                             onmouseover="this.style.transform='scale(1.02)'"
+                             onmouseout="this.style.transform='scale(1)'">
+                            <div class="card-header bg-${color.bg} text-${color.text} py-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <strong><i class="bi bi-${color.icon} me-1"></i>${orden.numeroOrden || orden.ot}</strong>
+                                    <span class="badge bg-light text-dark">${prioridad.toUpperCase()}</span>
+                                </div>
+                            </div>
+                            <div class="card-body py-2">
+                                <p class="mb-1 fw-bold text-truncate" title="${orden.cliente}">${orden.cliente}</p>
+                                <p class="mb-1 small text-muted text-truncate" title="${orden.producto || 'Sin producto'}">${orden.producto || 'Sin producto'}</p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="badge bg-secondary">${(orden.pedidoKg || 0).toLocaleString()} Kg</span>
+                                    ${tiempoRegistro.estado !== 'pendiente' ? `
+                                        <span class="badge ${tiempoRegistro.estado === 'en_progreso' ? 'bg-success' : 'bg-warning text-dark'}">
+                                            <i class="bi bi-clock me-1"></i>${tiempoActual}
+                                        </span>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        contenedor.innerHTML = `
+            <div class="card mb-3 border-0 shadow-sm">
+                <div class="card-header bg-dark text-white py-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>
+                            <i class="bi bi-journal-text me-2"></i>
+                            <strong>Seleccione una Orden de Trabajo</strong>
+                        </span>
+                        <span class="badge bg-light text-dark">${ordenesDisponibles.length} ordenes</span>
+                    </div>
+                </div>
+                <div class="card-body py-3" style="max-height: 300px; overflow-y: auto;">
+                    <div class="row g-2" id="comandasContainer">
+                        ${cardsHTML}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Guardar callback
+        if (onSeleccionarOrden) {
+            this._callbackSeleccionComanda = onSeleccionarOrden;
+        }
+    },
+
+    /**
+     * Maneja la seleccion de una comanda
+     */
+    seleccionarComanda: function(ordenId, fase, contenedorId) {
+        // Obtener la orden
+        let ordenes = [];
+        try {
+            ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
+        } catch (e) {
+            ordenes = [];
+        }
+
+        const orden = ordenes.find(o => (o.id || o.numeroOrden) === ordenId);
+        if (!orden) return;
+
+        // Ejecutar callback si existe
+        if (this._callbackSeleccionComanda) {
+            this._callbackSeleccionComanda(orden);
+        }
+
+        // Marcar visualmente la comanda seleccionada
+        document.querySelectorAll('.comanda-card').forEach(card => {
+            card.classList.remove('border-3', 'selected');
+        });
+
+        const contenedor = document.getElementById(contenedorId);
+        if (contenedor) {
+            const cardSeleccionada = contenedor.querySelector(`[onclick*="'${ordenId}'"]`);
+            if (cardSeleccionada) {
+                cardSeleccionada.classList.add('border-3', 'selected');
+            }
+        }
+
+        this.mostrarNotificacion(`Orden ${orden.numeroOrden || orden.ot} seleccionada`, 'success');
     }
 };
 

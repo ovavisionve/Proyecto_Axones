@@ -34,10 +34,14 @@ const Laminacion = {
      */
     inicializarControlTiempo: function() {
         const form = document.getElementById('formLaminacion');
-        if (!form || document.getElementById('controlTiempoLaminacion')) return;
+        if (!form || document.getElementById('panelComandasLaminacion')) return;
 
         const panelHTML = `
-            <div id="controlTiempoLaminacion" class="card mb-3 border-warning">
+            <!-- Panel de Comandas (Selector de OT tipo restaurante) -->
+            <div id="panelComandasLaminacion" class="mb-3"></div>
+
+            <!-- Panel de Control de Tiempo -->
+            <div id="controlTiempoLaminacion" class="card mb-3 border-warning" style="display: none;">
                 <div class="card-header bg-warning text-dark py-2">
                     <div class="d-flex align-items-center justify-content-between">
                         <span><i class="bi bi-stopwatch me-2"></i>Control de Tiempo - Laminacion</span>
@@ -47,13 +51,26 @@ const Laminacion = {
                 <div class="card-body py-2" id="contenedorControlTiempoLam" data-orden-id="" data-fase="laminacion">
                     <div class="text-center text-muted py-3">
                         <i class="bi bi-info-circle me-2"></i>
-                        Seleccione o ingrese una orden de trabajo para activar el cronometro
+                        Seleccione una orden de trabajo arriba
                     </div>
                 </div>
             </div>
         `;
 
         form.insertAdjacentHTML('afterbegin', panelHTML);
+
+        // Renderizar panel de comandas
+        if (typeof ControlTiempo !== 'undefined') {
+            ControlTiempo.renderPanelComandas('laminacion', 'panelComandasLaminacion', (orden) => {
+                this.ordenCargada = orden;
+                this.precargarCamposOrden(orden);
+                this.mostrarBannerOrdenCargada(orden);
+
+                // Mostrar panel de control de tiempo
+                const panelTiempo = document.getElementById('controlTiempoLaminacion');
+                if (panelTiempo) panelTiempo.style.display = 'block';
+            });
+        }
     },
 
     /**

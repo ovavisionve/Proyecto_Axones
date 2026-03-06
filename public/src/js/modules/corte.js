@@ -575,10 +575,14 @@ const Corte = {
      */
     inicializarControlTiempo: function() {
         const form = document.getElementById('formCorte');
-        if (!form || document.getElementById('controlTiempoCorte')) return;
+        if (!form || document.getElementById('panelComandasCorte')) return;
 
         const panelHTML = `
-            <div id="controlTiempoCorte" class="card mb-3 border-success">
+            <!-- Panel de Comandas (Selector de OT tipo restaurante) -->
+            <div id="panelComandasCorte" class="mb-3"></div>
+
+            <!-- Panel de Control de Tiempo -->
+            <div id="controlTiempoCorte" class="card mb-3 border-success" style="display: none;">
                 <div class="card-header bg-success text-white py-2">
                     <div class="d-flex align-items-center justify-content-between">
                         <span><i class="bi bi-stopwatch me-2"></i>Control de Tiempo - Corte</span>
@@ -588,13 +592,26 @@ const Corte = {
                 <div class="card-body py-2" id="contenedorControlTiempoCorte" data-orden-id="" data-fase="corte">
                     <div class="text-center text-muted py-3">
                         <i class="bi bi-info-circle me-2"></i>
-                        Seleccione o ingrese una orden de trabajo para activar el cronometro
+                        Seleccione una orden de trabajo arriba
                     </div>
                 </div>
             </div>
         `;
 
         form.insertAdjacentHTML('afterbegin', panelHTML);
+
+        // Renderizar panel de comandas
+        if (typeof ControlTiempo !== 'undefined') {
+            ControlTiempo.renderPanelComandas('corte', 'panelComandasCorte', (orden) => {
+                this.ordenCargada = orden;
+                this.precargarCamposOrden(orden);
+                this.mostrarBannerOrdenCargada(orden);
+
+                // Mostrar panel de control de tiempo
+                const panelTiempo = document.getElementById('controlTiempoCorte');
+                if (panelTiempo) panelTiempo.style.display = 'block';
+            });
+        }
     },
 
     /**

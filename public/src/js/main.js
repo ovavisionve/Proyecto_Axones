@@ -413,6 +413,14 @@ const Axones = {
 
 // Inicializar cuando el DOM este listo
 document.addEventListener('DOMContentLoaded', () => {
+    // Inicializar datos de demo si no existen ordenes de trabajo
+    if (typeof DemoData !== 'undefined') {
+        const ordenes = localStorage.getItem('axones_ordenes_trabajo');
+        if (!ordenes || JSON.parse(ordenes).length === 0) {
+            console.log('No hay ordenes de trabajo, inicializando datos de demo...');
+            DemoData.init();
+        }
+    }
     Axones.init();
 });
 

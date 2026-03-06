@@ -13,6 +13,7 @@ const DemoData = {
         this.generarAlertas();
         this.generarTintas();
         this.generarEstadoMaquinas();
+        this.generarOrdenesTrabajo();
         console.log('Datos de prueba generados en localStorage');
 
         // Sincronizar con API en background
@@ -27,6 +28,7 @@ const DemoData = {
         localStorage.removeItem('axones_alertas');
         localStorage.removeItem('axones_tintas');
         localStorage.removeItem('axones_maquinas_estado');
+        localStorage.removeItem('axones_ordenes_trabajo');
         console.log('Datos limpiados');
     },
 
@@ -396,6 +398,152 @@ const DemoData = {
 
         localStorage.setItem('axones_maquinas_estado', JSON.stringify(maquinas));
         console.log(`Maquinas: ${maquinas.length} estados generados`);
+    },
+
+    // Generar ordenes de trabajo de prueba
+    generarOrdenesTrabajo() {
+        const ordenes = [
+            {
+                id: 'OT_DEMO_001',
+                numeroOrden: 'OT-2026-0001',
+                fechaOrden: new Date().toISOString().split('T')[0],
+                fechaCreacion: new Date().toISOString(),
+                cliente: 'PEPSICO ALIMENTOS',
+                clienteRif: 'J-30012345-6',
+                producto: 'Bolsa Snacks Lays 200g',
+                maquina: 'COMEXI 1',
+                pedidoKg: 800,
+                estadoOrden: 'pendiente',
+                prioridad: 'alta',
+                anchoCorte: 320,
+                anchoMontaje: 640,
+                desarrollo: 380,
+                numBandas: 2,
+                numRepeticion: 4,
+                numColores: 8,
+                tipoMaterial: 'BOPP METALIZADO',
+                micrasMaterial: 20,
+                anchoMaterial: 640,
+                tintas: [
+                    { posicion: 1, color: 'Blanco', anilox: '180', viscosidad: 22 },
+                    { posicion: 2, color: 'Amarillo', anilox: '400', viscosidad: 20 },
+                    { posicion: 3, color: 'Rojo', anilox: '400', viscosidad: 20 },
+                    { posicion: 4, color: 'Azul', anilox: '400', viscosidad: 20 }
+                ]
+            },
+            {
+                id: 'OT_DEMO_002',
+                numeroOrden: 'OT-2026-0002',
+                fechaOrden: new Date().toISOString().split('T')[0],
+                fechaCreacion: new Date().toISOString(),
+                cliente: 'NESTLE VENEZUELA',
+                clienteRif: 'J-00012345-7',
+                producto: 'Empaque Cerelac 500g',
+                maquina: 'COMEXI 2',
+                pedidoKg: 1200,
+                estadoOrden: 'en_proceso',
+                prioridad: 'media',
+                anchoCorte: 420,
+                anchoMontaje: 840,
+                desarrollo: 520,
+                numBandas: 2,
+                numRepeticion: 3,
+                numColores: 6,
+                tipoMaterial: 'BOPP',
+                micrasMaterial: 25,
+                anchoMaterial: 840,
+                tintas: [
+                    { posicion: 1, color: 'Blanco', anilox: '180', viscosidad: 22 },
+                    { posicion: 2, color: 'Amarillo', anilox: '360', viscosidad: 21 },
+                    { posicion: 3, color: 'Cyan', anilox: '400', viscosidad: 20 }
+                ]
+            },
+            {
+                id: 'OT_DEMO_003',
+                numeroOrden: 'OT-2026-0003',
+                fechaOrden: new Date().toISOString().split('T')[0],
+                fechaCreacion: new Date().toISOString(),
+                cliente: 'EMPRESAS POLAR',
+                clienteRif: 'J-00000123-8',
+                producto: 'Bolsa Harina PAN 1kg',
+                maquina: 'COMEXI 1',
+                pedidoKg: 2000,
+                estadoOrden: 'pendiente',
+                prioridad: 'alta',
+                anchoCorte: 280,
+                anchoMontaje: 560,
+                desarrollo: 400,
+                numBandas: 2,
+                numRepeticion: 5,
+                numColores: 4,
+                tipoMaterial: 'PEBD PIGMENTADO',
+                micrasMaterial: 60,
+                anchoMaterial: 560,
+                tintas: [
+                    { posicion: 1, color: 'Amarillo', anilox: '400', viscosidad: 20 },
+                    { posicion: 2, color: 'Rojo', anilox: '400', viscosidad: 20 },
+                    { posicion: 3, color: 'Azul', anilox: '400', viscosidad: 20 },
+                    { posicion: 4, color: 'Negro', anilox: '500', viscosidad: 19 }
+                ]
+            },
+            {
+                id: 'OT_DEMO_004',
+                numeroOrden: 'OT-2026-0004',
+                fechaOrden: new Date().toISOString().split('T')[0],
+                fechaCreacion: new Date().toISOString(),
+                cliente: 'KRAFT HEINZ',
+                clienteRif: 'J-30098765-4',
+                producto: 'Sachet Mayonesa 100g',
+                maquina: 'COMEXI 2',
+                pedidoKg: 500,
+                estadoOrden: 'pendiente',
+                prioridad: 'normal',
+                anchoCorte: 150,
+                anchoMontaje: 600,
+                desarrollo: 180,
+                numBandas: 4,
+                numRepeticion: 8,
+                numColores: 5,
+                tipoMaterial: 'CAST',
+                micrasMaterial: 30,
+                anchoMaterial: 600,
+                tintas: [
+                    { posicion: 1, color: 'Blanco', anilox: '180', viscosidad: 22 },
+                    { posicion: 2, color: 'Amarillo', anilox: '400', viscosidad: 20 },
+                    { posicion: 3, color: 'Rojo', anilox: '400', viscosidad: 20 }
+                ]
+            },
+            {
+                id: 'OT_DEMO_005',
+                numeroOrden: 'OT-2026-0005',
+                fechaOrden: new Date().toISOString().split('T')[0],
+                fechaCreacion: new Date().toISOString(),
+                cliente: 'CAFE MADRID',
+                clienteRif: 'J-07654321-0',
+                producto: 'Bolsa Cafe Premium 250g',
+                maquina: 'COMEXI 1',
+                pedidoKg: 600,
+                estadoOrden: 'pendiente',
+                prioridad: 'alta',
+                anchoCorte: 200,
+                anchoMontaje: 400,
+                desarrollo: 320,
+                numBandas: 2,
+                numRepeticion: 6,
+                numColores: 7,
+                tipoMaterial: 'BOPP MATE',
+                micrasMaterial: 25,
+                anchoMaterial: 400,
+                tintas: [
+                    { posicion: 1, color: 'Oro', anilox: '300', viscosidad: 21 },
+                    { posicion: 2, color: 'Marron', anilox: '400', viscosidad: 20 },
+                    { posicion: 3, color: 'Negro', anilox: '500', viscosidad: 19 }
+                ]
+            }
+        ];
+
+        localStorage.setItem('axones_ordenes_trabajo', JSON.stringify(ordenes));
+        console.log(`Ordenes de trabajo: ${ordenes.length} ordenes generadas`);
     }
 };
 

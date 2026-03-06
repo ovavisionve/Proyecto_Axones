@@ -44,8 +44,14 @@ const ControlTiempo = {
                 pausas: [], // timestamps de cada pausa
                 completado: null,
                 operadores: [],
-                notas: []
+                notas: [],
+                despachos: [] // despachos parciales {fecha, kg, cliente, notaEntrega, observaciones}
             };
+            this.saveRegistros(registros);
+        }
+        // Asegurar que despachos exista en registros antiguos
+        if (!registros[key].despachos) {
+            registros[key].despachos = [];
             this.saveRegistros(registros);
         }
 
@@ -86,6 +92,13 @@ const ControlTiempo = {
 
         // Iniciar intervalo de actualizacion
         this.iniciarIntervalo(ordenId, fase);
+
+        // Re-renderizar controles para actualizar botones
+        const contenedorId = `contenedorControlTiempo${fase.charAt(0).toUpperCase() + fase.slice(1)}`;
+        const contenedor = document.getElementById(contenedorId) || document.getElementById('contenedorControlTiempo');
+        if (contenedor) {
+            this.renderControles(ordenId, fase, contenedor.id);
+        }
 
         console.log(`ControlTiempo: PLAY ${ordenId} - ${fase}`);
         return { exito: true, mensaje: 'Cronometro iniciado', registro };
@@ -225,10 +238,19 @@ const ControlTiempo = {
      * Actualiza la UI del cronometro
      */
     actualizarUI: function(ordenId, fase) {
+        const tiempo = this.getTiempoActual(ordenId, fase);
+        const tiempoFormateado = this.formatearTiempo(tiempo);
+
+        // Actualizar cronometro en panel de control
         const cronometroEl = document.getElementById(`cronometro_${ordenId}_${fase}`);
         if (cronometroEl) {
-            const tiempo = this.getTiempoActual(ordenId, fase);
-            cronometroEl.textContent = this.formatearTiempo(tiempo);
+            cronometroEl.textContent = tiempoFormateado;
+        }
+
+        // Actualizar tiempo en la comanda (card)
+        const comandaTime = document.querySelector(`[data-comanda-tiempo="${ordenId}_${fase}"]`);
+        if (comandaTime) {
+            comandaTime.textContent = tiempoFormateado;
         }
     },
 
@@ -255,6 +277,10 @@ const ControlTiempo = {
             'pausada': 'bi-pause-circle-fill',
             'completada': 'bi-check-circle-fill'
         };
+
+        // Calcular despachos
+        const despachos = registro.despachos || [];
+        const totalDespachado = despachos.reduce((sum, d) => sum + (d.kg || 0), 0);
 
         contenedor.innerHTML = `
             <div class="control-tiempo-panel p-2 border rounded bg-light">
@@ -284,6 +310,28 @@ const ControlTiempo = {
                         <i class="bi bi-check-lg"></i> Completar
                     </button>
                 </div>
+                <!-- Boton de Despacho Parcial -->
+                <div class="mt-2">
+                    <button type="button" class="btn btn-sm btn-outline-info w-100"
+                            onclick="ControlTiempo.registrarDespacho('${ordenId}', '${fase}')"
+                            ${registro.estado === 'completada' ? 'disabled' : ''}>
+                        <i class="bi bi-truck me-1"></i> Registrar Despacho Parcial
+                        ${totalDespachado > 0 ? `<span class="badge bg-info ms-1">${totalDespachado.toLocaleString()} Kg despachados</span>` : ''}
+                    </button>
+                </div>
+                ${despachos.length > 0 ? `
+                <div class="mt-2">
+                    <small class="text-muted d-block mb-1"><i class="bi bi-list-check me-1"></i>Despachos registrados:</small>
+                    <div class="list-group list-group-flush" style="max-height: 100px; overflow-y: auto;">
+                        ${despachos.map((d, i) => `
+                            <div class="list-group-item py-1 px-2 small d-flex justify-content-between align-items-center">
+                                <span><i class="bi bi-box-seam me-1"></i>${d.kg.toLocaleString()} Kg - ${d.cliente || 'N/A'}</span>
+                                <span class="text-muted">${new Date(d.fecha).toLocaleDateString()}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
                 ${registro.operadores.length > 0 ? `
                 <div class="mt-2 small text-muted">
                     <i class="bi bi-person"></i> ${registro.operadores.join(', ')}
@@ -414,8 +462,9 @@ const ControlTiempo = {
                 const bsModal = bootstrap.Modal.getInstance(modal);
                 if (bsModal) bsModal.hide();
 
-                // Actualizar UI
-                const contenedor = document.querySelector(`[data-orden-id="${ordenIdActual}"][data-fase="${faseActual}"]`);
+                // Re-renderizar controles para actualizar botones
+                const contenedorId = `contenedorControlTiempo${faseActual.charAt(0).toUpperCase() + faseActual.slice(1)}`;
+                const contenedor = document.getElementById(contenedorId) || document.getElementById('contenedorControlTiempo');
                 if (contenedor) {
                     self.renderControles(ordenIdActual, faseActual, contenedor.id);
                 }
@@ -423,6 +472,176 @@ const ControlTiempo = {
                 // Mostrar notificacion
                 self.mostrarNotificacion(`Pausa registrada: ${motivo}`, 'warning');
             }
+        });
+
+        // Mostrar modal
+        const bsModal = new bootstrap.Modal(modal);
+        bsModal.show();
+    },
+
+    /**
+     * Registrar despacho parcial
+     */
+    registrarDespacho: function(ordenId, fase) {
+        // Obtener datos de la orden
+        let ordenes = [];
+        try {
+            ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
+        } catch (e) {
+            ordenes = [];
+        }
+        const orden = ordenes.find(o => (o.id || o.numeroOrden) === ordenId);
+        const pedidoKg = orden ? (orden.pedidoKg || 0) : 0;
+        const cliente = orden ? orden.cliente : '';
+
+        // Obtener despachos anteriores
+        const registro = this.getRegistroOrden(ordenId, fase);
+        const despachosAnteriores = registro.despachos || [];
+        const totalDespachado = despachosAnteriores.reduce((sum, d) => sum + (d.kg || 0), 0);
+        const pendiente = pedidoKg - totalDespachado;
+
+        // Crear modal si no existe
+        let modal = document.getElementById('modalDespacho');
+        if (!modal) {
+            const modalHTML = `
+                <div class="modal fade" id="modalDespacho" tabindex="-1">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header bg-info text-white">
+                                <h5 class="modal-title">
+                                    <i class="bi bi-truck me-2"></i>Registrar Despacho Parcial
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="alert alert-info py-2 mb-3" id="alertInfoDespacho">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    <span id="infoDespacho"></span>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Kg a Despachar <span class="text-danger">*</span></label>
+                                        <input type="number" class="form-control" id="kgDespacho"
+                                               placeholder="Ej: 3000" min="0" step="0.01" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Cliente</label>
+                                        <input type="text" class="form-control" id="clienteDespacho"
+                                               placeholder="Nombre del cliente">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label fw-bold">Nota de Entrega</label>
+                                        <input type="text" class="form-control" id="notaEntregaDespacho"
+                                               placeholder="Numero de nota de entrega">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label">Observaciones</label>
+                                        <textarea class="form-control" id="obsDespacho" rows="2"
+                                                  placeholder="Observaciones adicionales..."></textarea>
+                                    </div>
+                                </div>
+                                <div class="alert alert-danger py-2 d-none mt-3" id="alertErrorDespacho">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>
+                                    <span id="msgErrorDespacho"></span>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                    <i class="bi bi-x-circle me-1"></i>Cancelar
+                                </button>
+                                <button type="button" class="btn btn-info" id="btnConfirmarDespacho">
+                                    <i class="bi bi-truck me-1"></i>Registrar Despacho
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+            modal = document.getElementById('modalDespacho');
+        }
+
+        // Actualizar info
+        document.getElementById('infoDespacho').innerHTML = `
+            <strong>Pedido:</strong> ${pedidoKg.toLocaleString()} Kg |
+            <strong>Despachado:</strong> ${totalDespachado.toLocaleString()} Kg |
+            <strong>Pendiente:</strong> ${pendiente.toLocaleString()} Kg
+        `;
+
+        // Guardar datos de la orden actual
+        modal.dataset.ordenId = ordenId;
+        modal.dataset.fase = fase;
+
+        // Limpiar campos
+        document.getElementById('kgDespacho').value = '';
+        document.getElementById('clienteDespacho').value = cliente;
+        document.getElementById('notaEntregaDespacho').value = '';
+        document.getElementById('obsDespacho').value = '';
+        document.getElementById('alertErrorDespacho').classList.add('d-none');
+
+        // Configurar boton confirmar
+        const btnConfirmar = document.getElementById('btnConfirmarDespacho');
+        const self = this;
+
+        // Remover listeners anteriores
+        const newBtnConfirmar = btnConfirmar.cloneNode(true);
+        btnConfirmar.parentNode.replaceChild(newBtnConfirmar, btnConfirmar);
+
+        newBtnConfirmar.addEventListener('click', function() {
+            const kgInput = document.getElementById('kgDespacho');
+            const clienteInput = document.getElementById('clienteDespacho');
+            const notaInput = document.getElementById('notaEntregaDespacho');
+            const obsInput = document.getElementById('obsDespacho');
+            const alertError = document.getElementById('alertErrorDespacho');
+            const msgError = document.getElementById('msgErrorDespacho');
+
+            const kg = parseFloat(kgInput.value) || 0;
+
+            if (kg <= 0) {
+                msgError.textContent = 'Debe ingresar una cantidad de Kg valida';
+                alertError.classList.remove('d-none');
+                kgInput.focus();
+                return;
+            }
+
+            alertError.classList.add('d-none');
+
+            // Guardar despacho
+            const ordenIdActual = modal.dataset.ordenId;
+            const faseActual = modal.dataset.fase;
+
+            const registros = self.getRegistros();
+            const key = `${ordenIdActual}_${faseActual}`;
+            const registro = registros[key];
+
+            if (!registro.despachos) {
+                registro.despachos = [];
+            }
+
+            registro.despachos.push({
+                fecha: new Date().toISOString(),
+                kg: kg,
+                cliente: clienteInput.value.trim(),
+                notaEntrega: notaInput.value.trim(),
+                observaciones: obsInput.value.trim()
+            });
+
+            registros[key] = registro;
+            self.saveRegistros(registros);
+
+            // Cerrar modal
+            const bsModal = bootstrap.Modal.getInstance(modal);
+            if (bsModal) bsModal.hide();
+
+            // Re-renderizar controles
+            const contenedorId = `contenedorControlTiempo${faseActual.charAt(0).toUpperCase() + faseActual.slice(1)}`;
+            const contenedor = document.getElementById(contenedorId) || document.getElementById('contenedorControlTiempo');
+            if (contenedor) {
+                self.renderControles(ordenIdActual, faseActual, contenedor.id);
+            }
+
+            // Mostrar notificacion
+            self.mostrarNotificacion(`Despacho registrado: ${kg.toLocaleString()} Kg`, 'success');
         });
 
         // Mostrar modal
@@ -640,11 +859,10 @@ const ControlTiempo = {
                                 <p class="mb-1 small text-muted text-truncate" title="${orden.producto || 'Sin producto'}">${orden.producto || 'Sin producto'}</p>
                                 <div class="d-flex justify-content-between align-items-center">
                                     <span class="badge bg-secondary">${(orden.pedidoKg || 0).toLocaleString()} Kg</span>
-                                    ${tiempoRegistro.estado !== 'pendiente' ? `
-                                        <span class="badge ${tiempoRegistro.estado === 'en_progreso' ? 'bg-success' : 'bg-warning text-dark'}">
-                                            <i class="bi bi-clock me-1"></i>${tiempoActual}
-                                        </span>
-                                    ` : ''}
+                                    <span class="badge ${tiempoRegistro.estado === 'en_progreso' ? 'bg-success' : tiempoRegistro.estado === 'pausada' ? 'bg-warning text-dark' : 'bg-light text-muted'}"
+                                          data-comanda-tiempo="${orden.id || orden.numeroOrden}_${fase}">
+                                        <i class="bi bi-clock me-1"></i><span>${tiempoActual}</span>
+                                    </span>
                                 </div>
                             </div>
                         </div>

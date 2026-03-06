@@ -120,35 +120,80 @@ const Impresion = {
     },
 
     /**
-     * Precarga campos del formulario desde una orden
+     * Precarga campos del formulario desde una orden de trabajo
      */
     precargarCamposOrden: function(orden) {
+        console.log('Precargando datos de orden:', orden);
+
+        // Mapeo de campos OT -> campos formulario impresion
         const camposOrden = {
-            'ordenTrabajo': orden.ot || orden.numeroOrden,
-            'cliente': orden.cliente,
-            'producto': orden.producto
+            'ordenTrabajo': orden.numeroOrden || orden.ot,
+            'producto': orden.producto,
+            'fecha': orden.fechaOrden,
+            'totalColores': orden.numColores,
+            'numPistas': orden.numBandas
         };
 
+        // Precargar campos de texto/numero
         Object.entries(camposOrden).forEach(([campo, valor]) => {
             const input = document.getElementById(campo);
             if (input && valor) {
                 input.value = valor;
-                // Marcar como precargado y deshabilitar
+                // Marcar como precargado
                 input.classList.add('precargado-orden');
-                input.setAttribute('readonly', true);
                 input.style.backgroundColor = '#e8f4e8';
+                input.style.borderColor = '#198754';
             }
         });
 
-        // Disparar evento change en cliente para actualizar inventario
+        // Precargar select de cliente
         const clienteSelect = document.getElementById('cliente');
         if (clienteSelect && orden.cliente) {
+            // Buscar opcion existente o agregarla
+            let optionExists = Array.from(clienteSelect.options).some(opt => opt.value === orden.cliente);
+            if (!optionExists) {
+                const newOption = document.createElement('option');
+                newOption.value = orden.cliente;
+                newOption.textContent = orden.cliente;
+                clienteSelect.appendChild(newOption);
+            }
             clienteSelect.value = orden.cliente;
+            clienteSelect.classList.add('precargado-orden');
+            clienteSelect.style.backgroundColor = '#e8f4e8';
             clienteSelect.dispatchEvent(new Event('change'));
         }
 
+        // Precargar select de maquina
+        const maquinaSelect = document.getElementById('maquina');
+        if (maquinaSelect && orden.maquina) {
+            // Mapear nombre de maquina al valor del select
+            const maquinaMap = {
+                'COMEXI 1': 'comexi1',
+                'COMEXI 2': 'comexi2',
+                'COMEXI 3': 'comexi3',
+                'COMEXI 067': 'comexi1',
+                'COMEXI 045': 'comexi2'
+            };
+            const maquinaValue = maquinaMap[orden.maquina] || orden.maquina.toLowerCase().replace(/\s+/g, '');
+
+            // Intentar seleccionar por valor mapeado o directo
+            if (Array.from(maquinaSelect.options).some(opt => opt.value === maquinaValue)) {
+                maquinaSelect.value = maquinaValue;
+            } else if (Array.from(maquinaSelect.options).some(opt => opt.value === orden.maquina)) {
+                maquinaSelect.value = orden.maquina;
+            }
+            maquinaSelect.classList.add('precargado-orden');
+            maquinaSelect.style.backgroundColor = '#e8f4e8';
+        }
+
+        // Guardar referencia de la orden para calculos
+        this.ordenCargada = orden;
+        this.ordenCargada.pedidoKgOriginal = orden.pedidoKg;
+
         // Actualizar control de tiempo
         this.actualizarControlTiempo(orden.id || orden.ot, orden.numeroOrden || orden.ot);
+
+        console.log('Orden precargada exitosamente:', orden.numeroOrden);
     },
 
     /**
@@ -248,28 +293,49 @@ const Impresion = {
             return;
         }
 
+        console.log('Ordenes cargadas del localStorage:', ordenes.length);
+
         // Mostrar todas las ordenes disponibles (excepto completadas)
-        const ordenesDisponibles = ordenes.filter(o => o.estadoOrden !== 'completada');
+        // Filtrar por maquinas de impresion (COMEXI) o sin maquina especifica
+        const ordenesDisponibles = ordenes.filter(o => {
+            const noCompletada = o.estadoOrden !== 'completada';
+            const esImpresion = !o.maquina || o.maquina.includes('COMEXI');
+            return noCompletada && esImpresion;
+        });
 
-        if (ordenesDisponibles.length === 0) return;
+        console.log('Ordenes disponibles para impresion:', ordenesDisponibles.length);
 
-        // Crear grupo con selector
-        const grupo = otInput.closest('.col-md-3, .col-md-4, .mb-3');
+        if (ordenesDisponibles.length === 0) {
+            // Mostrar mensaje si no hay ordenes
+            const grupo = otInput.closest('[class*="col"]') || otInput.parentElement;
+            if (grupo) {
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'alert alert-info alert-sm py-1 mt-1 small';
+                infoDiv.innerHTML = '<i class="bi bi-info-circle me-1"></i>No hay ordenes pendientes. <a href="ordenes.html">Crear nueva OT</a>';
+                grupo.appendChild(infoDiv);
+            }
+            return;
+        }
+
+        // Crear grupo con selector - buscar cualquier contenedor col-*
+        const grupo = otInput.closest('[class*="col"]') || otInput.parentElement;
         if (!grupo) return;
 
         const selectorDiv = document.createElement('div');
         selectorDiv.id = 'selectorOrden';
-        selectorDiv.className = 'mt-1';
+        selectorDiv.className = 'mt-2';
         selectorDiv.innerHTML = `
-            <select class="form-select form-select-sm" id="selectOrdenPendiente">
+            <label class="form-label small fw-bold text-primary">
+                <i class="bi bi-list-check me-1"></i>Ordenes Pendientes (${ordenesDisponibles.length})
+            </label>
+            <select class="form-select form-select-sm border-primary" id="selectOrdenPendiente">
                 <option value="">-- Seleccionar orden de trabajo --</option>
                 ${ordenesDisponibles.map(o => `
                     <option value="${o.numeroOrden || o.ot}" data-orden='${JSON.stringify(o).replace(/'/g, "&#39;")}'>
-                        ${o.numeroOrden || o.ot} - ${o.cliente} - ${o.producto}
+                        ${o.numeroOrden || o.ot} | ${o.cliente} | ${o.producto || 'Sin producto'} | ${(o.pedidoKg || 0).toLocaleString()}kg
                     </option>
                 `).join('')}
             </select>
-            <small class="text-muted">O ingrese una OT manualmente arriba</small>
         `;
 
         grupo.appendChild(selectorDiv);

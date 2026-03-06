@@ -5,7 +5,69 @@
 
 const Inventario = {
     // Version de datos - incrementar cuando se actualicen los datos base
-    DATA_VERSION: '2026-02-26',
+    DATA_VERSION: '2026-03-06-SKU',
+
+    // Prefijos de material para SKU
+    MATERIAL_PREFIJOS: {
+        'BOPP NORMAL': 'BN',
+        'BOPP MATE': 'BM',
+        'BOPP PASTA': 'BP',
+        'BOPP PERLADO': 'BPE',
+        'METAL': 'MT',
+        'PERLADO': 'PE',
+        'CAST': 'CA',
+        'PEBD': 'PB',
+        'PEBD PIGMENT': 'PBP'
+    },
+
+    // Densidades por material
+    DENSIDADES: {
+        'BOPP NORMAL': 0.90,
+        'BOPP MATE': 0.90,
+        'BOPP PASTA': 0.90,
+        'BOPP PERLADO': 0.80,
+        'PERLADO': 0.80,
+        'METAL': 0.90,
+        'CAST': 0.92,
+        'PEBD': 0.93,
+        'PEBD PIGMENT': 0.93
+    },
+
+    /**
+     * Genera SKU unico para un producto
+     * Formato: PREFIJO-MICRAS-ANCHO (ej: BN-20-610)
+     */
+    generarSKU: function(material, micras, ancho) {
+        const prefijo = this.MATERIAL_PREFIJOS[material] || material.substring(0, 2).toUpperCase();
+        return `${prefijo}-${micras}-${ancho}`;
+    },
+
+    /**
+     * Genera codigo de barras EAN-13
+     * Formato: 789 + codigo pais + codigo producto + digito verificador
+     */
+    generarCodigoBarra: function(index) {
+        // Prefijo Venezuela: 759
+        // Empresa Axones: 0001
+        // Producto: numero secuencial de 5 digitos
+        const base = `759${String(1).padStart(4, '0')}${String(index).padStart(5, '0')}`;
+
+        // Calcular digito verificador EAN-13
+        let suma = 0;
+        for (let i = 0; i < 12; i++) {
+            suma += parseInt(base[i]) * (i % 2 === 0 ? 1 : 3);
+        }
+        const verificador = (10 - (suma % 10)) % 10;
+
+        return base + verificador;
+    },
+
+    /**
+     * Obtiene la densidad del material
+     */
+    getDensidad: function(material) {
+        return this.DENSIDADES[material] || 0.90;
+    },
 
     // Datos del inventario de materiales (sustratos)
     items: [],
@@ -169,8 +231,23 @@ const Inventario = {
             this.items = JSON.parse(stored);
         } else {
             this.items = this.getDatosEjemplo();
-            this.saveInventario();
         }
+
+        // Agregar SKU y codigo de barras si no existen
+        this.items = this.items.map((item, index) => {
+            if (!item.sku) {
+                item.sku = this.generarSKU(item.material, item.micras, item.ancho);
+            }
+            if (!item.codigoBarra) {
+                item.codigoBarra = this.generarCodigoBarra(index + 1);
+            }
+            if (!item.densidad) {
+                item.densidad = this.getDensidad(item.material);
+            }
+            return item;
+        });
+
+        this.saveInventario();
         this.filteredItems = [...this.items];
     },
 

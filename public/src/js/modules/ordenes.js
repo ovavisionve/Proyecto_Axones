@@ -142,69 +142,128 @@ const Ordenes = {
         // Obtener inventario
         const inventario = this.inventario || [];
 
-        // Agrupar productos unicos con su info de material
-        const productosUnicos = new Map();
-
-        inventario.forEach(item => {
-            // Crear un codigo unico basado en material + micras + ancho
-            const codigo = `${item.material}-${item.micras}µ-${item.ancho}mm`;
-            const nombreDisplay = item.producto
-                ? `${item.producto} (${item.material} ${item.micras}µ x ${item.ancho}mm)`
-                : `${item.material} ${item.micras}µ x ${item.ancho}mm`;
-
-            if (!productosUnicos.has(codigo)) {
-                productosUnicos.set(codigo, {
-                    id: item.id,
-                    codigo: codigo,
-                    nombre: nombreDisplay,
-                    producto: item.producto || '',
-                    material: item.material,
-                    micras: item.micras,
-                    ancho: item.ancho,
-                    kg: item.kg
-                });
-            }
+        // Ordenar por producto/material
+        const productosOrdenados = [...inventario].sort((a, b) => {
+            const nombreA = a.producto || a.material;
+            const nombreB = b.producto || b.material;
+            return nombreA.localeCompare(nombreB);
         });
 
-        // Ordenar por nombre del producto
-        const productosOrdenados = Array.from(productosUnicos.values())
-            .sort((a, b) => a.nombre.localeCompare(b.nombre));
-
-        // Agregar opciones al select
-        productosOrdenados.forEach(prod => {
+        // Agregar opciones al select con SKU
+        productosOrdenados.forEach(item => {
             const option = document.createElement('option');
-            option.value = prod.codigo;
-            option.textContent = `${prod.nombre} - Stock: ${prod.kg} Kg`;
-            option.dataset.id = prod.id;
-            option.dataset.material = prod.material;
-            option.dataset.micras = prod.micras;
-            option.dataset.ancho = prod.ancho;
-            option.dataset.producto = prod.producto;
+            const sku = item.sku || `${item.material}-${item.micras}-${item.ancho}`;
+            const nombreDisplay = item.producto
+                ? `${item.producto} | ${sku}`
+                : `${item.material} ${item.micras}µ x ${item.ancho}mm | ${sku}`;
+
+            option.value = item.id;
+            option.textContent = `${nombreDisplay} - Stock: ${item.kg} Kg`;
+
+            // Guardar todos los datos en dataset
+            option.dataset.id = item.id;
+            option.dataset.sku = sku;
+            option.dataset.codigoBarra = item.codigoBarra || '';
+            option.dataset.material = item.material;
+            option.dataset.micras = item.micras;
+            option.dataset.ancho = item.ancho;
+            option.dataset.kg = item.kg;
+            option.dataset.producto = item.producto || '';
+            option.dataset.densidad = item.densidad || this.obtenerDensidadMaterial(item.material);
+
             productoSelect.appendChild(option);
         });
 
         // Evento cuando se selecciona un producto
-        productoSelect.addEventListener('change', () => {
-            const selectedOption = productoSelect.options[productoSelect.selectedIndex];
-            if (selectedOption && selectedOption.value) {
-                // Auto-llenar campos relacionados
-                const estructuraMaterial = document.getElementById('estructuraMaterial');
-                if (estructuraMaterial) {
-                    estructuraMaterial.value = `${selectedOption.dataset.material} ${selectedOption.dataset.micras}`;
-                }
+        productoSelect.addEventListener('change', () => this.onProductoSeleccionado());
 
-                // Auto-llenar codigo de producto
-                const cpe = document.getElementById('cpe');
-                if (cpe) {
-                    cpe.value = selectedOption.dataset.id || '';
-                }
+        console.log(`Productos cargados del inventario: ${productosOrdenados.length} items con SKU y codigo de barras`);
+    },
 
-                // Mostrar stock disponible
-                console.log(`Producto seleccionado: ${selectedOption.textContent}`);
+    /**
+     * Maneja la seleccion de un producto - Pre-llena TODOS los campos relacionados
+     */
+    onProductoSeleccionado: function() {
+        const productoSelect = document.getElementById('producto');
+        const selectedOption = productoSelect?.options[productoSelect.selectedIndex];
+
+        if (!selectedOption || !selectedOption.value) return;
+
+        const data = selectedOption.dataset;
+
+        // === PRE-LLENAR CAMPOS ===
+
+        // Codigo de producto (CPE) = SKU
+        const cpe = document.getElementById('cpe');
+        if (cpe) cpe.value = data.sku || '';
+
+        // Codigo de barras
+        const codigoBarra = document.getElementById('codigoBarra');
+        if (codigoBarra) codigoBarra.value = data.codigoBarra || '';
+
+        // Estructura Material
+        const estructuraMaterial = document.getElementById('estructuraMaterial');
+        if (estructuraMaterial) {
+            estructuraMaterial.value = `${data.material} ${data.micras}`;
+        }
+
+        // Tipo de material
+        const tipoMaterial = document.getElementById('tipoMaterial');
+        if (tipoMaterial) tipoMaterial.value = data.material || '';
+
+        // Micras
+        const micrasMaterial = document.getElementById('micrasMaterial');
+        if (micrasMaterial) micrasMaterial.value = data.micras || '';
+
+        // Ancho
+        const anchoMaterial = document.getElementById('anchoMaterial');
+        if (anchoMaterial) anchoMaterial.value = data.ancho || '';
+
+        // Ancho de corte (igual al ancho del material por defecto)
+        const anchoCorte = document.getElementById('anchoCorte');
+        if (anchoCorte && !anchoCorte.value) anchoCorte.value = data.ancho || '';
+
+        // Ancho de montaje
+        const anchoMontaje = document.getElementById('anchoMontaje');
+        if (anchoMontaje && !anchoMontaje.value) anchoMontaje.value = data.ancho || '';
+
+        // Kg disponible
+        const kgDisponible = document.getElementById('kgDisponible');
+        if (kgDisponible) {
+            kgDisponible.value = parseFloat(data.kg).toFixed(2);
+            // Color segun disponibilidad
+            const pedidoKg = parseFloat(document.getElementById('pedidoKg')?.value) || 0;
+            if (parseFloat(data.kg) >= pedidoKg && pedidoKg > 0) {
+                kgDisponible.classList.remove('bg-danger', 'bg-warning');
+                kgDisponible.classList.add('bg-success', 'text-white');
+            } else if (parseFloat(data.kg) > 0) {
+                kgDisponible.classList.remove('bg-danger', 'bg-success');
+                kgDisponible.classList.add('bg-warning');
+            } else {
+                kgDisponible.classList.remove('bg-success', 'bg-warning');
+                kgDisponible.classList.add('bg-danger', 'text-white');
+            }
+        }
+
+        // Guardar densidad para calculos
+        const densidadHidden = document.getElementById('sustratosVirgenDensidad');
+        if (densidadHidden) densidadHidden.value = data.densidad || '0.90';
+
+        // Resaltar campos pre-llenados
+        ['cpe', 'codigoBarra', 'estructuraMaterial', 'tipoMaterial', 'micrasMaterial', 'anchoMaterial'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el && el.value) {
+                el.classList.add('bg-light', 'border-success');
+                el.setAttribute('title', 'Pre-llenado desde inventario');
             }
         });
 
-        console.log(`Productos cargados del inventario: ${productosOrdenados.length} items`);
+        console.log(`Producto seleccionado: SKU=${data.sku}, Material=${data.material}, ${data.micras}µ x ${data.ancho}mm, Stock=${data.kg}Kg`);
+
+        // Mostrar mensaje informativo
+        if (typeof Axones !== 'undefined') {
+            Axones.showSuccess(`Datos cargados: ${data.sku} - ${data.material} ${data.micras}µ x ${data.ancho}mm`);
+        }
     },
 
     /**

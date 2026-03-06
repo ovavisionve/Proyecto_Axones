@@ -35,6 +35,35 @@ public/
 - Tipos de material: BOPP NORMAL, BOPP MATE, BOPP PASTA, CAST, METAL, PERLADO, PEBD, PEBD PIGMENT
 - **IMPORTANTE:** `demoData.js` NO debe sobrescribir el inventario
 
+### SKU y Codigos de Barras (NUEVO)
+Cada producto tiene:
+- **SKU**: Formato `PREFIJO-MICRAS-ANCHO` (ej: `BN-20-610` = BOPP Normal 20 micras 610mm)
+- **Codigo de Barras**: EAN-13 (759 + 0001 + secuencial + verificador)
+
+#### Prefijos de Material
+| Material | Prefijo |
+|----------|---------|
+| BOPP NORMAL | BN |
+| BOPP MATE | BM |
+| BOPP PASTA | BP |
+| BOPP PERLADO | BPE |
+| METAL | MT |
+| PERLADO | PE |
+| CAST | CA |
+| PEBD | PB |
+| PEBD PIGMENT | PBP |
+
+### Pre-llenado de Ordenes
+Al seleccionar un producto del inventario en una orden de trabajo, se pre-llenan automaticamente:
+- CPE (codigo) = SKU
+- Codigo de barras
+- Estructura material
+- Tipo de material
+- Micras
+- Ancho
+- Kg disponibles
+- Densidad para calculos
+
 ## Maquinas
 - **Impresion:** COMEXI 067, COMEXI 045
 - **Laminacion:** Laminadora

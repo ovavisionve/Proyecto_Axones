@@ -578,8 +578,7 @@ const ControlTiempo = {
         this.detenerIntervalo(ordenId, fase);
 
         return { exito: true, mensaje: 'Registro reiniciado' };
-    }
-};
+    },
 
     /**
      * Renderiza panel de comandas (selector de OT tipo restaurante)

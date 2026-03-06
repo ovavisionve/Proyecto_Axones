@@ -148,6 +148,20 @@ Gramaje = Ancho(m) × Micras × Densidad
 - Motivo se guarda en el registro de la orden
 - Ubicado en `control-tiempo.js` funcion `pausaConMotivo()`
 
+### Despachos Parciales (IMPLEMENTADO 06-03-2026)
+- Permite registrar entregas parciales de una orden grande
+- Ejemplo: Cliente pide 10,000 Kg pero paga por partes, se despachan 3,000 Kg hoy
+- Boton "Registrar Despacho Parcial" en el panel de control de tiempo
+- Modal para ingresar:
+  - Kg a despachar (obligatorio)
+  - Cliente
+  - Nota de entrega
+  - Observaciones
+- Muestra informacion: Pedido | Despachado | Pendiente
+- Historial de despachos visible en el panel
+- Total despachado mostrado en el boton
+- Ubicado en `control-tiempo.js` funcion `registrarDespacho()`
+
 ### Regla Importante
 **TODOS los cambios solicitados en un modulo de produccion deben aplicarse a los 3 modulos:**
 - Impresion (`impresion.js`)
@@ -208,7 +222,7 @@ Gramaje = Ancho(m) × Micras × Densidad
 ### CALIDAD Y DESPACHO
 - [ ] Alimentarse con orden de trabajo
 - [ ] Listado de despacho
-- [ ] Orden de entrega (entregas parciales de una orden grande)
+- [x] Orden de entrega (entregas parciales de una orden grande) - IMPLEMENTADO via Despachos Parciales
 - [ ] Solicitud de material y repuestos para produccion
 - [ ] Nota de entrega asociada a ordenes
 - [ ] Certificado de calidad automatico (editable, imprimible, firmable)

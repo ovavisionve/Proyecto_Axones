@@ -259,8 +259,10 @@
                                 <input type="text" class="form-control form-control-sm" id="clienteRif" readonly>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label required-field">Producto</label>
-                                <input type="text" class="form-control form-control-sm" id="producto" required placeholder="Nombre del producto">
+                                <label class="form-label required-field">Producto (del Inventario)</label>
+                                <select class="form-select form-select-sm" id="producto" required>
+                                    <option value="">-- Seleccionar producto --</option>
+                                </select>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">C.P.E.</label>

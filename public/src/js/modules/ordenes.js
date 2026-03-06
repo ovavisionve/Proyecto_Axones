@@ -117,8 +117,8 @@ const Ordenes = {
             ClienteMemoria.reconstruirDesdeOrdenes();
         }
 
-        // Configurar autocomplete para productos
-        this.setupProductoAutocomplete();
+        // Cargar productos del inventario en el selector
+        this.cargarProductosDelInventario();
 
         // Verificar si estamos editando una orden existente
         this.checkEditMode();
@@ -128,44 +128,83 @@ const Ordenes = {
     },
 
     /**
-     * Configura autocomplete para el campo producto basado en cliente
+     * Carga los productos del inventario en el selector
      */
-    setupProductoAutocomplete: function() {
-        const productoInput = document.getElementById('producto');
-        const clienteSelect = document.getElementById('cliente');
-        if (!productoInput || !clienteSelect) return;
+    cargarProductosDelInventario: function() {
+        const productoSelect = document.getElementById('producto');
+        if (!productoSelect) return;
 
-        // Crear datalist
-        let datalist = document.getElementById('productosDatalist');
-        if (!datalist) {
-            datalist = document.createElement('datalist');
-            datalist.id = 'productosDatalist';
-            document.body.appendChild(datalist);
-            productoInput.setAttribute('list', 'productosDatalist');
-        }
+        // Limpiar opciones existentes excepto la primera
+        const firstOption = productoSelect.options[0];
+        productoSelect.innerHTML = '';
+        productoSelect.appendChild(firstOption);
 
-        // Actualizar datalist cuando cambia el cliente
-        clienteSelect.addEventListener('change', () => {
-            const cliente = clienteSelect.value;
-            if (cliente && typeof ClienteMemoria !== 'undefined') {
-                const productos = ClienteMemoria.getProductosCliente(cliente);
-                datalist.innerHTML = productos.map(p => `<option value="${p}">`).join('');
-            } else {
-                datalist.innerHTML = '';
+        // Obtener inventario
+        const inventario = this.inventario || [];
+
+        // Agrupar productos unicos con su info de material
+        const productosUnicos = new Map();
+
+        inventario.forEach(item => {
+            // Crear un codigo unico basado en material + micras + ancho
+            const codigo = `${item.material}-${item.micras}µ-${item.ancho}mm`;
+            const nombreDisplay = item.producto
+                ? `${item.producto} (${item.material} ${item.micras}µ x ${item.ancho}mm)`
+                : `${item.material} ${item.micras}µ x ${item.ancho}mm`;
+
+            if (!productosUnicos.has(codigo)) {
+                productosUnicos.set(codigo, {
+                    id: item.id,
+                    codigo: codigo,
+                    nombre: nombreDisplay,
+                    producto: item.producto || '',
+                    material: item.material,
+                    micras: item.micras,
+                    ancho: item.ancho,
+                    kg: item.kg
+                });
             }
         });
 
-        // Cuando selecciona un producto del datalist, aplicar sugerencia
-        productoInput.addEventListener('change', () => {
-            const cliente = clienteSelect.value;
-            const producto = productoInput.value;
-            if (cliente && producto && typeof ClienteMemoria !== 'undefined') {
-                const config = ClienteMemoria.getConfigProducto(cliente, producto);
-                if (config && confirm(`Cargar configuracion anterior para "${producto}"?`)) {
-                    this.aplicarSugerenciaProducto(cliente, producto);
+        // Ordenar por nombre del producto
+        const productosOrdenados = Array.from(productosUnicos.values())
+            .sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+        // Agregar opciones al select
+        productosOrdenados.forEach(prod => {
+            const option = document.createElement('option');
+            option.value = prod.codigo;
+            option.textContent = `${prod.nombre} - Stock: ${prod.kg} Kg`;
+            option.dataset.id = prod.id;
+            option.dataset.material = prod.material;
+            option.dataset.micras = prod.micras;
+            option.dataset.ancho = prod.ancho;
+            option.dataset.producto = prod.producto;
+            productoSelect.appendChild(option);
+        });
+
+        // Evento cuando se selecciona un producto
+        productoSelect.addEventListener('change', () => {
+            const selectedOption = productoSelect.options[productoSelect.selectedIndex];
+            if (selectedOption && selectedOption.value) {
+                // Auto-llenar campos relacionados
+                const estructuraMaterial = document.getElementById('estructuraMaterial');
+                if (estructuraMaterial) {
+                    estructuraMaterial.value = `${selectedOption.dataset.material} ${selectedOption.dataset.micras}`;
                 }
+
+                // Auto-llenar codigo de producto
+                const cpe = document.getElementById('cpe');
+                if (cpe) {
+                    cpe.value = selectedOption.dataset.id || '';
+                }
+
+                // Mostrar stock disponible
+                console.log(`Producto seleccionado: ${selectedOption.textContent}`);
             }
         });
+
+        console.log(`Productos cargados del inventario: ${productosOrdenados.length} items`);
     },
 
     /**

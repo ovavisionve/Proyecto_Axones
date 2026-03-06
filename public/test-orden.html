@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Test - Crear Orden de Prueba</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light p-5">
+    <div class="container">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Crear Orden de Trabajo de Prueba</h4>
+            </div>
+            <div class="card-body">
+                <p>Este script creará una orden de trabajo de prueba para verificar que aparezca en los módulos de producción.</p>
+
+                <div id="resultado" class="mb-3"></div>
+
+                <button class="btn btn-success btn-lg me-2" onclick="crearOrdenPrueba()">
+                    Crear Orden de Prueba
+                </button>
+                <button class="btn btn-info btn-lg me-2" onclick="verOrdenes()">
+                    Ver Órdenes Existentes
+                </button>
+                <button class="btn btn-danger btn-lg" onclick="limpiarOrdenes()">
+                    Limpiar Todas las Órdenes
+                </button>
+
+                <hr>
+                <h5>Órdenes en localStorage:</h5>
+                <pre id="ordenesActuales" class="bg-dark text-light p-3" style="max-height: 400px; overflow-y: auto;"></pre>
+
+                <hr>
+                <h5>Verificar en módulos:</h5>
+                <div class="d-flex gap-2">
+                    <a href="impresion.html" class="btn btn-outline-primary" target="_blank">Ir a Impresión</a>
+                    <a href="laminacion.html" class="btn btn-outline-secondary" target="_blank">Ir a Laminación</a>
+                    <a href="corte.html" class="btn btn-outline-success" target="_blank">Ir a Corte</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function crearOrdenPrueba() {
+            const ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
+
+            const nuevaOrden = {
+                id: 'OT_' + Date.now(),
+                numeroOrden: 'OT-2026-' + String(ordenes.length + 1).padStart(4, '0'),
+                fechaOrden: new Date().toISOString().split('T')[0],
+                fechaCreacion: new Date().toISOString(),
+
+                // Datos del cliente
+                cliente: 'CLIENTE PRUEBA S.A.',
+                clienteRif: 'J-12345678-9',
+                producto: 'Empaque Flexible Test 500g',
+
+                // Datos del pedido
+                maquina: 'COMEXI 1',
+                pedidoKg: 500,
+                estadoOrden: 'pendiente',
+                prioridad: 'alta',
+
+                // Área de montaje
+                anchoCorte: 350,
+                anchoMontaje: 700,
+                desarrollo: 450,
+                numBandas: 2,
+                numRepeticion: 4,
+                numColores: 6,
+
+                // Material
+                tipoMaterial: 'BOPP',
+                micrasMaterial: 20,
+                anchoMaterial: 700,
+
+                // Tintas
+                tintas: [
+                    { posicion: 1, color: 'Blanco', anilox: '180', viscosidad: 22 },
+                    { posicion: 2, color: 'Amarillo', anilox: '400', viscosidad: 20 },
+                    { posicion: 3, color: 'Rojo', anilox: '400', viscosidad: 20 },
+                    { posicion: 4, color: 'Azul', anilox: '400', viscosidad: 20 }
+                ]
+            };
+
+            ordenes.push(nuevaOrden);
+            localStorage.setItem('axones_ordenes_trabajo', JSON.stringify(ordenes));
+
+            document.getElementById('resultado').innerHTML = `
+                <div class="alert alert-success">
+                    <strong>¡Orden creada!</strong><br>
+                    Número: ${nuevaOrden.numeroOrden}<br>
+                    Cliente: ${nuevaOrden.cliente}<br>
+                    Producto: ${nuevaOrden.producto}
+                </div>
+            `;
+
+            verOrdenes();
+        }
+
+        function verOrdenes() {
+            const ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
+            const pre = document.getElementById('ordenesActuales');
+
+            if (ordenes.length === 0) {
+                pre.textContent = 'No hay órdenes registradas';
+            } else {
+                pre.textContent = JSON.stringify(ordenes, null, 2);
+            }
+
+            document.getElementById('resultado').innerHTML += `
+                <div class="alert alert-info mt-2">
+                    Total de órdenes: ${ordenes.length}
+                </div>
+            `;
+        }
+
+        function limpiarOrdenes() {
+            if (confirm('¿Eliminar todas las órdenes?')) {
+                localStorage.removeItem('axones_ordenes_trabajo');
+                document.getElementById('resultado').innerHTML = `
+                    <div class="alert alert-warning">Todas las órdenes han sido eliminadas</div>
+                `;
+                verOrdenes();
+            }
+        }
+
+        // Cargar al inicio
+        verOrdenes();
+    </script>
+</body>
+</html>

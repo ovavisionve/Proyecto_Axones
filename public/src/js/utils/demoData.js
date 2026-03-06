@@ -8,7 +8,8 @@ const DemoData = {
     // Inicializar datos de prueba
     init() {
         console.log('Inicializando datos de prueba...');
-        this.generarInventario();
+        // NO sobrescribir inventario - el real viene de inventario.js con 158 productos
+        // this.generarInventario();
         this.generarProduccion();
         this.generarAlertas();
         this.generarTintas();

@@ -47,8 +47,7 @@ const Ordenes = {
         // AREA DE IMPRESION
         pinon: 'pinon',
         lineaCorte: 'lineaCorte',
-        ubicFotoceldaImp: 'ubicFotoceldaImp',
-        gramajeTinta: 'gramajeTinta',
+        // ELIMINADOS: ubicFotoceldaImp, gramajeTinta (segun feedback equipo Axones)
         sustratosVirgen: 'sustratosVirgen',
         kgIngresadoImp: 'kgIngresadoImp',
         kgSalidaImp: 'kgSalidaImp',
@@ -260,6 +259,9 @@ const Ordenes = {
 
         console.log(`Producto seleccionado: SKU=${data.sku}, Material=${data.material}, ${data.micras}µ x ${data.ancho}mm, Stock=${data.kg}Kg`);
 
+        // Calcular metros estimados si ya hay pedidoKg
+        this.calcularMetrosEstimados();
+
         // Mostrar mensaje informativo
         if (typeof Axones !== 'undefined') {
             Axones.showSuccess(`Datos cargados: ${data.sku} - ${data.material} ${data.micras}µ x ${data.ancho}mm`);
@@ -389,6 +391,12 @@ const Ordenes = {
                 el.addEventListener('change', () => this.verificarInventarioMaterial());
             }
         });
+
+        // Calcular metros estimados cuando cambia pedidoKg
+        const pedidoKgInput = document.getElementById('pedidoKg');
+        if (pedidoKgInput) {
+            pedidoKgInput.addEventListener('input', () => this.calcularMetrosEstimados());
+        }
 
         // Cliente RIF auto-fill
         const clienteSelect = document.getElementById('cliente');
@@ -540,13 +548,19 @@ const Ordenes = {
 
     /**
      * Calcula metros segun formula:
-     * Gramaje = Ancho(m) x Micraje x Densidad
-     * Metros = Kg / Ancho(m) / Gramaje
+     * Gramaje (g/m lineal) = Ancho(m) x Micras x Densidad
+     * Metros = Kg x 1000 / Gramaje
+     *
+     * Ejemplo: BOPP 20µ x 610mm, 1000kg
+     * Gramaje = 0.61 x 20 x 0.90 = 10.98 g/m
+     * Metros = 1000 x 1000 / 10.98 = 91,074 metros
      */
     calcularMetros: function() {
         const kgIngresado = parseFloat(document.getElementById('kgIngresadoImp')?.value) || 0;
-        const ancho = parseFloat(document.getElementById('sustratosVirgenAncho')?.value) || 0;
-        const micraje = parseFloat(document.getElementById('sustratosVirgenMicraje')?.value) || 0;
+        const ancho = parseFloat(document.getElementById('sustratosVirgenAncho')?.value) ||
+                      parseFloat(document.getElementById('anchoMaterial')?.value) || 0;
+        const micraje = parseFloat(document.getElementById('sustratosVirgenMicraje')?.value) ||
+                        parseFloat(document.getElementById('micrasMaterial')?.value) || 0;
         const densidad = parseFloat(document.getElementById('sustratosVirgenDensidad')?.value) || 0.90;
 
         const metrosInput = document.getElementById('metrosImp');
@@ -555,17 +569,50 @@ const Ordenes = {
             return;
         }
 
+        // Convertir ancho a metros (viene en mm)
+        const anchoM = ancho / 1000;
+
+        // Calcular gramaje (gramos por metro lineal)
+        const gramaje = anchoM * micraje * densidad;
+
+        // Calcular metros: Kg * 1000 (convertir a gramos) / gramaje
+        const metros = (kgIngresado * 1000) / gramaje;
+
+        metrosInput.value = metros.toFixed(2);
+    },
+
+    /**
+     * Calcula metros ESTIMADOS basado en pedidoKg (para planificacion)
+     * Se ejecuta cuando se selecciona producto o cambia pedidoKg
+     */
+    calcularMetrosEstimados: function() {
+        const pedidoKg = parseFloat(document.getElementById('pedidoKg')?.value) || 0;
+        const ancho = parseFloat(document.getElementById('anchoMaterial')?.value) || 0;
+        const micraje = parseFloat(document.getElementById('micrasMaterial')?.value) || 0;
+        const densidad = parseFloat(document.getElementById('sustratosVirgenDensidad')?.value) || 0.90;
+
+        // Mostrar en campo de metros estimados si existe, o en un span informativo
+        let metrosEstimadosEl = document.getElementById('metrosEstimados');
+
+        if (pedidoKg <= 0 || ancho <= 0 || micraje <= 0) {
+            if (metrosEstimadosEl) metrosEstimadosEl.textContent = '-';
+            return;
+        }
+
         // Convertir ancho a metros
         const anchoM = ancho / 1000;
 
-        // Calcular gramaje (g/m2)
+        // Calcular gramaje (g/m lineal)
         const gramaje = anchoM * micraje * densidad;
 
-        // Calcular metros
-        // Formula: Kg * 1000 / (ancho_m * gramaje)
-        const metros = (kgIngresado * 1000) / (anchoM * gramaje * 1000);
+        // Calcular metros estimados
+        const metrosEstimados = (pedidoKg * 1000) / gramaje;
 
-        metrosInput.value = metros.toFixed(2);
+        if (metrosEstimadosEl) {
+            metrosEstimadosEl.textContent = metrosEstimados.toLocaleString('es-VE', { maximumFractionDigits: 0 }) + ' m';
+        }
+
+        console.log(`Metros estimados: ${pedidoKg}Kg / (${anchoM}m x ${micraje}µ x ${densidad}) = ${metrosEstimados.toFixed(0)} metros`);
     },
 
     /**

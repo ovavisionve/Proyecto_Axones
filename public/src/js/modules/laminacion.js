@@ -230,11 +230,10 @@ const Laminacion = {
 
         console.log('Ordenes cargadas del localStorage:', ordenes.length);
 
-        // Filtrar ordenes disponibles para laminacion
+        // Mostrar todas las ordenes disponibles (excepto completadas)
+        // Mostrar TODAS las ordenes no completadas para que el operador pueda seleccionar
         const ordenesDisponibles = ordenes.filter(o => {
             const noCompletada = o.estadoOrden !== 'completada';
-            // Laminadora o cualquier orden que pase por laminacion
-            const esLaminacion = !o.maquina || o.maquina.includes('Laminador');
             return noCompletada;
         });
 

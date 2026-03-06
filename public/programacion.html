@@ -42,6 +42,7 @@
             align-items: center;
         }
         .kanban-header.pendiente { background: linear-gradient(135deg, #ffc107, #ffca2c); color: #212529; }
+        .kanban-header.montaje { background: linear-gradient(135deg, #6c757d, #868e96); }
         .kanban-header.impresion { background: linear-gradient(135deg, #6f42c1, #7950f2); }
         .kanban-header.laminacion { background: linear-gradient(135deg, #0d6efd, #3d8bfd); }
         .kanban-header.corte { background: linear-gradient(135deg, #fd7e14, #ff922b); }
@@ -354,6 +355,17 @@
                     <span class="badge bg-dark" id="countPendientes">0</span>
                 </div>
                 <div class="kanban-body" id="colPendientes" data-status="pendiente">
+                    <!-- Order cards will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Montaje -->
+            <div class="kanban-column">
+                <div class="kanban-header montaje">
+                    <span><i class="bi bi-wrench me-2"></i>Montaje</span>
+                    <span class="badge bg-dark" id="countMontaje">0</span>
+                </div>
+                <div class="kanban-body" id="colMontaje" data-status="montaje">
                     <!-- Order cards will be inserted here -->
                 </div>
             </div>

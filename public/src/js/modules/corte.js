@@ -770,11 +770,10 @@ const Corte = {
 
         console.log('Ordenes cargadas del localStorage:', ordenes.length);
 
-        // Filtrar ordenes disponibles para corte
+        // Mostrar todas las ordenes disponibles (excepto completadas)
+        // Mostrar TODAS las ordenes no completadas para que el operador pueda seleccionar
         const ordenesDisponibles = ordenes.filter(o => {
             const noCompletada = o.estadoOrden !== 'completada';
-            // Cortadoras o cualquier orden que pase por corte
-            const esCorte = !o.maquina || o.maquina.includes('Cortador');
             return noCompletada;
         });
 

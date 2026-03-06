@@ -11,6 +11,7 @@ const Programacion = {
     // Mapeo de estados/columnas
     COLUMNAS: {
         'pendiente': 'colPendientes',
+        'montaje': 'colMontaje',
         'impresion': 'colImpresion',
         'laminacion': 'colLaminacion',
         'corte': 'colCorte',
@@ -106,16 +107,22 @@ const Programacion = {
 
         if (estado === 'completada') return 'completada';
         if (estado === 'pendiente') return 'pendiente';
+        if (estado === 'montaje') return 'montaje';
 
-        // Si esta en proceso, determinar por la maquina asignada
+        // Si esta en proceso, determinar por la maquina asignada o proceso actual
         const maquina = (orden.maquina || '').toUpperCase();
+        const procesoActual = (orden.procesoActual || '').toLowerCase();
 
+        // Primero revisar procesoActual si existe
+        if (procesoActual === 'montaje') return 'montaje';
+        if (procesoActual === 'impresion') return 'impresion';
+        if (procesoActual === 'laminacion') return 'laminacion';
+        if (procesoActual === 'corte') return 'corte';
+
+        // Si no hay procesoActual, determinar por maquina
         if (maquina.includes('COMEXI')) return 'impresion';
         if (maquina.includes('LAMINADORA')) return 'laminacion';
         if (maquina.includes('CORTADORA')) return 'corte';
-
-        // Por defecto, basado en el proceso actual guardado
-        if (orden.procesoActual) return orden.procesoActual;
 
         return 'pendiente';
     },
@@ -315,6 +322,7 @@ const Programacion = {
     getNombreEstado: function(estado) {
         const nombres = {
             'pendiente': 'Pendientes',
+            'montaje': 'Montaje',
             'impresion': 'Impresion',
             'laminacion': 'Laminacion',
             'corte': 'Corte',
@@ -325,13 +333,14 @@ const Programacion = {
 
     /**
      * Avanza una orden al siguiente proceso
+     * Flujo: Pendiente -> Montaje -> Impresion -> Laminacion -> Corte -> Completado
      */
     avanzarOrden: function(ordenId) {
         const orden = this.ordenes.find(o => o.id === ordenId);
         if (!orden) return;
 
         const columnaActual = this.determinarColumna(orden);
-        const flujo = ['pendiente', 'impresion', 'laminacion', 'corte', 'completada'];
+        const flujo = ['pendiente', 'montaje', 'impresion', 'laminacion', 'corte', 'completada'];
 
         const indexActual = flujo.indexOf(columnaActual);
 
@@ -435,6 +444,7 @@ const Programacion = {
         // Contadores por columna
         const conteos = {
             pendiente: 0,
+            montaje: 0,
             impresion: 0,
             laminacion: 0,
             corte: 0,
@@ -454,13 +464,15 @@ const Programacion = {
 
         // Corregir IDs especificos
         const countPendientes = document.getElementById('countPendientes');
+        const countMontaje = document.getElementById('countMontaje');
         const countCompletado = document.getElementById('countCompletado');
         if (countPendientes) countPendientes.textContent = conteos.pendiente;
+        if (countMontaje) countMontaje.textContent = conteos.montaje;
         if (countCompletado) countCompletado.textContent = conteos.completada;
 
         // Resumen superior
         const totalPendientes = conteos.pendiente;
-        const totalEnProceso = conteos.impresion + conteos.laminacion + conteos.corte;
+        const totalEnProceso = conteos.montaje + conteos.impresion + conteos.laminacion + conteos.corte;
         const totalCompletadas = conteos.completada;
         const totalUrgentes = this.ordenes.filter(o =>
             o.prioridad === 'urgente' && this.determinarColumna(o) !== 'completada'

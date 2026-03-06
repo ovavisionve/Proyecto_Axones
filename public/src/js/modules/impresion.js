@@ -296,11 +296,10 @@ const Impresion = {
         console.log('Ordenes cargadas del localStorage:', ordenes.length);
 
         // Mostrar todas las ordenes disponibles (excepto completadas)
-        // Filtrar por maquinas de impresion (COMEXI) o sin maquina especifica
+        // Mostrar TODAS las ordenes no completadas para que el operador pueda seleccionar
         const ordenesDisponibles = ordenes.filter(o => {
             const noCompletada = o.estadoOrden !== 'completada';
-            const esImpresion = !o.maquina || o.maquina.includes('COMEXI');
-            return noCompletada && esImpresion;
+            return noCompletada;
         });
 
         console.log('Ordenes disponibles para impresion:', ordenesDisponibles.length);

@@ -228,27 +228,45 @@ const Laminacion = {
             return;
         }
 
-        // Mostrar todas las ordenes disponibles (excepto completadas)
-        const ordenesDisponibles = ordenes.filter(o => o.estadoOrden !== 'completada');
+        console.log('Ordenes cargadas del localStorage:', ordenes.length);
 
-        if (ordenesDisponibles.length === 0) return;
+        // Filtrar ordenes disponibles para laminacion
+        const ordenesDisponibles = ordenes.filter(o => {
+            const noCompletada = o.estadoOrden !== 'completada';
+            // Laminadora o cualquier orden que pase por laminacion
+            const esLaminacion = !o.maquina || o.maquina.includes('Laminador');
+            return noCompletada;
+        });
 
-        const grupo = otInput.closest('.col-md-3, .col-md-4, .mb-3');
+        console.log('Ordenes disponibles para laminacion:', ordenesDisponibles.length);
+
+        // Buscar cualquier contenedor col-*
+        const grupo = otInput.closest('[class*="col"]') || otInput.parentElement;
         if (!grupo) return;
+
+        if (ordenesDisponibles.length === 0) {
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'alert alert-info alert-sm py-1 mt-1 small';
+            infoDiv.innerHTML = '<i class="bi bi-info-circle me-1"></i>No hay ordenes pendientes. <a href="ordenes.html">Crear nueva OT</a>';
+            grupo.appendChild(infoDiv);
+            return;
+        }
 
         const selectorDiv = document.createElement('div');
         selectorDiv.id = 'selectorOrden';
-        selectorDiv.className = 'mt-1';
+        selectorDiv.className = 'mt-2';
         selectorDiv.innerHTML = `
-            <select class="form-select form-select-sm" id="selectOrdenPendiente">
+            <label class="form-label small fw-bold text-warning">
+                <i class="bi bi-list-check me-1"></i>Ordenes Pendientes (${ordenesDisponibles.length})
+            </label>
+            <select class="form-select form-select-sm border-warning" id="selectOrdenPendiente">
                 <option value="">-- Seleccionar orden de trabajo --</option>
                 ${ordenesDisponibles.map(o => `
                     <option value="${o.numeroOrden || o.ot}" data-orden='${JSON.stringify(o).replace(/'/g, "&#39;")}'>
-                        ${o.numeroOrden || o.ot} - ${o.cliente} - ${o.producto}
+                        ${o.numeroOrden || o.ot} | ${o.cliente} | ${o.producto || 'Sin producto'} | ${(o.pedidoKg || 0).toLocaleString()}kg
                     </option>
                 `).join('')}
             </select>
-            <small class="text-muted">O ingrese una OT manualmente arriba</small>
         `;
 
         grupo.appendChild(selectorDiv);

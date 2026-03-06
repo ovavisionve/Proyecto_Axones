@@ -48,10 +48,10 @@ El formulario de orden de trabajo se divide en secciones:
 - [ ] Color 8: [nombre del color]
 
 #### SECCION F: Area de Impresion
-- [ ] **Pinon** (automatico: desarrollo / 5)
+- [x] **Pinon** (automatico: desarrollo / 5) - IMPLEMENTADO
 - [ ] **Linea de corte** (opciones: 3mm, 5mm)
-- [ ] ~~Ubicacion de Fotocelda~~ (ELIMINAR)
-- [ ] ~~Gramaje en tinta~~ (ELIMINAR)
+- [x] ~~Ubicacion de Fotocelda~~ (ELIMINADO)
+- [x] ~~Gramaje en tinta~~ (ELIMINADO)
 - [ ] **Sustratos virgen** (buscar SKU del inventario, formato: Ancho x Micraje)
 
 #### SECCION G: Material
@@ -192,13 +192,19 @@ El formulario de orden de trabajo se divide en secciones:
 
 | Fase | Estado | Notas |
 |------|--------|-------|
-| Fase 1 | En progreso | Falta correlativo auto, campos nuevos |
-| Fase 2 | Parcial | Falta formula metros, kg salida al final |
+| Fase 1 | En progreso | Correlativo existe, productos del inventario OK, metros estimados OK |
+| Fase 2 | En progreso | Formula metros CORREGIDA, pinon auto OK, campos eliminados |
 | Fase 3 | Parcial | Falta coma decimal en gramaje |
 | Fase 4 | Requiere rediseno | Cambiar de orden a turno |
-| Fase 5 | Parcial | 158 productos cargados, faltan codigos |
+| Fase 5 | Avanzado | 158 productos con SKU y codigos de barras, pre-llenado funciona |
 | Fase 6 | No iniciado | - |
 | Fase 7 | Parcial | Algunos reportes existen |
+
+### Cambios Recientes (06-03-2026)
+- Formula de Metros corregida: `Metros = Kg × 1000 / (Ancho_m × Micras × Densidad)`
+- Campos eliminados del formulario: ubicFotoceldaImp, gramajeTinta
+- Metros estimados se muestran al llenar pedidoKg
+- Productos del inventario se cargan en selector con SKU
 
 ---
 

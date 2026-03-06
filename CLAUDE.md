@@ -63,6 +63,7 @@ Al seleccionar un producto del inventario en una orden de trabajo, se pre-llenan
 - Ancho
 - Kg disponibles
 - Densidad para calculos
+- **Metros estimados** (calculado cuando se llena pedidoKg)
 
 ## Maquinas
 - **Impresion:** COMEXI 067, COMEXI 045
@@ -71,10 +72,14 @@ Al seleccionar un producto del inventario en una orden de trabajo, se pre-llenan
 
 ## Formulas de Produccion
 
-### Calculo de Metros
+### Calculo de Metros (CORREGIDO)
 ```
-Gramaje = Ancho (m) × Micras × Densidad
-Metros = Kg de salida / Gramaje
+Gramaje (g/m lineal) = Ancho (m) × Micras × Densidad
+Metros = Kg × 1000 / Gramaje
+
+Ejemplo: BOPP 20µ x 610mm, 1000kg
+Gramaje = 0.61 × 20 × 0.90 = 10.98 g/m
+Metros = 1000 × 1000 / 10.98 = 91,074 metros
 ```
 
 ### Densidades por Material
@@ -104,11 +109,12 @@ Pinon = Desarrollo / 5
 - [ ] Figura de Embobinado: opciones 1-8
 - [ ] Tipo de impresion: Superficie y Reverso
 - [ ] Colores: 8 posiciones (1=color, 2=color, etc.)
-- [ ] Pinon automatico: desarrollo / 5
+- [x] Pinon automatico: desarrollo / 5 (IMPLEMENTADO)
 - [ ] Linea de corte: 3mm y 5mm
-- [ ] ELIMINAR: Ubicacion de Fotocelda, Gramaje en tinta
+- [x] ELIMINAR: Ubicacion de Fotocelda, Gramaje en tinta (ELIMINADOS)
 - [ ] Sustratos virgen: buscar SKU del inventario (Ancho x Micraje)
 - [ ] Kg de Salida: solo al terminar la orden
+- [x] Metros estimados: se calculan al seleccionar producto + pedidoKg (IMPLEMENTADO)
 
 ### TINTAS Y SOLVENTES
 - [ ] Atados a orden de trabajo pero editables

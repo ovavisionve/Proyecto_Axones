@@ -124,6 +124,8 @@ Gramaje = Ancho(m) × Micras × Densidad
 ### CRITICOS - Cambios de Flujo
 - [ ] Area de corte por TURNO (7am-7pm, 7pm-7am), no por orden de trabajo
 - [x] Nombres de orden por correlativo automatico (sin elegir nombre) - IMPLEMENTADO
+- [x] Etapa MONTAJE agregada entre Pendiente e Impresion en Kanban - IMPLEMENTADO
+- [x] Selector de OT visible en TODOS los modulos de produccion - CORREGIDO
 - [ ] Paletas ilimitadas en corte (agregar dinamicamente)
 - [ ] Cantidad de rollos en corte
 - [ ] Temporizador para kg en corte

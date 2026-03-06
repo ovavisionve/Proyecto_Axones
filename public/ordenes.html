@@ -286,6 +286,192 @@
                 </div>
             </div>
 
+            <!-- FICHA TECNICA - Definicion de estructura del producto -->
+            <div class="row g-3 mb-3">
+                <div class="col-12">
+                    <div class="section-header" style="background: linear-gradient(135deg, #198754, #157347);">
+                        <i class="bi bi-file-earmark-text me-2"></i>FICHA TECNICA - Estructura del Producto
+                        <span class="badge bg-warning text-dark ms-2">Completar para pre-calcular materiales</span>
+                    </div>
+                    <div class="section-body" style="border-color: #198754;">
+                        <!-- Alerta informativa -->
+                        <div class="alert alert-info alert-dismissible fade show mb-3" role="alert" style="font-size: 0.85rem;">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Para el equipo:</strong> Completen estos datos para que el sistema calcule automaticamente cuantos kg de cada material se necesitan segun los kg pedidos.
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+
+                        <div class="row g-2">
+                            <!-- Capa 1: Material Base (Exterior) -->
+                            <div class="col-12">
+                                <label class="form-label fw-bold text-success">
+                                    <i class="bi bi-1-circle me-1"></i>Capa 1 - Material Base (Exterior)
+                                </label>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Tipo Material Capa 1</label>
+                                <select class="form-select form-select-sm" id="fichaTipoMat1">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="BOPP NORMAL">BOPP NORMAL</option>
+                                    <option value="BOPP MATE">BOPP MATE</option>
+                                    <option value="BOPP PASTA">BOPP PASTA</option>
+                                    <option value="BOPP PERLADO">BOPP PERLADO</option>
+                                    <option value="PET">PET</option>
+                                    <option value="PA">PA (Nylon)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Micras Capa 1</label>
+                                <input type="number" class="form-control form-control-sm" id="fichaMicras1" step="0.1" placeholder="ej: 20">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Densidad</label>
+                                <input type="number" class="form-control form-control-sm" id="fichaDensidad1" step="0.01" value="0.90" readonly style="background-color: #e9ecef;">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Kg Necesarios</label>
+                                <input type="number" class="form-control form-control-sm" id="fichaKg1" readonly style="background-color: #d4edda; font-weight: bold;">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">SKU del Inventario</label>
+                                <select class="form-select form-select-sm" id="fichaSku1">
+                                    <option value="">Buscar en inventario...</option>
+                                </select>
+                            </div>
+
+                            <!-- Adhesivo -->
+                            <div class="col-12 mt-3">
+                                <label class="form-label fw-bold text-warning">
+                                    <i class="bi bi-droplet me-1"></i>Adhesivo
+                                    <small class="text-muted fw-normal">(entre capas)</small>
+                                </label>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Tipo Adhesivo</label>
+                                <select class="form-select form-select-sm" id="fichaTipoAdhesivo">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="Sin solvente">Sin solvente</option>
+                                    <option value="Base solvente">Base solvente</option>
+                                    <option value="Base agua">Base agua</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Gramaje (g/m<sup>2</sup>)</label>
+                                <input type="number" class="form-control form-control-sm" id="fichaGramajeAdhesivo" step="0.1" placeholder="ej: 2.5">
+                                <small class="text-muted" style="font-size: 0.7rem;">
+                                    <i class="bi bi-question-circle"></i> Cuantos gramos de adhesivo por metro cuadrado?
+                                </small>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Relacion Catalizador</label>
+                                <select class="form-select form-select-sm" id="fichaRelacionCatalizador">
+                                    <option value="">Sin catalizador</option>
+                                    <option value="10">10:1 (10 partes adhesivo, 1 catalizador)</option>
+                                    <option value="5">5:1</option>
+                                    <option value="4">4:1</option>
+                                    <option value="3">3:1</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Kg Adhesivo</label>
+                                <input type="number" class="form-control form-control-sm" id="fichaKgAdhesivo" readonly style="background-color: #fff3cd; font-weight: bold;">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Kg Catalizador</label>
+                                <input type="number" class="form-control form-control-sm" id="fichaKgCatalizador" readonly style="background-color: #fff3cd; font-weight: bold;">
+                            </div>
+
+                            <!-- Capa 2: Material Interior -->
+                            <div class="col-12 mt-3">
+                                <label class="form-label fw-bold text-primary">
+                                    <i class="bi bi-2-circle me-1"></i>Capa 2 - Material Interior (Sellado)
+                                </label>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Tipo Material Capa 2</label>
+                                <select class="form-select form-select-sm" id="fichaTipoMat2">
+                                    <option value="">Seleccionar (opcional)...</option>
+                                    <option value="CAST">CAST</option>
+                                    <option value="PEBD">PEBD</option>
+                                    <option value="PEBD PIGMENT">PEBD PIGMENT</option>
+                                    <option value="PERLADO">PERLADO</option>
+                                    <option value="METAL">METAL</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Micras Capa 2</label>
+                                <input type="number" class="form-control form-control-sm" id="fichaMicras2" step="0.1" placeholder="ej: 30">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Densidad</label>
+                                <input type="number" class="form-control form-control-sm" id="fichaDensidad2" step="0.01" value="0.93" readonly style="background-color: #e9ecef;">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Kg Necesarios</label>
+                                <input type="number" class="form-control form-control-sm" id="fichaKg2" readonly style="background-color: #cce5ff; font-weight: bold;">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">SKU del Inventario</label>
+                                <select class="form-select form-select-sm" id="fichaSku2">
+                                    <option value="">Buscar en inventario...</option>
+                                </select>
+                            </div>
+
+                            <!-- Resumen y preguntas para el equipo -->
+                            <div class="col-12 mt-3">
+                                <div class="card bg-light">
+                                    <div class="card-body py-2">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-8">
+                                                <h6 class="mb-1"><i class="bi bi-calculator me-2"></i>Resumen de Materiales para <span id="fichaKgPedido" class="text-primary">0</span> kg pedidos:</h6>
+                                                <div class="d-flex gap-4">
+                                                    <span>Capa 1: <strong id="fichaResumen1">-</strong> kg</span>
+                                                    <span>Adhesivo: <strong id="fichaResumenAdh">-</strong> kg</span>
+                                                    <span>Catalizador: <strong id="fichaResumenCat">-</strong> kg</span>
+                                                    <span>Capa 2: <strong id="fichaResumen2">-</strong> kg</span>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4 text-end">
+                                                <button type="button" class="btn btn-success btn-sm" id="btnCalcularMateriales">
+                                                    <i class="bi bi-calculator me-1"></i>Calcular Materiales
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Preguntas para el equipo -->
+                            <div class="col-12 mt-3">
+                                <div class="card border-warning">
+                                    <div class="card-header bg-warning text-dark py-2">
+                                        <i class="bi bi-question-circle me-2"></i><strong>Preguntas para el Equipo Tecnico</strong>
+                                    </div>
+                                    <div class="card-body py-2" style="font-size: 0.85rem;">
+                                        <ol class="mb-0">
+                                            <li class="mb-2">
+                                                <strong>Gramaje del adhesivo:</strong> Cual es el gramaje tipico que usan? (ej: 2.0, 2.5, 3.0 g/m<sup>2</sup>)
+                                                <br><em class="text-muted">Esto determina cuantos kg de adhesivo se necesitan por m<sup>2</sup> de material.</em>
+                                            </li>
+                                            <li class="mb-2">
+                                                <strong>Relacion catalizador:</strong> Usan catalizador? Cual es la relacion? (ej: 10:1 = por cada 10kg de adhesivo, 1kg de catalizador)
+                                            </li>
+                                            <li class="mb-2">
+                                                <strong>Ejemplo real:</strong> Dennos un producto terminado con sus materiales y proporciones para validar la formula.
+                                                <br><em class="text-muted">Ej: "Para 1000kg de BOPP20+Cast30, usamos X kg de BOPP, Y kg de Cast, Z kg de adhesivo"</em>
+                                            </li>
+                                            <li>
+                                                <strong>Merma/Desperdicio:</strong> Agregamos un % de merma al calculo? (ej: +5% por desperdicio)
+                                            </li>
+                                        </ol>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Row 2: AREA DE MONTAJE -->
             <div class="row g-3 mb-3">
                 <div class="col-12">
@@ -668,8 +854,9 @@
                                 <input type="number" class="form-control form-control-sm" id="pesoBobina" step="0.01">
                             </div>
                             <div class="col-md-2">
-                                <label class="form-label">Metros/Bobina</label>
-                                <input type="number" class="form-control form-control-sm" id="metrosBobina" step="0.01">
+                                <label class="form-label">Metros/Bobina <i class="bi bi-calculator text-success" title="Calculado automaticamente"></i></label>
+                                <input type="number" class="form-control form-control-sm" id="metrosBobina" step="0.01" readonly style="background-color: #d4edda;">
+                                <small class="text-muted" style="font-size: 0.65rem;">= Peso / Gramaje</small>
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label">Diametro Bobina (cm)</label>

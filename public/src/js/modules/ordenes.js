@@ -95,7 +95,39 @@ const Ordenes = {
         fechaInicio: 'fechaInicio',
         fechaEntrega: 'fechaEntrega',
         prioridad: 'prioridad',
-        estadoOrden: 'estadoOrden'
+        estadoOrden: 'estadoOrden',
+
+        // FICHA TECNICA - Estructura del producto
+        fichaTipoMat1: 'fichaTipoMat1',
+        fichaMicras1: 'fichaMicras1',
+        fichaDensidad1: 'fichaDensidad1',
+        fichaKg1: 'fichaKg1',
+        fichaSku1: 'fichaSku1',
+        fichaTipoAdhesivo: 'fichaTipoAdhesivo',
+        fichaGramajeAdhesivo: 'fichaGramajeAdhesivo',
+        fichaRelacionCatalizador: 'fichaRelacionCatalizador',
+        fichaKgAdhesivo: 'fichaKgAdhesivo',
+        fichaKgCatalizador: 'fichaKgCatalizador',
+        fichaTipoMat2: 'fichaTipoMat2',
+        fichaMicras2: 'fichaMicras2',
+        fichaDensidad2: 'fichaDensidad2',
+        fichaKg2: 'fichaKg2',
+        fichaSku2: 'fichaSku2'
+    },
+
+    // Densidades por tipo de material
+    DENSIDADES: {
+        'BOPP NORMAL': 0.90,
+        'BOPP MATE': 0.90,
+        'BOPP PASTA': 0.90,
+        'BOPP PERLADO': 0.80,
+        'PET': 1.38,
+        'PA': 1.14,
+        'CAST': 0.93,
+        'PEBD': 0.93,
+        'PEBD PIGMENT': 0.93,
+        'PERLADO': 0.80,
+        'METAL': 0.90
     },
 
     /**
@@ -396,6 +428,16 @@ const Ordenes = {
         const pedidoKgInput = document.getElementById('pedidoKg');
         if (pedidoKgInput) {
             pedidoKgInput.addEventListener('input', () => this.calcularMetrosEstimados());
+            pedidoKgInput.addEventListener('input', () => this.calcularMaterialesFichaTecnica());
+        }
+
+        // FICHA TECNICA - Event listeners
+        this.setupFichaTecnicaEvents();
+
+        // Calcular metros/bobina cuando cambia peso bobina
+        const pesoBobinaInput = document.getElementById('pesoBobina');
+        if (pesoBobinaInput) {
+            pesoBobinaInput.addEventListener('input', () => this.calcularMetrosBobina());
         }
 
         // Cliente RIF auto-fill
@@ -613,6 +655,195 @@ const Ordenes = {
         }
 
         console.log(`Metros estimados: ${pedidoKg}Kg / (${anchoM}m x ${micraje}µ x ${densidad}) = ${metrosEstimados.toFixed(0)} metros`);
+    },
+
+    /**
+     * Configura eventos de la Ficha Tecnica
+     */
+    setupFichaTecnicaEvents: function() {
+        // Boton calcular materiales
+        const btnCalcular = document.getElementById('btnCalcularMateriales');
+        if (btnCalcular) {
+            btnCalcular.addEventListener('click', () => this.calcularMaterialesFichaTecnica());
+        }
+
+        // Auto-asignar densidad cuando cambia tipo de material
+        const tipoMat1 = document.getElementById('fichaTipoMat1');
+        const tipoMat2 = document.getElementById('fichaTipoMat2');
+
+        if (tipoMat1) {
+            tipoMat1.addEventListener('change', () => {
+                const densidad = this.DENSIDADES[tipoMat1.value] || 0.90;
+                const densidadInput = document.getElementById('fichaDensidad1');
+                if (densidadInput) densidadInput.value = densidad;
+                this.cargarSkusPorTipo('fichaSku1', tipoMat1.value);
+            });
+        }
+
+        if (tipoMat2) {
+            tipoMat2.addEventListener('change', () => {
+                const densidad = this.DENSIDADES[tipoMat2.value] || 0.93;
+                const densidadInput = document.getElementById('fichaDensidad2');
+                if (densidadInput) densidadInput.value = densidad;
+                this.cargarSkusPorTipo('fichaSku2', tipoMat2.value);
+            });
+        }
+
+        // Recalcular cuando cambian los valores
+        ['fichaMicras1', 'fichaMicras2', 'fichaGramajeAdhesivo', 'fichaRelacionCatalizador'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', () => this.calcularMaterialesFichaTecnica());
+                el.addEventListener('change', () => this.calcularMaterialesFichaTecnica());
+            }
+        });
+    },
+
+    /**
+     * Carga SKUs del inventario filtrados por tipo de material
+     */
+    cargarSkusPorTipo: function(selectId, tipoMaterial) {
+        const select = document.getElementById(selectId);
+        if (!select || !tipoMaterial) return;
+
+        // Limpiar opciones
+        select.innerHTML = '<option value="">Buscar en inventario...</option>';
+
+        // Filtrar inventario por tipo
+        const filtrados = this.inventario.filter(item => {
+            const tipo = item.tipo || item.material || '';
+            return tipo.toUpperCase().includes(tipoMaterial.toUpperCase().split(' ')[0]);
+        });
+
+        filtrados.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item.sku || item.id;
+            option.textContent = `${item.sku || ''} - ${item.micras}µ x ${item.ancho}mm (${item.kg || 0}kg)`;
+            option.dataset.kg = item.kg || 0;
+            option.dataset.ancho = item.ancho;
+            option.dataset.micras = item.micras;
+            select.appendChild(option);
+        });
+    },
+
+    /**
+     * Calcula los kg necesarios de cada material basado en los kg pedidos
+     * Formula:
+     * - metrosTotales = kgProductoFinal / gramajeTotal
+     * - kgCapa = metrosTotales * gramajeCapa / 1000
+     */
+    calcularMaterialesFichaTecnica: function() {
+        const pedidoKg = parseFloat(document.getElementById('pedidoKg')?.value) || 0;
+        const anchoCorteMm = parseFloat(document.getElementById('anchoCorteFinal')?.value) ||
+                             parseFloat(document.getElementById('anchoMaterial')?.value) || 0;
+
+        // Datos capa 1
+        const tipoMat1 = document.getElementById('fichaTipoMat1')?.value || '';
+        const micras1 = parseFloat(document.getElementById('fichaMicras1')?.value) || 0;
+        const densidad1 = parseFloat(document.getElementById('fichaDensidad1')?.value) || 0.90;
+
+        // Datos capa 2
+        const tipoMat2 = document.getElementById('fichaTipoMat2')?.value || '';
+        const micras2 = parseFloat(document.getElementById('fichaMicras2')?.value) || 0;
+        const densidad2 = parseFloat(document.getElementById('fichaDensidad2')?.value) || 0.93;
+
+        // Datos adhesivo
+        const gramajeAdhesivo = parseFloat(document.getElementById('fichaGramajeAdhesivo')?.value) || 0;
+        const relacionCatalizador = parseFloat(document.getElementById('fichaRelacionCatalizador')?.value) || 0;
+
+        // Actualizar indicador de kg pedidos
+        const kgPedidoEl = document.getElementById('fichaKgPedido');
+        if (kgPedidoEl) kgPedidoEl.textContent = pedidoKg.toLocaleString('es-VE');
+
+        if (pedidoKg <= 0 || anchoCorteMm <= 0) {
+            this.limpiarCalculosFicha();
+            return;
+        }
+
+        const anchoM = anchoCorteMm / 1000;
+
+        // Calcular gramaje de cada capa (g/m lineal)
+        const gramajeCapa1 = micras1 > 0 ? anchoM * micras1 * densidad1 : 0;
+        const gramajeCapa2 = micras2 > 0 ? anchoM * micras2 * densidad2 : 0;
+        const gramajeAdhesivoLineal = gramajeAdhesivo > 0 ? anchoM * gramajeAdhesivo : 0; // g/m lineal
+
+        // Gramaje total del producto laminado
+        const gramajeTotal = gramajeCapa1 + gramajeCapa2 + gramajeAdhesivoLineal;
+
+        if (gramajeTotal <= 0) {
+            this.limpiarCalculosFicha();
+            return;
+        }
+
+        // Metros totales necesarios
+        const metrosTotales = (pedidoKg * 1000) / gramajeTotal;
+
+        // Kg de cada componente
+        const kgCapa1 = gramajeCapa1 > 0 ? (metrosTotales * gramajeCapa1) / 1000 : 0;
+        const kgCapa2 = gramajeCapa2 > 0 ? (metrosTotales * gramajeCapa2) / 1000 : 0;
+        const kgAdhesivo = gramajeAdhesivoLineal > 0 ? (metrosTotales * gramajeAdhesivoLineal) / 1000 : 0;
+        const kgCatalizador = relacionCatalizador > 0 ? kgAdhesivo / relacionCatalizador : 0;
+
+        // Actualizar campos
+        this.actualizarCampo('fichaKg1', kgCapa1.toFixed(2));
+        this.actualizarCampo('fichaKg2', kgCapa2.toFixed(2));
+        this.actualizarCampo('fichaKgAdhesivo', kgAdhesivo.toFixed(2));
+        this.actualizarCampo('fichaKgCatalizador', kgCatalizador.toFixed(2));
+
+        // Actualizar resumen
+        this.actualizarTexto('fichaResumen1', kgCapa1.toFixed(1));
+        this.actualizarTexto('fichaResumen2', kgCapa2.toFixed(1));
+        this.actualizarTexto('fichaResumenAdh', kgAdhesivo.toFixed(1));
+        this.actualizarTexto('fichaResumenCat', kgCatalizador.toFixed(1));
+
+        console.log(`Ficha Tecnica: ${pedidoKg}kg pedido => Capa1: ${kgCapa1.toFixed(1)}kg, Capa2: ${kgCapa2.toFixed(1)}kg, Adhesivo: ${kgAdhesivo.toFixed(1)}kg, Catalizador: ${kgCatalizador.toFixed(1)}kg`);
+    },
+
+    actualizarCampo: function(id, valor) {
+        const el = document.getElementById(id);
+        if (el) el.value = valor;
+    },
+
+    actualizarTexto: function(id, texto) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = texto;
+    },
+
+    limpiarCalculosFicha: function() {
+        ['fichaKg1', 'fichaKg2', 'fichaKgAdhesivo', 'fichaKgCatalizador'].forEach(id => {
+            this.actualizarCampo(id, '');
+        });
+        ['fichaResumen1', 'fichaResumen2', 'fichaResumenAdh', 'fichaResumenCat'].forEach(id => {
+            this.actualizarTexto(id, '-');
+        });
+    },
+
+    /**
+     * Calcula metros por bobina basado en peso y gramaje del material
+     * Formula: Metros = (Kg * 1000) / Gramaje
+     * Gramaje = Ancho(m) * Micras * Densidad
+     */
+    calcularMetrosBobina: function() {
+        const pesoBobina = parseFloat(document.getElementById('pesoBobina')?.value) || 0;
+        const anchoCorteMm = parseFloat(document.getElementById('anchoCorteFinal')?.value) ||
+                             parseFloat(document.getElementById('anchoMaterial')?.value) || 0;
+        const micras = parseFloat(document.getElementById('micrasMaterial')?.value) || 0;
+
+        // Obtener densidad del material seleccionado
+        const tipoMaterial = document.getElementById('tipoMaterial')?.value || '';
+        const densidad = this.DENSIDADES[tipoMaterial] || 0.90;
+
+        const metrosBobinaInput = document.getElementById('metrosBobina');
+        if (!metrosBobinaInput || pesoBobina <= 0 || anchoCorteMm <= 0 || micras <= 0) {
+            if (metrosBobinaInput) metrosBobinaInput.value = '';
+            return;
+        }
+
+        const anchoM = anchoCorteMm / 1000;
+        const gramaje = anchoM * micras * densidad;
+        const metros = (pesoBobina * 1000) / gramaje;
+
+        metrosBobinaInput.value = metros.toFixed(2);
     },
 
     /**

@@ -94,14 +94,49 @@ Metros = 1000 × 1000 / 10.98 = 91,074 metros
 Pinon = Desarrollo / 5
 ```
 
-## Feedback Pendiente del Equipo (04-03-2026)
+### Calculo de Materiales - Ficha Tecnica (NUEVO 06-03-2026)
+Para productos laminados (BOPP + Adhesivo + Cast):
+```
+Gramaje Total = Gramaje Capa1 + Gramaje Adhesivo + Gramaje Capa2
+Metros Totales = (Kg Pedidos × 1000) / Gramaje Total
+
+Kg Capa1 = (Metros Totales × Gramaje Capa1) / 1000
+Kg Adhesivo = (Metros Totales × Gramaje Adhesivo Lineal) / 1000
+Kg Catalizador = Kg Adhesivo / Relacion (ej: 10:1)
+Kg Capa2 = (Metros Totales × Gramaje Capa2) / 1000
+```
+
+**Preguntas pendientes para el equipo:**
+1. Gramaje tipico del adhesivo (g/m²)?
+2. Relacion catalizador (10:1, 5:1, etc)?
+3. Ejemplo real para validar formula
+4. Agregar % merma?
+
+### Calculo Metros/Bobina (Area Corte)
+```
+Metros/Bobina = (Peso Bobina × 1000) / Gramaje
+Gramaje = Ancho(m) × Micras × Densidad
+```
+*Se calcula automaticamente al llenar Peso Bobina*
+
+## Feedback Pendiente del Equipo (06-03-2026)
 
 ### CRITICOS - Cambios de Flujo
 - [ ] Area de corte por TURNO (7am-7pm, 7pm-7am), no por orden de trabajo
-- [ ] Nombres de orden por correlativo automatico (sin elegir nombre)
+- [x] Nombres de orden por correlativo automatico (sin elegir nombre) - IMPLEMENTADO
 - [ ] Paletas ilimitadas en corte (agregar dinamicamente)
 - [ ] Cantidad de rollos en corte
 - [ ] Temporizador para kg en corte
+
+### FICHA TECNICA (NUEVO 06-03-2026)
+- [x] Seccion agregada con estructura del producto (Capa1 + Adhesivo + Capa2)
+- [x] Calculo automatico de kg necesarios de cada material
+- [x] Busqueda de SKU del inventario por tipo de material
+- [x] Densidades automaticas por tipo de material
+- [ ] **PENDIENTE:** Respuestas del equipo sobre gramaje adhesivo, relacion catalizador, y ejemplo real
+
+### AREA DE CORTE/EMBALAJE
+- [x] Metros/Bobina: calculado automaticamente (Peso / Gramaje)
 
 ### CAMPOS A MODIFICAR EN IMPRESION
 - [ ] Despues de ancho de corte: numero de banda

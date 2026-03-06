@@ -217,60 +217,67 @@ const Laminacion = {
      * Agrega selector de ordenes pendientes al formulario
      */
     agregarSelectorOrdenes: function() {
-        const otInput = document.getElementById('ordenTrabajo');
-        if (!otInput || document.getElementById('selectorOrden')) return;
+        console.log('[Laminacion] agregarSelectorOrdenes - INICIO');
 
+        const otInput = document.getElementById('ordenTrabajo');
+        if (!otInput) {
+            console.warn('[Laminacion] No se encontro el campo ordenTrabajo');
+            return;
+        }
+
+        if (document.getElementById('selectorOrden')) {
+            console.log('[Laminacion] selectorOrden ya existe');
+            return;
+        }
+
+        // Obtener ordenes pendientes
         let ordenes = [];
         try {
             ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
         } catch (e) {
-            console.warn('Error parseando ordenes:', e);
-            return;
+            console.warn('[Laminacion] Error parseando ordenes:', e);
+            ordenes = [];
         }
 
-        console.log('Ordenes cargadas del localStorage:', ordenes.length);
+        console.log('[Laminacion] Ordenes en localStorage:', ordenes.length);
 
-        // Mostrar todas las ordenes disponibles (excepto completadas)
-        // Mostrar TODAS las ordenes no completadas para que el operador pueda seleccionar
-        const ordenesDisponibles = ordenes.filter(o => {
-            const noCompletada = o.estadoOrden !== 'completada';
-            return noCompletada;
-        });
+        // Filtrar ordenes no completadas
+        const ordenesDisponibles = ordenes.filter(o => o.estadoOrden !== 'completada');
+        console.log('[Laminacion] Ordenes disponibles:', ordenesDisponibles.length);
 
-        console.log('Ordenes disponibles para laminacion:', ordenesDisponibles.length);
-
-        // Buscar cualquier contenedor col-*
-        const grupo = otInput.closest('[class*="col"]') || otInput.parentElement;
-        if (!grupo) return;
-
-        if (ordenesDisponibles.length === 0) {
-            const infoDiv = document.createElement('div');
-            infoDiv.className = 'alert alert-info alert-sm py-1 mt-1 small';
-            infoDiv.innerHTML = '<i class="bi bi-info-circle me-1"></i>No hay ordenes pendientes. <a href="ordenes.html">Crear nueva OT</a>';
-            grupo.appendChild(infoDiv);
-            return;
-        }
-
+        // Crear el div del selector
         const selectorDiv = document.createElement('div');
         selectorDiv.id = 'selectorOrden';
         selectorDiv.className = 'mt-2';
-        selectorDiv.innerHTML = `
-            <label class="form-label small fw-bold text-warning">
-                <i class="bi bi-list-check me-1"></i>Ordenes Pendientes (${ordenesDisponibles.length})
-            </label>
-            <select class="form-select form-select-sm border-warning" id="selectOrdenPendiente">
-                <option value="">-- Seleccionar orden de trabajo --</option>
-                ${ordenesDisponibles.map(o => `
-                    <option value="${o.numeroOrden || o.ot}" data-orden='${JSON.stringify(o).replace(/'/g, "&#39;")}'>
-                        ${o.numeroOrden || o.ot} | ${o.cliente} | ${o.producto || 'Sin producto'} | ${(o.pedidoKg || 0).toLocaleString()}kg
-                    </option>
-                `).join('')}
-            </select>
-        `;
 
-        grupo.appendChild(selectorDiv);
+        if (ordenesDisponibles.length === 0) {
+            selectorDiv.innerHTML = `
+                <div class="alert alert-info py-1 small mb-0">
+                    <i class="bi bi-info-circle me-1"></i>No hay ordenes pendientes.
+                    <a href="ordenes.html" class="alert-link">Crear nueva OT</a>
+                </div>
+            `;
+        } else {
+            selectorDiv.innerHTML = `
+                <label class="form-label small fw-bold text-warning mb-1">
+                    <i class="bi bi-list-check me-1"></i>Ordenes Pendientes (${ordenesDisponibles.length})
+                </label>
+                <select class="form-select form-select-sm border-warning" id="selectOrdenPendiente">
+                    <option value="">-- Seleccionar orden de trabajo --</option>
+                    ${ordenesDisponibles.map(o => `
+                        <option value="${o.numeroOrden || o.ot}" data-orden='${JSON.stringify(o).replace(/'/g, "&#39;")}'>
+                            ${o.numeroOrden || o.ot} | ${o.cliente} | ${o.producto || 'Sin producto'} | ${(o.pedidoKg || 0).toLocaleString()}kg
+                        </option>
+                    `).join('')}
+                </select>
+            `;
+        }
 
-        // Event listener (elemento ya existe en DOM)
+        // Insertar directamente despues del input ordenTrabajo
+        otInput.insertAdjacentElement('afterend', selectorDiv);
+        console.log('[Laminacion] Selector insertado correctamente');
+
+        // Event listener para cargar orden seleccionada
         const selectElement = document.getElementById('selectOrdenPendiente');
         if (selectElement) {
             selectElement.addEventListener('change', (e) => {
@@ -282,7 +289,7 @@ const Laminacion = {
                         this.precargarCamposOrden(orden);
                         this.mostrarBannerOrdenCargada(orden);
                     } catch (err) {
-                        console.warn('Error parseando orden seleccionada:', err);
+                        console.warn('[Laminacion] Error parseando orden seleccionada:', err);
                     }
                 }
             });

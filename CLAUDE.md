@@ -119,6 +119,41 @@ Gramaje = Ancho(m) × Micras × Densidad
 ```
 *Se calcula automaticamente al llenar Peso Bobina*
 
+## Sistema de Control de Tiempo (IMPLEMENTADO 06-03-2026)
+
+### Panel de Comandas (Selector tipo restaurante)
+- Aparece al inicio de cada modulo de produccion (Impresion, Laminacion, Corte)
+- Muestra OTs pendientes como "comandas" de restaurante
+- Cards visuales con colores por prioridad:
+  - **Rojo (danger):** Urgente
+  - **Amarillo (warning):** Alta prioridad
+  - **Azul (primary):** Normal
+- Informacion mostrada: numero OT, cliente, producto, kg pedidos, tiempo acumulado
+- Al hacer click en una comanda se carga la OT y se muestra el panel de tiempo
+- Ubicado en `control-tiempo.js` funcion `renderPanelComandas()`
+
+### Modal Obligatorio de Pausa
+- Al pausar una OT se muestra modal que OBLIGA a indicar motivo
+- No se puede cerrar sin seleccionar un motivo
+- Motivos predefinidos:
+  - Cambio de bobina
+  - Ajuste de maquina
+  - Falta de material
+  - Cambio de turno
+  - Mantenimiento
+  - Problema de calidad
+  - Almuerzo/Descanso
+  - Otro (especificar)
+- Si selecciona "Otro", debe escribir el motivo manualmente
+- Motivo se guarda en el registro de la orden
+- Ubicado en `control-tiempo.js` funcion `pausaConMotivo()`
+
+### Regla Importante
+**TODOS los cambios solicitados en un modulo de produccion deben aplicarse a los 3 modulos:**
+- Impresion (`impresion.js`)
+- Laminacion (`laminacion.js`)
+- Corte (`corte.js`)
+
 ## Feedback Pendiente del Equipo (06-03-2026)
 
 ### CRITICOS - Cambios de Flujo
@@ -126,6 +161,8 @@ Gramaje = Ancho(m) × Micras × Densidad
 - [x] Nombres de orden por correlativo automatico (sin elegir nombre) - IMPLEMENTADO
 - [x] Etapa MONTAJE agregada entre Pendiente e Impresion en Kanban - IMPLEMENTADO
 - [x] Selector de OT visible en TODOS los modulos de produccion - CORREGIDO
+- [x] Panel de Comandas (selector tipo restaurante) en todos los modulos - IMPLEMENTADO
+- [x] Modal obligatorio de pausa con motivos predefinidos - IMPLEMENTADO
 - [ ] Paletas ilimitadas en corte (agregar dinamicamente)
 - [ ] Cantidad de rollos en corte
 - [ ] Temporizador para kg en corte

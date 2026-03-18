@@ -173,11 +173,37 @@ const Auth = {
      */
     loginLocal: function(usuario, password) {
         const usuarios = [
-            { id: 1, usuario: 'admin', password: 'admin123', nombre: 'Administrador', rol: 'administrador' },
-            { id: 2, usuario: 'supervisor', password: 'super123', nombre: 'Supervisor Planta', rol: 'supervisor' },
-            { id: 3, usuario: 'jefe', password: 'jefe123', nombre: 'Jefe Operaciones', rol: 'jefe_operaciones' },
-            { id: 4, usuario: 'operador1', password: 'op123', nombre: 'Juan Perez', rol: 'operador' },
-            { id: 5, usuario: 'operador2', password: 'op123', nombre: 'Maria Garcia', rol: 'operador' },
+            // Gerencia
+            { id: 1, usuario: 'rparra', password: 'axones2026', nombre: 'ROBERT PARRA', rol: 'jefe_operaciones', area: 'Gerencia', cargo: 'Gerente General' },
+            // Produccion
+            { id: 2, usuario: 'ajaure', password: 'axones2026', nombre: 'ALEXIS JAURE', rol: 'jefe_operaciones', area: 'Produccion', cargo: 'Gerente de Operaciones' },
+            { id: 3, usuario: 'aanare', password: 'axones2026', nombre: 'ANGEL ANARE', rol: 'planificador', area: 'Produccion', cargo: 'Planificador' },
+            { id: 4, usuario: 'rguape', password: 'axones2026', nombre: 'ROXANA GUAPE', rol: 'supervisor', area: 'Produccion', cargo: 'Supervisora de Calidad' },
+            { id: 5, usuario: 'harzola', password: 'axones2026', nombre: 'HENRY ARZOLA', rol: 'supervisor', area: 'Produccion', cargo: 'Supervisor de Produccion' },
+            // Almacen
+            { id: 6, usuario: 'lgonzalez', password: 'axones2026', nombre: 'LEONARDO GONZALEZ', rol: 'jefe_almacen', area: 'Almacen', cargo: 'Almacenista' },
+            // Impresion
+            { id: 7, usuario: 'gmujica', password: 'axones2026', nombre: 'GONZALO MUJICA', rol: 'operador', area: 'Impresion', cargo: 'Operador de Impresion' },
+            { id: 8, usuario: 'ncamacaro', password: 'axones2026', nombre: 'NELSON CAMACARO', rol: 'operador', area: 'Impresion', cargo: 'Operador de Impresion' },
+            { id: 9, usuario: 'scobos', password: 'axones2026', nombre: 'STIVEN COBOS', rol: 'operador', area: 'Impresion', cargo: 'Operador de Impresion' },
+            { id: 10, usuario: 'nnino', password: 'axones2026', nombre: 'NESTOR NINO', rol: 'operador', area: 'Impresion', cargo: 'Operador de Impresion' },
+            { id: 11, usuario: 'mnieves', password: 'axones2026', nombre: 'MIGUEL NIEVES', rol: 'operador', area: 'Impresion', cargo: 'Operador de Impresion' },
+            // Laminacion
+            { id: 12, usuario: 'jcolmenares', password: 'axones2026', nombre: 'JACSON COLMENARES', rol: 'operador', area: 'Laminacion', cargo: 'Operador de Laminacion' },
+            { id: 13, usuario: 'arodriguez', password: 'axones2026', nombre: 'ANGEL RODRIGUEZ', rol: 'operador', area: 'Laminacion', cargo: 'Operador de Laminacion' },
+            { id: 14, usuario: 'yaranguren', password: 'axones2026', nombre: 'YSAIAS ARANGUREN', rol: 'operador', area: 'Laminacion', cargo: 'Operador de Laminacion' },
+            // Corte
+            { id: 15, usuario: 'jguzman', password: 'axones2026', nombre: 'JUAN GUZMAN', rol: 'operador', area: 'Corte', cargo: 'Operador de Corte' },
+            { id: 16, usuario: 'apinero', password: 'axones2026', nombre: 'ALIS PINERO', rol: 'operador', area: 'Corte', cargo: 'Operador de Corte' },
+            { id: 17, usuario: 'imonroy', password: 'axones2026', nombre: 'IAN MONROY', rol: 'operador', area: 'Corte', cargo: 'Operador de Corte' },
+            { id: 18, usuario: 'fabarca', password: 'axones2026', nombre: 'FERNANDO ABARCA', rol: 'operador', area: 'Corte', cargo: 'Operador de Corte' },
+            { id: 19, usuario: 'rpena', password: 'axones2026', nombre: 'RAMIRO PENA', rol: 'operador', area: 'Corte', cargo: 'Operador de Corte' },
+            { id: 20, usuario: 'emarquez', password: 'axones2026', nombre: 'EFREN MARQUEZ', rol: 'operador', area: 'Corte', cargo: 'Operador de Corte' },
+            { id: 21, usuario: 'jmartinez', password: 'axones2026', nombre: 'JESUS MARTINEZ', rol: 'operador', area: 'Corte', cargo: 'Operador de Corte' },
+            // Colorista
+            { id: 22, usuario: 'alaya', password: 'axones2026', nombre: 'ASDRUBAL LAYA', rol: 'colorista', area: 'Produccion', cargo: 'Colorista' },
+            // Admin del sistema (acceso de desarrollo)
+            { id: 99, usuario: 'admin', password: 'admin123', nombre: 'Administrador', rol: 'administrador', area: 'Administracion', cargo: 'Administrador del Sistema' },
         ];
 
         const user = usuarios.find(u => u.usuario === usuario && u.password === password);
@@ -186,7 +212,9 @@ const Auth = {
                 id: user.id,
                 usuario: user.usuario,
                 nombre: user.nombre,
-                rol: user.rol
+                rol: user.rol,
+                area: user.area || '',
+                cargo: user.cargo || ''
             };
         }
         return null;

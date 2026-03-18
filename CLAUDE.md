@@ -12,7 +12,7 @@ Sistema integral de gestion y control de produccion para **Inversiones Axones 20
 public/
 ├── index.html          # Dashboard principal
 ├── ordenes.html        # Gestion de ordenes de trabajo
-├── impresion.html      # Modulo de impresion (Comexi 067/045)
+├── impresion.html      # Modulo de impresion (COMEXI 1/COMEXI 3)
 ├── laminacion.html     # Modulo de laminacion
 ├── corte.html          # Modulo de corte
 ├── inventario.html     # Inventario (158 productos reales)
@@ -65,10 +65,21 @@ Al seleccionar un producto del inventario en una orden de trabajo, se pre-llenan
 - Densidad para calculos
 - **Metros estimados** (calculado cuando se llena pedidoKg)
 
-## Maquinas
-- **Impresion:** COMEXI 067, COMEXI 045
-- **Laminacion:** Laminadora
-- **Corte:** Cortadora China, Cortadora Permaco, Cortadora Novograf
+## Maquinas (Ficha Tecnica 2026-03-18)
+- **Impresion:** COMEXI 1 (830mm max, 130 m/min), COMEXI 3 (1200mm max, 130 m/min)
+- **Laminacion:** NEXUS (1200mm max, 100 m/min)
+- **Corte:** Cortadora China (400 m/min), Cortadora Permaco (140 m/min), Cortadora Novograf (200 m/min)
+
+## Turnos de Trabajo (Ficha Tecnica)
+- **Diurno:** 7:00 AM - 4:00 PM
+- **Diurno H.E.:** 4:00 PM - 7:00 PM
+- **Nocturno:** 7:00 PM - 4:00 AM
+- **Nocturno H.E.:** 4:00 AM - 7:00 AM
+
+## Usuarios del Sistema (22 usuarios reales)
+- Login con: primera letra nombre + apellido (ej: rparra, ajaure)
+- Password temporal: axones2026
+- Roles: operador, supervisor, jefe_operaciones, jefe_almacen, planificador, colorista, administrador
 
 ## Formulas de Produccion
 
@@ -82,12 +93,17 @@ Gramaje = 0.61 × 20 × 0.90 = 10.98 g/m
 Metros = 1000 × 1000 / 10.98 = 91,074 metros
 ```
 
-### Densidades por Material
+### Densidades por Material (Confirmado Ficha Tecnica)
 | Material | Densidad |
 |----------|----------|
-| BOPP     | 0.90     |
-| PE/PEBD  | 0.93     |
-| Perlado  | 0.80     |
+| BOPP (Normal, Mate, Pasta) | 0.90 |
+| BOPP Perlado / Perlado | 0.80 |
+| CAST | 0.92 |
+| METAL | 0.90 |
+| PE/PEBD | 0.93 |
+| PEBD Pigment | 0.93 |
+| PET | 1.40 |
+| PA (Nylon) | 1.14 |
 
 ### Pinon Automatico
 ```

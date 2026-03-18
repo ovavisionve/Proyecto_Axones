@@ -20,7 +20,7 @@ const Inventario = {
         'PEBD PIGMENT': 'PBP'
     },
 
-    // Densidades por material
+    // Densidades por material (confirmado Ficha Tecnica 2026-03-18)
     DENSIDADES: {
         'BOPP NORMAL': 0.90,
         'BOPP MATE': 0.90,
@@ -30,7 +30,10 @@ const Inventario = {
         'METAL': 0.90,
         'CAST': 0.92,
         'PEBD': 0.93,
-        'PEBD PIGMENT': 0.93
+        'PEBD PIGMENT': 0.93,
+        'PET': 1.40,
+        'PA': 1.14,
+        'NYLON': 1.14
     },
 
     /**

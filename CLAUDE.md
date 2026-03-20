@@ -428,8 +428,16 @@ git push origin main
 ### Fase 3: Restante de bobinas + Resumen con calculo de inventario
 | Cambio | Estado |
 |--------|--------|
-| Capsula "Restante de bobinas usadas" | PENDIENTE |
-| Resumen con calculo de materiales y deduccion de inventario | PENDIENTE |
+| Capsula "Restante de bobinas usadas" en impresion (rest1-rest26) | COMPLETADO |
+| Capsula "Restante de bobinas usadas" en laminacion (restEnt1-restEnt14) | COMPLETADO |
+| Capsula "Restante de bobinas usadas" en corte (rest1-rest14) | COMPLETADO |
+| JS: calculo automatico totalRestante y totalConsumido | COMPLETADO |
+| Capsula "Resumen de Produccion" (tabla) en impresion | COMPLETADO |
+| Capsula "Resumen de Produccion" (tabla) en laminacion | COMPLETADO |
+| Capsula "Resumen de Produccion" (tabla) en corte | COMPLETADO |
+| JS: actualizacion en tiempo real del resumen | COMPLETADO |
+| Datos restante incluidos en recopilarDatos() | COMPLETADO |
+| Nota: deduccion inventario al guardar (usar totalConsumido) | COMPLETADO |
 
 ### Fase 4: Scrap con 3 categorias en laminacion + Producto terminado desde corte
 | Cambio | Estado |

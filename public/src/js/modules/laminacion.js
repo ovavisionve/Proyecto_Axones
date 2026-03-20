@@ -442,6 +442,11 @@ const Laminacion = {
             input.addEventListener('input', () => this.calcularTotales());
         });
 
+        // Calcular total de restante
+        document.querySelectorAll('.restante-entrada').forEach(input => {
+            input.addEventListener('input', () => this.calcularTotales());
+        });
+
         // Calcular total de scrap
         document.querySelectorAll('.scrap-input').forEach(input => {
             input.addEventListener('input', () => this.calcularTotales());
@@ -624,6 +629,44 @@ const Laminacion = {
         // Actualizar indicador
         this.actualizarIndicadorRefil(porcentajeRefil, totalEntrada);
 
+        // Total restante
+        let totalRestante = 0;
+        document.querySelectorAll('.restante-entrada').forEach(input => {
+            totalRestante += parseFloat(input.value) || 0;
+        });
+        const totalRestanteEl = document.getElementById('totalRestante');
+        if (totalRestanteEl) totalRestanteEl.value = totalRestante.toFixed(2);
+
+        const totalConsumido = totalEntrada - totalRestante;
+        const totalConsumidoEl = document.getElementById('totalConsumido');
+        if (totalConsumidoEl) totalConsumidoEl.textContent = totalConsumido.toFixed(2);
+
+        // Consumo adhesivo para resumen
+        const consumoAdhesivo = parseFloat(document.getElementById('consumoAdhesivo')?.textContent) || 0;
+
+        // Actualizar Resumen de Produccion
+        const resEntrada = document.getElementById('resumenEntrada');
+        const resRestante = document.getElementById('resumenRestante');
+        const resConsumido = document.getElementById('resumenConsumido');
+        const resSalida = document.getElementById('resumenSalida');
+        const resScrap = document.getElementById('resumenScrap');
+        const resAdhesivo = document.getElementById('resumenAdhesivo');
+        const resMerma = document.getElementById('resumenMermaCalc');
+        const resRefil = document.getElementById('resumenRefilCalc');
+        if (resEntrada) resEntrada.textContent = totalEntrada.toFixed(2) + ' Kg';
+        if (resRestante) resRestante.textContent = totalRestante.toFixed(2) + ' Kg';
+        if (resConsumido) resConsumido.textContent = totalConsumido.toFixed(2) + ' Kg';
+        if (resSalida) resSalida.textContent = totalSalida.toFixed(2) + ' Kg';
+        if (resScrap) resScrap.textContent = totalScrap.toFixed(2) + ' Kg';
+        if (resAdhesivo) resAdhesivo.textContent = consumoAdhesivo.toFixed(2) + ' Kg';
+        const mermaResumen = totalConsumido - totalSalida - totalScrap;
+        if (resMerma) resMerma.textContent = mermaResumen.toFixed(2) + ' Kg';
+        let refilResumen = 0;
+        if (totalConsumido > 0) {
+            refilResumen = (totalScrap / totalConsumido) * 100;
+        }
+        if (resRefil) resRefil.textContent = refilResumen.toFixed(2) + '%';
+
         // Actualizar footer
         document.getElementById('footerEntrada').textContent = totalEntrada.toFixed(0);
         document.getElementById('footerSalida').textContent = totalSalida.toFixed(0);
@@ -786,6 +829,15 @@ const Laminacion = {
             }
         }
 
+        // Obtener restante de bobinas
+        const bobinasRestante = [];
+        for (let i = 1; i <= 14; i++) {
+            const valor = parseFloat(document.getElementById('restEnt' + i)?.value) || 0;
+            if (valor > 0) {
+                bobinasRestante.push({ posicion: i, peso: valor });
+            }
+        }
+
         // Obtener bobinas de salida
         const bobinasSalida = [];
         for (let i = 1; i <= 22; i++) {
@@ -817,6 +869,11 @@ const Laminacion = {
 
             bobinasEntrada: bobinasEntrada,
             totalEntrada: parseFloat(document.getElementById('totalEntrada').value) || 0,
+
+            // Restante de bobinas
+            bobinasRestante: bobinasRestante,
+            totalRestante: parseFloat(document.getElementById('totalRestante')?.value) || 0,
+            totalConsumido: parseFloat(document.getElementById('totalConsumido')?.textContent) || 0,
 
             // Adhesivo
             adhesivoEntrada: parseFloat(document.getElementById('adhesivoEntrada').value) || 0,

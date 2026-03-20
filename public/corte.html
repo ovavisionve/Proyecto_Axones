@@ -460,6 +460,42 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Restante de Bobinas Usadas -->
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="bi bi-arrow-return-left me-1"></i> Restante de Bobinas Usadas (Kg)
+                        </div>
+                        <div class="row g-1">
+                            <div class="col"><span class="bobina-label">1</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest1" step="0.01" min="0"></div>
+                            <div class="col"><span class="bobina-label">2</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest2" step="0.01" min="0"></div>
+                            <div class="col"><span class="bobina-label">3</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest3" step="0.01" min="0"></div>
+                            <div class="col"><span class="bobina-label">4</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest4" step="0.01" min="0"></div>
+                            <div class="col"><span class="bobina-label">5</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest5" step="0.01" min="0"></div>
+                        </div>
+                        <div class="row g-1 mt-1">
+                            <div class="col"><span class="bobina-label">6</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest6" step="0.01" min="0"></div>
+                            <div class="col"><span class="bobina-label">7</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest7" step="0.01" min="0"></div>
+                            <div class="col"><span class="bobina-label">8</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest8" step="0.01" min="0"></div>
+                            <div class="col"><span class="bobina-label">9</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest9" step="0.01" min="0"></div>
+                            <div class="col"><span class="bobina-label">10</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest10" step="0.01" min="0"></div>
+                        </div>
+                        <div class="row g-1 mt-1">
+                            <div class="col"><span class="bobina-label">11</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest11" step="0.01" min="0"></div>
+                            <div class="col"><span class="bobina-label">12</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest12" step="0.01" min="0"></div>
+                            <div class="col"><span class="bobina-label">13</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest13" step="0.01" min="0"></div>
+                            <div class="col"><span class="bobina-label">14</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest14" step="0.01" min="0"></div>
+                            <div class="col-2">
+                                <span class="bobina-label fw-bold">TOTAL</span>
+                                <input type="text" class="form-control form-control-sm bobina-input total-highlight" id="totalRestante" readonly>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col text-end">
+                                <span class="badge bg-info">Consumido: <span id="totalConsumido">0</span> Kg</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Columna Derecha -->
@@ -604,6 +640,50 @@
                                 <label class="form-label small">Motivos de Paradas</label>
                                 <textarea class="form-control form-control-sm" id="motivosParadas" rows="2" placeholder="Describir paradas y sus motivos..."></textarea>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Resumen de Produccion -->
+                    <div class="form-section" style="background: #f0fff4;">
+                        <div class="form-section-title">
+                            <i class="bi bi-calculator me-1"></i> Resumen de Produccion
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered mb-0">
+                                <tbody>
+                                    <tr>
+                                        <td class="fw-bold">Total Bobinas Entrada</td>
+                                        <td class="text-end" id="resumenEntrada">0.00 Kg</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold">Total Restante (devuelto)</td>
+                                        <td class="text-end" id="resumenRestante">0.00 Kg</td>
+                                    </tr>
+                                    <tr class="table-primary">
+                                        <td class="fw-bold">Material Consumido</td>
+                                        <td class="text-end fw-bold" id="resumenConsumido">0.00 Kg</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold">Total Salida (paletas)</td>
+                                        <td class="text-end" id="resumenSalida">0.00 Kg</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold">Total Scrap</td>
+                                        <td class="text-end" id="resumenScrap">0.00 Kg</td>
+                                    </tr>
+                                    <tr class="table-warning">
+                                        <td class="fw-bold">Merma (Consumido - Salida - Scrap)</td>
+                                        <td class="text-end fw-bold" id="resumenMermaCalc">0.00 Kg</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold">% Refil</td>
+                                        <td class="text-end" id="resumenRefilCalc">0.00%</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="mt-2 text-end">
+                            <small class="text-muted"><i class="bi bi-info-circle me-1"></i>El material restante se devuelve al inventario al guardar</small>
                         </div>
                     </div>
 

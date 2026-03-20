@@ -357,6 +357,14 @@ function doGet(e) {
         result = { success: true, data: getConfiguracion() };
         break;
 
+      // --- CARGA MASIVA ---
+      case 'cargarInventarioInicial':
+        result = cargarInventarioDesdeAPI();
+        break;
+      case 'syncInventarioCompleto':
+        result = syncInventarioCompleto(data);
+        break;
+
       // --- USUARIOS ---
       case 'getUsuarios':
         result = { success: true, data: getUsuarios() };
@@ -1937,4 +1945,94 @@ function cargarInventarioInicial() {
 
   Logger.log('Inventario cargado: ' + datos.length + ' productos');
   return { success: true, message: 'Inventario cargado: ' + datos.length + ' productos' };
+}
+
+/**
+ * Version sin UI de cargarInventarioInicial - se puede llamar desde la API
+ * Borra el inventario existente y recarga los 158 productos
+ */
+function cargarInventarioDesdeAPI() {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheetByName(SHEETS.INVENTARIO);
+
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEETS.INVENTARIO);
+    sheet.appendRow(INVENTARIO_HEADERS);
+  }
+
+  // Limpiar datos existentes (mantener headers)
+  var lastRow = sheet.getLastRow();
+  if (lastRow > 1) {
+    sheet.deleteRows(2, lastRow - 1);
+  }
+
+  // Usar la misma data de cargarInventarioInicial
+  // Llamar internamente
+  return cargarInventarioInicial();
+}
+
+/**
+ * Recibe TODO el inventario del frontend (localStorage) y lo sube al Sheets
+ * Esto sincroniza el estado actual de la plataforma al Sheets
+ */
+function syncInventarioCompleto(data) {
+  if (!data || !data.items || !Array.isArray(data.items)) {
+    return { success: false, error: 'Se requiere data.items como array' };
+  }
+
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheetByName(SHEETS.INVENTARIO);
+
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEETS.INVENTARIO);
+    sheet.appendRow(INVENTARIO_HEADERS);
+  }
+
+  // Limpiar datos existentes
+  var lastRow = sheet.getLastRow();
+  if (lastRow > 1) {
+    sheet.deleteRows(2, lastRow - 1);
+  }
+
+  // Preparar filas
+  var rows = [];
+  var ahora = new Date().toISOString();
+
+  data.items.forEach(function(item) {
+    // Orden: id, sku, codigoBarra, material, micras, ancho, kg, producto, importado, densidad,
+    //        proveedor, ubicacion, lote, fechaIngreso, estado, ultimaActualizacion
+    rows.push([
+      item.id || '',
+      item.sku || '',
+      item.codigoBarra || '',
+      item.material || '',
+      item.micras || '',
+      item.ancho || '',
+      item.kg || 0,
+      item.producto || '',
+      item.importado === true || item.importado === 'SI' ? 'SI' : 'NO',
+      item.densidad || '',
+      item.proveedor || '',
+      item.ubicacion || 'Almacen',
+      item.lote || '',
+      item.fechaIngreso || ahora,
+      item.estado || 'disponible',
+      ahora
+    ]);
+  });
+
+  if (rows.length > 0) {
+    sheet.getRange(2, 1, rows.length, INVENTARIO_HEADERS.length).setValues(rows);
+  }
+
+  // Formatear
+  sheet.setFrozenRows(1);
+  sheet.getRange(1, 1, 1, INVENTARIO_HEADERS.length)
+    .setFontWeight('bold')
+    .setBackground('#4285f4')
+    .setFontColor('white');
+
+  logAuditoria('SYNC_INVENTARIO', 'INVENTARIO', 'COMPLETO', data.usuario || 'sistema');
+
+  return { success: true, message: 'Inventario sincronizado: ' + rows.length + ' productos', count: rows.length };
 }

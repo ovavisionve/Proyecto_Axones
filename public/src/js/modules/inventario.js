@@ -944,6 +944,57 @@ const Inventario = {
         if (btnExportar) {
             btnExportar.addEventListener('click', () => this.exportarCSV());
         }
+
+        // Sincronizar a Sheets
+        const btnSyncSheets = document.getElementById('btnSyncSheets');
+        if (btnSyncSheets) {
+            btnSyncSheets.addEventListener('click', () => this.syncToSheets());
+        }
+    },
+
+    /**
+     * Sube todo el inventario actual de la plataforma a Google Sheets
+     */
+    syncToSheets: async function() {
+        if (typeof AxonesAPI === 'undefined') {
+            alert('API no disponible');
+            return;
+        }
+
+        const btn = document.getElementById('btnSyncSheets');
+        const textoOriginal = btn.innerHTML;
+
+        if (!confirm('Esto subira los ' + this.items.length + ' productos del inventario a Google Sheets. Continuar?')) {
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Subiendo...';
+
+        try {
+            const session = JSON.parse(localStorage.getItem('axones_session') || '{}');
+            const result = await AxonesAPI.syncInventarioCompleto(this.items, session.usuario || 'sistema');
+
+            if (result && result.success) {
+                if (typeof Axones !== 'undefined') {
+                    Axones.showSuccess('Inventario sincronizado a Sheets: ' + (result.count || this.items.length) + ' productos');
+                } else {
+                    alert('Inventario sincronizado exitosamente');
+                }
+            } else {
+                throw new Error(result?.error || 'Error desconocido');
+            }
+        } catch (e) {
+            console.error('Error sincronizando inventario:', e);
+            if (typeof Axones !== 'undefined') {
+                Axones.showError('Error al sincronizar: ' + e.message);
+            } else {
+                alert('Error: ' + e.message);
+            }
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = textoOriginal;
+        }
     },
 
     /**

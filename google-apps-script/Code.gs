@@ -1948,8 +1948,9 @@ function cargarInventarioInicial() {
 }
 
 /**
- * Version sin UI de cargarInventarioInicial - se puede llamar desde la API
+ * Version sin UI de cargarInventarioInicial - se puede llamar desde la API o el editor
  * Borra el inventario existente y recarga los 158 productos
+ * NO usa SpreadsheetApp.getUi() - seguro para cualquier contexto
  */
 function cargarInventarioDesdeAPI() {
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
@@ -1966,9 +1967,222 @@ function cargarInventarioDesdeAPI() {
     sheet.deleteRows(2, lastRow - 1);
   }
 
-  // Usar la misma data de cargarInventarioInicial
-  // Llamar internamente
-  return cargarInventarioInicial();
+  // Los 158 productos reales de Axones
+  var datos = [
+    // BOPP NORMAL
+    { id: 'INV001', material: 'BOPP NORMAL', micras: 15, ancho: 700, kg: 73.0, producto: 'CHARMY', importado: false },
+    { id: 'INV003', material: 'BOPP NORMAL', micras: 17, ancho: 620, kg: 283.2, producto: 'TOM 80', importado: false },
+    { id: 'INV005', material: 'BOPP NORMAL', micras: 17, ancho: 710, kg: 46.0, producto: 'TOM 28', importado: false },
+    { id: 'INV007', material: 'BOPP NORMAL', micras: 20, ancho: 610, kg: 2215.02, producto: 'HASHI - CHUNCHY', importado: false },
+    { id: 'INV009', material: 'BOPP NORMAL', micras: 20, ancho: 630, kg: 0, producto: 'NATY', importado: false },
+    { id: 'INV011', material: 'BOPP NORMAL', micras: 20, ancho: 740, kg: 0, producto: 'CALI DONA', importado: false },
+    { id: 'INV013', material: 'BOPP NORMAL', micras: 20, ancho: 780, kg: 0, producto: 'CALI POLET - OSTIS', importado: false },
+    { id: 'INV015', material: 'BOPP NORMAL', micras: 20, ancho: 800, kg: 0, producto: 'YICITOS', importado: false },
+    { id: 'INV017', material: 'BOPP NORMAL', micras: 25, ancho: 460, kg: 0, producto: 'LECHE', importado: false },
+    { id: 'INV019', material: 'BOPP NORMAL', micras: 25, ancho: 490, kg: 538.1, producto: '', importado: false },
+    { id: 'INV021', material: 'BOPP NORMAL', micras: 25, ancho: 560, kg: 9648.67, producto: 'GRANOS', importado: true },
+    { id: 'INV023', material: 'BOPP NORMAL', micras: 25, ancho: 580, kg: 0, producto: 'GRANOS', importado: false },
+    { id: 'INV025', material: 'BOPP NORMAL', micras: 25, ancho: 620, kg: 0, producto: 'GISELA LARGA', importado: false },
+    { id: 'INV027', material: 'BOPP NORMAL', micras: 25, ancho: 635, kg: 134.4, producto: 'GELATINA', importado: false },
+    { id: 'INV029', material: 'BOPP NORMAL', micras: 25, ancho: 640, kg: 379.7, producto: '', importado: false },
+    { id: 'INV030', material: 'BOPP NORMAL', micras: 25, ancho: 670, kg: 273.4, producto: '', importado: false },
+    { id: 'INV032', material: 'BOPP NORMAL', micras: 25, ancho: 680, kg: 858.0, producto: 'AVENAS / CARAOTAS ALVARIGUA', importado: false },
+    { id: 'INV034', material: 'BOPP NORMAL', micras: 25, ancho: 680, kg: 2843.42, producto: '', importado: true },
+    { id: 'INV036', material: 'BOPP NORMAL', micras: 25, ancho: 740, kg: 206.67, producto: 'ETIQUETA Y BARITO', importado: false },
+    { id: 'INV038', material: 'BOPP NORMAL', micras: 25, ancho: 760, kg: 5249.76, producto: 'LECHE 200g CREMA A.', importado: false },
+    { id: 'INV040', material: 'BOPP NORMAL', micras: 25, ancho: 770, kg: 0, producto: 'NUTRITONY', importado: false },
+    { id: 'INV042', material: 'BOPP NORMAL', micras: 25, ancho: 780, kg: 0, producto: 'CALI POLET-OSTIS', importado: false },
+    { id: 'INV044', material: 'BOPP NORMAL', micras: 25, ancho: 815, kg: 0, producto: 'CAFE 200', importado: false },
+    { id: 'INV046', material: 'BOPP NORMAL', micras: 25, ancho: 1120, kg: 0, producto: 'PUIG 24g', importado: false },
+    { id: 'INV048', material: 'BOPP NORMAL', micras: 30, ancho: 440, kg: 0, producto: 'PUIG 240g', importado: false },
+    { id: 'INV050', material: 'BOPP NORMAL', micras: 30, ancho: 450, kg: 0, producto: '', importado: false },
+    { id: 'INV052', material: 'BOPP NORMAL', micras: 30, ancho: 460, kg: 0, producto: 'LECHE', importado: false },
+    { id: 'INV054', material: 'BOPP NORMAL', micras: 30, ancho: 620, kg: 136.8, producto: '', importado: false },
+    { id: 'INV056', material: 'BOPP NORMAL', micras: 30, ancho: 700, kg: 0, producto: 'CAFE 500g', importado: false },
+    { id: 'INV058', material: 'BOPP NORMAL', micras: 30, ancho: 720, kg: 365.78, producto: '', importado: false },
+    { id: 'INV060', material: 'BOPP NORMAL', micras: 30, ancho: 740, kg: 4596.3, producto: 'MICAELA', importado: true },
+    { id: 'INV062', material: 'BOPP NORMAL', micras: 30, ancho: 760, kg: 0, producto: 'TRINKETS 40g', importado: false },
+    { id: 'INV064', material: 'BOPP NORMAL', micras: 30, ancho: 760, kg: 2348.6, producto: '', importado: true },
+    { id: 'INV066', material: 'BOPP NORMAL', micras: 30, ancho: 770, kg: 0, producto: 'LECHE', importado: false },
+    { id: 'INV068', material: 'BOPP NORMAL', micras: 30, ancho: 800, kg: 0, producto: 'DAMASCO', importado: false },
+    { id: 'INV070', material: 'BOPP NORMAL', micras: 30, ancho: 815, kg: 0, producto: 'CAFE 200g', importado: false },
+    { id: 'INV072', material: 'BOPP NORMAL', micras: 30, ancho: 870, kg: 0, producto: 'TRINKETS 70g', importado: false },
+    { id: 'INV074', material: 'BOPP NORMAL', micras: 30, ancho: 870, kg: 7767.86, producto: '', importado: true },
+    { id: 'INV076', material: 'BOPP NORMAL', micras: 35, ancho: 700, kg: 889.2, producto: '', importado: false },
+    { id: 'INV078', material: 'BOPP NORMAL', micras: 35, ancho: 700, kg: 1487.98, producto: 'MASANTONI- FINA', importado: true },
+    { id: 'INV080', material: 'BOPP NORMAL', micras: 40, ancho: 1000, kg: 556.0, producto: '', importado: false },
+    // BOPP MATE
+    { id: 'INV002', material: 'BOPP MATE', micras: 20, ancho: 470, kg: 54.0, producto: '', importado: false },
+    { id: 'INV004', material: 'BOPP MATE', micras: 20, ancho: 590, kg: 0, producto: 'YOCOIMA 200', importado: false },
+    { id: 'INV006', material: 'BOPP MATE', micras: 20, ancho: 630, kg: 0, producto: 'NATY', importado: false },
+    { id: 'INV008', material: 'BOPP MATE', micras: 20, ancho: 640, kg: 0, producto: 'YOCOIMA 500', importado: false },
+    { id: 'INV010', material: 'BOPP MATE', micras: 20, ancho: 680, kg: 0, producto: 'ESPIGA-AVENA DONA', importado: false },
+    { id: 'INV012', material: 'BOPP MATE', micras: 20, ancho: 690, kg: 0, producto: '', importado: false },
+    { id: 'INV014', material: 'BOPP MATE', micras: 20, ancho: 700, kg: 499.56, producto: 'CAFE 500g', importado: true },
+    { id: 'INV016', material: 'BOPP MATE', micras: 20, ancho: 740, kg: 0, producto: 'BARITOS', importado: false },
+    { id: 'INV018', material: 'BOPP MATE', micras: 20, ancho: 755, kg: 0, producto: 'YOCOIMA 100', importado: false },
+    { id: 'INV020', material: 'BOPP MATE', micras: 20, ancho: 760, kg: 0, producto: '', importado: false },
+    { id: 'INV022', material: 'BOPP MATE', micras: 20, ancho: 815, kg: 1826.52, producto: 'CAFE 200g', importado: true },
+    { id: 'INV024', material: 'BOPP MATE', micras: 25, ancho: 580, kg: 0, producto: 'CACAO', importado: false },
+    { id: 'INV026', material: 'BOPP MATE', micras: 25, ancho: 740, kg: 0, producto: 'BUDARE', importado: false },
+    { id: 'INV028', material: 'BOPP MATE', micras: 25, ancho: 800, kg: 0, producto: '', importado: false },
+    // METAL
+    { id: 'INV031', material: 'METAL', micras: 17, ancho: 620, kg: 498.0, producto: '', importado: false },
+    { id: 'INV033', material: 'METAL', micras: 20, ancho: 460, kg: 0, producto: 'LECHE 900g Y 1 kg', importado: false },
+    { id: 'INV035', material: 'METAL', micras: 20, ancho: 610, kg: 1593.4, producto: 'HASHI - CHUNCHY', importado: false },
+    { id: 'INV037', material: 'METAL', micras: 20, ancho: 620, kg: 250.6, producto: '', importado: false },
+    { id: 'INV039', material: 'METAL', micras: 20, ancho: 630, kg: 0, producto: 'NATY', importado: false },
+    { id: 'INV041', material: 'METAL', micras: 20, ancho: 635, kg: 0, producto: 'GELATINA', importado: false },
+    { id: 'INV043', material: 'METAL', micras: 20, ancho: 660, kg: 0, producto: 'OSTIS - MARGARINA', importado: false },
+    { id: 'INV045', material: 'METAL', micras: 20, ancho: 680, kg: 0, producto: 'ESPIGA', importado: false },
+    { id: 'INV047', material: 'METAL', micras: 20, ancho: 700, kg: 0, producto: 'CAFE 500 GR', importado: false },
+    { id: 'INV049', material: 'METAL', micras: 20, ancho: 720, kg: 1634.0, producto: '', importado: false },
+    { id: 'INV051', material: 'METAL', micras: 20, ancho: 740, kg: 1343.89, producto: 'ETIQUETA Y BARITOS', importado: false },
+    { id: 'INV053', material: 'METAL', micras: 20, ancho: 760, kg: 0, producto: 'LECHE 200g CREMA A', importado: false },
+    { id: 'INV055', material: 'METAL', micras: 20, ancho: 770, kg: 0, producto: 'NUTRITONI', importado: false },
+    { id: 'INV057', material: 'METAL', micras: 20, ancho: 780, kg: 274.52, producto: 'POLET-OSTI', importado: false },
+    { id: 'INV059', material: 'METAL', micras: 20, ancho: 800, kg: 403.68, producto: 'DAMASCO - YIICITOS', importado: false },
+    { id: 'INV061', material: 'METAL', micras: 20, ancho: 815, kg: 0, producto: 'CAFE 200', importado: false },
+    { id: 'INV063', material: 'METAL', micras: 25, ancho: 740, kg: 21.0, producto: '', importado: false },
+    { id: 'INV065', material: 'METAL', micras: 30, ancho: 460, kg: 340.32, producto: '', importado: false },
+    { id: 'INV067', material: 'METAL', micras: 30, ancho: 510, kg: 17.0, producto: '', importado: false },
+    { id: 'INV069', material: 'METAL', micras: 30, ancho: 590, kg: 221.74, producto: 'YOCOIMA 200', importado: false },
+    { id: 'INV071', material: 'METAL', micras: 30, ancho: 640, kg: 0, producto: 'YOCOIMA 500', importado: false },
+    { id: 'INV073', material: 'METAL', micras: 30, ancho: 700, kg: 1187.76, producto: 'CAFE 500 ALVARIGUA', importado: true },
+    { id: 'INV075', material: 'METAL', micras: 30, ancho: 755, kg: 0, producto: 'YOCOIMA 100', importado: false },
+    { id: 'INV077', material: 'METAL', micras: 30, ancho: 815, kg: 1412.56, producto: 'CAFE 200 MATE', importado: false },
+    { id: 'INV079', material: 'METAL', micras: 30, ancho: 815, kg: 3899.02, producto: '', importado: true },
+    // PERLADO
+    { id: 'INV081', material: 'PERLADO', micras: 30, ancho: 740, kg: 602.77, producto: 'CALI', importado: false },
+    { id: 'INV082', material: 'PERLADO', micras: 30, ancho: 900, kg: 98.0, producto: '', importado: false },
+    // CAST
+    { id: 'INV083', material: 'CAST', micras: 20, ancho: 580, kg: 11.0, producto: 'GRANOS', importado: false },
+    { id: 'INV085', material: 'CAST', micras: 25, ancho: 430, kg: 800.4, producto: 'SIRENA 500', importado: false },
+    { id: 'INV087', material: 'CAST', micras: 25, ancho: 470, kg: 1130.79, producto: 'INALSA', importado: false },
+    { id: 'INV089', material: 'CAST', micras: 25, ancho: 490, kg: 6329.25, producto: '', importado: true },
+    { id: 'INV091', material: 'CAST', micras: 25, ancho: 490, kg: 2351.05, producto: 'SIRENA CORTA', importado: false },
+    { id: 'INV093', material: 'CAST', micras: 25, ancho: 520, kg: 0, producto: 'GISELA CORTA', importado: false },
+    { id: 'INV095', material: 'CAST', micras: 25, ancho: 560, kg: 148.43, producto: 'GRANOS', importado: false },
+    { id: 'INV097', material: 'CAST', micras: 25, ancho: 560, kg: 9998.52, producto: '', importado: true },
+    { id: 'INV099', material: 'CAST', micras: 25, ancho: 570, kg: 0, producto: 'OJO D\'VITA', importado: false },
+    { id: 'INV101', material: 'CAST', micras: 25, ancho: 574, kg: 0, producto: 'INALSA', importado: false },
+    { id: 'INV103', material: 'CAST', micras: 25, ancho: 580, kg: 0, producto: 'GRANOS', importado: false },
+    { id: 'INV105', material: 'CAST', micras: 25, ancho: 620, kg: 888.66, producto: '', importado: true },
+    { id: 'INV107', material: 'CAST', micras: 25, ancho: 620, kg: 2155.7, producto: 'SIRENA LARGA', importado: false },
+    { id: 'INV109', material: 'CAST', micras: 25, ancho: 660, kg: 0, producto: '', importado: false },
+    { id: 'INV111', material: 'CAST', micras: 25, ancho: 674, kg: 0, producto: 'INALSA', importado: false },
+    { id: 'INV113', material: 'CAST', micras: 25, ancho: 680, kg: 370.72, producto: 'AVENA Y ZAFIRO', importado: false },
+    { id: 'INV115', material: 'CAST', micras: 25, ancho: 680, kg: 6710.46, producto: '', importado: true },
+    { id: 'INV117', material: 'CAST', micras: 25, ancho: 700, kg: 1449.68, producto: '', importado: true },
+    { id: 'INV119', material: 'CAST', micras: 25, ancho: 700, kg: 1225.3, producto: 'FINA BLOQ', importado: false },
+    { id: 'INV121', material: 'CAST', micras: 25, ancho: 720, kg: 3.0, producto: 'INALSA', importado: false },
+    { id: 'INV123', material: 'CAST', micras: 25, ancho: 740, kg: 620.48, producto: 'MICAELA', importado: true },
+    { id: 'INV125', material: 'CAST', micras: 25, ancho: 760, kg: 400.52, producto: '', importado: false },
+    { id: 'INV127', material: 'CAST', micras: 25, ancho: 800, kg: 155.0, producto: 'BABO 72', importado: false },
+    { id: 'INV129', material: 'CAST', micras: 30, ancho: 430, kg: 1256.8, producto: '', importado: false },
+    { id: 'INV131', material: 'CAST', micras: 30, ancho: 600, kg: 2324.4, producto: '', importado: false },
+    { id: 'INV133', material: 'CAST', micras: 30, ancho: 700, kg: 959.34, producto: 'MI MASA900 G', importado: true },
+    { id: 'INV135', material: 'CAST', micras: 30, ancho: 740, kg: 0, producto: 'BUDARE', importado: false },
+    { id: 'INV137', material: 'CAST', micras: 35, ancho: 770, kg: 0, producto: 'BUDARE', importado: false },
+    // BOPP PASTA
+    { id: 'INV139', material: 'BOPP PASTA', micras: 25, ancho: 430, kg: 877.8, producto: 'SIRENA 500', importado: false },
+    { id: 'INV141', material: 'BOPP PASTA', micras: 25, ancho: 470, kg: 780.55, producto: 'INALSA', importado: false },
+    { id: 'INV143', material: 'BOPP PASTA', micras: 25, ancho: 490, kg: 927.4, producto: 'SIRENA CORTA', importado: false },
+    { id: 'INV145', material: 'BOPP PASTA', micras: 25, ancho: 490, kg: 5867.7, producto: '', importado: true },
+    { id: 'INV147', material: 'BOPP PASTA', micras: 25, ancho: 520, kg: 0, producto: 'GISELA CORTA', importado: false },
+    { id: 'INV149', material: 'BOPP PASTA', micras: 25, ancho: 574, kg: 0, producto: 'INALSA', importado: false },
+    { id: 'INV151', material: 'BOPP PASTA', micras: 25, ancho: 620, kg: 499.15, producto: 'SIRENA LARGA', importado: false },
+    { id: 'INV153', material: 'BOPP PASTA', micras: 25, ancho: 620, kg: 2023.86, producto: '', importado: true },
+    { id: 'INV155', material: 'BOPP PASTA', micras: 25, ancho: 674, kg: 0, producto: 'INALSA', importado: false },
+    // PEBD
+    { id: 'INV084', material: 'PEBD', micras: 20, ancho: 760, kg: 369.0, producto: '', importado: false },
+    { id: 'INV086', material: 'PEBD', micras: 22, ancho: 660, kg: 0, producto: 'ARROZ DON JULIAN', importado: false },
+    { id: 'INV088', material: 'PEBD', micras: 25, ancho: 630, kg: 0, producto: 'MARY PREM', importado: false },
+    { id: 'INV090', material: 'PEBD', micras: 25, ancho: 650, kg: 0, producto: 'MARY TRAD', importado: false },
+    { id: 'INV092', material: 'PEBD', micras: 25, ancho: 660, kg: 0, producto: 'DON JULIAN', importado: false },
+    { id: 'INV094', material: 'PEBD', micras: 25, ancho: 970, kg: 0, producto: 'MARY TRAD', importado: false },
+    { id: 'INV096', material: 'PEBD', micras: 26, ancho: 630, kg: 419.5, producto: 'MARY PREMIUM', importado: false },
+    { id: 'INV098', material: 'PEBD', micras: 26, ancho: 650, kg: 60.0, producto: 'MARY', importado: false },
+    { id: 'INV100', material: 'PEBD', micras: 26, ancho: 660, kg: 0, producto: 'DON JULIAN', importado: false },
+    { id: 'INV102', material: 'PEBD', micras: 28, ancho: 660, kg: 0, producto: '', importado: false },
+    { id: 'INV104', material: 'PEBD', micras: 28, ancho: 670, kg: 0, producto: 'ARROZ SANTONI /ALICIA', importado: false },
+    { id: 'INV106', material: 'PEBD', micras: 28, ancho: 670, kg: 12563.5, producto: 'ARROZ SANTONI /ALICIA', importado: false },
+    { id: 'INV108', material: 'PEBD', micras: 28, ancho: 760, kg: 1890.5, producto: 'BUDARE - FATY', importado: false },
+    { id: 'INV110', material: 'PEBD', micras: 28, ancho: 690, kg: 154.0, producto: '', importado: false },
+    { id: 'INV112', material: 'PEBD', micras: 28, ancho: 990, kg: 0, producto: '', importado: false },
+    { id: 'INV114', material: 'PEBD', micras: 30, ancho: 570, kg: 0, producto: 'D\'VITA', importado: false },
+    { id: 'INV116', material: 'PEBD', micras: 30, ancho: 670, kg: 0, producto: 'SANTONI', importado: false },
+    { id: 'INV118', material: 'PEBD', micras: 30, ancho: 690, kg: 0, producto: 'DELICIAS - DUQUESA', importado: false },
+    { id: 'INV120', material: 'PEBD', micras: 30, ancho: 750, kg: 58.0, producto: 'HARINA URBANO', importado: false },
+    { id: 'INV122', material: 'PEBD', micras: 30, ancho: 760, kg: 0, producto: 'HARINA', importado: false },
+    { id: 'INV124', material: 'PEBD', micras: 30, ancho: 990, kg: 0, producto: '', importado: false },
+    { id: 'INV126', material: 'PEBD', micras: 35, ancho: 650, kg: 0, producto: 'GELATINA JUMPI', importado: false },
+    { id: 'INV128', material: 'PEBD', micras: 35, ancho: 750, kg: 0, producto: 'LECHE LAM', importado: false },
+    { id: 'INV130', material: 'PEBD', micras: 35, ancho: 770, kg: 0, producto: 'LECHE', importado: false },
+    { id: 'INV132', material: 'PEBD', micras: 35, ancho: 990, kg: 1226.5, producto: '', importado: false },
+    { id: 'INV134', material: 'PEBD', micras: 38, ancho: 750, kg: 0, producto: 'PAVECA', importado: false },
+    { id: 'INV136', material: 'PEBD', micras: 40, ancho: 670, kg: 189.5, producto: 'ZAFIRO VIEJO', importado: false },
+    { id: 'INV138', material: 'PEBD', micras: 40, ancho: 690, kg: 0, producto: '', importado: false },
+    { id: 'INV140', material: 'PEBD', micras: 40, ancho: 780, kg: 0, producto: 'NUTRITONY', importado: false },
+    { id: 'INV142', material: 'PEBD', micras: 40, ancho: 990, kg: 0, producto: 'DON JULIAN 2,5', importado: false },
+    { id: 'INV144', material: 'PEBD', micras: 45, ancho: 690, kg: 476.5, producto: '', importado: false },
+    { id: 'INV146', material: 'PEBD', micras: 50, ancho: 440, kg: 234.5, producto: '', importado: false },
+    { id: 'INV148', material: 'PEBD', micras: 50, ancho: 470, kg: 937.0, producto: 'LECHE', importado: false },
+    { id: 'INV150', material: 'PEBD', micras: 50, ancho: 630, kg: 2818.0, producto: 'MARY DORADO', importado: false },
+    { id: 'INV152', material: 'PEBD', micras: 50, ancho: 660, kg: 1541.0, producto: 'MARY ESMERALDA', importado: false },
+    { id: 'INV154', material: 'PEBD', micras: 50, ancho: 670, kg: 100.5, producto: '', importado: false },
+    // PEBD PIGMENT
+    { id: 'INV156', material: 'PEBD PIGMENT', micras: 25, ancho: 740, kg: 170.0, producto: 'MAYONESA', importado: false },
+    { id: 'INV157', material: 'PEBD PIGMENT', micras: 25, ancho: 450, kg: 1179.0, producto: 'DETERGENTE', importado: false },
+    { id: 'INV158', material: 'PEBD PIGMENT', micras: 35, ancho: 670, kg: 1569.5, producto: 'MARGARINA', importado: false }
+  ];
+
+  // Preparar filas en lote
+  var rows = [];
+  var ahora = new Date().toISOString();
+
+  for (var i = 0; i < datos.length; i++) {
+    var d = datos[i];
+    var sku = generarSKU_(d.material, d.micras, d.ancho);
+    var codigoBarra = generarCodigoBarra_(i + 1);
+    var densidad = getDensidad_(d.material);
+
+    rows.push([
+      d.id,
+      sku,
+      codigoBarra,
+      d.material,
+      d.micras,
+      d.ancho,
+      d.kg,
+      d.producto,
+      d.importado ? 'SI' : 'NO',
+      densidad,
+      d.importado ? 'Importado' : '',
+      'Almacen',
+      '',
+      ahora,
+      'disponible',
+      ahora
+    ]);
+  }
+
+  // Escribir todas las filas de golpe
+  sheet.getRange(2, 1, rows.length, INVENTARIO_HEADERS.length).setValues(rows);
+
+  // Formatear la hoja
+  sheet.setFrozenRows(1);
+  sheet.getRange(1, 1, 1, INVENTARIO_HEADERS.length)
+    .setFontWeight('bold')
+    .setBackground('#4285f4')
+    .setFontColor('white');
+
+  for (var c = 1; c <= INVENTARIO_HEADERS.length; c++) {
+    sheet.autoResizeColumn(c);
+  }
+
+  Logger.log('Inventario cargado desde API: ' + datos.length + ' productos');
+  return { success: true, message: 'Inventario cargado: ' + datos.length + ' productos', count: datos.length };
 }
 
 /**

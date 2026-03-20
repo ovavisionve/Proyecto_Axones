@@ -2460,6 +2460,100 @@ function cargarTodosLosDatos() {
   resultados.push(cargarInventarioDesdeAPI());
   resultados.push(cargarTintasDesdeAPI());
   resultados.push(cargarAdhesivosDesdeAPI());
+  resultados.push(cargarUsuariosDesdeAPI());
   Logger.log('Resultados: ' + JSON.stringify(resultados));
   return { success: true, resultados: resultados };
+}
+
+// ============================================
+// CARGA INICIAL DE USUARIOS (23 usuarios reales)
+// Equipo Inversiones Axones 2008, C.A.
+// ============================================
+
+function cargarUsuariosDesdeAPI() {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheetName = SHEETS.USUARIOS;
+
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+    sheet.appendRow(USUARIOS_HEADERS);
+  }
+
+  // Limpiar datos existentes
+  var lastRow = sheet.getLastRow();
+  if (lastRow > 1) {
+    sheet.deleteRows(2, lastRow - 1);
+  }
+
+  var usuarios = [
+    // Gerencia
+    { id: 1, usuario: 'rparra', password: 'axones2026', nombre: 'ROBERT', apellido: 'PARRA', rol: 'jefe_operaciones', area: 'Gerencia', email: '', activo: true },
+    // Produccion
+    { id: 2, usuario: 'ajaure', password: 'axones2026', nombre: 'ALEXIS', apellido: 'JAURE', rol: 'jefe_operaciones', area: 'Produccion', email: '', activo: true },
+    { id: 3, usuario: 'aanare', password: 'axones2026', nombre: 'ANGEL', apellido: 'ANARE', rol: 'planificador', area: 'Produccion', email: '', activo: true },
+    { id: 4, usuario: 'rguape', password: 'axones2026', nombre: 'ROXANA', apellido: 'GUAPE', rol: 'supervisor', area: 'Produccion', email: '', activo: true },
+    { id: 5, usuario: 'harzola', password: 'axones2026', nombre: 'HENRY', apellido: 'ARZOLA', rol: 'supervisor', area: 'Produccion', email: '', activo: true },
+    // Almacen
+    { id: 6, usuario: 'lgonzalez', password: 'axones2026', nombre: 'LEONARDO', apellido: 'GONZALEZ', rol: 'jefe_almacen', area: 'Almacen', email: '', activo: true },
+    // Impresion
+    { id: 7, usuario: 'gmujica', password: 'axones2026', nombre: 'GONZALO', apellido: 'MUJICA', rol: 'operador', area: 'Impresion', email: '', activo: true },
+    { id: 8, usuario: 'ncamacaro', password: 'axones2026', nombre: 'NELSON', apellido: 'CAMACARO', rol: 'operador', area: 'Impresion', email: '', activo: true },
+    { id: 9, usuario: 'scobos', password: 'axones2026', nombre: 'STIVEN', apellido: 'COBOS', rol: 'operador', area: 'Impresion', email: '', activo: true },
+    { id: 10, usuario: 'nnino', password: 'axones2026', nombre: 'NESTOR', apellido: 'NINO', rol: 'operador', area: 'Impresion', email: '', activo: true },
+    { id: 11, usuario: 'mnieves', password: 'axones2026', nombre: 'MIGUEL', apellido: 'NIEVES', rol: 'operador', area: 'Impresion', email: '', activo: true },
+    // Laminacion
+    { id: 12, usuario: 'jcolmenares', password: 'axones2026', nombre: 'JACSON', apellido: 'COLMENARES', rol: 'operador', area: 'Laminacion', email: '', activo: true },
+    { id: 13, usuario: 'arodriguez', password: 'axones2026', nombre: 'ANGEL', apellido: 'RODRIGUEZ', rol: 'operador', area: 'Laminacion', email: '', activo: true },
+    { id: 14, usuario: 'yaranguren', password: 'axones2026', nombre: 'YSAIAS', apellido: 'ARANGUREN', rol: 'operador', area: 'Laminacion', email: '', activo: true },
+    // Corte
+    { id: 15, usuario: 'jguzman', password: 'axones2026', nombre: 'JUAN', apellido: 'GUZMAN', rol: 'operador', area: 'Corte', email: '', activo: true },
+    { id: 16, usuario: 'apinero', password: 'axones2026', nombre: 'ALIS', apellido: 'PINERO', rol: 'operador', area: 'Corte', email: '', activo: true },
+    { id: 17, usuario: 'imonroy', password: 'axones2026', nombre: 'IAN', apellido: 'MONROY', rol: 'operador', area: 'Corte', email: '', activo: true },
+    { id: 18, usuario: 'fabarca', password: 'axones2026', nombre: 'FERNANDO', apellido: 'ABARCA', rol: 'operador', area: 'Corte', email: '', activo: true },
+    { id: 19, usuario: 'rpena', password: 'axones2026', nombre: 'RAMIRO', apellido: 'PENA', rol: 'operador', area: 'Corte', email: '', activo: true },
+    { id: 20, usuario: 'emarquez', password: 'axones2026', nombre: 'EFREN', apellido: 'MARQUEZ', rol: 'operador', area: 'Corte', email: '', activo: true },
+    { id: 21, usuario: 'jmartinez', password: 'axones2026', nombre: 'JESUS', apellido: 'MARTINEZ', rol: 'operador', area: 'Corte', email: '', activo: true },
+    // Colorista
+    { id: 22, usuario: 'alaya', password: 'axones2026', nombre: 'ASDRUBAL', apellido: 'LAYA', rol: 'colorista', area: 'Produccion', email: '', activo: true },
+    // Admin del sistema
+    { id: 99, usuario: 'admin', password: 'admin123', nombre: 'Administrador', apellido: 'Sistema', rol: 'administrador', area: 'Administracion', email: 'axones2008@gmail.com', activo: true }
+  ];
+
+  var rows = [];
+  var ahora = new Date().toISOString();
+
+  usuarios.forEach(function(u) {
+    rows.push([
+      u.id,
+      u.usuario,
+      u.password,
+      u.nombre,
+      u.apellido,
+      u.rol,
+      u.area,
+      u.email,
+      u.activo ? 'SI' : 'NO',
+      ahora,
+      ''
+    ]);
+  });
+
+  if (rows.length > 0) {
+    sheet.getRange(2, 1, rows.length, USUARIOS_HEADERS.length).setValues(rows);
+  }
+
+  // Formatear
+  sheet.setFrozenRows(1);
+  sheet.getRange(1, 1, 1, USUARIOS_HEADERS.length)
+    .setFontWeight('bold')
+    .setBackground('#2e7d32')
+    .setFontColor('white');
+
+  for (var c = 1; c <= USUARIOS_HEADERS.length; c++) {
+    sheet.autoResizeColumn(c);
+  }
+
+  Logger.log('Usuarios cargados: ' + usuarios.length);
+  return { success: true, message: 'Usuarios cargados: ' + usuarios.length, count: usuarios.length };
 }

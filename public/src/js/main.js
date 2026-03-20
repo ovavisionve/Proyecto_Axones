@@ -429,11 +429,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // Inicializar datos de demo si no existen ordenes de trabajo
     if (typeof DemoData !== 'undefined') {
         const ordenes = localStorage.getItem('axones_ordenes_trabajo');
-        if (!ordenes || JSON.parse(ordenes).length === 0) {
+        const ordenesArr = ordenes ? JSON.parse(ordenes) : [];
+        if (ordenesArr.length === 0) {
             console.log('No hay ordenes de trabajo, inicializando datos de demo...');
             DemoData.init();
+        } else {
+            // Asegurar que los datos complementarios existan (produccion, maquinas, etc.)
+            if (!localStorage.getItem('axones_maquinas_estado')) {
+                DemoData.generarEstadoMaquinas();
+            }
         }
     }
+
+    // Asegurar que los 23 usuarios reales estan cargados
+    const usuarios = JSON.parse(localStorage.getItem('axones_usuarios') || '[]');
+    if (usuarios.length < 10) {
+        // Forzar recarga de usuarios en la proxima visita a admin
+        localStorage.removeItem('axones_usuarios');
+    }
+
     Axones.init();
 });
 

@@ -135,6 +135,45 @@ Al seleccionar un producto del inventario en una orden de trabajo, se pre-llenan
 - Al hacer logout, redirige a `login.html`
 - `sessionStorage.axones_return_to` guarda la pagina original para volver despues del login
 
+## Control de Acceso por Roles (IMPLEMENTADO)
+
+### Proteccion a nivel de pagina
+`Auth.PERMISOS_PAGINA` en `auth.js` define que permiso necesita cada pagina:
+- `null` = cualquier usuario autenticado puede acceder (index, alertas, checklist, incidencias)
+- `'ordenes.ver'` = ordenes.html, programacion.html
+- `'impresion.ver'` = impresion.html
+- `'laminacion.ver'` = laminacion.html
+- `'corte.ver'` = corte.html
+- `'inventario.ver'` = inventario.html
+- `'tintas.ver'` = tintas.html
+- `'calidad.ver'` = certificado.html, etiquetas.html
+- `'reportes.ver'` = reportes.html
+- `'chatbot.acceso'` = chatbot.html
+- `'usuarios.gestionar'` = admin.html
+
+### Filtrado de Navbar
+`Auth.NAV_PERMISOS` oculta automaticamente los links del navbar que el usuario no puede acceder. Se aplica via JS en `applyRolePermissions()`.
+
+### Flujo de acceso denegado
+1. Usuario intenta acceder a pagina sin permiso
+2. Se guarda pagina en `sessionStorage.axones_acceso_denegado`
+3. Se redirige a `index.html`
+4. Se muestra alerta amarilla: "No tienes permiso para acceder a X"
+
+### Jerarquia de Roles (menor a mayor)
+operador < colorista < jefe_almacen < supervisor < planificador < jefe_operaciones < administrador
+
+### Que ve cada rol (resumen)
+| Rol | Paginas visibles |
+|-----|-----------------|
+| operador | Dashboard, su area de produccion, alertas, checklist, incidencias |
+| colorista | Dashboard, impresion, tintas, alertas, checklist, incidencias |
+| jefe_almacen | Dashboard, inventario, ordenes, alertas, checklist, incidencias |
+| supervisor | Dashboard, ordenes, impresion, laminacion, corte, inventario, calidad, reportes, alertas, checklist, incidencias |
+| planificador | Dashboard, ordenes, programacion, impresion, laminacion, corte, inventario, reportes, alertas, checklist, incidencias |
+| jefe_operaciones | Todo excepto admin |
+| administrador | Todo |
+
 ## Usuarios del Sistema (22 usuarios reales)
 - Login con: primera letra nombre + apellido (ej: rparra, ajaure)
 - Password temporal: axones2026
@@ -456,18 +495,27 @@ git push origin main
 | registrarProductoTerminado() guarda paletas con bobinas como PT | COMPLETADO |
 | descontarInventario usa totalConsumido en los 3 modulos | COMPLETADO |
 
+### Fase 5: Login obligatorio + Control de acceso por roles
+| Cambio | Estado |
+|--------|--------|
+| Pagina de login dedicada (login.html) | COMPLETADO |
+| Redireccion a login.html si no hay sesion activa | COMPLETADO |
+| Mapa PERMISOS_PAGINA en auth.js (pagina -> permiso) | COMPLETADO |
+| Mapa NAV_PERMISOS para filtrar navbar segun rol | COMPLETADO |
+| Redireccion a index.html + alerta si sin permiso | COMPLETADO |
+| tieneRol() con jerarquia de 7 roles | COMPLETADO |
+| logout() redirige a login.html | COMPLETADO |
+
 ### Campos de Etiqueta de Bobina
 **Entrada** (9 campos): Proveedor, Referencia Bobina, Medida/Ancho, Micraje, Trat. Interno, Trat. Externo, Fecha, Maquina Origen, Pedido/Lote
 **Salida** (6 campos): Peso (auto), Fecha, Metraje, Hora, Empalmes, Operador
 
 ## Commits Recientes (Referencia)
 ```
-8dd9329 feat: Add technical specification fields to production modules
-46d3aac feat: Fase 1 - Arreglos inmediatos
-d036e91 feat: cargar datos de Ficha Tecnica real de Axones
-33c2780 docs: documentar sistema de despachos parciales
-5e1a9cf feat: arreglar botones Play/Pausa y agregar despachos parciales
-053f11a feat: agregar panel comandas y modal obligatorio para pausa
-0a408a7 fix: mejorar insercion del selector de OT en modulos de produccion
-0414c6b feat: agregar etapa MONTAJE al kanban y corregir filtro de OT
+c51cac3 feat: Control de acceso por roles - filtrado de navbar y proteccion de paginas
+03c890c feat: Login obligatorio - pagina dedicada login.html como gate de acceso
+cfbce4d feat: Fase 4 - Producto terminado de corte a inventario
+b183241 feat: Fase 3 - Restante de bobinas usadas + Resumen de produccion
+43c1874 feat: Fase 2 - Flechitas de etiquetas en bobinas de entrada y salida
+cbd07ec feat: Fase 1 - Reorganizar modulos en capsulas claras + checklist integrado
 ```

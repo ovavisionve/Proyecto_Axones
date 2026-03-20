@@ -1005,7 +1005,8 @@ const Laminacion = {
 
             // 2. Descontar material de sustrato (bobinas de entrada)
             const inventario = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
-            const cantidadUsada = parseFloat(datos.totalEntrada) || 0;
+            // Usar totalConsumido (entrada - restante) en vez de totalEntrada
+            const cantidadUsada = parseFloat(datos.totalConsumido) || parseFloat(datos.totalEntrada) || 0;
 
             if (cantidadUsada > 0) {
                 let descontado = false;

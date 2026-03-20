@@ -1249,7 +1249,8 @@ const Impresion = {
     descontarInventario: function(datos) {
         try {
             const inventario = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
-            const cantidadUsada = parseFloat(datos.totalMaterialEntrada) || 0;
+            // Usar totalConsumido (entrada - restante) en vez de totalEntrada
+            const cantidadUsada = parseFloat(datos.totalConsumido) || parseFloat(datos.totalMaterialEntrada) || 0;
 
             if (cantidadUsada <= 0) return;
 

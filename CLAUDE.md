@@ -364,6 +364,7 @@ CONFIG.CHATBOT.MODEL = 'llama-3.3-70b-versatile'
 'axones_alertas'            // Alertas del sistema
 'axones_control_tiempo'     // Control de tiempo (Play/Pausa)
 'axones_tiempo_historial'   // Historial de tiempos reiniciados
+'axones_producto_terminado' // Producto terminado (paletas de corte)
 ```
 
 ### Prefijo de Cache
@@ -443,7 +444,9 @@ git push origin main
 | Cambio | Estado |
 |--------|--------|
 | Scrap 3 categorias en laminacion (Transparente, Impreso, Laminado) | COMPLETADO |
-| Producto terminado de corte a inventario | PENDIENTE |
+| Producto terminado de corte a inventario (axones_producto_terminado) | COMPLETADO |
+| registrarProductoTerminado() guarda paletas con bobinas como PT | COMPLETADO |
+| descontarInventario usa totalConsumido en los 3 modulos | COMPLETADO |
 
 ### Campos de Etiqueta de Bobina
 **Entrada** (9 campos): Proveedor, Referencia Bobina, Medida/Ancho, Micraje, Trat. Interno, Trat. Externo, Fecha, Maquina Origen, Pedido/Lote

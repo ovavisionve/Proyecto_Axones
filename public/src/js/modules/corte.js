@@ -1093,6 +1093,9 @@ const Corte = {
                 // Descontar material del inventario
                 this.descontarInventario(datos);
 
+                // Registrar producto terminado en inventario
+                this.registrarProductoTerminado(datos);
+
                 const porcentajeRefil = parseFloat(datos.porcentajeRefil) || 0;
                 const umbral = CONFIG.UMBRALES_REFIL.default;
                 if (porcentajeRefil > umbral.maximo) {
@@ -1104,6 +1107,7 @@ const Corte = {
         } catch (error) {
             console.error('Error guardando registro:', error);
             this.guardarLocal(datos);
+            this.registrarProductoTerminado(datos);
             Axones.showWarning('Guardado localmente: ' + error.message);
         } finally {
             if (btnGuardar) {
@@ -1253,7 +1257,8 @@ const Corte = {
     descontarInventario: function(datos) {
         try {
             const inventario = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
-            const cantidadUsada = parseFloat(datos.totalEntrada) || 0;
+            // Usar totalConsumido (entrada - restante) en vez de totalEntrada
+            const cantidadUsada = parseFloat(datos.totalConsumido) || parseFloat(datos.totalEntrada) || 0;
 
             if (cantidadUsada <= 0) return;
 
@@ -1369,6 +1374,56 @@ const Corte = {
             `ALERTA: Refil ${datos.porcentajeRefil.toFixed(1)}% excedido en corte`,
             alerta.nivel === CONFIG.ALERTAS.NIVELES.CRITICAL ? 'danger' : 'warning'
         );
+    },
+
+    /**
+     * Registra el producto terminado de corte en inventario de producto terminado
+     */
+    registrarProductoTerminado: function(datos) {
+        try {
+            const pesoSalida = parseFloat(datos.pesoTotalSalida) || 0;
+            if (pesoSalida <= 0) return;
+
+            const productoTerminado = JSON.parse(localStorage.getItem('axones_producto_terminado') || '[]');
+
+            // Crear registro por cada paleta con datos
+            const paletasConDatos = (datos.paletas || []).filter(p => p.pesoTotal > 0);
+
+            paletasConDatos.forEach(paleta => {
+                productoTerminado.unshift({
+                    id: 'PT_' + Date.now() + '_P' + paleta.numero,
+                    registroCorteId: datos.id,
+                    fecha: datos.fecha,
+                    timestamp: new Date().toISOString(),
+                    ordenTrabajo: datos.ordenTrabajo,
+                    cliente: datos.cliente,
+                    producto: datos.producto,
+                    maquina: datos.maquina,
+                    operador: datos.operador,
+                    paleta: paleta.numero,
+                    numBobinas: paleta.totalBobinas,
+                    pesoTotal: paleta.pesoTotal,
+                    bobinas: paleta.bobinas,
+                    estado: 'disponible',
+                    ubicacion: 'Almacen',
+                    registradoPor: datos.registradoPor,
+                    registradoPorNombre: datos.registradoPorNombre,
+                });
+            });
+
+            localStorage.setItem('axones_producto_terminado', JSON.stringify(productoTerminado));
+
+            const totalPaletas = paletasConDatos.length;
+            const totalBobinas = paletasConDatos.reduce((sum, p) => sum + p.totalBobinas, 0);
+            console.log(`Producto terminado: ${totalPaletas} paletas, ${totalBobinas} bobinas, ${pesoSalida.toFixed(2)} Kg registrados`);
+
+            this.mostrarToast(
+                `Producto terminado registrado: ${totalPaletas} paleta(s), ${totalBobinas} bobina(s), ${pesoSalida.toFixed(2)} Kg`,
+                'success'
+            );
+        } catch (error) {
+            console.warn('Error al registrar producto terminado:', error);
+        }
     },
 
     /**

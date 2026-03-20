@@ -1101,6 +1101,9 @@ const Corte = {
                 if (porcentajeRefil > umbral.maximo) {
                     this.generarAlerta(datos);
                 }
+
+                // Ofrecer generar Nota de Entrega
+                this.ofrecerNotaEntrega(datos);
             } else {
                 throw new Error(result.error || 'Error desconocido');
             }
@@ -1109,6 +1112,9 @@ const Corte = {
             this.guardarLocal(datos);
             this.registrarProductoTerminado(datos);
             Axones.showWarning('Guardado localmente: ' + error.message);
+
+            // Ofrecer generar Nota de Entrega incluso si fallo la API
+            this.ofrecerNotaEntrega(datos);
         } finally {
             if (btnGuardar) {
                 btnGuardar.disabled = false;
@@ -1381,6 +1387,43 @@ const Corte = {
             `ALERTA: Refil ${datos.porcentajeRefil.toFixed(1)}% excedido en corte`,
             alerta.nivel === CONFIG.ALERTAS.NIVELES.CRITICAL ? 'danger' : 'warning'
         );
+    },
+
+    /**
+     * Ofrece al usuario generar una Nota de Entrega despues de guardar corte
+     */
+    ofrecerNotaEntrega: function(datos) {
+        const ot = datos.ordenTrabajo || '';
+        if (!ot) return;
+
+        // Mostrar boton flotante para generar nota de entrega
+        const existente = document.getElementById('btnNotaEntrega');
+        if (existente) existente.remove();
+
+        const btn = document.createElement('div');
+        btn.id = 'btnNotaEntrega';
+        btn.innerHTML = `
+            <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 9999;">
+                <div class="alert alert-success shadow-lg d-flex align-items-center gap-2" role="alert">
+                    <i class="bi bi-file-earmark-text fs-4"></i>
+                    <div>
+                        <strong>Corte completado!</strong><br>
+                        <small>Generar Nota de Entrega para ${ot}?</small>
+                    </div>
+                    <a href="nota-entrega.html?ot=${encodeURIComponent(ot)}" class="btn btn-success btn-sm ms-2">
+                        <i class="bi bi-file-earmark-text me-1"></i>Nota de Entrega
+                    </a>
+                    <button class="btn-close ms-2" onclick="this.closest('#btnNotaEntrega').remove()"></button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(btn);
+
+        // Auto-cerrar despues de 30 segundos
+        setTimeout(() => {
+            const el = document.getElementById('btnNotaEntrega');
+            if (el) el.remove();
+        }, 30000);
     },
 
     /**

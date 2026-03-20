@@ -1389,38 +1389,87 @@ const Ordenes = {
     },
 
     /**
-     * Verifica inventario y crea alertas si es necesario
+     * Verifica inventario al crear/editar OT.
+     * Permite crear la OT aunque no haya material, pero emite alerta + email.
      */
     verificarYCrearAlertas: function(orden) {
         const tipoMaterial = orden.tipoMaterial;
-        const pedidoKg = orden.pedidoKg;
+        const pedidoKg = parseFloat(orden.pedidoKg) || 0;
 
         if (!tipoMaterial || !pedidoKg) return;
 
         const disponible = this.inventario.filter(item =>
-            item.material?.includes(tipoMaterial)
-        ).reduce((sum, item) => sum + (item.kg || 0), 0);
+            item.material?.toUpperCase().includes(tipoMaterial.toUpperCase())
+        ).reduce((sum, item) => sum + (parseFloat(item.kg) || 0), 0);
 
         if (disponible < pedidoKg) {
-            this.crearAlertaBajoStock(orden, disponible);
+            this.crearAlertaStockInsuficiente(orden, disponible);
         }
     },
 
     /**
-     * Crea alerta de bajo stock
+     * Crea alerta de stock insuficiente para un pedido y envia email
      */
-    crearAlertaBajoStock: function(orden, disponible) {
+    crearAlertaStockInsuficiente: function(orden, disponible) {
+        const pedidoKg = parseFloat(orden.pedidoKg) || 0;
+        const faltante = pedidoKg - disponible;
+        const nivel = disponible === 0 ? 'critical' : 'danger';
+
+        const mensaje = `EPA! No hay suficiente ${orden.tipoMaterial} para ${orden.numeroOrden} (${orden.cliente}). Necesario: ${pedidoKg} Kg, Disponible: ${disponible.toFixed(1)} Kg. FALTAN ${faltante.toFixed(1)} Kg - COMPRAR!`;
+
         const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
         alertas.unshift({
             id: Date.now(),
-            tipo: 'stock_bajo',
-            nivel: 'danger',
-            mensaje: `Inventario insuficiente para ${orden.numeroOrden}: ${orden.tipoMaterial} - Requerido: ${orden.pedidoKg} Kg, Disponible: ${disponible.toFixed(2)} Kg`,
+            tipo: 'stock_insuficiente_pedido',
+            nivel: nivel,
+            mensaje: mensaje,
             fecha: new Date().toISOString(),
             estado: 'pendiente',
-            datos: { ordenId: orden.id }
+            ot: orden.numeroOrden,
+            datos: {
+                ordenId: orden.id,
+                numeroOrden: orden.numeroOrden,
+                cliente: orden.cliente,
+                material: orden.tipoMaterial,
+                requerido: pedidoKg,
+                disponible: disponible,
+                faltante: faltante
+            }
         });
         localStorage.setItem('axones_alertas', JSON.stringify(alertas));
+
+        // Enviar email inmediato
+        if (typeof AxonesAPI !== 'undefined') {
+            AxonesAPI.enviarAlertaEmail({
+                tipo: 'stock_insuficiente_pedido',
+                nivel: nivel,
+                mensaje: mensaje,
+                ot: orden.numeroOrden,
+                maquina: orden.maquina || ''
+            }).then(() => {
+                console.log('Email de alerta de stock enviado para ' + orden.numeroOrden);
+            }).catch(e => console.warn('Error enviando email:', e));
+        }
+
+        // Sincronizar alerta a Sheets
+        if (typeof AxonesAPI !== 'undefined') {
+            AxonesAPI.createAlerta({
+                tipo: 'stock_insuficiente_pedido',
+                nivel: nivel,
+                mensaje: mensaje,
+                referencia_id: orden.numeroOrden,
+                referencia_tipo: 'stock_insuficiente_pedido'
+            }).catch(e => console.warn('Error sincronizando alerta:', e));
+        }
+
+        // Mostrar aviso visual pero NO bloquear la creacion de la OT
+        if (typeof Axones !== 'undefined') {
+            Axones.showWarning(
+                `Orden ${orden.numeroOrden} creada exitosamente.\n` +
+                `ATENCION: No hay suficiente ${orden.tipoMaterial}. ` +
+                `Faltan ${faltante.toFixed(1)} Kg. Se ha enviado alerta por email.`
+            );
+        }
     },
 
     /**

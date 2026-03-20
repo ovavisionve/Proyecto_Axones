@@ -1032,7 +1032,8 @@ const HomeModule = {
         const container = document.getElementById('alertasRecientes');
         if (!container) return;
 
-        const alertas = this.obtenerAlertasPendientes().slice(0, 5);
+        const todasAlertas = this.obtenerAlertasPendientes();
+        const alertas = todasAlertas.slice(0, 20); // Mostrar hasta 20 mas recientes
 
         if (alertas.length === 0) {
             container.innerHTML = `
@@ -1044,7 +1045,12 @@ const HomeModule = {
             return;
         }
 
-        container.innerHTML = alertas.map(alerta => {
+        // Mostrar contador si hay mas de las visibles
+        const headerInfo = todasAlertas.length > alertas.length
+            ? `<div class="px-3 py-2 bg-light border-bottom small text-muted">Mostrando ${alertas.length} de <strong>${todasAlertas.length}</strong> alertas pendientes</div>`
+            : `<div class="px-3 py-2 bg-light border-bottom small text-muted"><strong>${todasAlertas.length}</strong> alertas pendientes</div>`;
+
+        container.innerHTML = headerInfo + '<div style="max-height: 400px; overflow-y: auto;">' + alertas.map(alerta => {
             const icono = this.obtenerIconoAlerta(alerta.tipo);
             const clase = alerta.nivel === 'danger' || alerta.nivel === 'critical' ? 'danger' : 'warning';
             return `
@@ -1061,7 +1067,7 @@ const HomeModule = {
                     </div>
                 </div>
             `;
-        }).join('');
+        }).join('') + '</div>';
     },
 
     // Cargar produccion del dia

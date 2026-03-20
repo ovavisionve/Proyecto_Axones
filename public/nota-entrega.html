@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nota de Entrega - Axones</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#198754">
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="src/css/main.css" rel="stylesheet">
+    <style>
+        .nota-entrega-print {
+            background: #fff;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 30px;
+            border: 1px solid #ddd;
+        }
+        .nota-header {
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        .nota-header h4 {
+            font-weight: 700;
+            margin: 0;
+        }
+        .nota-header .empresa-info {
+            font-size: 0.75rem;
+            color: #555;
+        }
+        .nota-title {
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: 700;
+            border: 2px solid #333;
+            padding: 5px 20px;
+            display: inline-block;
+        }
+        .nota-datos td, .nota-datos th {
+            padding: 4px 8px;
+            font-size: 0.85rem;
+        }
+        .tabla-material th, .tabla-material td {
+            text-align: center;
+            padding: 6px 10px;
+            border: 1px solid #333;
+            font-size: 0.85rem;
+        }
+        .tabla-material th {
+            background: #f0f0f0;
+            font-weight: 700;
+        }
+        .tabla-material tfoot td {
+            font-weight: 700;
+            background: #f8f8f8;
+        }
+        .firmas-section {
+            margin-top: 30px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .firma-box {
+            text-align: center;
+            width: 30%;
+        }
+        .firma-linea {
+            border-top: 1px solid #333;
+            margin-top: 50px;
+            padding-top: 5px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        @media print {
+            body { background: #fff !important; }
+            .no-print { display: none !important; }
+            .nota-entrega-print {
+                border: none;
+                box-shadow: none;
+                padding: 15px;
+            }
+            .navbar, .sidebar, footer { display: none !important; }
+        }
+        .form-section {
+            background: #fff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success fixed-top" id="mainNavbar">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="index.html">
+                <i class="bi bi-box-seam me-2"></i>AXONES
+            </a>
+            <span class="navbar-text text-white">
+                <i class="bi bi-file-earmark-text me-1"></i>Nota de Entrega
+            </span>
+        </div>
+    </nav>
+
+    <div class="container-fluid" style="margin-top: 70px; padding-bottom: 30px;">
+
+        <!-- Controles (no se imprimen) -->
+        <div class="no-print mb-3">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Seleccionar Orden de Trabajo</label>
+                    <select id="selectOT" class="form-select">
+                        <option value="">-- Seleccione una OT completada --</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">N° Orden de Compra</label>
+                    <input type="text" id="ordenCompra" class="form-control" placeholder="OC-2026-XXXX">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold">N° Nota</label>
+                    <input type="number" id="numeroNota" class="form-control" placeholder="124">
+                </div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button class="btn btn-primary flex-fill" onclick="NotaEntrega.cargarDatosOT()">
+                        <i class="bi bi-arrow-repeat me-1"></i>Cargar
+                    </button>
+                    <button class="btn btn-success flex-fill" onclick="NotaEntrega.imprimir()">
+                        <i class="bi bi-printer me-1"></i>Imprimir
+                    </button>
+                    <button class="btn btn-info" onclick="NotaEntrega.guardar()">
+                        <i class="bi bi-save me-1"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Datos adicionales del despacho -->
+            <div class="row g-2 mt-2">
+                <div class="col-md-4">
+                    <label class="form-label small">Vehiculo</label>
+                    <input type="text" id="vehiculo" class="form-control form-control-sm" placeholder="CAMION MITSUBICHI CANTER PLACA A47BG3D">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small">Conductor</label>
+                    <input type="text" id="conductor" class="form-control form-control-sm" placeholder="Nombre del conductor">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small">C.I. Conductor</label>
+                    <input type="text" id="conductorCI" class="form-control form-control-sm" placeholder="V-0.000.000">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">Autorizado por</label>
+                    <input type="text" id="autorizadoPor" class="form-control form-control-sm" placeholder="Nombre">
+                </div>
+            </div>
+            <div class="row g-2 mt-1">
+                <div class="col-md-4">
+                    <label class="form-label small">Despachado por</label>
+                    <input type="text" id="despachadoPor" class="form-control form-control-sm" placeholder="Nombre">
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label small">Observaciones</label>
+                    <input type="text" id="observacionesNota" class="form-control form-control-sm" placeholder="Observaciones...">
+                </div>
+            </div>
+
+            <!-- Editar paletas manualmente -->
+            <div class="mt-3">
+                <h6 class="fw-bold"><i class="bi bi-box-seam me-1"></i>Paletas a despachar</h6>
+                <div id="paletasEditor">
+                    <!-- Se llena dinamicamente -->
+                </div>
+                <button class="btn btn-sm btn-outline-success mt-2" onclick="NotaEntrega.agregarPaleta()">
+                    <i class="bi bi-plus-circle me-1"></i>Agregar Paleta
+                </button>
+            </div>
+        </div>
+
+        <!-- NOTA DE ENTREGA IMPRIMIBLE -->
+        <div class="nota-entrega-print" id="notaEntregaPrint">
+            <!-- Header empresa -->
+            <div class="nota-header">
+                <div class="row align-items-center">
+                    <div class="col-2 text-center">
+                        <img src="icons/icon-72x72.png" alt="Axones" style="width:50px; height:50px;" onerror="this.style.display='none'">
+                    </div>
+                    <div class="col-6 text-center">
+                        <h4>INVERSIONES AXONES 2008 C.A</h4>
+                        <div class="empresa-info">J-40081341-7</div>
+                        <div class="empresa-info">CALLE PARCELAMIENTO INDUSTRIAL GUERE, LOCAL 35, SECTOR LA JULIA, TURMERO, EDO ARAGUA. ZONA POSTAL 2116</div>
+                        <div class="empresa-info">TELFS: (0244) 663.83.76 - (0244) 663.60.62</div>
+                    </div>
+                    <div class="col-4 text-end">
+                        <div class="empresa-info" style="font-size:0.7rem">PLASTICOS<br>LA DINASTIA</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Titulo y numero -->
+            <div class="text-center mb-3">
+                <span class="nota-title">NOTA DE ENTREGA</span>
+            </div>
+            <div class="row mb-3">
+                <div class="col-6">
+                    <!-- vacio -->
+                </div>
+                <div class="col-6 text-end">
+                    <table class="table table-sm table-borderless d-inline-block text-start" style="width:auto">
+                        <tr><td class="fw-bold">N°:</td><td id="printNumeroNota">___</td></tr>
+                        <tr><td class="fw-bold">FECHA:</td><td id="printFecha">___</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Datos del cliente -->
+            <table class="table table-sm table-borderless nota-datos mb-3">
+                <tr>
+                    <td class="fw-bold" style="width:120px">CLIENTE:</td>
+                    <td id="printCliente" style="border-bottom:1px solid #999">___</td>
+                </tr>
+                <tr>
+                    <td class="fw-bold">DIRECCION:</td>
+                    <td id="printDireccion" style="border-bottom:1px solid #999">___</td>
+                </tr>
+                <tr>
+                    <td class="fw-bold">TIPO DE MATERIAL:</td>
+                    <td id="printTipoMaterial" style="border-bottom:1px solid #999">___</td>
+                </tr>
+                <tr>
+                    <td class="fw-bold">O/C:</td>
+                    <td id="printOrdenCompra" style="border-bottom:1px solid #999">___</td>
+                </tr>
+                <tr>
+                    <td class="fw-bold">OT:</td>
+                    <td id="printOT" style="border-bottom:1px solid #999">___</td>
+                </tr>
+            </table>
+
+            <!-- Descripcion del material -->
+            <h6 class="fw-bold text-center mb-2" style="font-size:0.85rem">DESCRIPCION DEL MATERIAL</h6>
+            <table class="table tabla-material mb-3" id="tablaPaletas">
+                <thead>
+                    <tr>
+                        <th>PALETA N°</th>
+                        <th>CANTIDAD DE BOBINAS</th>
+                        <th>KILOS</th>
+                    </tr>
+                </thead>
+                <tbody id="printPaletasBody">
+                    <!-- Se llena dinamicamente -->
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td class="fw-bold">TOTAL</td>
+                        <td id="printTotalBobinas">0</td>
+                        <td id="printTotalKilos">0</td>
+                    </tr>
+                </tfoot>
+            </table>
+
+            <!-- Vehiculo y conductor -->
+            <table class="table table-sm table-borderless nota-datos mb-2">
+                <tr>
+                    <td class="fw-bold" style="width:120px">VEHICULO:</td>
+                    <td id="printVehiculo" style="border-bottom:1px solid #999">___</td>
+                </tr>
+                <tr>
+                    <td class="fw-bold">CONDUCTOR:</td>
+                    <td id="printConductor" style="border-bottom:1px solid #999">___</td>
+                </tr>
+            </table>
+
+            <!-- Observaciones -->
+            <table class="table table-sm table-borderless nota-datos mb-3">
+                <tr>
+                    <td class="fw-bold" style="width:120px">OBSERVACIONES:</td>
+                    <td id="printObservaciones" style="border-bottom:1px solid #999; min-height:40px">___</td>
+                </tr>
+            </table>
+
+            <!-- Firmas -->
+            <div class="firmas-section">
+                <div class="firma-box">
+                    <div class="firma-linea">AUTORIZADO POR:<br><span id="printAutorizado">___</span></div>
+                </div>
+                <div class="firma-box">
+                    <div class="firma-linea">DESPACHADO POR:<br><span id="printDespachado">___</span></div>
+                </div>
+                <div class="firma-box">
+                    <div class="firma-linea">RECIBIDO POR:<br><span id="printRecibido">___</span></div>
+                </div>
+            </div>
+
+            <!-- Pie -->
+            <div class="text-center mt-4" style="font-size:0.7rem; color:#999;">
+                INVERSIONES AXONES 2008, C.A. - Sistema de Gestion de Produccion
+            </div>
+        </div>
+
+        <!-- Historial de notas -->
+        <div class="no-print mt-4">
+            <div class="card">
+                <div class="card-header bg-success text-white d-flex justify-content-between">
+                    <h6 class="mb-0"><i class="bi bi-clock-history me-1"></i>Historial de Notas de Entrega</h6>
+                    <span class="badge bg-white text-success" id="totalNotas">0</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>N° Nota</th>
+                                    <th>Fecha</th>
+                                    <th>OT</th>
+                                    <th>O/C</th>
+                                    <th>Cliente</th>
+                                    <th>Paletas</th>
+                                    <th>Kg Total</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historialNotas">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="src/js/utils/config.js"></script>
+    <script src="src/js/utils/auth.js"></script>
+    <script src="src/js/utils/api.js"></script>
+    <script src="src/js/utils/theme.js"></script>
+    <script src="src/js/modules/nota-entrega.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Verificar sesion
+            if (typeof Auth !== 'undefined' && !Auth.checkSession()) return;
+
+            NotaEntrega.init();
+
+            // Si viene con parametro OT, cargarla
+            const params = new URLSearchParams(window.location.search);
+            const ot = params.get('ot');
+            if (ot) {
+                document.getElementById('selectOT').value = ot;
+                setTimeout(() => NotaEntrega.cargarDatosOT(), 300);
+            }
+        });
+    </script>
+</body>
+</html>

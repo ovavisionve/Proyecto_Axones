@@ -373,20 +373,29 @@ const Ordenes = {
      * Carga ordenes desde Google Sheets (API), fallback a localStorage
      */
     loadOrdenes: async function() {
+        // Cargar primero desde localStorage (incluye ordenes creadas localmente)
+        const stored = localStorage.getItem('axones_ordenes_trabajo');
+        const ordenesLocales = stored ? JSON.parse(stored) : [];
+
         try {
             if (typeof AxonesAPI !== 'undefined') {
                 const result = await AxonesAPI.getOrdenes();
-                if (result && result.success && Array.isArray(result.data)) {
+                if (result && result.success && Array.isArray(result.data) && result.data.length > 0) {
                     // Usar datosCompletos si existe (tiene todos los campos)
-                    this.ordenes = result.data.map(o => {
+                    const ordenesAPI = result.data.map(o => {
                         if (o.datosCompletos && typeof o.datosCompletos === 'object') {
                             return { ...o.datosCompletos, id: o.id, estado: o.estado, etapa: o.etapa };
                         }
                         return o;
                     });
-                    // Guardar copia local como respaldo
+
+                    // Merge: API + locales que no esten en API (por id)
+                    const idsAPI = new Set(ordenesAPI.map(o => o.id));
+                    const soloLocales = ordenesLocales.filter(o => !idsAPI.has(o.id));
+                    this.ordenes = [...ordenesAPI, ...soloLocales];
+
                     localStorage.setItem('axones_ordenes_trabajo', JSON.stringify(this.ordenes));
-                    console.log('[Ordenes] Cargadas desde Sheets:', this.ordenes.length);
+                    console.log('[Ordenes] Cargadas desde Sheets:', ordenesAPI.length, '+ locales:', soloLocales.length);
                     this.filteredOrdenes = [...this.ordenes];
                     return;
                 }
@@ -394,13 +403,9 @@ const Ordenes = {
         } catch (e) {
             console.warn('[Ordenes] Error cargando desde API, usando localStorage:', e.message);
         }
+
         // Fallback a localStorage
-        const stored = localStorage.getItem('axones_ordenes_trabajo');
-        if (stored) {
-            this.ordenes = JSON.parse(stored);
-        } else {
-            this.ordenes = [];
-        }
+        this.ordenes = ordenesLocales;
         this.filteredOrdenes = [...this.ordenes];
     },
 

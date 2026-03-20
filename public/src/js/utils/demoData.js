@@ -403,10 +403,13 @@ const DemoData = {
 
     // Generar ordenes de trabajo de prueba
     generarOrdenesTrabajo() {
-        // No sobrescribir ordenes existentes
+        // No sobrescribir ordenes reales (que tengan registradoPor de usuario real)
         const existentes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
-        if (existentes.length > 0) {
-            console.log('Ordenes: Ya existen ' + existentes.length + ' ordenes, no se sobrescriben');
+        const tieneOrdenesReales = existentes.some(o =>
+            o.registradoPor && o.registradoPor !== 'sistema' && !o.id?.startsWith('OT_DEMO')
+        );
+        if (tieneOrdenesReales) {
+            console.log('Ordenes: Ya existen ' + existentes.length + ' ordenes reales, no se sobrescriben');
             return;
         }
 

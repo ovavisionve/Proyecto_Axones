@@ -135,15 +135,49 @@ const AdminModule = {
         }
 
         if (usuarios.length === 0) {
-            // Crear usuarios por defecto
+            // Cargar los 22 usuarios reales de Axones + admin del sistema
             usuarios = [
-                { id: 1, nombre: 'Administrador', usuario: 'admin', rol: 'administrador', activo: true },
-                { id: 2, nombre: 'Supervisor General', usuario: 'supervisor', rol: 'supervisor', activo: true },
-                { id: 3, nombre: 'Jefe de Operaciones', usuario: 'jefe', rol: 'jefe_operaciones', activo: true },
-                { id: 4, nombre: 'Operador 1', usuario: 'operador1', rol: 'operador', activo: true },
-                { id: 5, nombre: 'Operador 2', usuario: 'operador2', rol: 'operador', activo: false },
+                // Gerencia
+                { id: 1, nombre: 'ROBERT PARRA', usuario: 'rparra', rol: 'jefe_operaciones', area: 'Gerencia', cargo: 'Gerente General', activo: true },
+                // Produccion
+                { id: 2, nombre: 'ALEXIS JAURE', usuario: 'ajaure', rol: 'jefe_operaciones', area: 'Produccion', cargo: 'Gerente de Operaciones', activo: true },
+                { id: 3, nombre: 'ANGEL ANARE', usuario: 'aanare', rol: 'planificador', area: 'Produccion', cargo: 'Planificador', activo: true },
+                { id: 4, nombre: 'ROXANA GUAPE', usuario: 'rguape', rol: 'supervisor', area: 'Produccion', cargo: 'Supervisora de Calidad', activo: true },
+                { id: 5, nombre: 'HENRY ARZOLA', usuario: 'harzola', rol: 'supervisor', area: 'Produccion', cargo: 'Supervisor de Produccion', activo: true },
+                // Almacen
+                { id: 6, nombre: 'LEONARDO GONZALEZ', usuario: 'lgonzalez', rol: 'jefe_almacen', area: 'Almacen', cargo: 'Almacenista', activo: true },
+                // Impresion
+                { id: 7, nombre: 'GONZALO MUJICA', usuario: 'gmujica', rol: 'operador', area: 'Impresion', cargo: 'Operador de Impresion', activo: true },
+                { id: 8, nombre: 'NELSON CAMACARO', usuario: 'ncamacaro', rol: 'operador', area: 'Impresion', cargo: 'Operador de Impresion', activo: true },
+                { id: 9, nombre: 'STIVEN COBOS', usuario: 'scobos', rol: 'operador', area: 'Impresion', cargo: 'Operador de Impresion', activo: true },
+                { id: 10, nombre: 'NESTOR NINO', usuario: 'nnino', rol: 'operador', area: 'Impresion', cargo: 'Operador de Impresion', activo: true },
+                { id: 11, nombre: 'MIGUEL NIEVES', usuario: 'mnieves', rol: 'operador', area: 'Impresion', cargo: 'Operador de Impresion', activo: true },
+                // Laminacion
+                { id: 12, nombre: 'JACSON COLMENARES', usuario: 'jcolmenares', rol: 'operador', area: 'Laminacion', cargo: 'Operador de Laminacion', activo: true },
+                { id: 13, nombre: 'ANGEL RODRIGUEZ', usuario: 'arodriguez', rol: 'operador', area: 'Laminacion', cargo: 'Operador de Laminacion', activo: true },
+                { id: 14, nombre: 'YSAIAS ARANGUREN', usuario: 'yaranguren', rol: 'operador', area: 'Laminacion', cargo: 'Operador de Laminacion', activo: true },
+                // Corte
+                { id: 15, nombre: 'JUAN GUZMAN', usuario: 'jguzman', rol: 'operador', area: 'Corte', cargo: 'Operador de Corte', activo: true },
+                { id: 16, nombre: 'ALIS PINERO', usuario: 'apinero', rol: 'operador', area: 'Corte', cargo: 'Operador de Corte', activo: true },
+                { id: 17, nombre: 'IAN MONROY', usuario: 'imonroy', rol: 'operador', area: 'Corte', cargo: 'Operador de Corte', activo: true },
+                { id: 18, nombre: 'FERNANDO ABARCA', usuario: 'fabarca', rol: 'operador', area: 'Corte', cargo: 'Operador de Corte', activo: true },
+                { id: 19, nombre: 'RAMIRO PENA', usuario: 'rpena', rol: 'operador', area: 'Corte', cargo: 'Operador de Corte', activo: true },
+                { id: 20, nombre: 'EFREN MARQUEZ', usuario: 'emarquez', rol: 'operador', area: 'Corte', cargo: 'Operador de Corte', activo: true },
+                { id: 21, nombre: 'JESUS MARTINEZ', usuario: 'jmartinez', rol: 'operador', area: 'Corte', cargo: 'Operador de Corte', activo: true },
+                // Colorista
+                { id: 22, nombre: 'ASDRUBAL LAYA', usuario: 'alaya', rol: 'colorista', area: 'Produccion', cargo: 'Colorista', activo: true },
+                // Admin del sistema
+                { id: 99, nombre: 'Administrador', usuario: 'admin', rol: 'administrador', area: 'Administracion', cargo: 'Administrador del Sistema', activo: true },
             ];
             localStorage.setItem('axones_usuarios', JSON.stringify(usuarios));
+        }
+
+        // Contador de usuarios
+        const totalUsuarios = usuarios.length;
+        const activos = usuarios.filter(u => u.activo).length;
+        const headerInfo = document.querySelector('.card-header .badge');
+        if (headerInfo) {
+            headerInfo.textContent = `${activos}/${totalUsuarios}`;
         }
 
         tbody.innerHTML = usuarios.map(u => {
@@ -154,9 +188,15 @@ const AdminModule = {
 
             return `
                 <tr>
-                    <td><strong>${u.nombre}</strong></td>
+                    <td>
+                        <strong>${u.nombre}</strong>
+                        ${u.cargo ? '<br><small class="text-muted">' + u.cargo + '</small>' : ''}
+                    </td>
                     <td>${u.usuario || '-'}</td>
                     <td>${rolBadge}</td>
+                    <td>
+                        <small class="text-muted">${u.area || '-'}</small>
+                    </td>
                     <td>${estadoBadge}</td>
                     <td>
                         <button class="btn btn-sm btn-outline-secondary" onclick="AdminModule.toggleUsuario(${u.id})">
@@ -172,11 +212,14 @@ const AdminModule = {
     getRolBadge(rol) {
         const roles = {
             'administrador': '<span class="badge bg-danger">Administrador</span>',
-            'supervisor': '<span class="badge bg-warning text-dark">Supervisor</span>',
             'jefe_operaciones': '<span class="badge bg-info">Jefe Operaciones</span>',
+            'supervisor': '<span class="badge bg-warning text-dark">Supervisor</span>',
+            'planificador': '<span class="badge bg-primary">Planificador</span>',
+            'jefe_almacen': '<span class="badge bg-success">Jefe Almacen</span>',
+            'colorista': '<span class="badge bg-purple" style="background:#9c27b0!important">Colorista</span>',
             'operador': '<span class="badge bg-secondary">Operador</span>',
         };
-        return roles[rol] || '<span class="badge bg-light text-dark">Desconocido</span>';
+        return roles[rol] || '<span class="badge bg-light text-dark">' + (rol || 'Desconocido') + '</span>';
     },
 
     // Mostrar modal de usuario

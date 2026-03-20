@@ -1285,6 +1285,13 @@ const Impresion = {
                 localStorage.setItem('axones_inventario', JSON.stringify(inventario));
                 console.log('Inventario actualizado despues de produccion');
 
+                // Sincronizar descuentos con Sheets
+                if (typeof AxonesAPI !== 'undefined') {
+                    for (const item of inventario.filter(i => parseFloat(i.kg) >= 0)) {
+                        AxonesAPI.updateInventario(item.id, { kg: item.kg }).catch(() => {});
+                    }
+                }
+
                 // Verificar si hay stock bajo y generar alerta
                 this.verificarStockBajo(inventario);
             }

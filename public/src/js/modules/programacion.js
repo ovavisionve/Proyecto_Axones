@@ -31,10 +31,28 @@ const Programacion = {
     },
 
     /**
-     * Carga ordenes desde localStorage
+     * Carga ordenes desde Sheets (API), fallback a localStorage
      */
     cargarOrdenes: function() {
-        // Cargar ordenes del modulo de Ordenes de Trabajo
+        // Intentar cargar desde API en background
+        if (typeof AxonesAPI !== 'undefined') {
+            AxonesAPI.getOrdenes().then(result => {
+                if (result && result.success && Array.isArray(result.data) && result.data.length > 0) {
+                    this.ordenes = result.data.map(o => {
+                        if (o.datosCompletos && typeof o.datosCompletos === 'object') {
+                            return { ...o.datosCompletos, id: o.id, estado: o.estado, etapa: o.etapa };
+                        }
+                        return o;
+                    });
+                    localStorage.setItem('axones_ordenes_trabajo', JSON.stringify(this.ordenes));
+                    this.renderizarTablero();
+                    this.actualizarContadores();
+                    console.log('[Programacion] Ordenes cargadas desde Sheets:', this.ordenes.length);
+                }
+            }).catch(e => console.warn('[Programacion] Error cargando desde API:', e.message));
+        }
+
+        // Cargar desde localStorage inmediatamente (respuesta rapida)
         const stored = localStorage.getItem('axones_ordenes_trabajo');
         if (stored) {
             this.ordenes = JSON.parse(stored);
@@ -57,10 +75,23 @@ const Programacion = {
     },
 
     /**
-     * Guarda ordenes en localStorage
+     * Guarda ordenes en localStorage + sincroniza cambios con Sheets
      */
     guardarOrdenes: function() {
         localStorage.setItem('axones_ordenes_trabajo', JSON.stringify(this.ordenes));
+    },
+
+    /**
+     * Sincroniza cambio de estado/etapa de una orden con Sheets
+     */
+    syncOrdenEstado: function(orden) {
+        if (typeof AxonesAPI !== 'undefined') {
+            AxonesAPI.updateOrden(orden.id, {
+                estado: orden.estado,
+                etapa: orden.etapa,
+                fechaModificacion: new Date().toISOString()
+            }).catch(e => console.warn('[Programacion] Error sync Sheets:', e.message));
+        }
     },
 
     /**
@@ -308,6 +339,10 @@ const Programacion = {
         }
 
         this.guardarOrdenes();
+
+        // Sincronizar cambio de estado con Sheets
+        this.syncOrdenEstado(orden);
+
         this.renderizarTablero();
 
         const nombreEstado = this.getNombreEstado(nuevoEstado);

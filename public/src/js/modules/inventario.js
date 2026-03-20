@@ -207,25 +207,33 @@ const Inventario = {
     loadInventario: async function() {
         // Intentar cargar desde API primero
         try {
-            const response = await AxonesAPI.getInventario();
-            if (response.success && response.data && response.data.length > 0) {
-                // Mapear datos de API a formato local
-                this.items = response.data.map(item => ({
-                    id: item.id,
-                    material: item.tipo || item.material,
-                    micras: item.micras || '',
-                    ancho: item.ancho || '',
-                    kg: parseFloat(item.cantidad) || 0,
-                    producto: item.ubicacion || '',
-                    importado: false,
-                    lote: item.lote || ''
-                }));
-                console.log('Inventario cargado desde API:', this.items.length, 'items');
-                this.filteredItems = [...this.items];
-                return;
+            if (typeof AxonesAPI !== 'undefined') {
+                const response = await AxonesAPI.getInventario();
+                if (response && response.success && Array.isArray(response.data) && response.data.length > 0) {
+                    // Mapear datos de API a formato local
+                    this.items = response.data.map(item => ({
+                        id: item.id,
+                        sku: item.sku || '',
+                        codigoBarra: item.codigoBarra || '',
+                        material: item.material || '',
+                        micras: item.micras || '',
+                        ancho: item.ancho || '',
+                        kg: parseFloat(item.kg) || parseFloat(item.cantidad) || 0,
+                        producto: item.producto || '',
+                        proveedor: item.proveedor || '',
+                        densidad: parseFloat(item.densidad) || 0,
+                        importado: false,
+                        lote: item.lote || ''
+                    }));
+                    // Guardar copia local como respaldo
+                    localStorage.setItem(CONFIG.CACHE.PREFIJO + 'inventario', JSON.stringify(this.items));
+                    console.log('[Inventario] Cargado desde Sheets:', this.items.length, 'items');
+                    this.filteredItems = [...this.items];
+                    return;
+                }
             }
         } catch (error) {
-            console.warn('Error cargando inventario de API:', error);
+            console.warn('[Inventario] Error cargando desde API, usando localStorage:', error);
         }
 
         // Fallback a localStorage
@@ -436,10 +444,25 @@ const Inventario = {
     },
 
     /**
-     * Guarda el inventario en localStorage
+     * Guarda el inventario en localStorage (respaldo local)
      */
     saveInventario: function() {
         localStorage.setItem(CONFIG.CACHE.PREFIJO + 'inventario', JSON.stringify(this.items));
+    },
+
+    /**
+     * Sincroniza un cambio de inventario con Google Sheets
+     */
+    syncInventarioToSheets: async function(itemId, datos) {
+        if (typeof AxonesAPI === 'undefined') return;
+        try {
+            const result = await AxonesAPI.updateInventario(itemId, datos);
+            if (result && result.success) {
+                console.log('[Inventario] Sincronizado con Sheets:', itemId);
+            }
+        } catch (e) {
+            console.warn('[Inventario] Error sync Sheets:', e.message);
+        }
     },
 
     /**
@@ -1125,22 +1148,25 @@ const Inventario = {
         this.renderInventario();
         this.updateTotales();
 
-        // Enviar a API
+        // Sincronizar con Google Sheets
         if (typeof AxonesAPI !== 'undefined') {
             try {
                 await AxonesAPI.createInventario({
-                    tipo: nuevoItem.material,
-                    material: nuevoItem.material + ' ' + nuevoItem.micras + 'µ x ' + nuevoItem.ancho + 'mm',
-                    cantidad: nuevoItem.kg,
-                    unidad: 'Kg',
-                    ubicacion: nuevoItem.producto || 'Almacen',
-                    lote: '',
+                    id: nuevoItem.id,
+                    sku: nuevoItem.sku || '',
+                    codigoBarra: nuevoItem.codigoBarra || '',
+                    material: nuevoItem.material,
+                    micras: nuevoItem.micras,
+                    ancho: nuevoItem.ancho,
+                    kg: nuevoItem.kg,
+                    producto: nuevoItem.producto || '',
                     proveedor: nuevoItem.importado ? 'Importado' : 'Nacional',
-                    observaciones: ''
+                    densidad: nuevoItem.densidad || this.getDensidad(nuevoItem.material),
+                    lote: ''
                 });
-                console.log('Inventario guardado en Google Sheets');
+                console.log('[Inventario] Guardado en Sheets');
             } catch (e) {
-                console.warn('Error guardando inventario en API:', e);
+                console.warn('[Inventario] Error guardando en Sheets:', e);
             }
         }
 
@@ -1178,6 +1204,10 @@ const Inventario = {
             this.saveInventario();
             this.renderInventario();
             this.updateTotales();
+
+            // Sincronizar con Sheets
+            this.syncInventarioToSheets(item.id, { kg: item.kg });
+
             Axones.showSuccess('Cantidad actualizada');
         }
     },
@@ -1228,6 +1258,16 @@ const Inventario = {
             this.saveInventario();
             this.renderInventario();
             this.updateTotales();
+
+            // Sincronizar descuento con Sheets
+            if (typeof AxonesAPI !== 'undefined') {
+                AxonesAPI.descontarInventario({
+                    id: item.id,
+                    kgDescontar: cantidadUsar,
+                    motivo: 'Uso manual desde inventario'
+                }).catch(e => console.warn('[Inventario] Error descuento Sheets:', e.message));
+            }
+
             Axones.showSuccess(`Se descontaron ${cantidadUsar} Kg del inventario`);
         }
     },

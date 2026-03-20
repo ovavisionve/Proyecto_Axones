@@ -1000,6 +1000,16 @@ const Laminacion = {
             if (adhesivosActualizados) {
                 localStorage.setItem('axones_adhesivos_inventario', JSON.stringify(adhesivos));
                 console.log('Inventario de adhesivos actualizado despues de laminacion');
+
+                // Sincronizar adhesivos con Sheets
+                if (typeof AxonesAPI !== 'undefined') {
+                    adhesivos.forEach(a => {
+                        if (a.id) {
+                            AxonesAPI.updateInventario(a.id, { kg: a.cantidad }).catch(() => {});
+                        }
+                    });
+                }
+
                 this.verificarStockBajoAdhesivos(adhesivos);
             }
 
@@ -1035,6 +1045,14 @@ const Laminacion = {
                 if (descontado) {
                     localStorage.setItem('axones_inventario', JSON.stringify(inventario));
                     console.log('Inventario de materiales actualizado despues de laminacion');
+
+                    // Sincronizar descuentos con Sheets
+                    if (typeof AxonesAPI !== 'undefined') {
+                        for (const item of inventario.filter(i => parseFloat(i.kg) >= 0)) {
+                            AxonesAPI.updateInventario(item.id, { kg: item.kg }).catch(() => {});
+                        }
+                    }
+
                     this.verificarStockBajoMaterial(inventario);
                 }
             }

@@ -370,9 +370,31 @@ const Ordenes = {
     },
 
     /**
-     * Carga ordenes desde localStorage
+     * Carga ordenes desde Google Sheets (API), fallback a localStorage
      */
     loadOrdenes: async function() {
+        try {
+            if (typeof AxonesAPI !== 'undefined') {
+                const result = await AxonesAPI.getOrdenes();
+                if (result && result.success && Array.isArray(result.data)) {
+                    // Usar datosCompletos si existe (tiene todos los campos)
+                    this.ordenes = result.data.map(o => {
+                        if (o.datosCompletos && typeof o.datosCompletos === 'object') {
+                            return { ...o.datosCompletos, id: o.id, estado: o.estado, etapa: o.etapa };
+                        }
+                        return o;
+                    });
+                    // Guardar copia local como respaldo
+                    localStorage.setItem('axones_ordenes_trabajo', JSON.stringify(this.ordenes));
+                    console.log('[Ordenes] Cargadas desde Sheets:', this.ordenes.length);
+                    this.filteredOrdenes = [...this.ordenes];
+                    return;
+                }
+            }
+        } catch (e) {
+            console.warn('[Ordenes] Error cargando desde API, usando localStorage:', e.message);
+        }
+        // Fallback a localStorage
         const stored = localStorage.getItem('axones_ordenes_trabajo');
         if (stored) {
             this.ordenes = JSON.parse(stored);
@@ -383,7 +405,7 @@ const Ordenes = {
     },
 
     /**
-     * Guarda ordenes en localStorage
+     * Guarda ordenes en localStorage (respaldo local)
      */
     saveOrdenes: function() {
         localStorage.setItem('axones_ordenes_trabajo', JSON.stringify(this.ordenes));
@@ -1281,7 +1303,11 @@ const Ordenes = {
             this.ordenes.push(ordenData);
         }
 
+        // Guardar localmente como respaldo
         this.saveOrdenes();
+
+        // Sincronizar con Google Sheets
+        this.syncOrdenToSheets(ordenData, !!ordenId);
 
         // Aprender de esta orden para sugerencias futuras
         if (typeof ClienteMemoria !== 'undefined') {
@@ -1301,6 +1327,28 @@ const Ordenes = {
         // Limpiar formulario para nueva orden
         this.limpiarFormulario();
         this.generarNumeroOrden();
+    },
+
+    /**
+     * Sincroniza una orden con Google Sheets (async, no bloquea UI)
+     */
+    syncOrdenToSheets: async function(ordenData, isEdit) {
+        if (typeof AxonesAPI === 'undefined') return;
+        try {
+            let result;
+            if (isEdit) {
+                result = await AxonesAPI.updateOrden(ordenData.id, ordenData);
+            } else {
+                result = await AxonesAPI.createOrden(ordenData);
+            }
+            if (result && result.success) {
+                console.log('[Ordenes] Sincronizada con Sheets:', ordenData.numeroOrden);
+            } else {
+                console.warn('[Ordenes] Error sync Sheets:', result?.error);
+            }
+        } catch (e) {
+            console.warn('[Ordenes] Sin conexion, guardada localmente:', e.message);
+        }
     },
 
     /**
@@ -1532,6 +1580,13 @@ const Ordenes = {
             this.filteredOrdenes = this.filteredOrdenes.filter(o => o.id !== id);
             this.saveOrdenes();
             this.renderTablaOrdenes();
+
+            // Sincronizar eliminacion con Sheets
+            if (typeof AxonesAPI !== 'undefined') {
+                AxonesAPI.deleteOrden(id).catch(e => {
+                    console.warn('[Ordenes] Error eliminando en Sheets:', e.message);
+                });
+            }
 
             if (typeof Axones !== 'undefined') {
                 Axones.showSuccess('Orden eliminada');

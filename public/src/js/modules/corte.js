@@ -1289,6 +1289,13 @@ const Corte = {
                 localStorage.setItem('axones_inventario', JSON.stringify(inventario));
                 console.log('Inventario actualizado despues de corte');
 
+                // Sincronizar descuentos con Sheets
+                if (typeof AxonesAPI !== 'undefined') {
+                    for (const item of inventario.filter(i => parseFloat(i.kg) >= 0)) {
+                        AxonesAPI.updateInventario(item.id, { kg: item.kg }).catch(() => {});
+                    }
+                }
+
                 // Verificar stock bajo y generar alertas
                 this.verificarStockBajo(inventario);
             }
@@ -1416,6 +1423,22 @@ const Corte = {
             const totalPaletas = paletasConDatos.length;
             const totalBobinas = paletasConDatos.reduce((sum, p) => sum + p.totalBobinas, 0);
             console.log(`Producto terminado: ${totalPaletas} paletas, ${totalBobinas} bobinas, ${pesoSalida.toFixed(2)} Kg registrados`);
+
+            // Sincronizar producto terminado con Sheets
+            if (typeof AxonesAPI !== 'undefined') {
+                paletasConDatos.forEach(paleta => {
+                    AxonesAPI.createProductoTerminado({
+                        ot: datos.ordenTrabajo,
+                        cliente: datos.cliente,
+                        producto: datos.producto,
+                        maquina: datos.maquina,
+                        paleta: paleta.numero,
+                        bobinas: JSON.stringify(paleta.bobinas),
+                        pesoTotal: paleta.pesoTotal,
+                        operador: datos.operador
+                    }).catch(e => console.warn('[Corte] Error sync PT Sheets:', e.message));
+                });
+            }
 
             this.mostrarToast(
                 `Producto terminado registrado: ${totalPaletas} paleta(s), ${totalBobinas} bobina(s), ${pesoSalida.toFixed(2)} Kg`,

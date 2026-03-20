@@ -187,6 +187,21 @@ const AxonesAPI = {
                     case 'createUsuario':
                         result = await this.post('createUsuario', item.data);
                         break;
+                    case 'createOrden':
+                        result = await this.post('createOrden', item.data);
+                        break;
+                    case 'updateOrden':
+                        result = await this.post('updateOrden', item.data);
+                        break;
+                    case 'createProductoTerminado':
+                        result = await this.post('createProductoTerminado', item.data);
+                        break;
+                    case 'saveControlTiempo':
+                        result = await this.post('saveControlTiempo', item.data);
+                        break;
+                    case 'descontarInventario':
+                        result = await this.post('descontarInventario', item.data);
+                        break;
                     default:
                         console.warn('Accion desconocida en cola:', item.action);
                         continue;
@@ -396,8 +411,12 @@ const AxonesAPI = {
             'createAlerta': ['getAlertas'],
             'createDespacho': ['getDespachos'],
             'createConsumoTinta': ['getConsumoTintas'],
-            'createOrden': ['getOrdenes'],
-            'updateOrden': ['getOrdenes'],
+            'createOrden': ['getOrdenes', 'getDashboardData'],
+            'updateOrden': ['getOrdenes', 'getDashboardData'],
+            'deleteOrden': ['getOrdenes', 'getDashboardData'],
+            'descontarInventario': ['getInventario'],
+            'createProductoTerminado': ['getProductoTerminado'],
+            'saveControlTiempo': ['getControlTiempo'],
             'createUsuario': ['getUsuarios'],
         };
 
@@ -535,6 +554,48 @@ const AxonesAPI = {
     updateOrden: async function(id, data) {
         const params = { id, data: JSON.stringify(data) };
         return await this.get('updateOrden', params);
+    },
+
+    deleteOrden: async function(id) {
+        return await this.get('deleteOrden', { id });
+    },
+
+    getHistorialOrden: async function(ordenId) {
+        return await this.get('getHistorialOrden', { ordenId }, { skipCache: true });
+    },
+
+    logHistorialOrden: async function(data) {
+        return await this.post('logHistorialOrden', data);
+    },
+
+    getSyncData: async function(params = {}) {
+        return await this.get('getSyncData', params, { skipCache: true });
+    },
+
+    // ==================== INVENTARIO DESCUENTO ====================
+
+    descontarInventario: async function(data) {
+        return await this.post('descontarInventario', data);
+    },
+
+    // ==================== PRODUCTO TERMINADO ====================
+
+    getProductoTerminado: async function(params = {}) {
+        return await this.get('getProductoTerminado', params);
+    },
+
+    createProductoTerminado: async function(data) {
+        return await this.post('createProductoTerminado', data);
+    },
+
+    // ==================== CONTROL DE TIEMPO ====================
+
+    getControlTiempo: async function(params = {}) {
+        return await this.get('getControlTiempo', params);
+    },
+
+    saveControlTiempo: async function(data) {
+        return await this.post('saveControlTiempo', data);
     },
 
     // ==================== ALERTAS POR EMAIL ====================

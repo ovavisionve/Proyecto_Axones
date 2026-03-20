@@ -48,6 +48,15 @@ const Corte = {
 
         // Inicializar controles de tiempo
         this.inicializarControlTiempo();
+
+        // Inicializar checklist
+        this.setupChecklist();
+
+        // Calcular tiempo de preparacion automatico
+        this.setupTiempoPreparacion();
+
+        // Flechitas de etiquetas en bobinas de entrada
+        this.setupEtiquetasBobinas();
     },
 
     /**
@@ -414,6 +423,11 @@ const Corte = {
             input.addEventListener('input', () => this.calcularTotales());
         });
 
+        // Calcular total de restante
+        document.querySelectorAll('.restante-entrada').forEach(input => {
+            input.addEventListener('input', () => this.calcularTotales());
+        });
+
         // Calcular total de scrap
         document.querySelectorAll('.scrap-input').forEach(input => {
             input.addEventListener('input', () => this.calcularTotales());
@@ -609,6 +623,39 @@ const Corte = {
             }
         }
 
+        // Total restante
+        let totalRestante = 0;
+        document.querySelectorAll('.restante-entrada').forEach(input => {
+            totalRestante += parseFloat(input.value) || 0;
+        });
+        const totalRestanteEl = document.getElementById('totalRestante');
+        if (totalRestanteEl) totalRestanteEl.value = totalRestante.toFixed(2);
+
+        const totalConsumido = totalEntrada - totalRestante;
+        const totalConsumidoEl = document.getElementById('totalConsumido');
+        if (totalConsumidoEl) totalConsumidoEl.textContent = totalConsumido.toFixed(2);
+
+        // Actualizar Resumen de Produccion
+        const resEntrada = document.getElementById('resumenEntrada');
+        const resRestante = document.getElementById('resumenRestante');
+        const resConsumido = document.getElementById('resumenConsumido');
+        const resSalida = document.getElementById('resumenSalida');
+        const resScrap = document.getElementById('resumenScrap');
+        const resMerma = document.getElementById('resumenMermaCalc');
+        const resRefil = document.getElementById('resumenRefilCalc');
+        if (resEntrada) resEntrada.textContent = totalEntrada.toFixed(2) + ' Kg';
+        if (resRestante) resRestante.textContent = totalRestante.toFixed(2) + ' Kg';
+        if (resConsumido) resConsumido.textContent = totalConsumido.toFixed(2) + ' Kg';
+        if (resSalida) resSalida.textContent = pesoSalida.toFixed(2) + ' Kg';
+        if (resScrap) resScrap.textContent = totalScrap.toFixed(2) + ' Kg';
+        const mermaResumen = totalConsumido - pesoSalida - totalScrap;
+        if (resMerma) resMerma.textContent = mermaResumen.toFixed(2) + ' Kg';
+        let refilResumen = 0;
+        if (totalConsumido > 0) {
+            refilResumen = (totalScrap / totalConsumido) * 100;
+        }
+        if (resRefil) resRefil.textContent = refilResumen.toFixed(2) + '%';
+
         // Actualizar footer
         this.actualizarFooter(totalEntrada, pesoSalida, merma, totalScrap, paletasConDatos, bobinasSalida);
 
@@ -756,9 +803,11 @@ const Corte = {
             }
         });
 
-        const clienteSelect = document.getElementById('cliente');
+        const clienteSelect = document.getElementById('clienteOrden') || document.getElementById('cliente');
         if (clienteSelect && orden.cliente) {
             clienteSelect.value = orden.cliente;
+            clienteSelect.style.backgroundColor = '#e8f4e8';
+            clienteSelect.style.borderColor = '#198754';
         }
 
         // Actualizar control de tiempo
@@ -771,7 +820,7 @@ const Corte = {
     precargarDesdeParametros: function(params) {
         const mapping = {
             'ot': 'ordenTrabajo',
-            'cliente': 'cliente',
+            'cliente': 'clienteOrden',
             'producto': 'producto'
         };
 
@@ -1044,6 +1093,9 @@ const Corte = {
                 // Descontar material del inventario
                 this.descontarInventario(datos);
 
+                // Registrar producto terminado en inventario
+                this.registrarProductoTerminado(datos);
+
                 const porcentajeRefil = parseFloat(datos.porcentajeRefil) || 0;
                 const umbral = CONFIG.UMBRALES_REFIL.default;
                 if (porcentajeRefil > umbral.maximo) {
@@ -1055,6 +1107,7 @@ const Corte = {
         } catch (error) {
             console.error('Error guardando registro:', error);
             this.guardarLocal(datos);
+            this.registrarProductoTerminado(datos);
             Axones.showWarning('Guardado localmente: ' + error.message);
         } finally {
             if (btnGuardar) {
@@ -1076,6 +1129,15 @@ const Corte = {
             const valor = parseFloat(document.getElementById('bob' + i).value) || 0;
             if (valor > 0) {
                 bobinasEntrada.push({ posicion: i, peso: valor });
+            }
+        }
+
+        // Obtener restante de bobinas
+        const bobinasRestante = [];
+        for (let i = 1; i <= 14; i++) {
+            const valor = parseFloat(document.getElementById('rest' + i)?.value) || 0;
+            if (valor > 0) {
+                bobinasRestante.push({ posicion: i, peso: valor });
             }
         }
 
@@ -1108,6 +1170,7 @@ const Corte = {
             tipo: 'corte',
 
             turno: turnoSeleccionado ? turnoSeleccionado.value : '',
+            cliente: (document.getElementById('clienteOrden') || document.getElementById('cliente'))?.value || '',
             producto: document.getElementById('producto').value,
             maquina: document.getElementById('maquina').value,
             fecha: document.getElementById('fecha').value,
@@ -1122,6 +1185,11 @@ const Corte = {
             bobinasEntrada: bobinasEntrada,
             totalEntrada: parseFloat(document.getElementById('totalEntrada').value) || 0,
 
+            // Restante de bobinas
+            bobinasRestante: bobinasRestante,
+            totalRestante: parseFloat(document.getElementById('totalRestante')?.value) || 0,
+            totalConsumido: parseFloat(document.getElementById('totalConsumido')?.textContent) || 0,
+
             paletas: paletas,
             numPaletas: parseInt(document.getElementById('numPaletas').value) || 0,
             numBobinasSalida: parseInt(document.getElementById('numBobinasSalida').value) || 0,
@@ -1135,6 +1203,9 @@ const Corte = {
 
             motivosParadas: document.getElementById('motivosParadas').value,
             observaciones: document.getElementById('observaciones').value,
+
+            // Etiquetas de bobinas de entrada
+            etiquetasEntrada: this.etiquetasData.entrada,
 
             registradoPor: Auth.getUser() ? Auth.getUser().id : 'unknown',
             registradoPorNombre: Auth.getUser() ? Auth.getUser().nombre : 'Unknown',
@@ -1186,7 +1257,8 @@ const Corte = {
     descontarInventario: function(datos) {
         try {
             const inventario = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
-            const cantidadUsada = parseFloat(datos.totalEntrada) || 0;
+            // Usar totalConsumido (entrada - restante) en vez de totalEntrada
+            const cantidadUsada = parseFloat(datos.totalConsumido) || parseFloat(datos.totalEntrada) || 0;
 
             if (cantidadUsada <= 0) return;
 
@@ -1216,6 +1288,13 @@ const Corte = {
             if (descontado) {
                 localStorage.setItem('axones_inventario', JSON.stringify(inventario));
                 console.log('Inventario actualizado despues de corte');
+
+                // Sincronizar descuentos con Sheets
+                if (typeof AxonesAPI !== 'undefined') {
+                    for (const item of inventario.filter(i => parseFloat(i.kg) >= 0)) {
+                        AxonesAPI.updateInventario(item.id, { kg: item.kg }).catch(() => {});
+                    }
+                }
 
                 // Verificar stock bajo y generar alertas
                 this.verificarStockBajo(inventario);
@@ -1302,6 +1381,239 @@ const Corte = {
             `ALERTA: Refil ${datos.porcentajeRefil.toFixed(1)}% excedido en corte`,
             alerta.nivel === CONFIG.ALERTAS.NIVELES.CRITICAL ? 'danger' : 'warning'
         );
+    },
+
+    /**
+     * Registra el producto terminado de corte en inventario de producto terminado
+     */
+    registrarProductoTerminado: function(datos) {
+        try {
+            const pesoSalida = parseFloat(datos.pesoTotalSalida) || 0;
+            if (pesoSalida <= 0) return;
+
+            const productoTerminado = JSON.parse(localStorage.getItem('axones_producto_terminado') || '[]');
+
+            // Crear registro por cada paleta con datos
+            const paletasConDatos = (datos.paletas || []).filter(p => p.pesoTotal > 0);
+
+            paletasConDatos.forEach(paleta => {
+                productoTerminado.unshift({
+                    id: 'PT_' + Date.now() + '_P' + paleta.numero,
+                    registroCorteId: datos.id,
+                    fecha: datos.fecha,
+                    timestamp: new Date().toISOString(),
+                    ordenTrabajo: datos.ordenTrabajo,
+                    cliente: datos.cliente,
+                    producto: datos.producto,
+                    maquina: datos.maquina,
+                    operador: datos.operador,
+                    paleta: paleta.numero,
+                    numBobinas: paleta.totalBobinas,
+                    pesoTotal: paleta.pesoTotal,
+                    bobinas: paleta.bobinas,
+                    estado: 'disponible',
+                    ubicacion: 'Almacen',
+                    registradoPor: datos.registradoPor,
+                    registradoPorNombre: datos.registradoPorNombre,
+                });
+            });
+
+            localStorage.setItem('axones_producto_terminado', JSON.stringify(productoTerminado));
+
+            const totalPaletas = paletasConDatos.length;
+            const totalBobinas = paletasConDatos.reduce((sum, p) => sum + p.totalBobinas, 0);
+            console.log(`Producto terminado: ${totalPaletas} paletas, ${totalBobinas} bobinas, ${pesoSalida.toFixed(2)} Kg registrados`);
+
+            // Sincronizar producto terminado con Sheets
+            if (typeof AxonesAPI !== 'undefined') {
+                paletasConDatos.forEach(paleta => {
+                    AxonesAPI.createProductoTerminado({
+                        ot: datos.ordenTrabajo,
+                        cliente: datos.cliente,
+                        producto: datos.producto,
+                        maquina: datos.maquina,
+                        paleta: paleta.numero,
+                        bobinas: JSON.stringify(paleta.bobinas),
+                        pesoTotal: paleta.pesoTotal,
+                        operador: datos.operador
+                    }).catch(e => console.warn('[Corte] Error sync PT Sheets:', e.message));
+                });
+            }
+
+            this.mostrarToast(
+                `Producto terminado registrado: ${totalPaletas} paleta(s), ${totalBobinas} bobina(s), ${pesoSalida.toFixed(2)} Kg`,
+                'success'
+            );
+        } catch (error) {
+            console.warn('Error al registrar producto terminado:', error);
+        }
+    },
+
+    /**
+     * Configura el checklist integrado
+     */
+    setupChecklist: function() {
+        const fechaSpan = document.getElementById('checklistFecha');
+        if (fechaSpan) {
+            fechaSpan.textContent = new Date().toLocaleDateString('es-VE');
+        }
+
+        document.querySelectorAll('.checklist-item').forEach(cb => {
+            cb.addEventListener('change', () => this.actualizarProgresoChecklist());
+        });
+
+        const btnGuardar = document.getElementById('btnGuardarChecklist');
+        if (btnGuardar) {
+            btnGuardar.addEventListener('click', () => this.guardarChecklist());
+        }
+    },
+
+    actualizarProgresoChecklist: function() {
+        const total = document.querySelectorAll('.checklist-item').length;
+        const marcados = document.querySelectorAll('.checklist-item:checked').length;
+        const badge = document.getElementById('checklistProgreso');
+        if (badge) badge.textContent = `${marcados}/${total} completados`;
+    },
+
+    guardarChecklist: function() {
+        const items = [];
+        document.querySelectorAll('.checklist-item').forEach(cb => {
+            items.push({ item: cb.value, completado: cb.checked });
+        });
+
+        const estado = document.querySelector('input[name="checklistEstado"]:checked');
+        const datos = {
+            id: 'CHK_CRT_' + Date.now(),
+            area: 'corte',
+            fecha: new Date().toISOString(),
+            ordenTrabajo: document.getElementById('ordenTrabajo')?.value || '',
+            items: items,
+            estado: estado ? estado.value : '',
+            observaciones: document.getElementById('checklistObservaciones')?.value || '',
+            elaboradoPor: document.getElementById('checklistElaborado')?.value || '',
+            revisadoPor: document.getElementById('checklistRevisado')?.value || '',
+            aprobadoPor: document.getElementById('checklistAprobadoPor')?.value || ''
+        };
+
+        const checklists = JSON.parse(localStorage.getItem('axones_checklists') || '[]');
+        checklists.unshift(datos);
+        localStorage.setItem('axones_checklists', JSON.stringify(checklists));
+
+        // Toast
+        let toastContainer = document.querySelector('.toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            document.body.appendChild(toastContainer);
+        }
+        const toastHtml = `<div class="toast align-items-center bg-success text-white border-0" role="alert"><div class="d-flex"><div class="toast-body">Checklist guardado correctamente</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>`;
+        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+        const toastEl = toastContainer.lastElementChild;
+        const toast = new bootstrap.Toast(toastEl, { autohide: true, delay: 3000 });
+        toast.show();
+        toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalChecklist'));
+        if (modal) modal.hide();
+    },
+
+    /**
+     * Configura calculo automatico del tiempo de preparacion
+     */
+    setupTiempoPreparacion: function() {
+        const horaInicio = document.getElementById('horaInicio');
+        const horaArranque = document.getElementById('horaArranque');
+
+        const calcular = () => {
+            const inicio = horaInicio?.value;
+            const arranque = horaArranque?.value;
+            const span = document.getElementById('tiempoPreparacionCalc');
+            if (!span) return;
+
+            if (inicio && arranque) {
+                const [hi, mi] = inicio.split(':').map(Number);
+                const [ha, ma] = arranque.split(':').map(Number);
+                let diffMin = (ha * 60 + ma) - (hi * 60 + mi);
+                if (diffMin < 0) diffMin += 24 * 60;
+                const horas = Math.floor(diffMin / 60);
+                const mins = diffMin % 60;
+                span.textContent = horas > 0 ? `${horas}h ${mins}min` : `${mins} min`;
+            } else {
+                span.textContent = '--';
+            }
+        };
+
+        if (horaInicio) horaInicio.addEventListener('change', calcular);
+        if (horaArranque) horaArranque.addEventListener('change', calcular);
+    },
+
+    /**
+     * Datos de etiquetas de bobinas de entrada
+     */
+    etiquetasData: { entrada: {} },
+
+    /**
+     * Configura flechitas de etiquetas en bobinas de entrada
+     */
+    setupEtiquetasBobinas: function() {
+        const self = this;
+        const entradaFields = ['Proveedor', 'Referencia', 'Medida', 'Micraje', 'TratInt', 'TratExt', 'Fecha', 'Maquina', 'Pedido'];
+
+        // Inyectar flechitas en bobinas de entrada (bob1-bob14)
+        for (let i = 1; i <= 14; i++) {
+            const input = document.getElementById('bob' + i);
+            if (!input) continue;
+            const label = input.previousElementSibling;
+            if (!label || label.querySelector('.bobina-arrow')) continue;
+            const wrapper = document.createElement('span');
+            wrapper.className = 'bobina-label-wrapper';
+            wrapper.innerHTML = label.innerHTML;
+            const arrow = document.createElement('i');
+            arrow.className = 'bi bi-caret-down-fill bobina-arrow';
+            arrow.dataset.tipo = 'entrada';
+            arrow.dataset.bobina = 'bob' + i;
+            arrow.dataset.numero = i;
+            arrow.title = 'Etiqueta bobina ' + i;
+            wrapper.appendChild(arrow);
+            label.innerHTML = '';
+            label.appendChild(wrapper);
+        }
+
+        // Delegated click handler for arrows
+        document.addEventListener('click', function(e) {
+            const arrow = e.target.closest('.bobina-arrow');
+            if (!arrow) return;
+            const bobinaId = arrow.dataset.bobina;
+            const numero = arrow.dataset.numero;
+
+            document.getElementById('etqEntBobinaId').value = bobinaId;
+            document.getElementById('etqEntNumero').textContent = numero;
+            const data = self.etiquetasData.entrada[bobinaId] || {};
+            entradaFields.forEach(f => {
+                const el = document.getElementById('etqEnt' + f);
+                if (el) el.value = data[f] || '';
+            });
+            new bootstrap.Modal(document.getElementById('modalEtiquetaEntrada')).show();
+        });
+
+        // Save button for entrada
+        const btnEnt = document.getElementById('btnGuardarEtqEnt');
+        if (btnEnt) {
+            btnEnt.addEventListener('click', function() {
+                const bobinaId = document.getElementById('etqEntBobinaId').value;
+                const data = {};
+                let hasData = false;
+                entradaFields.forEach(f => {
+                    const val = document.getElementById('etqEnt' + f)?.value || '';
+                    data[f] = val;
+                    if (val) hasData = true;
+                });
+                self.etiquetasData.entrada[bobinaId] = data;
+                const arrow = document.querySelector(`.bobina-arrow[data-bobina="${bobinaId}"]`);
+                if (arrow) arrow.classList.toggle('has-data', hasData);
+                bootstrap.Modal.getInstance(document.getElementById('modalEtiquetaEntrada'))?.hide();
+            });
+        }
     },
 
     /**

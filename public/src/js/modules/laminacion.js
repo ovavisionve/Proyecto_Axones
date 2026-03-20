@@ -27,6 +27,15 @@ const Laminacion = {
 
         // Inicializar controles de tiempo
         this.inicializarControlTiempo();
+
+        // Inicializar checklist
+        this.setupChecklist();
+
+        // Calcular tiempo de preparacion automatico
+        this.setupTiempoPreparacion();
+
+        // Flechitas de etiquetas en bobinas
+        this.setupEtiquetasBobinas();
     },
 
     /**
@@ -433,6 +442,11 @@ const Laminacion = {
             input.addEventListener('input', () => this.calcularTotales());
         });
 
+        // Calcular total de restante
+        document.querySelectorAll('.restante-entrada').forEach(input => {
+            input.addEventListener('input', () => this.calcularTotales());
+        });
+
         // Calcular total de scrap
         document.querySelectorAll('.scrap-input').forEach(input => {
             input.addEventListener('input', () => this.calcularTotales());
@@ -595,9 +609,10 @@ const Laminacion = {
         document.getElementById('numBobinas').value = numBobinas;
 
         // Total scrap
-        const scrapRefile = parseFloat(document.getElementById('scrapRefile').value) || 0;
-        const scrapLaminado = parseFloat(document.getElementById('scrapLaminado').value) || 0;
-        const totalScrap = scrapRefile + scrapLaminado;
+        const scrapTransparente = parseFloat(document.getElementById('scrapTransparente')?.value) || 0;
+        const scrapImpreso = parseFloat(document.getElementById('scrapImpreso')?.value) || 0;
+        const scrapLaminado = parseFloat(document.getElementById('scrapLaminado')?.value) || 0;
+        const totalScrap = scrapTransparente + scrapImpreso + scrapLaminado;
         document.getElementById('totalScrap').value = totalScrap.toFixed(2);
 
         // Merma
@@ -613,6 +628,44 @@ const Laminacion = {
 
         // Actualizar indicador
         this.actualizarIndicadorRefil(porcentajeRefil, totalEntrada);
+
+        // Total restante
+        let totalRestante = 0;
+        document.querySelectorAll('.restante-entrada').forEach(input => {
+            totalRestante += parseFloat(input.value) || 0;
+        });
+        const totalRestanteEl = document.getElementById('totalRestante');
+        if (totalRestanteEl) totalRestanteEl.value = totalRestante.toFixed(2);
+
+        const totalConsumido = totalEntrada - totalRestante;
+        const totalConsumidoEl = document.getElementById('totalConsumido');
+        if (totalConsumidoEl) totalConsumidoEl.textContent = totalConsumido.toFixed(2);
+
+        // Consumo adhesivo para resumen
+        const consumoAdhesivo = parseFloat(document.getElementById('consumoAdhesivo')?.textContent) || 0;
+
+        // Actualizar Resumen de Produccion
+        const resEntrada = document.getElementById('resumenEntrada');
+        const resRestante = document.getElementById('resumenRestante');
+        const resConsumido = document.getElementById('resumenConsumido');
+        const resSalida = document.getElementById('resumenSalida');
+        const resScrap = document.getElementById('resumenScrap');
+        const resAdhesivo = document.getElementById('resumenAdhesivo');
+        const resMerma = document.getElementById('resumenMermaCalc');
+        const resRefil = document.getElementById('resumenRefilCalc');
+        if (resEntrada) resEntrada.textContent = totalEntrada.toFixed(2) + ' Kg';
+        if (resRestante) resRestante.textContent = totalRestante.toFixed(2) + ' Kg';
+        if (resConsumido) resConsumido.textContent = totalConsumido.toFixed(2) + ' Kg';
+        if (resSalida) resSalida.textContent = totalSalida.toFixed(2) + ' Kg';
+        if (resScrap) resScrap.textContent = totalScrap.toFixed(2) + ' Kg';
+        if (resAdhesivo) resAdhesivo.textContent = consumoAdhesivo.toFixed(2) + ' Kg';
+        const mermaResumen = totalConsumido - totalSalida - totalScrap;
+        if (resMerma) resMerma.textContent = mermaResumen.toFixed(2) + ' Kg';
+        let refilResumen = 0;
+        if (totalConsumido > 0) {
+            refilResumen = (totalScrap / totalConsumido) * 100;
+        }
+        if (resRefil) resRefil.textContent = refilResumen.toFixed(2) + '%';
 
         // Actualizar footer
         document.getElementById('footerEntrada').textContent = totalEntrada.toFixed(0);
@@ -776,6 +829,15 @@ const Laminacion = {
             }
         }
 
+        // Obtener restante de bobinas
+        const bobinasRestante = [];
+        for (let i = 1; i <= 14; i++) {
+            const valor = parseFloat(document.getElementById('restEnt' + i)?.value) || 0;
+            if (valor > 0) {
+                bobinasRestante.push({ posicion: i, peso: valor });
+            }
+        }
+
         // Obtener bobinas de salida
         const bobinasSalida = [];
         for (let i = 1; i <= 22; i++) {
@@ -808,6 +870,11 @@ const Laminacion = {
             bobinasEntrada: bobinasEntrada,
             totalEntrada: parseFloat(document.getElementById('totalEntrada').value) || 0,
 
+            // Restante de bobinas
+            bobinasRestante: bobinasRestante,
+            totalRestante: parseFloat(document.getElementById('totalRestante')?.value) || 0,
+            totalConsumido: parseFloat(document.getElementById('totalConsumido')?.textContent) || 0,
+
             // Adhesivo
             adhesivoEntrada: parseFloat(document.getElementById('adhesivoEntrada').value) || 0,
             adhesivoSobro: parseFloat(document.getElementById('adhesivoSobro').value) || 0,
@@ -825,13 +892,18 @@ const Laminacion = {
             merma: parseFloat(document.getElementById('merma').value) || 0,
             metraje: parseFloat(document.getElementById('metraje').value) || 0,
 
-            scrapRefile: parseFloat(document.getElementById('scrapRefile').value) || 0,
-            scrapLaminado: parseFloat(document.getElementById('scrapLaminado').value) || 0,
+            scrapTransparente: parseFloat(document.getElementById('scrapTransparente')?.value) || 0,
+            scrapImpreso: parseFloat(document.getElementById('scrapImpreso')?.value) || 0,
+            scrapLaminado: parseFloat(document.getElementById('scrapLaminado')?.value) || 0,
             totalScrap: parseFloat(document.getElementById('totalScrap').value) || 0,
             porcentajeRefil: parseFloat(document.getElementById('porcentajeRefil').value) || 0,
 
             motivosParadas: document.getElementById('motivosParadas').value,
             observaciones: document.getElementById('observaciones').value,
+
+            // Etiquetas de bobinas
+            etiquetasEntrada: this.etiquetasData.entrada,
+            etiquetasSalida: this.etiquetasData.salida,
 
             registradoPor: Auth.getUser() ? Auth.getUser().id : 'unknown',
             registradoPorNombre: Auth.getUser() ? Auth.getUser().nombre : 'Unknown',
@@ -928,12 +1000,23 @@ const Laminacion = {
             if (adhesivosActualizados) {
                 localStorage.setItem('axones_adhesivos_inventario', JSON.stringify(adhesivos));
                 console.log('Inventario de adhesivos actualizado despues de laminacion');
+
+                // Sincronizar adhesivos con Sheets
+                if (typeof AxonesAPI !== 'undefined') {
+                    adhesivos.forEach(a => {
+                        if (a.id) {
+                            AxonesAPI.updateInventario(a.id, { kg: a.cantidad }).catch(() => {});
+                        }
+                    });
+                }
+
                 this.verificarStockBajoAdhesivos(adhesivos);
             }
 
             // 2. Descontar material de sustrato (bobinas de entrada)
             const inventario = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
-            const cantidadUsada = parseFloat(datos.totalEntrada) || 0;
+            // Usar totalConsumido (entrada - restante) en vez de totalEntrada
+            const cantidadUsada = parseFloat(datos.totalConsumido) || parseFloat(datos.totalEntrada) || 0;
 
             if (cantidadUsada > 0) {
                 let descontado = false;
@@ -962,6 +1045,14 @@ const Laminacion = {
                 if (descontado) {
                     localStorage.setItem('axones_inventario', JSON.stringify(inventario));
                     console.log('Inventario de materiales actualizado despues de laminacion');
+
+                    // Sincronizar descuentos con Sheets
+                    if (typeof AxonesAPI !== 'undefined') {
+                        for (const item of inventario.filter(i => parseFloat(i.kg) >= 0)) {
+                            AxonesAPI.updateInventario(item.id, { kg: item.kg }).catch(() => {});
+                        }
+                    }
+
                     this.verificarStockBajoMaterial(inventario);
                 }
             }
@@ -1116,6 +1207,217 @@ const Laminacion = {
         bsToast.show();
 
         toast.addEventListener('hidden.bs.toast', () => toast.remove());
+    },
+
+    /**
+     * Configura el checklist integrado
+     */
+    setupChecklist: function() {
+        const fechaSpan = document.getElementById('checklistFecha');
+        if (fechaSpan) {
+            fechaSpan.textContent = new Date().toLocaleDateString('es-VE');
+        }
+
+        document.querySelectorAll('.checklist-item').forEach(cb => {
+            cb.addEventListener('change', () => this.actualizarProgresoChecklist());
+        });
+
+        const btnGuardar = document.getElementById('btnGuardarChecklist');
+        if (btnGuardar) {
+            btnGuardar.addEventListener('click', () => this.guardarChecklist());
+        }
+    },
+
+    actualizarProgresoChecklist: function() {
+        const total = document.querySelectorAll('.checklist-item').length;
+        const marcados = document.querySelectorAll('.checklist-item:checked').length;
+        const badge = document.getElementById('checklistProgreso');
+        if (badge) badge.textContent = `${marcados}/${total} completados`;
+    },
+
+    guardarChecklist: function() {
+        const items = [];
+        document.querySelectorAll('.checklist-item').forEach(cb => {
+            items.push({ item: cb.value, completado: cb.checked });
+        });
+
+        const estado = document.querySelector('input[name="checklistEstado"]:checked');
+        const datos = {
+            id: 'CHK_LAM_' + Date.now(),
+            area: 'laminacion',
+            fecha: new Date().toISOString(),
+            ordenTrabajo: document.getElementById('ordenTrabajo')?.value || '',
+            items: items,
+            estado: estado ? estado.value : '',
+            observaciones: document.getElementById('checklistObservaciones')?.value || '',
+            elaboradoPor: document.getElementById('checklistElaborado')?.value || '',
+            revisadoPor: document.getElementById('checklistRevisado')?.value || '',
+            aprobadoPor: document.getElementById('checklistAprobadoPor')?.value || ''
+        };
+
+        const checklists = JSON.parse(localStorage.getItem('axones_checklists') || '[]');
+        checklists.unshift(datos);
+        localStorage.setItem('axones_checklists', JSON.stringify(checklists));
+
+        this.mostrarToast('Checklist guardado correctamente', 'success');
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalChecklist'));
+        if (modal) modal.hide();
+    },
+
+    /**
+     * Configura calculo automatico del tiempo de preparacion
+     */
+    setupTiempoPreparacion: function() {
+        const horaInicio = document.getElementById('horaInicio');
+        const horaArranque = document.getElementById('horaArranque');
+
+        const calcular = () => {
+            const inicio = horaInicio?.value;
+            const arranque = horaArranque?.value;
+            const span = document.getElementById('tiempoPreparacionCalc');
+            if (!span) return;
+
+            if (inicio && arranque) {
+                const [hi, mi] = inicio.split(':').map(Number);
+                const [ha, ma] = arranque.split(':').map(Number);
+                let diffMin = (ha * 60 + ma) - (hi * 60 + mi);
+                if (diffMin < 0) diffMin += 24 * 60;
+                const horas = Math.floor(diffMin / 60);
+                const mins = diffMin % 60;
+                span.textContent = horas > 0 ? `${horas}h ${mins}min` : `${mins} min`;
+            } else {
+                span.textContent = '--';
+            }
+        };
+
+        if (horaInicio) horaInicio.addEventListener('change', calcular);
+        if (horaArranque) horaArranque.addEventListener('change', calcular);
+    },
+
+    /**
+     * Datos de etiquetas de bobinas (entrada y salida)
+     */
+    etiquetasData: { entrada: {}, salida: {} },
+
+    /**
+     * Configura flechitas de etiquetas en bobinas de entrada y salida
+     */
+    setupEtiquetasBobinas: function() {
+        const self = this;
+        const entradaFields = ['Proveedor', 'Referencia', 'Medida', 'Micraje', 'TratInt', 'TratExt', 'Fecha', 'Maquina', 'Pedido'];
+        const salidaFields = ['Peso', 'Fecha', 'Metraje', 'Hora', 'Empalmes', 'Operador'];
+
+        // Inyectar flechitas en bobinas de entrada (bobEnt1-bobEnt14)
+        for (let i = 1; i <= 14; i++) {
+            const input = document.getElementById('bobEnt' + i);
+            if (!input) continue;
+            const label = input.previousElementSibling;
+            if (!label || label.querySelector('.bobina-arrow')) continue;
+            const wrapper = document.createElement('span');
+            wrapper.className = 'bobina-label-wrapper';
+            wrapper.innerHTML = label.innerHTML;
+            const arrow = document.createElement('i');
+            arrow.className = 'bi bi-caret-down-fill bobina-arrow';
+            arrow.dataset.tipo = 'entrada';
+            arrow.dataset.bobina = 'bobEnt' + i;
+            arrow.dataset.numero = i;
+            arrow.title = 'Etiqueta bobina ' + i;
+            wrapper.appendChild(arrow);
+            label.innerHTML = '';
+            label.appendChild(wrapper);
+        }
+
+        // Inyectar flechitas en bobinas de salida (bobSal1-bobSal22)
+        for (let i = 1; i <= 22; i++) {
+            const input = document.getElementById('bobSal' + i);
+            if (!input) continue;
+            const label = input.previousElementSibling;
+            if (!label || label.querySelector('.bobina-arrow')) continue;
+            const wrapper = document.createElement('span');
+            wrapper.className = 'bobina-label-wrapper';
+            wrapper.innerHTML = label.innerHTML;
+            const arrow = document.createElement('i');
+            arrow.className = 'bi bi-caret-down-fill bobina-arrow';
+            arrow.dataset.tipo = 'salida';
+            arrow.dataset.bobina = 'bobSal' + i;
+            arrow.dataset.numero = i;
+            arrow.title = 'Etiqueta bobina ' + i;
+            wrapper.appendChild(arrow);
+            label.innerHTML = '';
+            label.appendChild(wrapper);
+        }
+
+        // Delegated click handler for arrows
+        document.addEventListener('click', function(e) {
+            const arrow = e.target.closest('.bobina-arrow');
+            if (!arrow) return;
+            const tipo = arrow.dataset.tipo;
+            const bobinaId = arrow.dataset.bobina;
+            const numero = arrow.dataset.numero;
+
+            if (tipo === 'entrada') {
+                document.getElementById('etqEntBobinaId').value = bobinaId;
+                document.getElementById('etqEntNumero').textContent = numero;
+                const data = self.etiquetasData.entrada[bobinaId] || {};
+                entradaFields.forEach(f => {
+                    const el = document.getElementById('etqEnt' + f);
+                    if (el) el.value = data[f] || '';
+                });
+                new bootstrap.Modal(document.getElementById('modalEtiquetaEntrada')).show();
+            } else if (tipo === 'salida') {
+                document.getElementById('etqSalBobinaId').value = bobinaId;
+                document.getElementById('etqSalNumero').textContent = numero;
+                const data = self.etiquetasData.salida[bobinaId] || {};
+                salidaFields.forEach(f => {
+                    const el = document.getElementById('etqSal' + f);
+                    if (el) el.value = data[f] || '';
+                });
+                // Auto-fill peso from the bobina input
+                const pesoInput = document.getElementById(bobinaId);
+                if (pesoInput && pesoInput.value && !data.Peso) {
+                    document.getElementById('etqSalPeso').value = pesoInput.value;
+                }
+                new bootstrap.Modal(document.getElementById('modalEtiquetaSalida')).show();
+            }
+        });
+
+        // Save button for entrada
+        const btnEnt = document.getElementById('btnGuardarEtqEnt');
+        if (btnEnt) {
+            btnEnt.addEventListener('click', function() {
+                const bobinaId = document.getElementById('etqEntBobinaId').value;
+                const data = {};
+                let hasData = false;
+                entradaFields.forEach(f => {
+                    const val = document.getElementById('etqEnt' + f)?.value || '';
+                    data[f] = val;
+                    if (val) hasData = true;
+                });
+                self.etiquetasData.entrada[bobinaId] = data;
+                const arrow = document.querySelector(`.bobina-arrow[data-bobina="${bobinaId}"]`);
+                if (arrow) arrow.classList.toggle('has-data', hasData);
+                bootstrap.Modal.getInstance(document.getElementById('modalEtiquetaEntrada'))?.hide();
+            });
+        }
+
+        // Save button for salida
+        const btnSal = document.getElementById('btnGuardarEtqSal');
+        if (btnSal) {
+            btnSal.addEventListener('click', function() {
+                const bobinaId = document.getElementById('etqSalBobinaId').value;
+                const data = {};
+                let hasData = false;
+                salidaFields.forEach(f => {
+                    const val = document.getElementById('etqSal' + f)?.value || '';
+                    data[f] = val;
+                    if (val) hasData = true;
+                });
+                self.etiquetasData.salida[bobinaId] = data;
+                const arrow = document.querySelector(`.bobina-arrow[data-bobina="${bobinaId}"]`);
+                if (arrow) arrow.classList.toggle('has-data', hasData);
+                bootstrap.Modal.getInstance(document.getElementById('modalEtiquetaSalida'))?.hide();
+            });
+        }
     },
 
     /**

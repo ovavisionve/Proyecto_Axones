@@ -300,6 +300,19 @@ const Axones = {
             this.showSuccess('Conexion restaurada');
             this.loadInitialData();
         });
+
+        // Escuchar cambios del SyncManager para alertas y dashboard
+        if (typeof SyncManager !== 'undefined') {
+            SyncManager.on('alertas', () => {
+                this.loadRecentAlerts();
+            });
+            SyncManager.on('ordenes', () => {
+                this.loadDashboardStats();
+            });
+            SyncManager.on('inventario', () => {
+                this.loadDashboardStats();
+            });
+        }
     },
 
     /**

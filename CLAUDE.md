@@ -22,6 +22,7 @@ Emails: axones2008@gmail.com, gerenciaaxones@gmail.com
 ## Estructura del Proyecto
 ```
 public/
+├── login.html              # Pagina de login obligatorio (gate de acceso)
 ├── index.html              # Dashboard principal
 ├── ordenes.html            # Gestion de ordenes de trabajo (formulario completo)
 ├── impresion.html          # Modulo de impresion (COMEXI 1/COMEXI 3)
@@ -126,6 +127,13 @@ Al seleccionar un producto del inventario en una orden de trabajo, se pre-llenan
 | Diurno H.E. | 4:00 PM - 7:00 PM | DHE |
 | Nocturno | 7:00 PM - 4:00 AM | N |
 | Nocturno H.E. | 4:00 AM - 7:00 AM | NHE |
+
+## Login Obligatorio
+- **Pagina de login:** `login.html` - acceso obligatorio antes de usar el sistema
+- **Todas las paginas** redirigen a `login.html` si no hay sesion activa
+- Sesion dura 8 horas, almacenada en `axones_session` (localStorage)
+- Al hacer logout, redirige a `login.html`
+- `sessionStorage.axones_return_to` guarda la pagina original para volver despues del login
 
 ## Usuarios del Sistema (22 usuarios reales)
 - Login con: primera letra nombre + apellido (ej: rparra, ajaure)

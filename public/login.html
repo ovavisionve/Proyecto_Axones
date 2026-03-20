@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Iniciar Sesion - Sistema Axones">
+    <title>Iniciar Sesion - Axones</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #0d6efd 0%, #6610f2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .login-card {
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 400px;
+            width: 100%;
+            overflow: hidden;
+        }
+        .login-header {
+            background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%);
+            color: white;
+            padding: 30px 25px;
+            text-align: center;
+        }
+        .login-header .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+        .login-header h2 {
+            font-weight: 700;
+            margin-bottom: 5px;
+            letter-spacing: 2px;
+        }
+        .login-header p {
+            font-size: 0.85rem;
+            opacity: 0.85;
+            margin-bottom: 0;
+        }
+        .login-body {
+            padding: 30px 25px;
+        }
+        .login-body .form-label {
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #495057;
+        }
+        .login-body .form-control {
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+        .login-body .form-control:focus {
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+        }
+        .login-body .input-group-text {
+            background: #f8f9fa;
+            border-radius: 8px 0 0 8px;
+        }
+        .btn-login {
+            border-radius: 8px;
+            padding: 10px;
+            font-weight: 600;
+            font-size: 1rem;
+            letter-spacing: 0.5px;
+        }
+        .login-footer {
+            text-align: center;
+            padding: 15px 25px;
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+        }
+        .login-footer small {
+            color: #6c757d;
+        }
+        .empresa-info {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.7);
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="login-header">
+            <div class="logo-icon">
+                <i class="bi bi-gear-wide-connected"></i>
+            </div>
+            <h2>AXONES</h2>
+            <p>Sistema de Control de Produccion</p>
+            <div class="empresa-info">
+                Inversiones Axones 2008, C.A.
+            </div>
+        </div>
+        <div class="login-body">
+            <form id="formLogin">
+                <div class="mb-3">
+                    <label class="form-label">
+                        <i class="bi bi-person me-1"></i>Usuario
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-person-fill"></i></span>
+                        <input type="text" class="form-control" id="loginUsuario" required placeholder="Ingrese su usuario" autocomplete="username" autofocus>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">
+                        <i class="bi bi-lock me-1"></i>Contrasena
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
+                        <input type="password" class="form-control" id="loginPassword" required placeholder="Ingrese su contrasena" autocomplete="current-password">
+                        <button type="button" class="btn btn-outline-secondary" id="btnTogglePassword" tabindex="-1">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="loginError" class="alert alert-danger py-2 d-none"></div>
+                <div class="d-grid mt-4">
+                    <button type="submit" class="btn btn-primary btn-login" id="btnSubmitLogin">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>Ingresar
+                    </button>
+                </div>
+            </form>
+        </div>
+        <div class="login-footer">
+            <small>Sistema Axones v1.2.0 &bull; Turmero, Aragua</small>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Config y Auth -->
+    <script src="src/js/utils/config.js"></script>
+    <script src="src/js/utils/api.js"></script>
+    <script src="src/js/utils/auth.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Si ya tiene sesion activa, redirigir al dashboard
+            const sessionData = localStorage.getItem('axones_session');
+            if (sessionData) {
+                try {
+                    const session = JSON.parse(sessionData);
+                    if (session.expiry > Date.now()) {
+                        // Verificar si hay pagina de retorno
+                        const returnTo = sessionStorage.getItem('axones_return_to');
+                        sessionStorage.removeItem('axones_return_to');
+                        window.location.href = returnTo || 'index.html';
+                        return;
+                    }
+                } catch (e) {}
+            }
+
+            // Toggle password visibility
+            const btnToggle = document.getElementById('btnTogglePassword');
+            const passInput = document.getElementById('loginPassword');
+            btnToggle.addEventListener('click', () => {
+                const isPassword = passInput.type === 'password';
+                passInput.type = isPassword ? 'text' : 'password';
+                btnToggle.innerHTML = isPassword
+                    ? '<i class="bi bi-eye-slash"></i>'
+                    : '<i class="bi bi-eye"></i>';
+            });
+
+            // Login form
+            document.getElementById('formLogin').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const usuario = document.getElementById('loginUsuario').value.trim();
+                const password = document.getElementById('loginPassword').value;
+                const errorDiv = document.getElementById('loginError');
+                const btnSubmit = document.getElementById('btnSubmitLogin');
+
+                btnSubmit.disabled = true;
+                btnSubmit.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Verificando...';
+                errorDiv.classList.add('d-none');
+
+                // Intentar login local
+                const loginLocal = Auth.loginLocal(usuario, password);
+                if (loginLocal) {
+                    Auth.setSession(loginLocal);
+                    const returnTo = sessionStorage.getItem('axones_return_to');
+                    sessionStorage.removeItem('axones_return_to');
+                    window.location.href = returnTo || 'index.html';
+                    return;
+                }
+
+                // Intentar con API
+                try {
+                    if (typeof AxonesAPI !== 'undefined') {
+                        const response = await AxonesAPI.login(usuario, password);
+                        if (response && response.success && response.usuario) {
+                            const user = {
+                                id: response.usuario.id,
+                                usuario: response.usuario.usuario,
+                                nombre: response.usuario.nombre,
+                                rol: response.usuario.rol,
+                            };
+                            Auth.setSession(user);
+                            const returnTo = sessionStorage.getItem('axones_return_to');
+                            sessionStorage.removeItem('axones_return_to');
+                            window.location.href = returnTo || 'index.html';
+                            return;
+                        }
+                    }
+                } catch (err) {
+                    console.warn('API login error:', err);
+                }
+
+                // Error
+                errorDiv.textContent = 'Usuario o contrasena incorrectos';
+                errorDiv.classList.remove('d-none');
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = '<i class="bi bi-box-arrow-in-right me-2"></i>Ingresar';
+
+                // Shake animation
+                document.querySelector('.login-card').style.animation = 'shake 0.5s';
+                setTimeout(() => {
+                    document.querySelector('.login-card').style.animation = '';
+                }, 500);
+            });
+        });
+    </script>
+    <style>
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+    </style>
+</body>
+</html>

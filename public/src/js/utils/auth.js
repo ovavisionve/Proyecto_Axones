@@ -7,38 +7,32 @@ const Auth = {
     // Estado actual del usuario
     currentUser: null,
 
-    // Paginas que requieren login obligatorio
-    PAGINAS_PROTEGIDAS: [
-        'impresion.html',
-        'laminacion.html',
-        'corte.html',
-        'ordenes.html',
-        'inventario.html',
-        'tintas.html',
-        'programacion.html'
-    ],
+    // Pagina de login (excluida del redirect)
+    PAGINA_LOGIN: 'login.html',
 
     /**
      * Inicializa el modulo de autenticacion
      */
     init: function() {
         this.checkSession();
-        this.setupLoginButton();
         this.verificarAccesoProtegido();
+        this.setupLoginButton();
     },
 
     /**
-     * Verifica si la pagina actual requiere login y muestra modal si es necesario
+     * Verifica si el usuario tiene sesion activa.
+     * Si no la tiene, redirige a login.html (excepto si ya esta en login.html)
      */
     verificarAccesoProtegido: function() {
         const paginaActual = window.location.pathname.split('/').pop() || 'index.html';
 
-        // Verificar si es una pagina protegida
-        const esProtegida = this.PAGINAS_PROTEGIDAS.some(p => paginaActual.includes(p));
+        // No redirigir si ya esta en login.html
+        if (paginaActual === this.PAGINA_LOGIN || paginaActual === '') return;
 
-        if (esProtegida && !this.currentUser) {
-            // Mostrar modal de login obligatorio
-            this.mostrarLoginObligatorio();
+        if (!this.currentUser) {
+            // Guardar pagina actual para volver despues del login
+            sessionStorage.setItem('axones_return_to', paginaActual);
+            window.location.href = this.PAGINA_LOGIN;
         }
     },
 
@@ -413,9 +407,10 @@ const Auth = {
         localStorage.removeItem(CONFIG.CACHE.PREFIJO + 'session');
         this.updateUI();
 
-        // Redirigir a la pagina principal
-        if (window.location.pathname !== '/index.html' && window.location.pathname !== '/') {
-            window.location.href = 'index.html';
+        // Redirigir a login
+        const paginaActual = window.location.pathname.split('/').pop() || '';
+        if (paginaActual !== this.PAGINA_LOGIN) {
+            window.location.href = this.PAGINA_LOGIN;
         }
     },
 

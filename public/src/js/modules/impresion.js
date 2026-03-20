@@ -162,21 +162,14 @@ const Impresion = {
             }
         });
 
-        // Precargar select de cliente
-        const clienteSelect = document.getElementById('cliente');
-        if (clienteSelect && orden.cliente) {
-            // Buscar opcion existente o agregarla
-            let optionExists = Array.from(clienteSelect.options).some(opt => opt.value === orden.cliente);
-            if (!optionExists) {
-                const newOption = document.createElement('option');
-                newOption.value = orden.cliente;
-                newOption.textContent = orden.cliente;
-                clienteSelect.appendChild(newOption);
-            }
-            clienteSelect.value = orden.cliente;
-            clienteSelect.classList.add('precargado-orden');
-            clienteSelect.style.backgroundColor = '#e8f4e8';
-            clienteSelect.dispatchEvent(new Event('change'));
+        // Precargar campo de cliente (ahora es input editable)
+        const clienteInput = document.getElementById('cliente');
+        if (clienteInput && orden.cliente) {
+            clienteInput.value = orden.cliente;
+            clienteInput.classList.add('precargado-orden');
+            clienteInput.style.backgroundColor = '#e8f4e8';
+            clienteInput.style.borderColor = '#198754';
+            this.onClienteChange(orden.cliente);
         }
 
         // Precargar select de maquina
@@ -413,11 +406,8 @@ const Impresion = {
             this.productosCache = [...new Set(produccion.map(p => p.producto).filter(Boolean))];
         }
 
-        // Poblar select de clientes despues de cargar
-        const clienteSelect = document.getElementById('cliente');
-        if (clienteSelect) {
-            this.poblarSelectClientes(clienteSelect);
-        }
+        // Poblar datalist de clientes despues de cargar
+        this.poblarSelectClientes();
     },
 
     /**
@@ -429,11 +419,11 @@ const Impresion = {
         const otInput = document.getElementById('ordenTrabajo');
 
         if (clienteSelect) {
-            // Poblar select de clientes
-            this.poblarSelectClientes(clienteSelect);
+            // Poblar datalist de clientes
+            this.poblarSelectClientes();
 
-            // Al cambiar cliente, filtrar productos e inventario
-            clienteSelect.addEventListener('change', (e) => {
+            // Al cambiar cliente (blur en input), filtrar productos e inventario
+            clienteSelect.addEventListener('blur', (e) => {
                 this.onClienteChange(e.target.value);
             });
         }
@@ -450,29 +440,25 @@ const Impresion = {
     },
 
     /**
-     * Poblar select de clientes
+     * Poblar datalist de clientes (permite escribir nuevos o seleccionar existentes)
      */
-    poblarSelectClientes: function(select) {
-        // Mantener la opcion por defecto
-        const defaultOption = select.querySelector('option[value=""]');
+    poblarSelectClientes: function() {
+        const datalist = document.getElementById('listaClientes');
+        if (!datalist) return;
 
-        // Limpiar opciones existentes excepto la primera
-        select.innerHTML = '';
-        if (defaultOption) {
-            select.appendChild(defaultOption);
-        } else {
-            const opt = document.createElement('option');
-            opt.value = '';
-            opt.textContent = 'Seleccione cliente...';
-            select.appendChild(opt);
-        }
+        // Agregar clientes de registros anteriores de impresion
+        const impresiones = JSON.parse(localStorage.getItem('axones_impresion') || '[]');
+        const clientesDeImpresion = impresiones
+            .map(i => i.cliente)
+            .filter(c => c && !this.clientesCache.includes(c));
+        this.clientesCache = [...new Set([...this.clientesCache, ...clientesDeImpresion])].sort();
 
-        // Agregar clientes de CONFIG
+        // Cargar en datalist
+        datalist.innerHTML = '';
         this.clientesCache.forEach(cliente => {
             const option = document.createElement('option');
             option.value = cliente;
-            option.textContent = cliente;
-            select.appendChild(option);
+            datalist.appendChild(option);
         });
     },
 

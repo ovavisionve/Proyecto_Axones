@@ -210,11 +210,20 @@
                                 <label class="form-label required-field">Maquina</label>
                                 <select class="form-select form-select-sm" id="maquina" required>
                                     <option value="">Seleccionar...</option>
-                                    <option value="COMEXI 1">COMEXI 1</option>
-                                    <option value="COMEXI 2">COMEXI 2</option>
-                                    <option value="COMEXI 3">COMEXI 3</option>
-                                    <option value="Laminadora">Laminadora</option>
-                                    <option value="Cortadora China">Cortadora China</option>
+                                    <optgroup label="Impresion">
+                                        <option value="COMEXI 1">COMEXI 1</option>
+                                        <option value="COMEXI 2">COMEXI 2</option>
+                                        <option value="COMEXI 3">COMEXI 3</option>
+                                    </optgroup>
+                                    <optgroup label="Laminacion">
+                                        <option value="NEXUS">NEXUS (Principal)</option>
+                                        <option value="NEXUS 2">NEXUS 2</option>
+                                    </optgroup>
+                                    <optgroup label="Corte">
+                                        <option value="Cortadora China">Cortadora China</option>
+                                        <option value="Cortadora Permaco">Cortadora Permaco</option>
+                                        <option value="Cortadora Novograf">Cortadora Novograf</option>
+                                    </optgroup>
                                 </select>
                             </div>
                             <div class="col-md-4" id="planchasContainer" style="display: none;">
@@ -251,19 +260,18 @@
                         <div class="row g-2">
                             <div class="col-md-8">
                                 <label class="form-label required-field">Cliente</label>
-                                <select class="form-select form-select-sm" id="cliente" required>
-                                    <option value="">Seleccionar...</option>
-                                </select>
+                                <input type="text" class="form-control form-control-sm" id="cliente" list="listaClientes" required placeholder="Escriba o seleccione cliente...">
+                                <datalist id="listaClientes"></datalist>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">RIF</label>
                                 <input type="text" class="form-control form-control-sm" id="clienteRif" readonly>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label required-field">Producto (del Inventario)</label>
-                                <select class="form-select form-select-sm" id="producto" required>
-                                    <option value="">-- Seleccionar producto --</option>
-                                </select>
+                                <label class="form-label required-field">Producto</label>
+                                <input type="text" class="form-control form-control-sm" id="producto" list="listaProductos" required placeholder="Escriba o seleccione producto...">
+                                <datalist id="listaProductos"></datalist>
+                                <small class="text-muted">Puede escribir un nuevo producto o seleccionar del inventario</small>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">C.P.E.</label>

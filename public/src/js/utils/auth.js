@@ -7,12 +7,155 @@ const Auth = {
     // Estado actual del usuario
     currentUser: null,
 
+    // Paginas que requieren login obligatorio
+    PAGINAS_PROTEGIDAS: [
+        'impresion.html',
+        'laminacion.html',
+        'corte.html',
+        'ordenes.html',
+        'inventario.html',
+        'tintas.html',
+        'programacion.html'
+    ],
+
     /**
      * Inicializa el modulo de autenticacion
      */
     init: function() {
         this.checkSession();
         this.setupLoginButton();
+        this.verificarAccesoProtegido();
+    },
+
+    /**
+     * Verifica si la pagina actual requiere login y muestra modal si es necesario
+     */
+    verificarAccesoProtegido: function() {
+        const paginaActual = window.location.pathname.split('/').pop() || 'index.html';
+
+        // Verificar si es una pagina protegida
+        const esProtegida = this.PAGINAS_PROTEGIDAS.some(p => paginaActual.includes(p));
+
+        if (esProtegida && !this.currentUser) {
+            // Mostrar modal de login obligatorio
+            this.mostrarLoginObligatorio();
+        }
+    },
+
+    /**
+     * Muestra modal de login obligatorio (no se puede cerrar sin iniciar sesion)
+     */
+    mostrarLoginObligatorio: function() {
+        // Remover modal existente
+        const existente = document.getElementById('modalLoginObligatorio');
+        if (existente) existente.remove();
+
+        const modalHtml = `
+            <div class="modal fade" id="modalLoginObligatorio" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+                <div class="modal-dialog modal-sm modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-warning text-dark">
+                            <h5 class="modal-title"><i class="bi bi-shield-lock me-2"></i>Acceso Restringido</h5>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-info py-2 mb-3">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Esta seccion requiere iniciar sesion para continuar.
+                            </div>
+                            <form id="formLoginObligatorio">
+                                <div class="mb-3">
+                                    <label class="form-label">Usuario</label>
+                                    <input type="text" class="form-control" id="loginUsuarioOblig" required placeholder="Ingrese usuario">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Contrasena</label>
+                                    <input type="password" class="form-control" id="loginPasswordOblig" required placeholder="Ingrese contrasena">
+                                </div>
+                                <div id="loginErrorOblig" class="alert alert-danger py-2 d-none"></div>
+                                <div class="d-grid gap-2">
+                                    <button type="submit" class="btn btn-primary" id="btnSubmitLoginOblig">
+                                        <i class="bi bi-box-arrow-in-right me-1"></i>Ingresar
+                                    </button>
+                                    <a href="index.html" class="btn btn-outline-secondary">
+                                        <i class="bi bi-house me-1"></i>Volver al Inicio
+                                    </a>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer justify-content-center">
+                            <small class="text-muted">Sistema Axones v1.0</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        const modal = new bootstrap.Modal(document.getElementById('modalLoginObligatorio'), {
+            backdrop: 'static',
+            keyboard: false
+        });
+        modal.show();
+
+        // Configurar formulario
+        document.getElementById('formLoginObligatorio').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await this.procesarLoginObligatorio(modal);
+        });
+    },
+
+    /**
+     * Procesa el login obligatorio
+     */
+    procesarLoginObligatorio: async function(modal) {
+        const usuario = document.getElementById('loginUsuarioOblig').value;
+        const password = document.getElementById('loginPasswordOblig').value;
+        const errorDiv = document.getElementById('loginErrorOblig');
+        const btnSubmit = document.getElementById('btnSubmitLoginOblig');
+
+        btnSubmit.disabled = true;
+        btnSubmit.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Verificando...';
+        errorDiv.classList.add('d-none');
+
+        // Intentar login local primero
+        const loginLocal = this.loginLocal(usuario, password);
+        if (loginLocal) {
+            this.setSession(loginLocal);
+            modal.hide();
+            this.mostrarToast('Bienvenido, ' + loginLocal.nombre, 'success');
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = '<i class="bi bi-box-arrow-in-right me-1"></i>Ingresar';
+            // Recargar la pagina para aplicar permisos
+            window.location.reload();
+            return;
+        }
+
+        // Intentar con API
+        try {
+            const response = await AxonesAPI.login(usuario, password);
+            if (response && response.success && response.usuario) {
+                const user = {
+                    id: response.usuario.id,
+                    usuario: response.usuario.usuario,
+                    nombre: response.usuario.nombre,
+                    rol: response.usuario.rol,
+                };
+                this.setSession(user);
+                modal.hide();
+                this.mostrarToast('Bienvenido, ' + user.nombre, 'success');
+                window.location.reload();
+                return;
+            }
+        } catch (e) {
+            console.warn('API login error:', e);
+        }
+
+        // Error
+        errorDiv.textContent = 'Usuario o contrasena incorrectos';
+        errorDiv.classList.remove('d-none');
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = '<i class="bi bi-box-arrow-in-right me-1"></i>Ingresar';
     },
 
     /**

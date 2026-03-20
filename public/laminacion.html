@@ -198,12 +198,11 @@
                                     </label>
                                 </div>
                             </div>
-                            <!-- Cliente -->
+                            <!-- Cliente (editable: escribir o seleccionar) -->
                             <div class="col-12">
                                 <label for="cliente" class="form-label small">Cliente</label>
-                                <select class="form-select form-select-sm" id="cliente" required>
-                                    <option value="">Seleccione cliente...</option>
-                                </select>
+                                <input type="text" class="form-control form-control-sm" id="cliente" list="listaClientes" required placeholder="Escriba o seleccione cliente...">
+                                <datalist id="listaClientes"></datalist>
                             </div>
                             <!-- Producto -->
                             <div class="col-12">
@@ -215,7 +214,8 @@
                                 <label for="maquina" class="form-label small">Maquina Laminadora</label>
                                 <select class="form-select form-select-sm" id="maquina" required>
                                     <option value="">Seleccionar...</option>
-                                    <option value="laminadora_1">Laminadora</option>
+                                    <option value="NEXUS">NEXUS (Principal)</option>
+                                    <option value="NEXUS_2">NEXUS 2</option>
                                 </select>
                             </div>
                             <div class="col-6">

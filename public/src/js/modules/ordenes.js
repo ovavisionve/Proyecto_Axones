@@ -159,70 +159,99 @@ const Ordenes = {
     },
 
     /**
-     * Carga los productos del inventario en el selector
+     * Carga los productos del inventario en el datalist (permite escribir nuevos o seleccionar)
      */
     cargarProductosDelInventario: function() {
-        const productoSelect = document.getElementById('producto');
-        if (!productoSelect) return;
-
-        // Limpiar opciones existentes excepto la primera
-        const firstOption = productoSelect.options[0];
-        productoSelect.innerHTML = '';
-        productoSelect.appendChild(firstOption);
+        const datalist = document.getElementById('listaProductos');
+        const productoInput = document.getElementById('producto');
+        if (!datalist || !productoInput) return;
 
         // Obtener inventario
         const inventario = this.inventario || [];
 
-        // Ordenar por producto/material
-        const productosOrdenados = [...inventario].sort((a, b) => {
-            const nombreA = a.producto || a.material;
-            const nombreB = b.producto || b.material;
-            return nombreA.localeCompare(nombreB);
-        });
+        // Obtener productos de ordenes anteriores (para no perder productos personalizados)
+        const productosDeOrdenes = this.ordenes
+            .map(o => o.producto)
+            .filter(p => p);
 
-        // Agregar opciones al select con SKU
-        productosOrdenados.forEach(item => {
-            const option = document.createElement('option');
+        // Combinar productos del inventario + ordenes anteriores
+        const todosProductos = new Map();
+
+        // Primero agregar productos del inventario con sus datos completos
+        inventario.forEach(item => {
             const sku = item.sku || `${item.material}-${item.micras}-${item.ancho}`;
             const nombreDisplay = item.producto
                 ? `${item.producto} | ${sku}`
                 : `${item.material} ${item.micras}µ x ${item.ancho}mm | ${sku}`;
 
-            option.value = item.id;
-            option.textContent = `${nombreDisplay} - Stock: ${item.kg} Kg`;
-
-            // Guardar todos los datos en dataset
-            option.dataset.id = item.id;
-            option.dataset.sku = sku;
-            option.dataset.codigoBarra = item.codigoBarra || '';
-            option.dataset.material = item.material;
-            option.dataset.micras = item.micras;
-            option.dataset.ancho = item.ancho;
-            option.dataset.kg = item.kg;
-            option.dataset.producto = item.producto || '';
-            option.dataset.densidad = item.densidad || this.obtenerDensidadMaterial(item.material);
-
-            productoSelect.appendChild(option);
+            todosProductos.set(nombreDisplay, {
+                id: item.id,
+                sku: sku,
+                codigoBarra: item.codigoBarra || '',
+                material: item.material,
+                micras: item.micras,
+                ancho: item.ancho,
+                kg: item.kg,
+                producto: item.producto || '',
+                densidad: item.densidad || this.obtenerDensidadMaterial(item.material)
+            });
         });
 
-        // Evento cuando se selecciona un producto
-        productoSelect.addEventListener('change', () => this.onProductoSeleccionado());
+        // Agregar productos de ordenes anteriores que no esten en inventario
+        productosDeOrdenes.forEach(producto => {
+            if (!Array.from(todosProductos.keys()).some(k => k.includes(producto))) {
+                todosProductos.set(producto, { producto: producto });
+            }
+        });
 
-        console.log(`Productos cargados del inventario: ${productosOrdenados.length} items con SKU y codigo de barras`);
+        // Guardar mapa para busqueda posterior
+        this.productosMap = todosProductos;
+
+        // Cargar en datalist
+        datalist.innerHTML = '';
+        Array.from(todosProductos.keys()).sort().forEach(nombre => {
+            const item = todosProductos.get(nombre);
+            const option = document.createElement('option');
+            option.value = nombre;
+            if (item.kg) {
+                option.textContent = `Stock: ${item.kg} Kg`;
+            }
+            datalist.appendChild(option);
+        });
+
+        // Evento cuando se selecciona/escribe un producto
+        productoInput.addEventListener('input', () => this.onProductoInput());
+        productoInput.addEventListener('blur', () => this.onProductoSeleccionado());
+
+        console.log(`Productos cargados: ${todosProductos.size} items (inventario + ordenes anteriores)`);
+    },
+
+    /**
+     * Maneja el input de producto (para limpiar campos si cambia)
+     */
+    onProductoInput: function() {
+        // Al escribir, limpiar campos pre-llenados para que se actualicen al perder foco
     },
 
     /**
      * Maneja la seleccion de un producto - Pre-llena TODOS los campos relacionados
      */
     onProductoSeleccionado: function() {
-        const productoSelect = document.getElementById('producto');
-        const selectedOption = productoSelect?.options[productoSelect.selectedIndex];
+        const productoInput = document.getElementById('producto');
+        const productoValor = productoInput?.value?.trim();
 
-        if (!selectedOption || !selectedOption.value) return;
+        if (!productoValor) return;
 
-        const data = selectedOption.dataset;
+        // Buscar en el mapa de productos
+        const data = this.productosMap?.get(productoValor);
 
-        // === PRE-LLENAR CAMPOS ===
+        // Si no hay datos del inventario, es un producto nuevo - no pre-llenar
+        if (!data || !data.material) {
+            console.log(`Producto nuevo/personalizado: ${productoValor}`);
+            return;
+        }
+
+        // === PRE-LLENAR CAMPOS desde datos del inventario ===
 
         // Codigo de producto (CPE) = SKU
         const cpe = document.getElementById('cpe');
@@ -260,7 +289,7 @@ const Ordenes = {
 
         // Kg disponible
         const kgDisponible = document.getElementById('kgDisponible');
-        if (kgDisponible) {
+        if (kgDisponible && data.kg) {
             kgDisponible.value = parseFloat(data.kg).toFixed(2);
             // Color segun disponibilidad
             const pedidoKg = parseFloat(document.getElementById('pedidoKg')?.value) || 0;
@@ -295,7 +324,7 @@ const Ordenes = {
         this.calcularMetrosEstimados();
 
         // Mostrar mensaje informativo
-        if (typeof Axones !== 'undefined') {
+        if (typeof Axones !== 'undefined' && data.sku) {
             Axones.showSuccess(`Datos cargados: ${data.sku} - ${data.material} ${data.micras}µ x ${data.ancho}mm`);
         }
     },
@@ -440,10 +469,15 @@ const Ordenes = {
             pesoBobinaInput.addEventListener('input', () => this.calcularMetrosBobina());
         }
 
-        // Cliente RIF auto-fill
-        const clienteSelect = document.getElementById('cliente');
-        if (clienteSelect) {
-            clienteSelect.addEventListener('change', () => this.cargarDatosCliente());
+        // Cliente RIF auto-fill (ahora es input editable, usar blur para detectar cambio)
+        const clienteInput = document.getElementById('cliente');
+        if (clienteInput) {
+            clienteInput.addEventListener('blur', () => this.cargarDatosCliente());
+            clienteInput.addEventListener('input', () => {
+                // Limpiar RIF si cambia el cliente (se llenara al perder foco)
+                const rifInput = document.getElementById('clienteRif');
+                if (rifInput) rifInput.value = '';
+            });
         }
 
         // Filtros en modal
@@ -847,30 +881,47 @@ const Ordenes = {
     },
 
     /**
-     * Carga clientes en el select
+     * Carga clientes en el datalist (permite escribir nuevos o seleccionar existentes)
      */
     cargarClientes: function() {
-        const clientes = CONFIG?.CLIENTES || [
+        // Obtener clientes base de CONFIG
+        let clientes = CONFIG?.CLIENTES || [
             'PEPSICO ALIMENTOS', 'NESTLE VENEZUELA', 'EMPRESAS POLAR',
             'KRAFT HEINZ', 'ALFONZO RIVAS', 'MONDELEZ', 'MARY',
             'PLUMROSE', 'KELLOGG\'S', 'BIMBO'
         ];
 
-        ['cliente', 'filtroCliente'].forEach(id => {
-            const select = document.getElementById(id);
-            if (select) {
-                const firstOption = select.options[0];
-                select.innerHTML = '';
-                select.appendChild(firstOption);
+        // Agregar clientes de ordenes existentes (para no perder clientes nuevos)
+        const clientesDeOrdenes = this.ordenes
+            .map(o => o.cliente)
+            .filter(c => c && !clientes.includes(c));
+        clientes = [...new Set([...clientes, ...clientesDeOrdenes])].sort();
 
-                clientes.forEach(cliente => {
-                    const option = document.createElement('option');
-                    option.value = cliente;
-                    option.textContent = cliente;
-                    select.appendChild(option);
-                });
-            }
-        });
+        // Cargar en datalist para el campo cliente (input editable)
+        const datalist = document.getElementById('listaClientes');
+        if (datalist) {
+            datalist.innerHTML = '';
+            clientes.forEach(cliente => {
+                const option = document.createElement('option');
+                option.value = cliente;
+                datalist.appendChild(option);
+            });
+        }
+
+        // Cargar en select de filtro (modal lista ordenes)
+        const filtroSelect = document.getElementById('filtroCliente');
+        if (filtroSelect) {
+            const firstOption = filtroSelect.options[0];
+            filtroSelect.innerHTML = '';
+            filtroSelect.appendChild(firstOption);
+
+            clientes.forEach(cliente => {
+                const option = document.createElement('option');
+                option.value = cliente;
+                option.textContent = cliente;
+                filtroSelect.appendChild(option);
+            });
+        }
     },
 
     /**

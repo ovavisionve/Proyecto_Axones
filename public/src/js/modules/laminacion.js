@@ -314,11 +314,11 @@ const Laminacion = {
     },
 
     /**
-     * Carga clientes desde API o CONFIG
+     * Carga clientes en datalist (permite escribir nuevos o seleccionar existentes)
      */
     cargarClientes: async function() {
-        const clienteSelect = document.getElementById('cliente');
-        if (!clienteSelect) return;
+        const datalist = document.getElementById('listaClientes');
+        if (!datalist) return;
 
         try {
             const response = await AxonesAPI.getClientes();
@@ -331,11 +331,19 @@ const Laminacion = {
             this.clientesCache = CONFIG.CLIENTES || [];
         }
 
+        // Agregar clientes de registros anteriores de laminacion
+        const laminaciones = JSON.parse(localStorage.getItem('axones_laminacion') || '[]');
+        const clientesDeLaminacion = laminaciones
+            .map(l => l.cliente)
+            .filter(c => c && !this.clientesCache.includes(c));
+        this.clientesCache = [...new Set([...this.clientesCache, ...clientesDeLaminacion])].sort();
+
+        // Cargar en datalist
+        datalist.innerHTML = '';
         this.clientesCache.forEach(cliente => {
             const option = document.createElement('option');
             option.value = cliente;
-            option.textContent = cliente;
-            clienteSelect.appendChild(option);
+            datalist.appendChild(option);
         });
     },
 

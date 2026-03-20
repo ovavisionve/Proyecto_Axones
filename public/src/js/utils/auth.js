@@ -10,6 +10,43 @@ const Auth = {
     // Pagina de login (excluida del redirect)
     PAGINA_LOGIN: 'login.html',
 
+    // Mapa de pagina -> permiso requerido para acceder
+    // null = todos los autenticados pueden acceder
+    PERMISOS_PAGINA: {
+        'index.html':        null,
+        'ordenes.html':      'ordenes.ver',
+        'impresion.html':    'impresion.ver',
+        'laminacion.html':   'laminacion.ver',
+        'corte.html':        'corte.ver',
+        'inventario.html':   'inventario.ver',
+        'programacion.html': 'ordenes.ver',
+        'tintas.html':       'tintas.ver',
+        'certificado.html':  'calidad.ver',
+        'etiquetas.html':    'calidad.ver',
+        'reportes.html':     'reportes.ver',
+        'alertas.html':      null,
+        'checklist.html':    null,
+        'incidencias.html':  null,
+        'chatbot.html':      'chatbot.acceso',
+        'admin.html':        'usuarios.gestionar',
+    },
+
+    // Mapa de pagina -> permiso para filtrar navbar
+    NAV_PERMISOS: {
+        'ordenes.html':      'ordenes.ver',
+        'impresion.html':    'impresion.ver',
+        'laminacion.html':   'laminacion.ver',
+        'corte.html':        'corte.ver',
+        'inventario.html':   'inventario.ver',
+        'programacion.html': 'ordenes.ver',
+        'tintas.html':       'tintas.ver',
+        'certificado.html':  'calidad.ver',
+        'etiquetas.html':    'calidad.ver',
+        'reportes.html':     'reportes.ver',
+        'chatbot.html':      'chatbot.acceso',
+        'admin.html':        'usuarios.gestionar',
+    },
+
     /**
      * Inicializa el modulo de autenticacion
      */
@@ -20,8 +57,9 @@ const Auth = {
     },
 
     /**
-     * Verifica si el usuario tiene sesion activa.
-     * Si no la tiene, redirige a login.html (excepto si ya esta en login.html)
+     * Verifica si el usuario tiene sesion activa y permiso para la pagina.
+     * Si no tiene sesion, redirige a login.html.
+     * Si no tiene permiso, redirige a index.html con alerta.
      */
     verificarAccesoProtegido: function() {
         const paginaActual = window.location.pathname.split('/').pop() || 'index.html';
@@ -29,10 +67,19 @@ const Auth = {
         // No redirigir si ya esta en login.html
         if (paginaActual === this.PAGINA_LOGIN || paginaActual === '') return;
 
+        // Sin sesion -> login
         if (!this.currentUser) {
-            // Guardar pagina actual para volver despues del login
             sessionStorage.setItem('axones_return_to', paginaActual);
             window.location.href = this.PAGINA_LOGIN;
+            return;
+        }
+
+        // Con sesion -> verificar permiso de pagina
+        const permisoRequerido = this.PERMISOS_PAGINA[paginaActual];
+        if (permisoRequerido && !this.tienePermiso(permisoRequerido)) {
+            // No tiene permiso para esta pagina
+            sessionStorage.setItem('axones_acceso_denegado', paginaActual);
+            window.location.href = 'index.html';
         }
     },
 
@@ -457,7 +504,7 @@ const Auth = {
 
         const permisos = CONFIG.PERMISOS[this.currentUser.rol] || [];
 
-        // Ocultar elementos que requieren permisos especificos
+        // 1. Ocultar elementos que requieren permisos especificos (data-permiso)
         document.querySelectorAll('[data-permiso]').forEach(el => {
             const permisoRequerido = el.dataset.permiso;
             if (!permisos.includes(permisoRequerido)) {
@@ -467,39 +514,36 @@ const Auth = {
             }
         });
 
-        // Ocultar modulos segun rol
-        document.querySelectorAll('[data-rol-minimo]').forEach(el => {
-            const rolMinimo = el.dataset.rolMinimo;
-            const rolesOrdenados = [CONFIG.ROLES.OPERADOR, CONFIG.ROLES.SUPERVISOR, CONFIG.ROLES.ADMINISTRADOR];
-            const indexMinimo = rolesOrdenados.indexOf(rolMinimo);
-            const indexActual = rolesOrdenados.indexOf(this.currentUser.rol);
-
-            if (indexActual < indexMinimo) {
-                el.style.display = 'none';
-            } else {
-                el.style.display = '';
-            }
+        // 2. Filtrar links del navbar segun permisos de pagina
+        Object.entries(this.NAV_PERMISOS).forEach(([pagina, permiso]) => {
+            document.querySelectorAll(`a[href="${pagina}"]`).forEach(link => {
+                const visible = permisos.includes(permiso);
+                const parentLi = link.closest('li.nav-item');
+                if (parentLi) {
+                    parentLi.style.display = visible ? '' : 'none';
+                } else {
+                    link.style.display = visible ? '' : 'none';
+                }
+            });
         });
 
-        // Ocultar chatbot para no-administradores
-        this.ocultarChatbotParaNoAdmins();
-    },
-
-    /**
-     * Oculta el enlace del chatbot si el usuario no es administrador
-     */
-    ocultarChatbotParaNoAdmins: function() {
-        const esAdmin = this.currentUser && this.currentUser.rol === 'administrador';
-
-        // Buscar enlaces al chatbot en el navbar
-        document.querySelectorAll('a[href="chatbot.html"]').forEach(link => {
-            const parentLi = link.closest('li.nav-item');
-            if (parentLi) {
-                parentLi.style.display = esAdmin ? '' : 'none';
-            } else {
-                link.style.display = esAdmin ? '' : 'none';
-            }
-        });
+        // 3. Mostrar alerta si fue redirigido por acceso denegado
+        const denegado = sessionStorage.getItem('axones_acceso_denegado');
+        if (denegado) {
+            sessionStorage.removeItem('axones_acceso_denegado');
+            setTimeout(() => {
+                const container = document.querySelector('.container-fluid') || document.body;
+                const alerta = document.createElement('div');
+                alerta.className = 'alert alert-warning alert-dismissible fade show mt-3';
+                alerta.innerHTML = `
+                    <i class="bi bi-shield-exclamation me-2"></i>
+                    <strong>Acceso denegado:</strong> No tienes permiso para acceder a <em>${denegado}</em>.
+                    Contacta a tu supervisor si necesitas acceso.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                container.prepend(alerta);
+            }, 300);
+        }
     },
 
     /**
@@ -516,9 +560,18 @@ const Auth = {
      */
     tieneRol: function(rolMinimo) {
         if (!this.currentUser) return false;
-        const rolesOrdenados = [CONFIG.ROLES.OPERADOR, CONFIG.ROLES.SUPERVISOR, CONFIG.ROLES.ADMINISTRADOR];
+        const rolesOrdenados = [
+            CONFIG.ROLES.OPERADOR,
+            CONFIG.ROLES.COLORISTA,
+            CONFIG.ROLES.JEFE_ALMACEN,
+            CONFIG.ROLES.SUPERVISOR,
+            CONFIG.ROLES.PLANIFICADOR,
+            CONFIG.ROLES.JEFE_OPERACIONES,
+            CONFIG.ROLES.ADMINISTRADOR
+        ];
         const indexMinimo = rolesOrdenados.indexOf(rolMinimo);
         const indexActual = rolesOrdenados.indexOf(this.currentUser.rol);
+        if (indexMinimo === -1 || indexActual === -1) return false;
         return indexActual >= indexMinimo;
     },
 

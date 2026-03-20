@@ -54,6 +54,9 @@ const Corte = {
 
         // Calcular tiempo de preparacion automatico
         this.setupTiempoPreparacion();
+
+        // Flechitas de etiquetas en bobinas de entrada
+        this.setupEtiquetasBobinas();
     },
 
     /**
@@ -1145,6 +1148,9 @@ const Corte = {
             motivosParadas: document.getElementById('motivosParadas').value,
             observaciones: document.getElementById('observaciones').value,
 
+            // Etiquetas de bobinas de entrada
+            etiquetasEntrada: this.etiquetasData.entrada,
+
             registradoPor: Auth.getUser() ? Auth.getUser().id : 'unknown',
             registradoPorNombre: Auth.getUser() ? Auth.getUser().nombre : 'Unknown',
         };
@@ -1409,6 +1415,75 @@ const Corte = {
 
         if (horaInicio) horaInicio.addEventListener('change', calcular);
         if (horaArranque) horaArranque.addEventListener('change', calcular);
+    },
+
+    /**
+     * Datos de etiquetas de bobinas de entrada
+     */
+    etiquetasData: { entrada: {} },
+
+    /**
+     * Configura flechitas de etiquetas en bobinas de entrada
+     */
+    setupEtiquetasBobinas: function() {
+        const self = this;
+        const entradaFields = ['Proveedor', 'Referencia', 'Medida', 'Micraje', 'TratInt', 'TratExt', 'Fecha', 'Maquina', 'Pedido'];
+
+        // Inyectar flechitas en bobinas de entrada (bob1-bob14)
+        for (let i = 1; i <= 14; i++) {
+            const input = document.getElementById('bob' + i);
+            if (!input) continue;
+            const label = input.previousElementSibling;
+            if (!label || label.querySelector('.bobina-arrow')) continue;
+            const wrapper = document.createElement('span');
+            wrapper.className = 'bobina-label-wrapper';
+            wrapper.innerHTML = label.innerHTML;
+            const arrow = document.createElement('i');
+            arrow.className = 'bi bi-caret-down-fill bobina-arrow';
+            arrow.dataset.tipo = 'entrada';
+            arrow.dataset.bobina = 'bob' + i;
+            arrow.dataset.numero = i;
+            arrow.title = 'Etiqueta bobina ' + i;
+            wrapper.appendChild(arrow);
+            label.innerHTML = '';
+            label.appendChild(wrapper);
+        }
+
+        // Delegated click handler for arrows
+        document.addEventListener('click', function(e) {
+            const arrow = e.target.closest('.bobina-arrow');
+            if (!arrow) return;
+            const bobinaId = arrow.dataset.bobina;
+            const numero = arrow.dataset.numero;
+
+            document.getElementById('etqEntBobinaId').value = bobinaId;
+            document.getElementById('etqEntNumero').textContent = numero;
+            const data = self.etiquetasData.entrada[bobinaId] || {};
+            entradaFields.forEach(f => {
+                const el = document.getElementById('etqEnt' + f);
+                if (el) el.value = data[f] || '';
+            });
+            new bootstrap.Modal(document.getElementById('modalEtiquetaEntrada')).show();
+        });
+
+        // Save button for entrada
+        const btnEnt = document.getElementById('btnGuardarEtqEnt');
+        if (btnEnt) {
+            btnEnt.addEventListener('click', function() {
+                const bobinaId = document.getElementById('etqEntBobinaId').value;
+                const data = {};
+                let hasData = false;
+                entradaFields.forEach(f => {
+                    const val = document.getElementById('etqEnt' + f)?.value || '';
+                    data[f] = val;
+                    if (val) hasData = true;
+                });
+                self.etiquetasData.entrada[bobinaId] = data;
+                const arrow = document.querySelector(`.bobina-arrow[data-bobina="${bobinaId}"]`);
+                if (arrow) arrow.classList.toggle('has-data', hasData);
+                bootstrap.Modal.getInstance(document.getElementById('modalEtiquetaEntrada'))?.hide();
+            });
+        }
     },
 
     /**

@@ -397,6 +397,50 @@ git push origin main
 - **ordenes.js**: Logica de ordenes de trabajo
 - **inventario.js**: Inventario con SKU y codigos de barras
 
+## Progreso de Cambios Solicitados por Valeria (19/03/2026)
+
+### Fase 1: Reorganizar modulos en capsulas + Checklist integrado
+| Cambio | Estado |
+|--------|--------|
+| Reorganizar campos en capsulas claras (Orden, Turno, Produccion, Tiempo) | COMPLETADO |
+| Eliminar campos redundantes (tiempoMuerto, tiempoEfectivo, tiempoPreparacion) | COMPLETADO |
+| Tiempo de preparacion = Hora Arranque - Hora Inicio (automatico) | COMPLETADO |
+| Boton de Checklist integrado en header de cada modulo | COMPLETADO |
+| Checklist con items reales de Axones por area | COMPLETADO |
+| Aplicado a: impresion, laminacion, corte | COMPLETADO |
+
+### Fase 2: Flechitas expandibles en bobinas para info de etiqueta
+| Cambio | Estado |
+|--------|--------|
+| CSS para flechitas (.bobina-arrow) en los 3 modulos | COMPLETADO |
+| Modal etiqueta entrada (9 campos) en impresion.html | COMPLETADO |
+| Modal etiqueta salida (6 campos) en impresion.html | COMPLETADO |
+| Modal etiqueta entrada en laminacion.html | COMPLETADO |
+| Modal etiqueta salida en laminacion.html | COMPLETADO |
+| Modal etiqueta entrada en corte.html | COMPLETADO |
+| JS: inyeccion dinamica de flechitas en impresion.js | COMPLETADO |
+| JS: inyeccion dinamica de flechitas en laminacion.js | COMPLETADO |
+| JS: inyeccion dinamica de flechitas en corte.js | COMPLETADO |
+| JS: guardar/cargar data de etiquetas por bobina | COMPLETADO |
+| JS: flechita verde cuando tiene datos (.has-data) | COMPLETADO |
+| JS: etiquetasData incluido en recopilarDatos() | COMPLETADO |
+
+### Fase 3: Restante de bobinas + Resumen con calculo de inventario
+| Cambio | Estado |
+|--------|--------|
+| Capsula "Restante de bobinas usadas" | PENDIENTE |
+| Resumen con calculo de materiales y deduccion de inventario | PENDIENTE |
+
+### Fase 4: Scrap con 3 categorias en laminacion + Producto terminado desde corte
+| Cambio | Estado |
+|--------|--------|
+| Scrap 3 categorias en laminacion (Transparente, Impreso, Laminado) | COMPLETADO |
+| Producto terminado de corte a inventario | PENDIENTE |
+
+### Campos de Etiqueta de Bobina
+**Entrada** (9 campos): Proveedor, Referencia Bobina, Medida/Ancho, Micraje, Trat. Interno, Trat. Externo, Fecha, Maquina Origen, Pedido/Lote
+**Salida** (6 campos): Peso (auto), Fecha, Metraje, Hora, Empalmes, Operador
+
 ## Commits Recientes (Referencia)
 ```
 8dd9329 feat: Add technical specification fields to production modules

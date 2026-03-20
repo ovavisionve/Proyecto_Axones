@@ -3,30 +3,71 @@
 ## Descripcion del Proyecto
 Sistema integral de gestion y control de produccion para **Inversiones Axones 2008, C.A.** - empresa de empaques flexibles plasticos en Venezuela.
 
+**Version:** 1.2.0
+**Ultima actualizacion:** 2026-03-20
+
 ## URLs de Vercel
 - **Desarrollo:** https://proyecto-axones-git-claude-setup-axones-project-ja8zk-ova1.vercel.app/
 - **Produccion:** https://proyecto-axones.vercel.app/ (rama main)
 
+## Datos de la Empresa
+```
+Razon Social: INVERSIONES AXONES 2008, C.A.
+RIF: J-40081341-7
+Direccion: Calle Parcelamiento Industrial Guere, local 35, sector La Julia, Turmero, Aragua
+Telefono: 0424-316.96.12
+Emails: axones2008@gmail.com, gerenciaaxones@gmail.com
+```
+
 ## Estructura del Proyecto
 ```
 public/
-├── index.html          # Dashboard principal
-├── ordenes.html        # Gestion de ordenes de trabajo
-├── impresion.html      # Modulo de impresion (COMEXI 1/COMEXI 3)
-├── laminacion.html     # Modulo de laminacion
-├── corte.html          # Modulo de corte
-├── inventario.html     # Inventario (158 productos reales)
+├── index.html              # Dashboard principal
+├── ordenes.html            # Gestion de ordenes de trabajo (formulario completo)
+├── impresion.html          # Modulo de impresion (COMEXI 1/COMEXI 3)
+├── laminacion.html         # Modulo de laminacion (NEXUS)
+├── corte.html              # Modulo de corte (3 cortadoras)
+├── inventario.html         # Inventario (158 productos reales)
+├── programacion.html       # Programacion Kanban de ordenes
+├── tintas.html             # Gestion de tintas y solventes
+├── certificado.html        # Certificados de calidad
+├── etiquetas.html          # Generador de etiquetas
+├── reportes.html           # Reportes y estadisticas
+├── alertas.html            # Sistema de alertas
+├── checklist.html          # Checklists de produccion
+├── incidencias.html        # Registro de incidencias
+├── chatbot.html            # Asistente IA (Groq LLaMA)
+├── admin.html              # Administracion de usuarios
+├── test-orden.html         # Pruebas de ordenes
 ├── src/js/
+│   ├── main.js             # Punto de entrada principal
 │   ├── modules/
 │   │   ├── ordenes.js      # Logica de ordenes de trabajo
 │   │   ├── impresion.js    # Logica de impresion
 │   │   ├── laminacion.js   # Logica de laminacion
 │   │   ├── corte.js        # Logica de corte
-│   │   └── inventario.js   # Inventario con 158 productos reales del Excel
+│   │   ├── inventario.js   # Inventario con 158 productos reales
+│   │   ├── programacion.js # Kanban de programacion
+│   │   ├── tintas.js       # Gestion de tintas
+│   │   ├── certificado.js  # Certificados de calidad
+│   │   ├── etiquetas.js    # Generador de etiquetas
+│   │   ├── reportes.js     # Reportes
+│   │   ├── alertas.js      # Sistema de alertas
+│   │   ├── dashboard.js    # Dashboard principal
+│   │   ├── chatbot.js      # Asistente IA
+│   │   ├── admin.js        # Administracion
+│   │   ├── checklist.js    # Checklists
+│   │   ├── incidencias.js  # Incidencias
+│   │   └── home.js         # Pagina inicial
 │   └── utils/
-│       ├── demoData.js     # Datos de demo (NO sobrescribe inventario)
-│       ├── config.js       # Configuracion global
-│       └── api.js          # Conexion con Google Sheets
+│       ├── config.js           # Configuracion global (IMPORTANTE)
+│       ├── control-tiempo.js   # Control de tiempo Play/Pausa/Completar
+│       ├── demoData.js         # Datos de demo (NO sobrescribe inventario)
+│       ├── auth.js             # Autenticacion de usuarios
+│       ├── api.js              # Conexion con Google Sheets
+│       ├── cliente-memoria.js  # Memoria de clientes
+│       ├── inventario-service.js # Servicio de inventario
+│       └── theme.js            # Tema oscuro/claro
 ```
 
 ## Inventario Real
@@ -35,7 +76,7 @@ public/
 - Tipos de material: BOPP NORMAL, BOPP MATE, BOPP PASTA, CAST, METAL, PERLADO, PEBD, PEBD PIGMENT
 - **IMPORTANTE:** `demoData.js` NO debe sobrescribir el inventario
 
-### SKU y Codigos de Barras (NUEVO)
+### SKU y Codigos de Barras
 Cada producto tiene:
 - **SKU**: Formato `PREFIJO-MICRAS-ANCHO` (ej: `BN-20-610` = BOPP Normal 20 micras 610mm)
 - **Codigo de Barras**: EAN-13 (759 + 0001 + secuencial + verificador)
@@ -66,20 +107,33 @@ Al seleccionar un producto del inventario en una orden de trabajo, se pre-llenan
 - **Metros estimados** (calculado cuando se llena pedidoKg)
 
 ## Maquinas (Ficha Tecnica 2026-03-18)
-- **Impresion:** COMEXI 1 (830mm max, 130 m/min), COMEXI 3 (1200mm max, 130 m/min)
-- **Laminacion:** NEXUS (1200mm max, 100 m/min)
-- **Corte:** Cortadora China (400 m/min), Cortadora Permaco (140 m/min), Cortadora Novograf (200 m/min)
+### Impresoras
+- **COMEXI 1**: Ancho max 830mm, Velocidad 130 m/min
+- **COMEXI 3**: Ancho max 1200mm, Velocidad 130 m/min
+
+### Laminadoras
+- **NEXUS**: Ancho max 1200mm, Velocidad 100 m/min
+
+### Cortadoras
+- **Cortadora China**: Velocidad 400 m/min
+- **Cortadora Permaco**: Velocidad 140 m/min
+- **Cortadora Novograf**: Velocidad 200 m/min
 
 ## Turnos de Trabajo (Ficha Tecnica)
-- **Diurno:** 7:00 AM - 4:00 PM
-- **Diurno H.E.:** 4:00 PM - 7:00 PM
-- **Nocturno:** 7:00 PM - 4:00 AM
-- **Nocturno H.E.:** 4:00 AM - 7:00 AM
+| Turno | Horario | Codigo |
+|-------|---------|--------|
+| Diurno | 7:00 AM - 4:00 PM | D |
+| Diurno H.E. | 4:00 PM - 7:00 PM | DHE |
+| Nocturno | 7:00 PM - 4:00 AM | N |
+| Nocturno H.E. | 4:00 AM - 7:00 AM | NHE |
 
 ## Usuarios del Sistema (22 usuarios reales)
 - Login con: primera letra nombre + apellido (ej: rparra, ajaure)
 - Password temporal: axones2026
 - Roles: operador, supervisor, jefe_operaciones, jefe_almacen, planificador, colorista, administrador
+
+### Permisos por Rol
+Ver `config.js` seccion `PERMISOS` para la matriz completa de permisos.
 
 ## Formulas de Produccion
 
@@ -110,7 +164,7 @@ Metros = 1000 × 1000 / 10.98 = 91,074 metros
 Pinon = Desarrollo / 5
 ```
 
-### Calculo de Materiales - Ficha Tecnica (NUEVO 06-03-2026)
+### Calculo de Materiales - Ficha Tecnica
 Para productos laminados (BOPP + Adhesivo + Cast):
 ```
 Gramaje Total = Gramaje Capa1 + Gramaje Adhesivo + Gramaje Capa2
@@ -122,12 +176,6 @@ Kg Catalizador = Kg Adhesivo / Relacion (ej: 10:1)
 Kg Capa2 = (Metros Totales × Gramaje Capa2) / 1000
 ```
 
-**Preguntas pendientes para el equipo:**
-1. Gramaje tipico del adhesivo (g/m²)?
-2. Relacion catalizador (10:1, 5:1, etc)?
-3. Ejemplo real para validar formula
-4. Agregar % merma?
-
 ### Calculo Metros/Bobina (Area Corte)
 ```
 Metros/Bobina = (Peso Bobina × 1000) / Gramaje
@@ -135,7 +183,15 @@ Gramaje = Ancho(m) × Micras × Densidad
 ```
 *Se calcula automaticamente al llenar Peso Bobina*
 
-## Sistema de Control de Tiempo (IMPLEMENTADO 06-03-2026)
+## Sistema de Control de Tiempo (IMPLEMENTADO)
+
+### Archivo Principal
+`public/src/js/utils/control-tiempo.js`
+
+### Funcionalidades
+- **Play/Pausa/Completar**: Cronometro para cada orden en cada fase
+- **Estados**: pendiente, en_progreso, pausada, completada
+- **Almacenamiento**: localStorage key `axones_control_tiempo`
 
 ### Panel de Comandas (Selector tipo restaurante)
 - Aparece al inicio de cada modulo de produccion (Impresion, Laminacion, Corte)
@@ -146,7 +202,7 @@ Gramaje = Ancho(m) × Micras × Densidad
   - **Azul (primary):** Normal
 - Informacion mostrada: numero OT, cliente, producto, kg pedidos, tiempo acumulado
 - Al hacer click en una comanda se carga la OT y se muestra el panel de tiempo
-- Ubicado en `control-tiempo.js` funcion `renderPanelComandas()`
+- Funcion: `ControlTiempo.renderPanelComandas(fase, contenedorId, callback)`
 
 ### Modal Obligatorio de Pausa
 - Al pausar una OT se muestra modal que OBLIGA a indicar motivo
@@ -154,37 +210,83 @@ Gramaje = Ancho(m) × Micras × Densidad
 - Motivos predefinidos:
   - Cambio de bobina
   - Ajuste de maquina
-  - Falta de material
-  - Cambio de turno
-  - Mantenimiento
+  - Falla mecanica / Falla electrica
+  - Cambio de tinta
+  - Limpieza de rodillos
   - Problema de calidad
+  - Falta de material
   - Almuerzo/Descanso
+  - Reunion/Capacitacion
   - Otro (especificar)
-- Si selecciona "Otro", debe escribir el motivo manualmente
-- Motivo se guarda en el registro de la orden
-- Ubicado en `control-tiempo.js` funcion `pausaConMotivo()`
+- Funcion: `ControlTiempo.pausaConMotivo(ordenId, fase)`
 
-### Despachos Parciales (IMPLEMENTADO 06-03-2026)
+### Despachos Parciales (IMPLEMENTADO)
 - Permite registrar entregas parciales de una orden grande
 - Ejemplo: Cliente pide 10,000 Kg pero paga por partes, se despachan 3,000 Kg hoy
 - Boton "Registrar Despacho Parcial" en el panel de control de tiempo
-- Modal para ingresar:
-  - Kg a despachar (obligatorio)
-  - Cliente
-  - Nota de entrega
-  - Observaciones
+- Modal para ingresar: Kg a despachar, Cliente, Nota de entrega, Observaciones
 - Muestra informacion: Pedido | Despachado | Pendiente
 - Historial de despachos visible en el panel
-- Total despachado mostrado en el boton
-- Ubicado en `control-tiempo.js` funcion `registrarDespacho()`
+- Funcion: `ControlTiempo.registrarDespacho(ordenId, fase)`
+
+### Funciones Principales de ControlTiempo
+```javascript
+ControlTiempo.play(ordenId, fase, operador)      // Iniciar cronometro
+ControlTiempo.pausa(ordenId, fase, motivo)       // Pausar con motivo
+ControlTiempo.pausaConMotivo(ordenId, fase)      // Modal obligatorio
+ControlTiempo.completar(ordenId, fase, datos)    // Completar fase
+ControlTiempo.getTiempoActual(ordenId, fase)     // Obtener tiempo en ms
+ControlTiempo.formatearTiempo(ms)                // Formatear a HH:MM:SS
+ControlTiempo.renderControles(ordenId, fase, contenedorId)
+ControlTiempo.renderPanelComandas(fase, contenedorId, callback)
+ControlTiempo.getResumenOrden(ordenId)           // Resumen de todas las fases
+```
 
 ### Regla Importante
 **TODOS los cambios solicitados en un modulo de produccion deben aplicarse a los 3 modulos:**
-- Impresion (`impresion.js`)
-- Laminacion (`laminacion.js`)
-- Corte (`corte.js`)
+- Impresion (`impresion.js`, `impresion.html`)
+- Laminacion (`laminacion.js`, `laminacion.html`)
+- Corte (`corte.js`, `corte.html`)
 
-## Feedback Pendiente del Equipo (06-03-2026)
+## Proveedores (Ficha Tecnica)
+
+### Sustratos
+- Fabrica Siplast, C.A. (J-29586594-5)
+- Plasticos la Dinastia, C.A. (J-50176198-1)
+- Teleplastic, C.A. (J-00054015-2)
+- Technofilm, S.A.
+- Total Flex, C.A. (J-50374325-5)
+- Flexipack Solutions, C.A. (J-50519062-8)
+- Inversiones J&D, C.A.
+- Venefoil, C.A. (J-06001261-9)
+
+### Tintas
+- Barnices Venezolanos, C.A. (J-07540293-6)
+- Favika, C.A. (J-29746614-2)
+- Inversiones Cabeoli, C.A. (J-40839412-0)
+- Tintas Venezolanas, C.A. (J-50576017-3)
+
+### Solventes y Adhesivos
+- ALPHA Industrias Quimicas, C.A. (J-50180349-8) - Adhesivos FLEXTRA
+- A.J. Lara Suministros Quimicos, C.A. (J-30827597-2)
+- Quimicos la Barraca, C.A. (J-07544200-8)
+- Inversiones Venproquim, C.A. (J-40454107-1)
+
+## APIs y Servicios Externos
+
+### Google Sheets
+```javascript
+CONFIG.API.BASE_URL = 'https://script.google.com/macros/s/AKfycbxsMrUSHR6QkAgiZJ8owAfBGOvfz09D4kf96fK8Dr_zeTA1PfiQs2xdxEKC2IoeA9zK/exec'
+CONFIG.API.SHEETS_ID = '1TOpqDc-X4kthwYNzduGYO6MpN1dOdvbjqIIoW_oYL88'
+```
+
+### Chatbot (Groq LLaMA)
+```javascript
+CONFIG.CHATBOT.API_URL = 'https://api.groq.com/openai/v1/chat/completions'
+CONFIG.CHATBOT.MODEL = 'llama-3.3-70b-versatile'
+```
+
+## Feedback Pendiente del Equipo (2026-03-20)
 
 ### CRITICOS - Cambios de Flujo
 - [ ] Area de corte por TURNO (7am-7pm, 7pm-7am), no por orden de trabajo
@@ -197,72 +299,78 @@ Gramaje = Ancho(m) × Micras × Densidad
 - [ ] Cantidad de rollos en corte
 - [ ] Temporizador para kg en corte
 
-### FICHA TECNICA (NUEVO 06-03-2026)
+### FICHA TECNICA
 - [x] Seccion agregada con estructura del producto (Capa1 + Adhesivo + Capa2)
 - [x] Calculo automatico de kg necesarios de cada material
 - [x] Busqueda de SKU del inventario por tipo de material
 - [x] Densidades automaticas por tipo de material
 - [ ] **PENDIENTE:** Respuestas del equipo sobre gramaje adhesivo, relacion catalizador, y ejemplo real
 
+### CAMPOS EN IMPRESION (IMPLEMENTADOS)
+- [x] Numero de banda (despues de ancho de corte)
+- [x] Repeticiones (despues de frecuencia)
+- [x] Figura de Embobinado: opciones 1-8
+- [x] Tipo de impresion: Superficie y Reverso
+- [x] Colores: 8 posiciones (1=color, 2=color, etc.)
+- [x] Pinon automatico: desarrollo / 5
+- [x] Linea de corte: 3mm y 5mm
+- [x] ELIMINADOS: Ubicacion de Fotocelda, Gramaje en tinta
+- [x] Sustratos virgen: buscar SKU del inventario
+- [x] Metros estimados: se calculan al seleccionar producto + pedidoKg
+
+### LAMINACION (IMPLEMENTADOS)
+- [x] Gramaje adhesivo: permitir coma decimal
+- [x] Materiales: elegir tipo de adhesivo del inventario
+- [x] Tipo de laminado: Bilaminado/Trilaminado
+- [x] Figura de embobinado: opciones 1-8
+- [x] Material virgen desde inventario
+
 ### AREA DE CORTE/EMBALAJE
 - [x] Metros/Bobina: calculado automaticamente (Peso / Gramaje)
 
-### CAMPOS A MODIFICAR EN IMPRESION
-- [x] Despues de ancho de corte: numero de banda - IMPLEMENTADO
-- [x] Despues de frecuencia: repeticiones - IMPLEMENTADO
-- [x] Figura de Embobinado: opciones 1-8 - IMPLEMENTADO
-- [x] Tipo de impresion: Superficie y Reverso - IMPLEMENTADO
-- [x] Colores: 8 posiciones (1=color, 2=color, etc.) - YA EXISTE EN ordenes.html
-- [x] Pinon automatico: desarrollo / 5 - IMPLEMENTADO
-- [x] Linea de corte: 3mm y 5mm - IMPLEMENTADO
-- [x] ELIMINAR: Ubicacion de Fotocelda, Gramaje en tinta - ELIMINADOS
-- [x] Sustratos virgen: buscar SKU del inventario (Ancho x Micraje) - IMPLEMENTADO
-- [x] Kg de Salida: solo al terminar la orden - YA IMPLEMENTADO
-- [x] Metros estimados: se calculan al seleccionar producto + pedidoKg - IMPLEMENTADO
-
-### TINTAS Y SOLVENTES
+### TINTAS Y SOLVENTES (PENDIENTE)
 - [ ] Atados a orden de trabajo pero editables
 - [ ] Preparados dentro de produccion
 - [ ] Solventes: agregar varias medidas/consumos de acetatos
 - [ ] Colorista puede crear colores nuevos (mezcla de N kg de cada tinta)
 
-### INVENTARIO
+### INVENTARIO (PENDIENTE)
 - [ ] Enlazado con orden de compra
 - [ ] Relacion con ordenes de produccion
 - [ ] Varios materiales por orden
 - [ ] Material sobrante debe reponerse
-- [ ] Codigo de producto y codigo de barra por producto
-- [ ] Codificacion por diferencia, micras, anchos
+- [x] Codigo de producto y codigo de barra por producto - IMPLEMENTADO
+- [x] Codificacion por diferencia, micras, anchos - IMPLEMENTADO
 - [ ] Adhesivos: despachar kg sin necesidad de orden
 
-### CALIDAD Y DESPACHO
+### CALIDAD Y DESPACHO (PENDIENTE)
 - [ ] Alimentarse con orden de trabajo
 - [ ] Listado de despacho
-- [x] Orden de entrega (entregas parciales de una orden grande) - IMPLEMENTADO via Despachos Parciales
+- [x] Orden de entrega (entregas parciales) - IMPLEMENTADO via Despachos Parciales
 - [ ] Solicitud de material y repuestos para produccion
 - [ ] Nota de entrega asociada a ordenes
 - [ ] Certificado de calidad automatico (editable, imprimible, firmable)
 - [ ] Seleccionar paletas/bobinas a despachar
 
-### LAMINACION
-- [x] Gramaje adhesivo: permitir coma decimal - IMPLEMENTADO (input type="text")
-- [x] Materiales: elegir tipo de adhesivo del inventario al finalizar - IMPLEMENTADO
-- [x] Tipo de laminado: Bilaminado/Trilaminado - IMPLEMENTADO
-- [x] Figura de embobinado: opciones 1-8 - IMPLEMENTADO
-- [x] Material virgen desde inventario - IMPLEMENTADO
-
 ## Convenciones de Codigo
 
 ### localStorage Keys
-- `axones_ordenes_trabajo` - Ordenes de trabajo
-- `axones_inventario` - Inventario de materiales
-- `axones_tintas_inventario` - Inventario de tintas
-- `axones_adhesivos_inventario` - Inventario de adhesivos
-- `axones_produccion` - Registros de produccion
-- `axones_alertas` - Alertas del sistema
+```javascript
+'axones_ordenes_trabajo'    // Ordenes de trabajo
+'axones_inventario'         // Inventario de materiales
+'axones_tintas_inventario'  // Inventario de tintas
+'axones_adhesivos_inventario' // Inventario de adhesivos
+'axones_produccion'         // Registros de produccion
+'axones_alertas'            // Alertas del sistema
+'axones_control_tiempo'     // Control de tiempo (Play/Pausa)
+'axones_tiempo_historial'   // Historial de tiempos reiniciados
+```
 
 ### Prefijo de Cache
 Usar `CONFIG.CACHE.PREFIJO` = `'axones_'`
+
+### Formato de OT
+`OT-{YYYY}-{NNNN}` (ej: OT-2026-0001)
 
 ## Comandos Git
 ```bash
@@ -280,3 +388,23 @@ git push origin main
 2. La app en Vercel esta protegida - no se puede acceder via WebFetch
 3. No correr servidores locales sin preguntar - el usuario no tiene terminal abierta
 4. Siempre preguntar cuando algo no este claro antes de implementar
+5. Revisar `config.js` para todas las constantes y configuraciones del sistema
+6. Los cambios en un modulo de produccion deben replicarse en los otros 2
+
+## Archivos Clave para Referencia
+- **config.js**: Todas las constantes, roles, permisos, maquinas, materiales
+- **control-tiempo.js**: Sistema de cronometros y despachos parciales
+- **ordenes.js**: Logica de ordenes de trabajo
+- **inventario.js**: Inventario con SKU y codigos de barras
+
+## Commits Recientes (Referencia)
+```
+8dd9329 feat: Add technical specification fields to production modules
+46d3aac feat: Fase 1 - Arreglos inmediatos
+d036e91 feat: cargar datos de Ficha Tecnica real de Axones
+33c2780 docs: documentar sistema de despachos parciales
+5e1a9cf feat: arreglar botones Play/Pausa y agregar despachos parciales
+053f11a feat: agregar panel comandas y modal obligatorio para pausa
+0a408a7 fix: mejorar insercion del selector de OT en modulos de produccion
+0414c6b feat: agregar etapa MONTAJE al kanban y corregir filtro de OT
+```

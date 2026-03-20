@@ -28,6 +28,19 @@ const Programacion = {
         this.renderizarTablero();
         this.setupDragDrop();
         this.actualizarContadores();
+
+        // Escuchar cambios del SyncManager para actualizar Kanban
+        if (typeof SyncManager !== 'undefined') {
+            SyncManager.on('ordenes', () => {
+                const stored = localStorage.getItem('axones_ordenes_trabajo');
+                if (stored) {
+                    this.ordenes = JSON.parse(stored);
+                    this.renderizarTablero();
+                    this.actualizarContadores();
+                    console.log('[Programacion] Kanban actualizado via SyncManager');
+                }
+            });
+        }
     },
 
     /**

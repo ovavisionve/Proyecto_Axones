@@ -142,6 +142,20 @@ const Inventario = {
 
         // Escanear inventario y generar alertas basadas en stock real
         this.generarAlertasDeInventarioReal();
+
+        // Escuchar cambios del SyncManager para actualizar inventario
+        if (typeof SyncManager !== 'undefined') {
+            SyncManager.on('inventario', () => {
+                const stored = localStorage.getItem('axones_inventario');
+                if (stored) {
+                    this.items = JSON.parse(stored);
+                    this.filteredItems = [...this.items];
+                    this.renderInventario();
+                    this.updateTotales();
+                    console.log('[Inventario] Actualizado via SyncManager');
+                }
+            });
+        }
     },
 
     /**

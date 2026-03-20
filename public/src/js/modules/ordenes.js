@@ -1539,6 +1539,9 @@ const Ordenes = {
                     <td class="text-center"><span class="badge ${prioridadClass}">${orden.prioridad || 'normal'}</span></td>
                     <td class="text-center"><span class="badge ${estadoClass}">${orden.estadoOrden || 'pendiente'}</span></td>
                     <td class="text-center">
+                        <button class="btn btn-sm btn-outline-info me-1" onclick="Ordenes.verHistorial('${orden.id}')" title="Historial">
+                            <i class="bi bi-clock-history"></i>
+                        </button>
                         <button class="btn btn-sm btn-outline-primary me-1" onclick="Ordenes.editarOrden('${orden.id}')" title="Editar">
                             <i class="bi bi-pencil"></i>
                         </button>
@@ -1790,6 +1793,268 @@ const Ordenes = {
             minimumFractionDigits: 0,
             maximumFractionDigits: 2
         }).format(num);
+    },
+
+    // ==================== HISTORIAL DE ORDENES ====================
+
+    /**
+     * Muestra el historial detallado de una orden
+     */
+    verHistorial: async function(id) {
+        const orden = this.ordenes.find(o => o.id === id);
+        if (!orden) return;
+
+        // Crear modal si no existe
+        let modal = document.getElementById('modalHistorialOT');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'modalHistorialOT';
+            modal.className = 'modal fade';
+            modal.setAttribute('tabindex', '-1');
+            modal.innerHTML = `
+                <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header bg-info text-white">
+                            <h5 class="modal-title"><i class="bi bi-clock-history me-2"></i>Historial de Orden</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body" id="historialOTBody">
+                            <div class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status"></div>
+                                <p class="mt-2">Cargando historial...</p>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        // Mostrar modal
+        const bsModal = new bootstrap.Modal(modal);
+        bsModal.show();
+
+        // Header con datos de la orden
+        const body = document.getElementById('historialOTBody');
+        body.innerHTML = `
+            <div class="card mb-3 border-primary">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong class="text-primary">${orden.numeroOrden || '-'}</strong><br>
+                            <small class="text-muted">Numero de Orden</small>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>${orden.cliente || '-'}</strong><br>
+                            <small class="text-muted">Cliente</small>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>${orden.producto || '-'}</strong><br>
+                            <small class="text-muted">Producto</small>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>${orden.pedidoKg ? this.formatNumber(orden.pedidoKg) + ' Kg' : '-'}</strong><br>
+                            <small class="text-muted">Pedido</small>
+                        </div>
+                    </div>
+                    <hr class="my-2">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <small><strong>Estado:</strong> <span class="badge ${orden.estadoOrden === 'completada' ? 'bg-success' : orden.estadoOrden === 'en-proceso' ? 'bg-primary' : 'bg-warning text-dark'}">${orden.estadoOrden || 'pendiente'}</span></small>
+                        </div>
+                        <div class="col-md-3">
+                            <small><strong>Maquina:</strong> ${orden.maquina || '-'}</small>
+                        </div>
+                        <div class="col-md-3">
+                            <small><strong>Creada:</strong> ${this.formatFecha(orden.fechaCreacion)}</small>
+                        </div>
+                        <div class="col-md-3">
+                            <small><strong>Entrega:</strong> ${orden.fechaEntrega || '-'}</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <h6 class="mb-3"><i class="bi bi-list-ul me-1"></i>Linea de Tiempo</h6>
+            <div id="historialTimeline" class="text-center py-3">
+                <div class="spinner-border spinner-border-sm text-primary"></div> Cargando...
+            </div>
+        `;
+
+        // Cargar historial desde API
+        try {
+            let historial = [];
+            if (typeof AxonesAPI !== 'undefined') {
+                const result = await AxonesAPI.getHistorialOrden(id);
+                if (result && result.success && Array.isArray(result.data)) {
+                    historial = result.data;
+                }
+            }
+
+            this.renderTimeline(historial, orden);
+        } catch (e) {
+            document.getElementById('historialTimeline').innerHTML =
+                '<div class="alert alert-warning">No se pudo cargar el historial del servidor. ' + e.message + '</div>';
+            // Mostrar historial local basico
+            this.renderTimelineLocal(orden);
+        }
+    },
+
+    /**
+     * Renderiza la linea de tiempo del historial
+     */
+    renderTimeline: function(historial, orden) {
+        const container = document.getElementById('historialTimeline');
+        if (!container) return;
+
+        // Agregar evento de creacion si no esta en el historial
+        if (orden.fechaCreacion && !historial.find(h => h.accion === 'CREADA')) {
+            historial.push({
+                timestamp: orden.fechaCreacion,
+                accion: 'CREADA',
+                detalle: 'Orden de trabajo creada',
+                usuario: orden.creadoPor || 'sistema',
+                modulo: 'ordenes'
+            });
+        }
+
+        // Ordenar cronologicamente (mas reciente primero)
+        historial.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        if (historial.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center">Sin historial registrado</p>';
+            return;
+        }
+
+        container.innerHTML = '<div class="timeline">' +
+            historial.map(h => {
+                const icon = this.getHistorialIcon(h.accion);
+                const color = this.getHistorialColor(h.accion);
+                const fecha = this.formatFechaCompleta(h.timestamp);
+
+                return `
+                    <div class="d-flex mb-3 align-items-start">
+                        <div class="flex-shrink-0 me-3 text-center" style="width:40px">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center mx-auto"
+                                 style="width:36px;height:36px;background:${color}15;border:2px solid ${color}">
+                                <i class="bi ${icon}" style="color:${color};font-size:14px"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <strong style="color:${color}">${this.getHistorialLabel(h.accion)}</strong>
+                                <small class="text-muted">${fecha}</small>
+                            </div>
+                            <p class="mb-1 text-secondary" style="font-size:0.85rem">${h.detalle || ''}</p>
+                            <div class="d-flex gap-3">
+                                ${h.usuario ? `<small class="text-muted"><i class="bi bi-person"></i> ${h.usuarioNombre || h.usuario}</small>` : ''}
+                                ${h.modulo ? `<small class="text-muted"><i class="bi bi-box"></i> ${h.modulo}</small>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('') +
+        '</div>';
+    },
+
+    /**
+     * Timeline local basico cuando no hay conexion
+     */
+    renderTimelineLocal: function(orden) {
+        const container = document.getElementById('historialTimeline');
+        if (!container) return;
+
+        const eventos = [];
+        if (orden.fechaCreacion) eventos.push({ ts: orden.fechaCreacion, accion: 'CREADA', detalle: 'Orden creada' });
+        if (orden.fechaModificacion) eventos.push({ ts: orden.fechaModificacion, accion: 'EDITADA', detalle: 'Ultima modificacion' });
+
+        container.innerHTML = eventos.length > 0
+            ? eventos.map(e => `<div class="mb-2"><small class="text-muted">${this.formatFechaCompleta(e.ts)}</small> - <strong>${e.accion}</strong>: ${e.detalle}</div>`).join('')
+            : '<p class="text-muted">Sin datos de historial local</p>';
+    },
+
+    /**
+     * Iconos por tipo de accion
+     */
+    getHistorialIcon: function(accion) {
+        const iconos = {
+            'CREADA': 'bi-plus-circle',
+            'EDITADA': 'bi-pencil',
+            'CAMBIO_ESTADO': 'bi-arrow-repeat',
+            'CAMBIO_ETAPA': 'bi-signpost-split',
+            'MOVIDA_KANBAN': 'bi-kanban',
+            'ELIMINADA': 'bi-trash',
+            'PRODUCCION_REGISTRADA': 'bi-gear',
+            'DESPACHO': 'bi-truck',
+            'PRODUCTO_TERMINADO': 'bi-box-seam',
+            'PAUSA': 'bi-pause-circle',
+            'PLAY': 'bi-play-circle',
+            'COMPLETADA': 'bi-check-circle'
+        };
+        return iconos[accion] || 'bi-circle';
+    },
+
+    /**
+     * Colores por tipo de accion
+     */
+    getHistorialColor: function(accion) {
+        const colores = {
+            'CREADA': '#28a745',
+            'EDITADA': '#0d6efd',
+            'CAMBIO_ESTADO': '#6f42c1',
+            'CAMBIO_ETAPA': '#fd7e14',
+            'MOVIDA_KANBAN': '#17a2b8',
+            'ELIMINADA': '#dc3545',
+            'PRODUCCION_REGISTRADA': '#20c997',
+            'DESPACHO': '#6610f2',
+            'PRODUCTO_TERMINADO': '#198754',
+            'PAUSA': '#ffc107',
+            'PLAY': '#0dcaf0',
+            'COMPLETADA': '#28a745'
+        };
+        return colores[accion] || '#6c757d';
+    },
+
+    /**
+     * Labels legibles por tipo de accion
+     */
+    getHistorialLabel: function(accion) {
+        const labels = {
+            'CREADA': 'Orden Creada',
+            'EDITADA': 'Orden Editada',
+            'CAMBIO_ESTADO': 'Cambio de Estado',
+            'CAMBIO_ETAPA': 'Cambio de Etapa',
+            'MOVIDA_KANBAN': 'Movida en Kanban',
+            'ELIMINADA': 'Orden Eliminada',
+            'PRODUCCION_REGISTRADA': 'Produccion Registrada',
+            'DESPACHO': 'Despacho Realizado',
+            'PRODUCTO_TERMINADO': 'Producto Terminado',
+            'PAUSA': 'Produccion Pausada',
+            'PLAY': 'Produccion Iniciada',
+            'COMPLETADA': 'Fase Completada'
+        };
+        return labels[accion] || accion;
+    },
+
+    /**
+     * Formatea fecha corta
+     */
+    formatFecha: function(fechaISO) {
+        if (!fechaISO) return '-';
+        return new Date(fechaISO).toLocaleDateString('es-VE');
+    },
+
+    /**
+     * Formatea fecha completa con hora
+     */
+    formatFechaCompleta: function(fechaISO) {
+        if (!fechaISO) return '-';
+        return new Date(fechaISO).toLocaleString('es-VE', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
     }
 };
 

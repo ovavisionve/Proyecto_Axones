@@ -560,6 +560,18 @@ const AxonesAPI = {
         return await this.get('deleteOrden', { id });
     },
 
+    getHistorialOrden: async function(ordenId) {
+        return await this.get('getHistorialOrden', { ordenId }, { skipCache: true });
+    },
+
+    logHistorialOrden: async function(data) {
+        return await this.post('logHistorialOrden', data);
+    },
+
+    getSyncData: async function(params = {}) {
+        return await this.get('getSyncData', params, { skipCache: true });
+    },
+
     // ==================== INVENTARIO DESCUENTO ====================
 
     descontarInventario: async function(data) {

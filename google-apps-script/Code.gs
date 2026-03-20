@@ -13,6 +13,7 @@ const SPREADSHEET_ID = '1TOpqDc-X4kthwYNzduGYO6MpN1dOdvbjqIIoW_oYL88';
 
 const SHEETS = {
   ORDENES: 'ORDENES',
+  HISTORIAL_OT: 'HISTORIAL_OT',
   IMPRESION: 'IMPRESION',
   CORTE: 'CORTE',
   LAMINACION: 'LAMINACION',
@@ -54,6 +55,11 @@ const ORDENES_HEADERS = [
   'tipoMaterial', 'micras', 'ancho', 'densidad', 'metrosEstimados',
   'fechaInicio', 'fechaEntrega',
   'observaciones', 'creadoPor', 'datosCompletos'
+];
+
+const HISTORIAL_OT_HEADERS = [
+  'id', 'timestamp', 'ordenId', 'numeroOrden', 'accion', 'detalle',
+  'usuario', 'usuarioNombre', 'modulo', 'datosAntes', 'datosDespues'
 ];
 
 const IMPRESION_HEADERS = [
@@ -247,6 +253,15 @@ function doGet(e) {
         break;
       case 'deleteOrden':
         result = deleteOrden(e.parameter.id);
+        break;
+      case 'getHistorialOrden':
+        result = { success: true, data: getHistorialOrden(e.parameter.ordenId || e.parameter.id) };
+        break;
+      case 'logHistorialOrden':
+        result = logHistorialOrden(data);
+        break;
+      case 'getSyncData':
+        result = getSyncData(e.parameter);
         break;
 
       // --- PRODUCCION (generico) ---
@@ -1318,6 +1333,7 @@ function inicializarHojas() {
 
   var hojas = [
     { nombre: SHEETS.ORDENES, headers: ORDENES_HEADERS },
+    { nombre: SHEETS.HISTORIAL_OT, headers: HISTORIAL_OT_HEADERS },
     { nombre: SHEETS.IMPRESION, headers: IMPRESION_HEADERS },
     { nombre: SHEETS.CORTE, headers: CORTE_HEADERS },
     { nombre: SHEETS.LAMINACION, headers: LAMINACION_HEADERS },
@@ -1346,6 +1362,285 @@ function inicializarHojas() {
   });
 
   return { success: true, message: 'Hojas inicializadas. Creadas: ' + creadas };
+}
+
+// ============================================
+// HISTORIAL DE ORDENES DE TRABAJO
+// Cada accion sobre una OT se registra aqui
+// ============================================
+
+/**
+ * Registra un evento en el historial de una OT
+ */
+function logHistorialOrden(data) {
+  if (!data || !data.ordenId) return { success: false, error: 'ordenId requerido' };
+
+  var registro = {
+    id: 'HIST_' + new Date().getTime(),
+    timestamp: new Date().toISOString(),
+    ordenId: data.ordenId,
+    numeroOrden: data.numeroOrden || '',
+    accion: data.accion || 'ACCION',
+    detalle: data.detalle || '',
+    usuario: data.usuario || 'sistema',
+    usuarioNombre: data.usuarioNombre || '',
+    modulo: data.modulo || '',
+    datosAntes: data.datosAntes ? JSON.stringify(data.datosAntes) : '',
+    datosDespues: data.datosDespues ? JSON.stringify(data.datosDespues) : ''
+  };
+
+  appendToSheet(SHEETS.HISTORIAL_OT, HISTORIAL_OT_HEADERS, registro);
+  return { success: true, id: registro.id };
+}
+
+/**
+ * Obtiene el historial completo de una OT
+ */
+function getHistorialOrden(ordenId) {
+  if (!ordenId) return [];
+
+  var registros = readSheet(SHEETS.HISTORIAL_OT);
+  var historial = registros.filter(function(r) {
+    return String(r.ordenId) === String(ordenId);
+  });
+
+  // Parsear datos JSON
+  historial.forEach(function(h) {
+    if (h.datosAntes && typeof h.datosAntes === 'string') {
+      try { h.datosAntes = JSON.parse(h.datosAntes); } catch (e) {}
+    }
+    if (h.datosDespues && typeof h.datosDespues === 'string') {
+      try { h.datosDespues = JSON.parse(h.datosDespues); } catch (e) {}
+    }
+  });
+
+  return historial.sort(function(a, b) {
+    return new Date(b.timestamp) - new Date(a.timestamp);
+  });
+}
+
+// ============================================
+// SYNC DATA - Endpoint para polling eficiente
+// Retorna timestamps de ultima modificacion por hoja
+// para que el frontend sepa si hay cambios
+// ============================================
+
+function getSyncData(params) {
+  var since = params && params.since ? new Date(params.since) : null;
+  var result = {
+    success: true,
+    serverTime: new Date().toISOString(),
+    changes: {}
+  };
+
+  // Hojas a monitorear
+  var hojasMonitor = [
+    { key: 'ordenes', nombre: SHEETS.ORDENES },
+    { key: 'inventario', nombre: SHEETS.INVENTARIO },
+    { key: 'produccion_impresion', nombre: SHEETS.IMPRESION },
+    { key: 'produccion_laminacion', nombre: SHEETS.LAMINACION },
+    { key: 'produccion_corte', nombre: SHEETS.CORTE },
+    { key: 'alertas', nombre: SHEETS.ALERTAS },
+    { key: 'despachos', nombre: SHEETS.DESPACHOS },
+    { key: 'producto_terminado', nombre: SHEETS.PRODUCTO_TERMINADO },
+    { key: 'historial', nombre: SHEETS.HISTORIAL_OT }
+  ];
+
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+
+  hojasMonitor.forEach(function(hoja) {
+    var sheet = ss.getSheetByName(hoja.nombre);
+    if (!sheet) {
+      result.changes[hoja.key] = { count: 0, lastModified: null };
+      return;
+    }
+
+    var lastRow = sheet.getLastRow();
+    var count = Math.max(0, lastRow - 1);
+
+    // Si se pide "since", contar filas modificadas despues de esa fecha
+    var modifiedSince = 0;
+    if (since && count > 0) {
+      var data = sheet.getDataRange().getValues();
+      var headers = data[0];
+      var tsIdx = headers.indexOf('timestamp');
+      var modIdx = headers.indexOf('ultimaActualizacion');
+      var fmIdx = headers.indexOf('fechaModificacion');
+
+      for (var i = 1; i < data.length; i++) {
+        var rowTs = data[i][tsIdx] || data[i][modIdx] || data[i][fmIdx];
+        if (rowTs && new Date(rowTs) > since) {
+          modifiedSince++;
+        }
+      }
+    }
+
+    result.changes[hoja.key] = {
+      count: count,
+      modifiedSince: since ? modifiedSince : count
+    };
+  });
+
+  // Si se pide datos completos de hojas modificadas
+  if (params && params.getData === 'true' && since) {
+    result.data = {};
+    hojasMonitor.forEach(function(hoja) {
+      if (result.changes[hoja.key].modifiedSince > 0) {
+        var registros = readSheet(hoja.nombre);
+        // Solo enviar registros modificados desde 'since'
+        result.data[hoja.key] = registros.filter(function(r) {
+          var ts = r.timestamp || r.ultimaActualizacion || r.fechaModificacion;
+          return ts && new Date(ts) > since;
+        });
+      }
+    });
+  }
+
+  return result;
+}
+
+// ============================================
+// Funciones de historial automatico en ordenes
+// ============================================
+
+// Sobreescribir createOrden para loggear automaticamente
+var _originalCreateOrden = createOrden;
+function createOrden(data) {
+  var result = _originalCreateOrden(data);
+  if (result.success) {
+    logHistorialOrden({
+      ordenId: data.id || result.id,
+      numeroOrden: data.numeroOrden,
+      accion: 'CREADA',
+      detalle: 'Orden de trabajo creada. Cliente: ' + (data.cliente || '') + ', Producto: ' + (data.producto || '') + ', Kg: ' + (data.pedidoKg || ''),
+      usuario: data.creadoPor || 'sistema',
+      usuarioNombre: data.creadoPorNombre || '',
+      modulo: 'ordenes'
+    });
+  }
+  return result;
+}
+
+var _originalUpdateOrden = updateOrden;
+function updateOrden(id, newData) {
+  // Capturar datos antes del cambio
+  var antes = {};
+  try {
+    var ordenActual = getOrdenes({ id: id });
+    if (ordenActual.length > 0) {
+      antes = { estado: ordenActual[0].estado, etapa: ordenActual[0].etapa };
+    }
+  } catch (e) {}
+
+  var result = _originalUpdateOrden(id, newData);
+  if (result.success) {
+    var accion = 'EDITADA';
+    var detalle = 'Orden actualizada';
+
+    // Detectar tipo de cambio
+    if (newData.estado && newData.estado !== antes.estado) {
+      accion = 'CAMBIO_ESTADO';
+      detalle = 'Estado: ' + (antes.estado || '?') + ' → ' + newData.estado;
+    }
+    if (newData.etapa && newData.etapa !== antes.etapa) {
+      accion = 'CAMBIO_ETAPA';
+      detalle = 'Etapa: ' + (antes.etapa || '?') + ' → ' + newData.etapa;
+    }
+    if (newData.procesoActual) {
+      accion = 'MOVIDA_KANBAN';
+      detalle = 'Movida a: ' + newData.procesoActual;
+    }
+
+    logHistorialOrden({
+      ordenId: id,
+      numeroOrden: newData.numeroOrden || '',
+      accion: accion,
+      detalle: detalle,
+      usuario: newData.modificadoPor || 'sistema',
+      usuarioNombre: newData.modificadoPorNombre || '',
+      modulo: newData.modulo || 'ordenes',
+      datosAntes: antes,
+      datosDespues: { estado: newData.estado, etapa: newData.etapa }
+    });
+  }
+  return result;
+}
+
+var _originalDeleteOrden = deleteOrden;
+function deleteOrden(id) {
+  // Capturar datos antes de eliminar
+  var antes = {};
+  try {
+    var ordenActual = getOrdenes({ id: id });
+    if (ordenActual.length > 0) antes = { numeroOrden: ordenActual[0].numeroOrden, cliente: ordenActual[0].cliente };
+  } catch (e) {}
+
+  var result = _originalDeleteOrden(id);
+  if (result.success) {
+    logHistorialOrden({
+      ordenId: id,
+      numeroOrden: antes.numeroOrden || '',
+      accion: 'ELIMINADA',
+      detalle: 'Orden eliminada. Cliente: ' + (antes.cliente || ''),
+      usuario: 'sistema',
+      modulo: 'ordenes'
+    });
+  }
+  return result;
+}
+
+// Agregar historial cuando se crea produccion vinculada a una OT
+var _originalCreateProduccion = createProduccion;
+function createProduccion(data) {
+  var result = _originalCreateProduccion(data);
+  if (result.success && data.ot) {
+    logHistorialOrden({
+      ordenId: data.ot,
+      numeroOrden: data.ot,
+      accion: 'PRODUCCION_REGISTRADA',
+      detalle: (data.proceso || '').toUpperCase() + ' - Maquina: ' + (data.maquina || '') +
+               ', Entrada: ' + (data.totalEntrada || 0) + ' Kg, Salida: ' + (data.totalSalida || 0) +
+               ' Kg, Merma: ' + (data.porcentajeRefil || 0) + '%',
+      usuario: data.operador || 'sistema',
+      usuarioNombre: data.operadorNombre || '',
+      modulo: data.proceso || 'produccion'
+    });
+  }
+  return result;
+}
+
+// Agregar historial cuando se crea despacho vinculado a una OT
+var _originalCreateDespacho = createDespacho;
+function createDespacho(data) {
+  var result = _originalCreateDespacho(data);
+  if (result.success && data.ot) {
+    logHistorialOrden({
+      ordenId: data.ot,
+      numeroOrden: data.ot,
+      accion: 'DESPACHO',
+      detalle: 'Despacho: ' + (data.kgDespachados || 0) + ' Kg. Nota: ' + (data.notaEntrega || '-'),
+      usuario: data.registradoPor || 'sistema',
+      modulo: 'despachos'
+    });
+  }
+  return result;
+}
+
+// Agregar historial cuando se crea producto terminado vinculado a una OT
+var _originalCreateProductoTerminado = createProductoTerminado;
+function createProductoTerminado(data) {
+  var result = _originalCreateProductoTerminado(data);
+  if (result.success && data.ot) {
+    logHistorialOrden({
+      ordenId: data.ot,
+      numeroOrden: data.ot,
+      accion: 'PRODUCTO_TERMINADO',
+      detalle: 'Paleta #' + (data.paleta || '?') + ' - ' + (data.pesoTotal || 0) + ' Kg',
+      usuario: data.operador || 'sistema',
+      modulo: 'corte'
+    });
+  }
+  return result;
 }
 
 // ============================================

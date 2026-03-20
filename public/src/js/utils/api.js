@@ -572,6 +572,14 @@ const AxonesAPI = {
         return await this.get('getSyncData', params, { skipCache: true });
     },
 
+    cargarInventarioInicial: async function() {
+        return await this.get('cargarInventarioInicial', {});
+    },
+
+    syncInventarioCompleto: async function(items, usuario) {
+        return await this.post('syncInventarioCompleto', { items, usuario });
+    },
+
     // ==================== INVENTARIO DESCUENTO ====================
 
     descontarInventario: async function(data) {

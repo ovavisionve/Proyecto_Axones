@@ -364,6 +364,12 @@ function doGet(e) {
       case 'syncInventarioCompleto':
         result = syncInventarioCompleto(data);
         break;
+      case 'cargarTintasInicial':
+        result = cargarTintasDesdeAPI();
+        break;
+      case 'cargarAdhesivosInicial':
+        result = cargarAdhesivosDesdeAPI();
+        break;
 
       // --- USUARIOS ---
       case 'getUsuarios':
@@ -2249,4 +2255,210 @@ function syncInventarioCompleto(data) {
   logAuditoria('SYNC_INVENTARIO', 'INVENTARIO', 'COMPLETO', data.usuario || 'sistema');
 
   return { success: true, message: 'Inventario sincronizado: ' + rows.length + ' productos', count: rows.length };
+}
+
+// ============================================
+// CARGA INICIAL DE TINTAS (58 productos)
+// Basado en Excel 26-02-2026
+// ============================================
+
+function cargarTintasDesdeAPI() {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheetName = SHEETS.TINTAS_INVENTARIO;
+  var headers = ['id', 'nombre', 'tipo', 'codigo', 'cantidad', 'unidad', 'proveedor', 'ultimaActualizacion'];
+
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+    sheet.appendRow(headers);
+  }
+
+  // Limpiar datos existentes
+  var lastRow = sheet.getLastRow();
+  if (lastRow > 1) {
+    sheet.deleteRows(2, lastRow - 1);
+  }
+
+  var datos = [
+    // Tintas Laminacion (43 items)
+    { id: 'TIN001', nombre: 'BLANCO', tipo: 'laminacion', codigo: 'BL-2036', cantidad: 987.0, unidad: 'Kg' },
+    { id: 'TIN002', nombre: 'BLANCO LAMINACION', tipo: 'laminacion', codigo: 'TINLAM-0001', cantidad: 0, unidad: 'Kg' },
+    { id: 'TIN003', nombre: 'NEGRO', tipo: 'laminacion', codigo: 'BL-2054', cantidad: 221.0, unidad: 'Kg' },
+    { id: 'TIN004', nombre: 'NEGRO', tipo: 'laminacion', codigo: 'TINLAM-0005', cantidad: 0, unidad: 'Kg' },
+    { id: 'TIN005', nombre: 'NEGRO POLYESTER', tipo: 'laminacion', codigo: 'BL-1280', cantidad: 76.0, unidad: 'Kg' },
+    { id: 'TIN006', nombre: 'NEGRO POLYESTER', tipo: 'laminacion', codigo: 'TINLAM-0008', cantidad: 0, unidad: 'Kg' },
+    { id: 'TIN007', nombre: 'AMARILLO PROCESO', tipo: 'laminacion', codigo: 'BL-1132', cantidad: 992.0, unidad: 'Kg' },
+    { id: 'TIN008', nombre: 'AMARILLO PROCESO', tipo: 'laminacion', codigo: 'TINLAM-0002', cantidad: 0, unidad: 'Kg' },
+    { id: 'TIN009', nombre: 'ROJO 485 2X', tipo: 'laminacion', codigo: 'BL-0897', cantidad: 71.2, unidad: 'Kg' },
+    { id: 'TIN010', nombre: 'ROJO P-485 2X-C', tipo: 'laminacion', codigo: 'TINLAM-0007', cantidad: 18.0, unidad: 'Kg' },
+    { id: 'TIN011', nombre: 'ROJO 485 "C"', tipo: 'laminacion', codigo: 'BL-2037', cantidad: 195.4, unidad: 'Kg' },
+    { id: 'TIN012', nombre: 'CYAN', tipo: 'laminacion', codigo: 'BL-1964', cantidad: 355.0, unidad: 'Kg' },
+    { id: 'TIN013', nombre: 'AZUL PROCESO', tipo: 'laminacion', codigo: 'BL-1535', cantidad: 156.0, unidad: 'Kg' },
+    { id: 'TIN014', nombre: 'AZUL PROCESO', tipo: 'laminacion', codigo: 'TINLAM-0003', cantidad: 18.0, unidad: 'Kg' },
+    { id: 'TIN015', nombre: 'AZUL FONDO SUPERIOR', tipo: 'laminacion', codigo: 'BL-2163', cantidad: 198.0, unidad: 'Kg' },
+    { id: 'TIN016', nombre: 'AZUL ESPIGA SUPERIOR', tipo: 'laminacion', codigo: 'BL-2164', cantidad: 0, unidad: 'Kg' },
+    { id: 'TIN017', nombre: 'AZUL BUDARE LAMINACION', tipo: 'laminacion', codigo: 'BL-2260', cantidad: 0, unidad: 'Kg' },
+    { id: 'TIN018', nombre: 'MAGENTA', tipo: 'laminacion', codigo: 'BL-1706', cantidad: 272.0, unidad: 'Kg' },
+    { id: 'TIN019', nombre: 'MAGENTA TRAMA DIGITAL', tipo: 'laminacion', codigo: 'BL-2003', cantidad: 54.0, unidad: 'Kg' },
+    { id: 'TIN020', nombre: 'REFLEX', tipo: 'laminacion', codigo: 'BL-1007', cantidad: 201.0, unidad: 'Kg' },
+    { id: 'TIN021', nombre: 'NARANJA BUDARE LAMINACION', tipo: 'laminacion', codigo: 'BL-2259', cantidad: 0, unidad: 'Kg' },
+    { id: 'TIN022', nombre: 'NARANJA 021', tipo: 'laminacion', codigo: 'BL-0985', cantidad: 68.0, unidad: 'Kg' },
+    { id: 'TIN023', nombre: 'NARANJA MARY', tipo: 'laminacion', codigo: 'BL-2152', cantidad: 322.2, unidad: 'Kg' },
+    { id: 'TIN024', nombre: 'EXTENDER', tipo: 'laminacion', codigo: 'BL-1883', cantidad: 84.9, unidad: 'Kg' },
+    { id: 'TIN025', nombre: 'EXTENDER', tipo: 'laminacion', codigo: 'TINLAM-0006', cantidad: 36.0, unidad: 'Kg' },
+    { id: 'TIN026', nombre: 'CREMA MARY', tipo: 'laminacion', codigo: 'BL-2169', cantidad: 57.0, unidad: 'Kg' },
+    { id: 'TIN027', nombre: 'OCRE ESPIGA MARY', tipo: 'laminacion', codigo: 'BL-2170', cantidad: 54.0, unidad: 'Kg' },
+    { id: 'TIN028', nombre: 'DORADO ALVARIGUA', tipo: 'laminacion', codigo: 'BL-2134', cantidad: 34.0, unidad: 'Kg' },
+    { id: 'TIN029', nombre: 'CREMA ALVARIGUA', tipo: 'laminacion', codigo: 'BL-2136', cantidad: 31.0, unidad: 'Kg' },
+    { id: 'TIN030', nombre: 'VERDE "C"', tipo: 'laminacion', codigo: 'BL-1718', cantidad: 89.0, unidad: 'Kg' },
+    { id: 'TIN031', nombre: 'VERDE BABO', tipo: 'laminacion', codigo: 'BL-2188', cantidad: 18.0, unidad: 'Kg' },
+    { id: 'TIN032', nombre: 'VIOLETA PANTONE', tipo: 'laminacion', codigo: 'BL-0928', cantidad: 34.0, unidad: 'Kg' },
+    { id: 'TIN033', nombre: 'MORADO NONNA', tipo: 'laminacion', codigo: 'DL FL 30136', cantidad: 70.0, unidad: 'Kg' },
+    { id: 'TIN034', nombre: 'CREMA AMANECER (FAVICA)', tipo: 'laminacion', codigo: 'FL 1024 (20KG)', cantidad: 80.0, unidad: 'Kg' },
+    { id: 'TIN035', nombre: 'CREMA AMANECER (BARNIVENCA)', tipo: 'laminacion', codigo: '2042', cantidad: 66.0, unidad: 'Kg' },
+    { id: 'TIN036', nombre: 'MARRON AMANECER', tipo: 'laminacion', codigo: '30125 (17KG)', cantidad: 133.6, unidad: 'Kg' },
+    { id: 'TIN037', nombre: 'MARRON P-4725 LAMINACION', tipo: 'laminacion', codigo: 'BL-2210', cantidad: 28.8, unidad: 'Kg' },
+    { id: 'TIN038', nombre: 'BEIGE (TINTA FLEX)', tipo: 'laminacion', codigo: '467 8018 (17KG)', cantidad: 68.0, unidad: 'Kg' },
+    { id: 'TIN039', nombre: 'COMPUESTO DE CERA', tipo: 'laminacion', codigo: 'SP-0915', cantidad: 18.0, unidad: 'Kg' },
+    { id: 'TIN040', nombre: 'VERDE "P" 340-C', tipo: 'laminacion', codigo: 'BL-2162', cantidad: 0, unidad: 'Kg' },
+    { id: 'TIN041', nombre: 'VERDE 355', tipo: 'laminacion', codigo: 'BL-2119', cantidad: 0, unidad: 'Kg' },
+    { id: 'TIN042', nombre: 'VERDE MARY LAMINACION', tipo: 'laminacion', codigo: 'BL-1913', cantidad: 0, unidad: 'Kg' },
+    { id: 'TIN043', nombre: 'VERDE DAMASCO', tipo: 'laminacion', codigo: 'BL-2105', cantidad: 0, unidad: 'Kg' },
+    // Tintas Superficie (14 items)
+    { id: 'TIN044', nombre: 'BLANCO', tipo: 'superficie', codigo: 'BN-1093', cantidad: 705.4, unidad: 'Kg' },
+    { id: 'TIN045', nombre: 'NEGRO', tipo: 'superficie', codigo: 'BF-0387', cantidad: 141.0, unidad: 'Kg' },
+    { id: 'TIN046', nombre: 'MAGENTA', tipo: 'superficie', codigo: 'BN-1649', cantidad: 250.0, unidad: 'Kg' },
+    { id: 'TIN047', nombre: 'MAGENTA', tipo: 'superficie', codigo: 'BF-1718', cantidad: 0, unidad: 'Kg' },
+    { id: 'TIN048', nombre: 'CYAN', tipo: 'superficie', codigo: 'BN-1650', cantidad: 221.0, unidad: 'Kg' },
+    { id: 'TIN049', nombre: 'AZUL 293', tipo: 'superficie', codigo: 'BF-1857', cantidad: 30.0, unidad: 'Kg' },
+    { id: 'TIN050', nombre: 'AZUL REFLEX', tipo: 'superficie', codigo: 'BF-1570', cantidad: 221.0, unidad: 'Kg' },
+    { id: 'TIN051', nombre: 'AZUL PROCESO FLEXO SUPERFICIE', tipo: 'superficie', codigo: 'BF-0134', cantidad: 17.0, unidad: 'Kg' },
+    { id: 'TIN052', nombre: 'AMARILLO', tipo: 'superficie', codigo: 'BF-1564', cantidad: 357.0, unidad: 'Kg' },
+    { id: 'TIN053', nombre: 'AMARILLO PROCESO', tipo: 'superficie', codigo: 'TINSUP-0002', cantidad: 0, unidad: 'Kg' },
+    { id: 'TIN054', nombre: 'ROJO 485 2X', tipo: 'superficie', codigo: 'BN-1674', cantidad: 87.0, unidad: 'Kg' },
+    { id: 'TIN055', nombre: 'NARANJA 021', tipo: 'superficie', codigo: 'BF-1757', cantidad: 150.0, unidad: 'Kg' },
+    { id: 'TIN056', nombre: 'DORADO ALVARIGUA', tipo: 'superficie', codigo: 'BF-1874', cantidad: 104.0, unidad: 'Kg' },
+    { id: 'TIN057', nombre: 'BARNIZ SOBRE IMPRE', tipo: 'superficie', codigo: 'BN-1692', cantidad: 218.0, unidad: 'Kg' },
+    // Prueba Laminacion (1 item)
+    { id: 'TIN058', nombre: 'BLANCO', tipo: 'prueba_laminacion', codigo: 'BL-1745', cantidad: 20.0, unidad: 'Kg' }
+  ];
+
+  var rows = [];
+  var ahora = new Date().toISOString();
+
+  datos.forEach(function(d) {
+    // headers: id, nombre, tipo, codigo, cantidad, unidad, proveedor, ultimaActualizacion
+    rows.push([
+      d.id,
+      d.nombre,
+      d.tipo,
+      d.codigo,
+      d.cantidad,
+      d.unidad,
+      '',       // proveedor
+      ahora
+    ]);
+  });
+
+  if (rows.length > 0) {
+    sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+  }
+
+  // Formatear
+  sheet.setFrozenRows(1);
+  sheet.getRange(1, 1, 1, headers.length)
+    .setFontWeight('bold')
+    .setBackground('#e65100')
+    .setFontColor('white');
+
+  for (var c = 1; c <= headers.length; c++) {
+    sheet.autoResizeColumn(c);
+  }
+
+  Logger.log('Tintas cargadas: ' + datos.length + ' items');
+  return { success: true, message: 'Tintas cargadas: ' + datos.length + ' items', count: datos.length };
+}
+
+// ============================================
+// CARGA INICIAL DE ADHESIVOS/QUIMICOS (7 productos)
+// Basado en Excel 26-02-2026
+// ============================================
+
+function cargarAdhesivosDesdeAPI() {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheetName = SHEETS.ADHESIVOS_INVENTARIO;
+  var headers = ['id', 'nombre', 'tipo', 'codigo', 'cantidad', 'unidad', 'proveedor', 'ultimaActualizacion'];
+
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+    sheet.appendRow(headers);
+  }
+
+  // Limpiar datos existentes
+  var lastRow = sheet.getLastRow();
+  if (lastRow > 1) {
+    sheet.deleteRows(2, lastRow - 1);
+  }
+
+  var datos = [
+    // Solventes
+    { id: 'QUI001', nombre: 'ALCOHOL ISOPROPILICO (IPA)', tipo: 'solvente', cantidad: 454.06, unidad: 'Lt' },
+    { id: 'QUI002', nombre: 'ACETATO N-PROPYL', tipo: 'solvente', cantidad: 608.23, unidad: 'Lt' },
+    { id: 'QUI003', nombre: 'METHOXY PROPANOL', tipo: 'solvente', cantidad: 323.0, unidad: 'Lt' },
+    // Adhesivo
+    { id: 'QUI004', nombre: 'ADHESIVO', tipo: 'adhesivo', cantidad: 420.0, unidad: 'Kg' },
+    // Catalizadores
+    { id: 'QUI005', nombre: 'CATALIZADOR', tipo: 'catalizador', cantidad: 210.0, unidad: 'Kg' },
+    { id: 'QUI007', nombre: 'CATALIZADOR 403', tipo: 'catalizador', cantidad: 0, unidad: 'Kg' },
+    // Solvente recuperado
+    { id: 'QUI006', nombre: 'SOLVENTE RECUPERADO', tipo: 'solvente', cantidad: 0, unidad: 'Lt' }
+  ];
+
+  var rows = [];
+  var ahora = new Date().toISOString();
+
+  datos.forEach(function(d) {
+    rows.push([
+      d.id,
+      d.nombre,
+      d.tipo,
+      '',       // codigo
+      d.cantidad,
+      d.unidad,
+      '',       // proveedor
+      ahora
+    ]);
+  });
+
+  if (rows.length > 0) {
+    sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+  }
+
+  // Formatear
+  sheet.setFrozenRows(1);
+  sheet.getRange(1, 1, 1, headers.length)
+    .setFontWeight('bold')
+    .setBackground('#1565c0')
+    .setFontColor('white');
+
+  for (var c = 1; c <= headers.length; c++) {
+    sheet.autoResizeColumn(c);
+  }
+
+  Logger.log('Adhesivos/Quimicos cargados: ' + datos.length + ' items');
+  return { success: true, message: 'Adhesivos/Quimicos cargados: ' + datos.length + ' items', count: datos.length };
+}
+
+/**
+ * Funcion auxiliar: Carga TODO de una vez (inventario + tintas + adhesivos)
+ * Ejecutar desde el editor de Apps Script
+ */
+function cargarTodosLosDatos() {
+  var resultados = [];
+  resultados.push(cargarInventarioDesdeAPI());
+  resultados.push(cargarTintasDesdeAPI());
+  resultados.push(cargarAdhesivosDesdeAPI());
+  Logger.log('Resultados: ' + JSON.stringify(resultados));
+  return { success: true, resultados: resultados };
 }

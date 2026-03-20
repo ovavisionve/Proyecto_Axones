@@ -27,6 +27,12 @@ const Laminacion = {
 
         // Inicializar controles de tiempo
         this.inicializarControlTiempo();
+
+        // Inicializar checklist
+        this.setupChecklist();
+
+        // Calcular tiempo de preparacion automatico
+        this.setupTiempoPreparacion();
     },
 
     /**
@@ -595,9 +601,10 @@ const Laminacion = {
         document.getElementById('numBobinas').value = numBobinas;
 
         // Total scrap
-        const scrapRefile = parseFloat(document.getElementById('scrapRefile').value) || 0;
-        const scrapLaminado = parseFloat(document.getElementById('scrapLaminado').value) || 0;
-        const totalScrap = scrapRefile + scrapLaminado;
+        const scrapTransparente = parseFloat(document.getElementById('scrapTransparente')?.value) || 0;
+        const scrapImpreso = parseFloat(document.getElementById('scrapImpreso')?.value) || 0;
+        const scrapLaminado = parseFloat(document.getElementById('scrapLaminado')?.value) || 0;
+        const totalScrap = scrapTransparente + scrapImpreso + scrapLaminado;
         document.getElementById('totalScrap').value = totalScrap.toFixed(2);
 
         // Merma
@@ -825,8 +832,9 @@ const Laminacion = {
             merma: parseFloat(document.getElementById('merma').value) || 0,
             metraje: parseFloat(document.getElementById('metraje').value) || 0,
 
-            scrapRefile: parseFloat(document.getElementById('scrapRefile').value) || 0,
-            scrapLaminado: parseFloat(document.getElementById('scrapLaminado').value) || 0,
+            scrapTransparente: parseFloat(document.getElementById('scrapTransparente')?.value) || 0,
+            scrapImpreso: parseFloat(document.getElementById('scrapImpreso')?.value) || 0,
+            scrapLaminado: parseFloat(document.getElementById('scrapLaminado')?.value) || 0,
             totalScrap: parseFloat(document.getElementById('totalScrap').value) || 0,
             porcentajeRefil: parseFloat(document.getElementById('porcentajeRefil').value) || 0,
 
@@ -1116,6 +1124,91 @@ const Laminacion = {
         bsToast.show();
 
         toast.addEventListener('hidden.bs.toast', () => toast.remove());
+    },
+
+    /**
+     * Configura el checklist integrado
+     */
+    setupChecklist: function() {
+        const fechaSpan = document.getElementById('checklistFecha');
+        if (fechaSpan) {
+            fechaSpan.textContent = new Date().toLocaleDateString('es-VE');
+        }
+
+        document.querySelectorAll('.checklist-item').forEach(cb => {
+            cb.addEventListener('change', () => this.actualizarProgresoChecklist());
+        });
+
+        const btnGuardar = document.getElementById('btnGuardarChecklist');
+        if (btnGuardar) {
+            btnGuardar.addEventListener('click', () => this.guardarChecklist());
+        }
+    },
+
+    actualizarProgresoChecklist: function() {
+        const total = document.querySelectorAll('.checklist-item').length;
+        const marcados = document.querySelectorAll('.checklist-item:checked').length;
+        const badge = document.getElementById('checklistProgreso');
+        if (badge) badge.textContent = `${marcados}/${total} completados`;
+    },
+
+    guardarChecklist: function() {
+        const items = [];
+        document.querySelectorAll('.checklist-item').forEach(cb => {
+            items.push({ item: cb.value, completado: cb.checked });
+        });
+
+        const estado = document.querySelector('input[name="checklistEstado"]:checked');
+        const datos = {
+            id: 'CHK_LAM_' + Date.now(),
+            area: 'laminacion',
+            fecha: new Date().toISOString(),
+            ordenTrabajo: document.getElementById('ordenTrabajo')?.value || '',
+            items: items,
+            estado: estado ? estado.value : '',
+            observaciones: document.getElementById('checklistObservaciones')?.value || '',
+            elaboradoPor: document.getElementById('checklistElaborado')?.value || '',
+            revisadoPor: document.getElementById('checklistRevisado')?.value || '',
+            aprobadoPor: document.getElementById('checklistAprobadoPor')?.value || ''
+        };
+
+        const checklists = JSON.parse(localStorage.getItem('axones_checklists') || '[]');
+        checklists.unshift(datos);
+        localStorage.setItem('axones_checklists', JSON.stringify(checklists));
+
+        this.mostrarToast('Checklist guardado correctamente', 'success');
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalChecklist'));
+        if (modal) modal.hide();
+    },
+
+    /**
+     * Configura calculo automatico del tiempo de preparacion
+     */
+    setupTiempoPreparacion: function() {
+        const horaInicio = document.getElementById('horaInicio');
+        const horaArranque = document.getElementById('horaArranque');
+
+        const calcular = () => {
+            const inicio = horaInicio?.value;
+            const arranque = horaArranque?.value;
+            const span = document.getElementById('tiempoPreparacionCalc');
+            if (!span) return;
+
+            if (inicio && arranque) {
+                const [hi, mi] = inicio.split(':').map(Number);
+                const [ha, ma] = arranque.split(':').map(Number);
+                let diffMin = (ha * 60 + ma) - (hi * 60 + mi);
+                if (diffMin < 0) diffMin += 24 * 60;
+                const horas = Math.floor(diffMin / 60);
+                const mins = diffMin % 60;
+                span.textContent = horas > 0 ? `${horas}h ${mins}min` : `${mins} min`;
+            } else {
+                span.textContent = '--';
+            }
+        };
+
+        if (horaInicio) horaInicio.addEventListener('change', calcular);
+        if (horaArranque) horaArranque.addEventListener('change', calcular);
     },
 
     /**

@@ -164,8 +164,11 @@
                         <button class="btn btn-outline-primary btn-sm me-2" id="btnLimpiar">
                             <i class="bi bi-eraser me-1"></i> Limpiar
                         </button>
-                        <button class="btn btn-primary btn-sm" id="btnGuardar">
+                        <button class="btn btn-primary btn-sm me-2" id="btnGuardar">
                             <i class="bi bi-save me-1"></i> Guardar
+                        </button>
+                        <button class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#modalChecklist">
+                            <i class="bi bi-list-check me-1"></i> Chequeo
                         </button>
                     </div>
                 </div>
@@ -176,13 +179,46 @@
             <div class="row">
                 <!-- Columna Izquierda -->
                 <div class="col-lg-6">
-                    <!-- Datos Generales -->
+                    <!-- CAPSULA: Informacion de Orden -->
                     <div class="form-section">
                         <div class="form-section-title">
-                            <i class="bi bi-info-circle me-1"></i> Datos Generales
+                            <i class="bi bi-clipboard-check me-1"></i> Informacion de Orden
                         </div>
                         <div class="row g-2">
-                            <!-- Turno -->
+                            <div class="col-12">
+                                <label for="ordenTrabajo" class="form-label small">Orden de Trabajo</label>
+                                <input type="text" class="form-control form-control-sm" id="ordenTrabajo" placeholder="Ej: OT-2026-0001" required>
+                            </div>
+                            <div class="col-12">
+                                <label for="cliente" class="form-label small">Cliente</label>
+                                <input type="text" class="form-control form-control-sm" id="cliente" list="listaClientes" required placeholder="Escriba o seleccione cliente...">
+                                <datalist id="listaClientes"></datalist>
+                            </div>
+                            <div class="col-12">
+                                <label for="producto" class="form-label small">Producto</label>
+                                <input type="text" class="form-control form-control-sm" id="producto" placeholder="Nombre del producto" required>
+                            </div>
+                            <div class="col-6">
+                                <label for="maquina" class="form-label small">Maquina Impresora</label>
+                                <select class="form-select form-select-sm" id="maquina" required>
+                                    <option value="">Seleccionar...</option>
+                                    <option value="comexi_1">COMEXI 1</option>
+                                    <option value="comexi_3">COMEXI 3</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label for="fecha" class="form-label small">Fecha de Montaje</label>
+                                <input type="date" class="form-control form-control-sm" id="fecha" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CAPSULA: Informacion del Turno -->
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="bi bi-people me-1"></i> Informacion del Turno
+                        </div>
+                        <div class="row g-2">
                             <div class="col-12">
                                 <label class="form-label small">Turno</label>
                                 <div class="btn-group w-100" role="group">
@@ -196,37 +232,27 @@
                                     </label>
                                 </div>
                             </div>
-                            <!-- Cliente (editable: escribir o seleccionar) -->
-                            <div class="col-12">
-                                <label for="cliente" class="form-label small">Cliente</label>
-                                <input type="text" class="form-control form-control-sm" id="cliente" list="listaClientes" required placeholder="Escriba o seleccione cliente...">
-                                <datalist id="listaClientes"></datalist>
+                            <div class="col-4">
+                                <label for="operador" class="form-label small">Operador</label>
+                                <input type="text" class="form-control form-control-sm" id="operador" placeholder="Nombre operador" required>
                             </div>
-                            <!-- Producto -->
-                            <div class="col-12">
-                                <label for="producto" class="form-label small">Producto</label>
-                                <input type="text" class="form-control form-control-sm" id="producto" placeholder="Nombre del producto" required>
+                            <div class="col-4">
+                                <label for="ayudante" class="form-label small">Ayudante</label>
+                                <input type="text" class="form-control form-control-sm" id="ayudante" placeholder="Nombre ayudante">
                             </div>
-                            <!-- Maquina e Impresora -->
-                            <div class="col-6">
-                                <label for="maquina" class="form-label small">Maquina Impresora</label>
-                                <select class="form-select form-select-sm" id="maquina" required>
-                                    <option value="">Seleccionar...</option>
-                                    <option value="comexi_1">COMEXI 1</option>
-                                    <option value="comexi_2">COMEXI 2</option>
-                                    <option value="comexi_3">COMEXI 3</option>
-                                </select>
+                            <div class="col-4">
+                                <label for="supervisor" class="form-label small">Supervisor</label>
+                                <input type="text" class="form-control form-control-sm" id="supervisor" placeholder="Nombre supervisor">
                             </div>
-                            <div class="col-6">
-                                <label for="fecha" class="form-label small">Fecha</label>
-                                <input type="date" class="form-control form-control-sm" id="fecha" required>
-                            </div>
-                            <!-- OT -->
-                            <div class="col-12">
-                                <label for="ordenTrabajo" class="form-label small">Orden de Trabajo</label>
-                                <input type="text" class="form-control form-control-sm" id="ordenTrabajo" placeholder="Ej: 015 EN-26" required>
-                            </div>
-                            <!-- Colores y Pistas -->
+                        </div>
+                    </div>
+
+                    <!-- CAPSULA: Informacion de Produccion -->
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="bi bi-palette me-1"></i> Informacion de Produccion
+                        </div>
+                        <div class="row g-2">
                             <div class="col-6">
                                 <label for="totalColores" class="form-label small">Total de Colores</label>
                                 <select class="form-select form-select-sm" id="totalColores">
@@ -245,21 +271,15 @@
                                 <label for="numPistas" class="form-label small">N° de Pistas</label>
                                 <input type="number" class="form-control form-control-sm" id="numPistas" min="1" max="12" placeholder="Ej: 4">
                             </div>
-                            <!-- Operador -->
-                            <div class="col-6">
-                                <label for="operador" class="form-label small">Operador</label>
-                                <input type="text" class="form-control form-control-sm" id="operador" placeholder="Nombre operador" required>
-                            </div>
-                            <!-- Ayudante y Supervisor -->
-                            <div class="col-6">
-                                <label for="ayudante" class="form-label small">Ayudante</label>
-                                <input type="text" class="form-control form-control-sm" id="ayudante" placeholder="Nombre ayudante">
-                            </div>
-                            <div class="col-6">
-                                <label for="supervisor" class="form-label small">Supervisor</label>
-                                <input type="text" class="form-control form-control-sm" id="supervisor" placeholder="Nombre supervisor">
-                            </div>
-                            <!-- Horas -->
+                        </div>
+                    </div>
+
+                    <!-- CAPSULA: Tiempo -->
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="bi bi-stopwatch me-1"></i> Control de Tiempo
+                        </div>
+                        <div class="row g-2">
                             <div class="col-6">
                                 <label for="horaInicio" class="form-label small">Hora de Inicio</label>
                                 <input type="time" class="form-control form-control-sm" id="horaInicio">
@@ -267,6 +287,12 @@
                             <div class="col-6">
                                 <label for="horaArranque" class="form-label small">Hora de Arranque</label>
                                 <input type="time" class="form-control form-control-sm" id="horaArranque">
+                            </div>
+                            <div class="col-12" id="resumenTiempoImpresion">
+                                <div class="alert alert-info py-1 px-2 mb-0 small">
+                                    <i class="bi bi-clock me-1"></i>
+                                    <strong>Tiempo preparacion:</strong> <span id="tiempoPreparacionCalc">--</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -617,27 +643,6 @@
                         </div>
                     </div>
 
-                    <!-- Tiempos -->
-                    <div class="form-section">
-                        <div class="form-section-title">
-                            <i class="bi bi-stopwatch me-1"></i> Tiempos
-                        </div>
-                        <div class="row g-2">
-                            <div class="col-4">
-                                <label class="form-label small">Muerto (min)</label>
-                                <input type="number" class="form-control form-control-sm" id="tiempoMuerto" step="1" min="0" value="0">
-                            </div>
-                            <div class="col-4">
-                                <label class="form-label small">Efectivo (min)</label>
-                                <input type="number" class="form-control form-control-sm" id="tiempoEfectivo" step="1" min="0" value="0">
-                            </div>
-                            <div class="col-4">
-                                <label class="form-label small">Preparacion (min)</label>
-                                <input type="number" class="form-control form-control-sm" id="tiempoPreparacion" step="1" min="0" value="0">
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Observaciones -->
                     <div class="form-section">
                         <div class="form-section-title">
@@ -672,6 +677,127 @@
             </div>
         </div>
     </footer>
+
+    <!-- Modal Checklist de Impresion -->
+    <div class="modal fade" id="modalChecklist" tabindex="-1" aria-labelledby="modalChecklistLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="modalChecklistLabel">
+                        <i class="bi bi-list-check me-2"></i>Lista de Chequeo - Area de Impresion
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2 text-end">
+                        <small class="text-muted">Fecha: <span id="checklistFecha"></span></small>
+                    </div>
+                    <div class="list-group list-group-flush">
+                        <label class="list-group-item list-group-item-action">
+                            <input class="form-check-input me-2 checklist-item" type="checkbox" value="1">
+                            <strong>1.</strong> Encender: Chiller, Compresor de aire, Secador, Ventiladores
+                        </label>
+                        <label class="list-group-item list-group-item-action">
+                            <input class="form-check-input me-2 checklist-item" type="checkbox" value="2">
+                            <strong>2.</strong> Encendido de la maquina impresora
+                        </label>
+                        <label class="list-group-item list-group-item-action">
+                            <input class="form-check-input me-2 checklist-item" type="checkbox" value="3">
+                            <strong>3.</strong> Tener y analizar Orden de Trabajo (O.T.)
+                        </label>
+                        <label class="list-group-item list-group-item-action">
+                            <input class="form-check-input me-2 checklist-item" type="checkbox" value="4">
+                            <strong>4.</strong> Chequear materia prima: Tipo de material, Micraje de la bobina, Solventes, Insumos
+                        </label>
+                        <label class="list-group-item list-group-item-action">
+                            <input class="form-check-input me-2 checklist-item" type="checkbox" value="5">
+                            <strong>5.</strong> Preparacion revisar: Planchas, Anilox, Equipos
+                        </label>
+                        <label class="list-group-item list-group-item-action">
+                            <input class="form-check-input me-2 checklist-item" type="checkbox" value="6">
+                            <strong>6.</strong> Montaje bobinas virgenes revisar: Cara tratada del material
+                        </label>
+                        <label class="list-group-item list-group-item-action">
+                            <input class="form-check-input me-2 checklist-item" type="checkbox" value="7">
+                            <strong>7.</strong> Durante el proceso chequear anclaje de tintas
+                        </label>
+                        <label class="list-group-item list-group-item-action">
+                            <input class="form-check-input me-2 checklist-item" type="checkbox" value="8">
+                            <strong>8.</strong> Chequear solventes con el colorista segun % de mezcla
+                        </label>
+                        <label class="list-group-item list-group-item-action">
+                            <input class="form-check-input me-2 checklist-item" type="checkbox" value="9">
+                            <strong>9.</strong> Chequear muestra impresa: Ancho de corte, Frecuencia, Figura de embobinado, Textos
+                        </label>
+                        <label class="list-group-item list-group-item-action">
+                            <input class="form-check-input me-2 checklist-item" type="checkbox" value="10">
+                            <strong>10.</strong> Carpeta estandar de colores y/o ultima muestra de la corrida anterior
+                        </label>
+                        <label class="list-group-item list-group-item-action">
+                            <input class="form-check-input me-2 checklist-item" type="checkbox" value="11">
+                            <strong>11.</strong> Verificar las viscosidades cada 10 minutos si el proceso lo amerita
+                        </label>
+                        <label class="list-group-item list-group-item-action">
+                            <input class="form-check-input me-2 checklist-item" type="checkbox" value="12">
+                            <strong>12.</strong> Tener los cores en la barra del rebobinador acorde con el ancho del material y en buen estado
+                        </label>
+                        <label class="list-group-item list-group-item-action">
+                            <input class="form-check-input me-2 checklist-item" type="checkbox" value="13">
+                            <strong>13.</strong> Verificar temperatura en las unidades impresoras y tunel de secado
+                        </label>
+                        <label class="list-group-item list-group-item-action">
+                            <input class="form-check-input me-2 checklist-item" type="checkbox" value="14">
+                            <strong>14.</strong> Participar cuando en la impresora presente alguna falla
+                        </label>
+                        <label class="list-group-item list-group-item-action">
+                            <input class="form-check-input me-2 checklist-item" type="checkbox" value="15">
+                            <strong>15.</strong> Llenar correctamente el reporte de produccion
+                        </label>
+                    </div>
+                    <hr>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label small fw-bold">Estado de Inspeccion</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="checklistEstado" id="checklistAprobado" value="aprobado">
+                                <label class="btn btn-outline-success btn-sm" for="checklistAprobado">Aprobado</label>
+                                <input type="radio" class="btn-check" name="checklistEstado" id="checklistRechazado" value="rechazado">
+                                <label class="btn btn-outline-danger btn-sm" for="checklistRechazado">Rechazado</label>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold">Observaciones</label>
+                            <textarea class="form-control form-control-sm" id="checklistObservaciones" rows="2" placeholder="Observaciones del chequeo..."></textarea>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row g-2">
+                        <div class="col-4">
+                            <label class="form-label small">Elaborado por</label>
+                            <input type="text" class="form-control form-control-sm" id="checklistElaborado" placeholder="Nombre">
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label small">Revisado por</label>
+                            <input type="text" class="form-control form-control-sm" id="checklistRevisado" placeholder="Nombre">
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label small">Aprobado por</label>
+                            <input type="text" class="form-control form-control-sm" id="checklistAprobadoPor" placeholder="Nombre">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <div class="me-auto">
+                        <span class="badge bg-primary" id="checklistProgreso">0/15 completados</span>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="btnGuardarChecklist">
+                        <i class="bi bi-save me-1"></i> Guardar Chequeo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>

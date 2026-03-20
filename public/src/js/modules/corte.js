@@ -48,6 +48,12 @@ const Corte = {
 
         // Inicializar controles de tiempo
         this.inicializarControlTiempo();
+
+        // Inicializar checklist
+        this.setupChecklist();
+
+        // Calcular tiempo de preparacion automatico
+        this.setupTiempoPreparacion();
     },
 
     /**
@@ -756,9 +762,11 @@ const Corte = {
             }
         });
 
-        const clienteSelect = document.getElementById('cliente');
+        const clienteSelect = document.getElementById('clienteOrden') || document.getElementById('cliente');
         if (clienteSelect && orden.cliente) {
             clienteSelect.value = orden.cliente;
+            clienteSelect.style.backgroundColor = '#e8f4e8';
+            clienteSelect.style.borderColor = '#198754';
         }
 
         // Actualizar control de tiempo
@@ -771,7 +779,7 @@ const Corte = {
     precargarDesdeParametros: function(params) {
         const mapping = {
             'ot': 'ordenTrabajo',
-            'cliente': 'cliente',
+            'cliente': 'clienteOrden',
             'producto': 'producto'
         };
 
@@ -1108,6 +1116,7 @@ const Corte = {
             tipo: 'corte',
 
             turno: turnoSeleccionado ? turnoSeleccionado.value : '',
+            cliente: (document.getElementById('clienteOrden') || document.getElementById('cliente'))?.value || '',
             producto: document.getElementById('producto').value,
             maquina: document.getElementById('maquina').value,
             fecha: document.getElementById('fecha').value,
@@ -1302,6 +1311,104 @@ const Corte = {
             `ALERTA: Refil ${datos.porcentajeRefil.toFixed(1)}% excedido en corte`,
             alerta.nivel === CONFIG.ALERTAS.NIVELES.CRITICAL ? 'danger' : 'warning'
         );
+    },
+
+    /**
+     * Configura el checklist integrado
+     */
+    setupChecklist: function() {
+        const fechaSpan = document.getElementById('checklistFecha');
+        if (fechaSpan) {
+            fechaSpan.textContent = new Date().toLocaleDateString('es-VE');
+        }
+
+        document.querySelectorAll('.checklist-item').forEach(cb => {
+            cb.addEventListener('change', () => this.actualizarProgresoChecklist());
+        });
+
+        const btnGuardar = document.getElementById('btnGuardarChecklist');
+        if (btnGuardar) {
+            btnGuardar.addEventListener('click', () => this.guardarChecklist());
+        }
+    },
+
+    actualizarProgresoChecklist: function() {
+        const total = document.querySelectorAll('.checklist-item').length;
+        const marcados = document.querySelectorAll('.checklist-item:checked').length;
+        const badge = document.getElementById('checklistProgreso');
+        if (badge) badge.textContent = `${marcados}/${total} completados`;
+    },
+
+    guardarChecklist: function() {
+        const items = [];
+        document.querySelectorAll('.checklist-item').forEach(cb => {
+            items.push({ item: cb.value, completado: cb.checked });
+        });
+
+        const estado = document.querySelector('input[name="checklistEstado"]:checked');
+        const datos = {
+            id: 'CHK_CRT_' + Date.now(),
+            area: 'corte',
+            fecha: new Date().toISOString(),
+            ordenTrabajo: document.getElementById('ordenTrabajo')?.value || '',
+            items: items,
+            estado: estado ? estado.value : '',
+            observaciones: document.getElementById('checklistObservaciones')?.value || '',
+            elaboradoPor: document.getElementById('checklistElaborado')?.value || '',
+            revisadoPor: document.getElementById('checklistRevisado')?.value || '',
+            aprobadoPor: document.getElementById('checklistAprobadoPor')?.value || ''
+        };
+
+        const checklists = JSON.parse(localStorage.getItem('axones_checklists') || '[]');
+        checklists.unshift(datos);
+        localStorage.setItem('axones_checklists', JSON.stringify(checklists));
+
+        // Toast
+        let toastContainer = document.querySelector('.toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            document.body.appendChild(toastContainer);
+        }
+        const toastHtml = `<div class="toast align-items-center bg-success text-white border-0" role="alert"><div class="d-flex"><div class="toast-body">Checklist guardado correctamente</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>`;
+        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+        const toastEl = toastContainer.lastElementChild;
+        const toast = new bootstrap.Toast(toastEl, { autohide: true, delay: 3000 });
+        toast.show();
+        toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalChecklist'));
+        if (modal) modal.hide();
+    },
+
+    /**
+     * Configura calculo automatico del tiempo de preparacion
+     */
+    setupTiempoPreparacion: function() {
+        const horaInicio = document.getElementById('horaInicio');
+        const horaArranque = document.getElementById('horaArranque');
+
+        const calcular = () => {
+            const inicio = horaInicio?.value;
+            const arranque = horaArranque?.value;
+            const span = document.getElementById('tiempoPreparacionCalc');
+            if (!span) return;
+
+            if (inicio && arranque) {
+                const [hi, mi] = inicio.split(':').map(Number);
+                const [ha, ma] = arranque.split(':').map(Number);
+                let diffMin = (ha * 60 + ma) - (hi * 60 + mi);
+                if (diffMin < 0) diffMin += 24 * 60;
+                const horas = Math.floor(diffMin / 60);
+                const mins = diffMin % 60;
+                span.textContent = horas > 0 ? `${horas}h ${mins}min` : `${mins} min`;
+            } else {
+                span.textContent = '--';
+            }
+        };
+
+        if (horaInicio) horaInicio.addEventListener('change', calcular);
+        if (horaArranque) horaArranque.addEventListener('change', calcular);
     },
 
     /**

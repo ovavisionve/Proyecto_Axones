@@ -220,9 +220,9 @@ const Inventario = {
                         ancho: item.ancho || '',
                         kg: parseFloat(item.kg) || parseFloat(item.cantidad) || 0,
                         producto: item.producto || '',
-                        proveedor: item.proveedor || '',
+                        importado: item.importado === 'SI' || item.importado === true,
                         densidad: parseFloat(item.densidad) || 0,
-                        importado: false,
+                        proveedor: item.proveedor || '',
                         lote: item.lote || ''
                     }));
                     // Guardar copia local como respaldo

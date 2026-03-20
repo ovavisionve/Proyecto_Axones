@@ -426,25 +426,20 @@ const Axones = {
 
 // Inicializar cuando el DOM este listo
 document.addEventListener('DOMContentLoaded', () => {
-    // Inicializar datos de demo si no existen ordenes de trabajo
+    // DemoData se auto-inicializa al cargar el script (antes de DOMContentLoaded)
+    // Solo generar datos complementarios (produccion, alertas) si es primera vez
     if (typeof DemoData !== 'undefined') {
-        const ordenes = localStorage.getItem('axones_ordenes_trabajo');
-        const ordenesArr = ordenes ? JSON.parse(ordenes) : [];
-        if (ordenesArr.length === 0) {
-            console.log('No hay ordenes de trabajo, inicializando datos de demo...');
-            DemoData.init();
-        } else {
-            // Asegurar que los datos complementarios existan (produccion, maquinas, etc.)
-            if (!localStorage.getItem('axones_maquinas_estado')) {
-                DemoData.generarEstadoMaquinas();
-            }
+        if (!localStorage.getItem('axones_produccion')) {
+            DemoData.generarProduccion();
+        }
+        if (!localStorage.getItem('axones_maquinas_estado')) {
+            DemoData.generarEstadoMaquinas();
         }
     }
 
     // Asegurar que los 23 usuarios reales estan cargados
     const usuarios = JSON.parse(localStorage.getItem('axones_usuarios') || '[]');
     if (usuarios.length < 10) {
-        // Forzar recarga de usuarios en la proxima visita a admin
         localStorage.removeItem('axones_usuarios');
     }
 

@@ -588,3 +588,19 @@ const DemoData = {
 if (typeof window !== 'undefined') {
     window.DemoData = DemoData;
 }
+
+// Auto-inicializar al cargar el script si no hay ordenes
+// Esto asegura que los datos existen ANTES de que los modulos se inicialicen
+(function() {
+    try {
+        const ordenes = localStorage.getItem('axones_ordenes_trabajo');
+        const ordenesArr = ordenes ? JSON.parse(ordenes) : [];
+        if (ordenesArr.length === 0) {
+            console.log('[DemoData] Auto-init: no hay ordenes, generando datos iniciales...');
+            DemoData.generarOrdenesTrabajo();
+            DemoData.generarEstadoMaquinas();
+        }
+    } catch (e) {
+        console.warn('[DemoData] Error en auto-init:', e);
+    }
+})();

@@ -105,8 +105,9 @@ const ALERTAS_HEADERS = [
 ];
 
 const DESPACHOS_HEADERS = [
-  'id', 'timestamp', 'fecha', 'notaEntrega', 'ot', 'cliente', 'productos',
-  'cantidadTotal', 'kgDespachados', 'observaciones', 'registradoPor', 'estado'
+  'id', 'timestamp', 'fecha', 'notaEntrega', 'ot', 'ordenCompra', 'cliente', 'productos',
+  'cantidadTotal', 'kgDespachados', 'paletas', 'vehiculo', 'conductor',
+  'autorizadoPor', 'despachadoPor', 'observaciones', 'registradoPor', 'estado'
 ];
 
 const USUARIOS_HEADERS = [

@@ -608,101 +608,28 @@ const InventarioService = {
     },
 
     /**
-     * Verifica stock bajo de materiales
+     * Verifica stock bajo de materiales SOLO si hay ordenes que lo necesiten
+     * Ya no alerta por stock bajo general, solo cuando afecta un pedido
      */
     verificarStockBajoMateriales: function(inventario) {
-        const alertas = JSON.parse(localStorage.getItem(this.STORAGE_KEYS.alertas) || '[]');
-
-        inventario.forEach(item => {
-            const kg = parseFloat(item.kg) || 0;
-            if (kg < this.STOCK_MINIMO.material && kg > 0) {
-                const alertaExistente = alertas.find(a =>
-                    a.tipo === 'stock_bajo' &&
-                    a.datos?.material === item.material &&
-                    new Date(a.fecha) > new Date(Date.now() - 24 * 60 * 60 * 1000)
-                );
-
-                if (!alertaExistente) {
-                    alertas.unshift({
-                        id: Date.now(),
-                        tipo: 'stock_bajo',
-                        nivel: kg < 50 ? 'danger' : 'warning',
-                        mensaje: `Stock bajo: ${item.material} ${item.micras || ''}u x ${item.ancho || ''}mm - Quedan ${kg.toFixed(1)} Kg`,
-                        fecha: new Date().toISOString(),
-                        estado: 'pendiente',
-                        datos: { material: item.material, micras: item.micras, cantidad: kg }
-                    });
-                }
-            }
-        });
-
-        localStorage.setItem(this.STORAGE_KEYS.alertas, JSON.stringify(alertas));
+        // Re-escanear alertas vs ordenes pendientes
+        this.escanearInventarioYGenerarAlertas();
     },
 
     /**
-     * Verifica stock bajo de tintas
+     * Verifica stock bajo de tintas - solo re-escanea vs ordenes
      */
     verificarStockBajoTintas: function(tintas) {
-        const alertas = JSON.parse(localStorage.getItem(this.STORAGE_KEYS.alertas) || '[]');
-
-        tintas.forEach(tinta => {
-            const cantidad = parseFloat(tinta.cantidad) || 0;
-            if (cantidad < this.STOCK_MINIMO.tinta && cantidad > 0) {
-                const alertaExistente = alertas.find(a =>
-                    a.tipo === 'stock_bajo_tinta' &&
-                    a.datos?.nombre === tinta.nombre &&
-                    new Date(a.fecha) > new Date(Date.now() - 24 * 60 * 60 * 1000)
-                );
-
-                if (!alertaExistente) {
-                    alertas.unshift({
-                        id: Date.now(),
-                        tipo: 'stock_bajo_tinta',
-                        nivel: cantidad < 2 ? 'danger' : 'warning',
-                        mensaje: `Stock bajo de tinta: ${tinta.nombre} - Quedan ${cantidad.toFixed(1)} ${tinta.unidad || 'Kg'}`,
-                        fecha: new Date().toISOString(),
-                        estado: 'pendiente',
-                        datos: { nombre: tinta.nombre, cantidad }
-                    });
-                }
-            }
-        });
-
-        localStorage.setItem(this.STORAGE_KEYS.alertas, JSON.stringify(alertas));
+        // Ya no genera alertas generales, solo se re-escanean las ordenes
+        console.log('InventarioService: Tintas verificadas (alertas solo por pedidos)');
     },
 
     /**
-     * Verifica stock bajo de adhesivos
+     * Verifica stock bajo de adhesivos - solo re-escanea vs ordenes
      */
     verificarStockBajoAdhesivos: function(adhesivos) {
-        const alertas = JSON.parse(localStorage.getItem(this.STORAGE_KEYS.alertas) || '[]');
-
-        adhesivos.forEach(item => {
-            const cantidad = parseFloat(item.cantidad) || 0;
-            const minimo = this.STOCK_MINIMO[item.tipo] || 10;
-
-            if (cantidad < minimo && cantidad > 0) {
-                const alertaExistente = alertas.find(a =>
-                    a.tipo === 'stock_bajo_adhesivo' &&
-                    a.datos?.nombre === item.nombre &&
-                    new Date(a.fecha) > new Date(Date.now() - 24 * 60 * 60 * 1000)
-                );
-
-                if (!alertaExistente) {
-                    alertas.unshift({
-                        id: Date.now(),
-                        tipo: 'stock_bajo_adhesivo',
-                        nivel: cantidad < minimo / 2 ? 'danger' : 'warning',
-                        mensaje: `Stock bajo: ${item.nombre} (${item.tipo}) - Quedan ${cantidad.toFixed(1)} ${item.unidad || 'Kg'}`,
-                        fecha: new Date().toISOString(),
-                        estado: 'pendiente',
-                        datos: { nombre: item.nombre, tipo: item.tipo, cantidad }
-                    });
-                }
-            }
-        });
-
-        localStorage.setItem(this.STORAGE_KEYS.alertas, JSON.stringify(alertas));
+        // Ya no genera alertas generales, solo se re-escanean las ordenes
+        console.log('InventarioService: Adhesivos verificados (alertas solo por pedidos)');
     },
 
     /**
@@ -734,168 +661,114 @@ const InventarioService = {
     },
 
     /**
-     * Escanea todo el inventario y genera alertas basadas en el stock real
-     * Limpia alertas de demo y crea alertas reales
+     * Escanea inventario y genera alertas SOLO cuando hay ordenes pendientes
+     * que necesitan material insuficiente. Ya no alerta por stock bajo general.
+     * Envia email cuando detecta faltante relacionado con un pedido.
      */
     escanearInventarioYGenerarAlertas: function() {
-        console.log('InventarioService: Escaneando inventario para generar alertas...');
+        console.log('InventarioService: Escaneando inventario vs ordenes pendientes...');
 
         const materiales = this.getMateriales();
-        const tintas = this.getTintas();
-        const adhesivos = this.getAdhesivos();
 
-        // Obtener alertas existentes y filtrar las de demo/viejas de stock
+        // Obtener ordenes pendientes/en proceso
+        const ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
+        const ordenesPendientes = ordenes.filter(o =>
+            o.estadoOrden === 'pendiente' || o.estadoOrden === 'en_proceso'
+        );
+
+        // Obtener alertas existentes y limpiar las de stock viejas
         let alertas = JSON.parse(localStorage.getItem(this.STORAGE_KEYS.alertas) || '[]');
-
-        // Limpiar alertas de stock (demo y reales viejas) para regenerar
         alertas = alertas.filter(a =>
-            !['stock_bajo', 'stock_bajo_tinta', 'stock_bajo_adhesivo', 'stock_bajo_material'].includes(a.tipo)
+            !['stock_bajo', 'stock_bajo_tinta', 'stock_bajo_adhesivo', 'stock_bajo_material', 'stock_insuficiente_pedido'].includes(a.tipo)
         );
 
         const nuevasAlertas = [];
 
-        // Escanear materiales (sustratos)
-        materiales.forEach(item => {
-            const kg = parseFloat(item.kg) || 0;
+        // Solo alertar si hay ordenes que necesitan material insuficiente
+        ordenesPendientes.forEach(orden => {
+            const tipoMat = orden.tipoMaterial;
+            const pedidoKg = parseFloat(orden.pedidoKg) || 0;
+            if (!tipoMat || !pedidoKg) return;
 
-            // Alerta si stock bajo (menos de 200 Kg)
-            if (kg < this.STOCK_MINIMO.material && kg > 0) {
-                const nivel = kg < 50 ? 'critical' : (kg < 100 ? 'danger' : 'warning');
+            // Buscar material disponible en inventario
+            const disponible = materiales.filter(item =>
+                item.material && item.material.toUpperCase().includes(tipoMat.toUpperCase())
+            ).reduce((sum, item) => sum + (parseFloat(item.kg) || 0), 0);
+
+            if (disponible < pedidoKg) {
+                const faltante = pedidoKg - disponible;
+                const nivel = disponible === 0 ? 'critical' : (disponible < pedidoKg * 0.5 ? 'danger' : 'warning');
+
                 nuevasAlertas.push({
                     id: Date.now() + Math.random() * 1000,
-                    tipo: 'stock_bajo_material',
+                    tipo: 'stock_insuficiente_pedido',
                     nivel: nivel,
-                    mensaje: `Stock bajo: ${item.material} ${item.micras || ''}μ - Solo ${kg.toFixed(2)} Kg disponibles`,
+                    mensaje: `EPA! No hay suficiente ${tipoMat} para ${orden.numeroOrden} (${orden.cliente}). Necesario: ${pedidoKg} Kg, Disponible: ${disponible.toFixed(1)} Kg. FALTAN ${faltante.toFixed(1)} Kg - COMPRAR!`,
                     fecha: new Date().toISOString(),
                     estado: 'pendiente',
-                    maquina: null,
-                    ot: null,
+                    maquina: orden.maquina || null,
+                    ot: orden.numeroOrden,
                     datos: {
-                        material: item.material,
-                        micras: item.micras,
-                        ancho: item.ancho,
-                        cantidad: kg,
-                        minimo: this.STOCK_MINIMO.material
+                        ordenId: orden.id,
+                        numeroOrden: orden.numeroOrden,
+                        cliente: orden.cliente,
+                        material: tipoMat,
+                        requerido: pedidoKg,
+                        disponible: disponible,
+                        faltante: faltante
                     }
                 });
+
+                // Enviar email de alerta automatica
+                if (typeof AxonesAPI !== 'undefined') {
+                    AxonesAPI.enviarAlertaEmail({
+                        tipo: 'stock_insuficiente_pedido',
+                        nivel: nivel,
+                        mensaje: `EPA! No hay suficiente ${tipoMat} para la orden ${orden.numeroOrden} del cliente ${orden.cliente}. Se necesitan ${pedidoKg} Kg pero solo hay ${disponible.toFixed(1)} Kg disponibles. Faltan ${faltante.toFixed(1)} Kg. POR FAVOR COMPRAR!`,
+                        ot: orden.numeroOrden,
+                        maquina: orden.maquina || ''
+                    }).catch(e => console.warn('Error enviando email de stock:', e));
+                }
             }
 
-            // Alerta CRITICA si agotado (0 Kg)
-            if (kg === 0) {
-                nuevasAlertas.push({
-                    id: Date.now() + Math.random() * 1000,
-                    tipo: 'stock_bajo_material',
-                    nivel: 'critical',
-                    mensaje: `AGOTADO: ${item.material} ${item.micras || ''}μ - Sin existencias`,
-                    fecha: new Date().toISOString(),
-                    estado: 'pendiente',
-                    maquina: null,
-                    ot: null,
-                    datos: {
-                        material: item.material,
-                        micras: item.micras,
-                        cantidad: 0,
-                        agotado: true
-                    }
-                });
-            }
-        });
+            // Tambien verificar ficha tecnica (materiales secundarios)
+            if (orden.fichaTipoMat2 && orden.fichaKg2) {
+                const tipoMat2 = orden.fichaTipoMat2;
+                const kg2 = parseFloat(orden.fichaKg2) || 0;
+                const disponible2 = materiales.filter(item =>
+                    item.material && item.material.toUpperCase().includes(tipoMat2.toUpperCase())
+                ).reduce((sum, item) => sum + (parseFloat(item.kg) || 0), 0);
 
-        // Escanear tintas
-        tintas.forEach(tinta => {
-            const cantidad = parseFloat(tinta.cantidad) || 0;
-
-            if (cantidad < this.STOCK_MINIMO.tinta && cantidad > 0) {
-                const nivel = cantidad < 1 ? 'critical' : (cantidad < 3 ? 'danger' : 'warning');
-                nuevasAlertas.push({
-                    id: Date.now() + Math.random() * 1000,
-                    tipo: 'stock_bajo_tinta',
-                    nivel: nivel,
-                    mensaje: `Stock bajo tinta: ${tinta.nombre} - Solo ${cantidad.toFixed(2)} Kg`,
-                    fecha: new Date().toISOString(),
-                    estado: 'pendiente',
-                    maquina: null,
-                    ot: null,
-                    datos: {
-                        nombre: tinta.nombre,
-                        tipo: tinta.tipo,
-                        cantidad: cantidad,
-                        minimo: this.STOCK_MINIMO.tinta
-                    }
-                });
-            }
-
-            if (cantidad === 0) {
-                nuevasAlertas.push({
-                    id: Date.now() + Math.random() * 1000,
-                    tipo: 'stock_bajo_tinta',
-                    nivel: 'critical',
-                    mensaje: `AGOTADO: Tinta ${tinta.nombre} - Sin existencias`,
-                    fecha: new Date().toISOString(),
-                    estado: 'pendiente',
-                    maquina: null,
-                    ot: null,
-                    datos: {
-                        nombre: tinta.nombre,
-                        cantidad: 0,
-                        agotado: true
-                    }
-                });
-            }
-        });
-
-        // Escanear adhesivos/quimicos
-        adhesivos.forEach(item => {
-            const cantidad = parseFloat(item.cantidad) || 0;
-            const minimo = this.STOCK_MINIMO[item.tipo] || this.STOCK_MINIMO.adhesivo;
-
-            if (cantidad < minimo && cantidad > 0) {
-                const nivel = cantidad < minimo / 4 ? 'critical' : (cantidad < minimo / 2 ? 'danger' : 'warning');
-                nuevasAlertas.push({
-                    id: Date.now() + Math.random() * 1000,
-                    tipo: 'stock_bajo_adhesivo',
-                    nivel: nivel,
-                    mensaje: `Stock bajo: ${item.nombre} (${item.tipo}) - Solo ${cantidad.toFixed(2)} ${item.unidad || 'Kg'}`,
-                    fecha: new Date().toISOString(),
-                    estado: 'pendiente',
-                    maquina: null,
-                    ot: null,
-                    datos: {
-                        nombre: item.nombre,
-                        tipo: item.tipo,
-                        cantidad: cantidad,
-                        minimo: minimo
-                    }
-                });
-            }
-
-            if (cantidad === 0) {
-                nuevasAlertas.push({
-                    id: Date.now() + Math.random() * 1000,
-                    tipo: 'stock_bajo_adhesivo',
-                    nivel: 'critical',
-                    mensaje: `AGOTADO: ${item.nombre} (${item.tipo}) - Sin existencias`,
-                    fecha: new Date().toISOString(),
-                    estado: 'pendiente',
-                    maquina: null,
-                    ot: null,
-                    datos: {
-                        nombre: item.nombre,
-                        tipo: item.tipo,
-                        cantidad: 0,
-                        agotado: true
-                    }
-                });
+                if (disponible2 < kg2) {
+                    const faltante2 = kg2 - disponible2;
+                    nuevasAlertas.push({
+                        id: Date.now() + Math.random() * 1000,
+                        tipo: 'stock_insuficiente_pedido',
+                        nivel: disponible2 === 0 ? 'critical' : 'warning',
+                        mensaje: `EPA! Falta ${tipoMat2} (capa 2) para ${orden.numeroOrden}. Necesario: ${kg2} Kg, Disponible: ${disponible2.toFixed(1)} Kg. COMPRAR!`,
+                        fecha: new Date().toISOString(),
+                        estado: 'pendiente',
+                        ot: orden.numeroOrden,
+                        datos: {
+                            ordenId: orden.id,
+                            numeroOrden: orden.numeroOrden,
+                            cliente: orden.cliente,
+                            material: tipoMat2,
+                            requerido: kg2,
+                            disponible: disponible2,
+                            faltante: faltante2,
+                            capa: 2
+                        }
+                    });
+                }
             }
         });
 
         // Agregar nuevas alertas al inicio
         alertas = [...nuevasAlertas, ...alertas];
-
-        // Guardar
         localStorage.setItem(this.STORAGE_KEYS.alertas, JSON.stringify(alertas));
 
-        console.log(`InventarioService: Generadas ${nuevasAlertas.length} alertas de inventario real`);
+        console.log(`InventarioService: ${nuevasAlertas.length} alertas de stock vs pedidos (ya no alerta stock bajo general)`);
 
         return {
             totalAlertas: nuevasAlertas.length,

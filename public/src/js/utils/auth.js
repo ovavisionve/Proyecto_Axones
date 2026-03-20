@@ -29,6 +29,7 @@ const Auth = {
         'incidencias.html':  null,
         'chatbot.html':      'chatbot.acceso',
         'admin.html':        'usuarios.gestionar',
+        'nota-entrega.html': 'calidad.ver',
     },
 
     // Mapa de pagina -> permiso para filtrar navbar
@@ -42,6 +43,7 @@ const Auth = {
         'tintas.html':       'tintas.ver',
         'certificado.html':  'calidad.ver',
         'etiquetas.html':    'calidad.ver',
+        'nota-entrega.html': 'calidad.ver',
         'reportes.html':     'reportes.ver',
         'chatbot.html':      'chatbot.acceso',
         'admin.html':        'usuarios.gestionar',

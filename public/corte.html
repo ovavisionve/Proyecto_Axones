@@ -271,6 +271,76 @@
                         </div>
                     </div>
 
+                    <!-- Especificaciones de Corte -->
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="bi bi-gear me-1"></i> Especificaciones de Corte
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-md-3">
+                                <label for="anchoCorte" class="form-label small">Ancho de Corte (mm)</label>
+                                <input type="number" class="form-control form-control-sm" id="anchoCorte" step="0.01" placeholder="Ej: 150">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="fotocelda" class="form-label small">Fotocelda</label>
+                                <select class="form-select form-select-sm" id="fotocelda">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="marca">Con Marca</option>
+                                    <option value="sin_marca">Sin Marca</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="tipoEmpalme" class="form-label small">Tipo de Empalme</label>
+                                <select class="form-select form-select-sm" id="tipoEmpalme">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="cinta">Cinta</option>
+                                    <option value="termosellado">Termosellado</option>
+                                    <option value="sin_empalme">Sin Empalme</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="figuraEmbobinado" class="form-label small">Figura Embobinado</label>
+                                <select class="form-select form-select-sm" id="figuraEmbobinado">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                    <option value="7">7</option>
+                                    <option value="8">8</option>
+                                </select>
+                            </div>
+                            <!-- Fila 2 -->
+                            <div class="col-md-3">
+                                <label for="pesoBobina" class="form-label small">Peso por Bobina (Kg)</label>
+                                <input type="number" class="form-control form-control-sm" id="pesoBobina" step="0.01" placeholder="Peso objetivo">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="diametroCore" class="form-label small">Diametro Core (pulgadas)</label>
+                                <select class="form-select form-select-sm" id="diametroCore">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="3">3"</option>
+                                    <option value="6">6"</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="metrosBobina" class="form-label small">Metros/Bobina <small class="text-muted">(auto)</small></label>
+                                <input type="text" class="form-control form-control-sm" id="metrosBobina" readonly style="background-color: #e9ecef;">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="cliente" class="form-label small">Cliente</label>
+                                <input type="text" class="form-control form-control-sm" id="cliente" list="listaClientes" placeholder="Escriba cliente...">
+                                <datalist id="listaClientes"></datalist>
+                            </div>
+                        </div>
+                        <!-- Campos ocultos -->
+                        <input type="hidden" id="materialAncho">
+                        <input type="hidden" id="materialMicraje">
+                        <input type="hidden" id="materialDensidad">
+                    </div>
+
                     <!-- Ingreso de Bobinas Madres -->
                     <div class="form-section">
                         <div class="form-section-title">

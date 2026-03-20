@@ -266,6 +266,77 @@
                         </div>
                     </div>
 
+                    <!-- Especificaciones Técnicas -->
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="bi bi-gear me-1"></i> Especificaciones Tecnicas
+                        </div>
+                        <div class="row g-2">
+                            <!-- Fila 1: Tipo Laminado, Figura Embobinado -->
+                            <div class="col-md-3">
+                                <label for="tipoLaminado" class="form-label small">Tipo de Laminado</label>
+                                <select class="form-select form-select-sm" id="tipoLaminado">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="bilaminado">Bilaminado</option>
+                                    <option value="trilaminado">Trilaminado</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="figuraEmbobinado" class="form-label small">Figura Embobinado</label>
+                                <select class="form-select form-select-sm" id="figuraEmbobinado">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                    <option value="7">7</option>
+                                    <option value="8">8</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="gramajeAdhesivo" class="form-label small">Gramaje Adhesivo (g/m²)</label>
+                                <input type="text" class="form-control form-control-sm" id="gramajeAdhesivo" placeholder="Ej: 2,5">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="relacionMezcla" class="form-label small">Relacion Mezcla</label>
+                                <select class="form-select form-select-sm" id="relacionMezcla">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="10:1">10:1</option>
+                                    <option value="5:1">5:1</option>
+                                    <option value="3:1">3:1</option>
+                                </select>
+                            </div>
+                            <!-- Fila 2: Material virgen (bobina adicional) -->
+                            <div class="col-md-6">
+                                <label for="materialVirgen" class="form-label small">Material Virgen (Bobina)</label>
+                                <select class="form-select form-select-sm" id="materialVirgen">
+                                    <option value="">Seleccionar del inventario...</option>
+                                </select>
+                                <small class="text-muted" id="materialVirgenInfo"></small>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="tipoAdhesivo" class="form-label small">Tipo de Adhesivo</label>
+                                <select class="form-select form-select-sm" id="tipoAdhesivo">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="SL332">FLEXTRA SL332</option>
+                                    <option value="SL342">FLEXTRA SL342</option>
+                                    <option value="SL8314">FLEXTRA SL8314</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="metrosEstimados" class="form-label small">Metros Estimados</label>
+                                <input type="text" class="form-control form-control-sm" id="metrosEstimados" readonly style="background-color: #e9ecef;">
+                            </div>
+                        </div>
+                        <!-- Campos ocultos -->
+                        <input type="hidden" id="materialVirgenAncho">
+                        <input type="hidden" id="materialVirgenMicraje">
+                        <input type="hidden" id="materialVirgenTipo">
+                        <input type="hidden" id="materialVirgenDensidad">
+                    </div>
+
                     <!-- Ingreso de Material (Bobinas Impresas) -->
                     <div class="form-section">
                         <div class="form-section-title">

@@ -271,6 +271,98 @@
                         </div>
                     </div>
 
+                    <!-- Especificaciones Técnicas -->
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="bi bi-gear me-1"></i> Especificaciones Tecnicas
+                        </div>
+                        <div class="row g-2">
+                            <!-- Fila 1: Frecuencia, Repeticiones, Ancho Corte, N° Banda -->
+                            <div class="col-md-3">
+                                <label for="frecuencia" class="form-label small">Frecuencia</label>
+                                <input type="number" class="form-control form-control-sm" id="frecuencia" step="0.01" placeholder="mm">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="repeticiones" class="form-label small">Repeticiones</label>
+                                <input type="number" class="form-control form-control-sm" id="repeticiones" min="1" placeholder="Ej: 4">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="anchoCorte" class="form-label small">Ancho Corte (mm)</label>
+                                <input type="number" class="form-control form-control-sm" id="anchoCorte" step="0.01">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="numBanda" class="form-label small">N° Banda</label>
+                                <select class="form-select form-select-sm" id="numBanda">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                    <option value="7">7</option>
+                                    <option value="8">8</option>
+                                </select>
+                            </div>
+                            <!-- Fila 2: Figura Embobinado, Tipo Impresión, Desarrollo, Piñón -->
+                            <div class="col-md-3">
+                                <label for="figuraEmbobinado" class="form-label small">Figura Embobinado</label>
+                                <select class="form-select form-select-sm" id="figuraEmbobinado">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                    <option value="7">7</option>
+                                    <option value="8">8</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="tipoImpresion" class="form-label small">Tipo Impresion</label>
+                                <select class="form-select form-select-sm" id="tipoImpresion">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="Superficie">Superficie</option>
+                                    <option value="Reverso">Reverso</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="desarrollo" class="form-label small">Desarrollo (mm)</label>
+                                <input type="number" class="form-control form-control-sm" id="desarrollo" step="0.01">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="pinon" class="form-label small">Pinon <small class="text-muted">(auto)</small></label>
+                                <input type="number" class="form-control form-control-sm" id="pinon" readonly style="background-color: #e9ecef;" title="Automatico: Desarrollo / 5">
+                            </div>
+                            <!-- Fila 3: Línea Corte, Material/SKU -->
+                            <div class="col-md-3">
+                                <label for="lineaCorte" class="form-label small">Linea de Corte</label>
+                                <select class="form-select form-select-sm" id="lineaCorte">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="3mm">3mm</option>
+                                    <option value="5mm">5mm</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="sustratosVirgen" class="form-label small">Sustratos Virgen (SKU)</label>
+                                <select class="form-select form-select-sm" id="sustratosVirgen">
+                                    <option value="">Seleccionar del inventario...</option>
+                                </select>
+                                <small class="text-muted" id="sustratosVirgenInfo"></small>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="metrosEstimados" class="form-label small">Metros Estimados</label>
+                                <input type="text" class="form-control form-control-sm" id="metrosEstimados" readonly style="background-color: #e9ecef;">
+                            </div>
+                        </div>
+                        <!-- Campos ocultos para cálculos -->
+                        <input type="hidden" id="sustratosVirgenAncho">
+                        <input type="hidden" id="sustratosVirgenMicraje">
+                        <input type="hidden" id="sustratosVirgenTipo">
+                        <input type="hidden" id="sustratosVirgenDensidad">
+                    </div>
+
                     <!-- Ingreso de Material (Laminas) -->
                     <div class="form-section">
                         <div class="form-section-title">

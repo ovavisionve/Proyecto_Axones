@@ -418,6 +418,73 @@ const Corte = {
         document.querySelectorAll('.scrap-input').forEach(input => {
             input.addEventListener('input', () => this.calcularTotales());
         });
+
+        // Calcular metros por bobina cuando cambia peso o ancho
+        const pesoBobinaInput = document.getElementById('pesoBobina');
+        const anchoCortInput = document.getElementById('anchoCorte');
+        if (pesoBobinaInput) {
+            pesoBobinaInput.addEventListener('input', () => this.calcularMetrosBobina());
+        }
+        if (anchoCortInput) {
+            anchoCortInput.addEventListener('input', () => this.calcularMetrosBobina());
+        }
+
+        // Cargar clientes en datalist
+        this.cargarClientesDatalist();
+    },
+
+    /**
+     * Carga clientes en el datalist
+     */
+    cargarClientesDatalist: function() {
+        const datalist = document.getElementById('listaClientes');
+        if (!datalist) return;
+
+        let clientes = [];
+        const ordenesData = localStorage.getItem('axones_ordenes_trabajo');
+        if (ordenesData) {
+            try {
+                const ordenes = JSON.parse(ordenesData);
+                const clienteSet = new Set();
+                ordenes.forEach(o => {
+                    if (o.cliente) clienteSet.add(o.cliente);
+                });
+                clientes = Array.from(clienteSet);
+            } catch (e) {}
+        }
+
+        datalist.innerHTML = '';
+        clientes.forEach(c => {
+            const option = document.createElement('option');
+            option.value = c;
+            datalist.appendChild(option);
+        });
+    },
+
+    /**
+     * Calcula metros por bobina
+     * Formula: Metros = (Peso × 1000) / Gramaje
+     * Gramaje = Ancho(m) × Micras × Densidad
+     */
+    calcularMetrosBobina: function() {
+        const metrosEl = document.getElementById('metrosBobina');
+        if (!metrosEl) return;
+
+        const peso = parseFloat(document.getElementById('pesoBobina')?.value) || 0;
+        const ancho = parseFloat(document.getElementById('anchoCorte')?.value) || 0;
+        // Usar valores del material si existen, sino valores por defecto
+        const micras = parseFloat(document.getElementById('materialMicraje')?.value) || 25;
+        const densidad = parseFloat(document.getElementById('materialDensidad')?.value) || 0.90;
+
+        if (peso > 0 && ancho > 0 && micras > 0) {
+            // Gramaje = Ancho(m) × Micras × Densidad
+            const gramaje = (ancho / 1000) * micras * densidad;
+            // Metros = Peso × 1000 / Gramaje
+            const metros = (peso * 1000) / gramaje;
+            metrosEl.value = metros.toLocaleString('es-VE', { maximumFractionDigits: 0 }) + ' m';
+        } else {
+            metrosEl.value = '';
+        }
     },
 
     /**

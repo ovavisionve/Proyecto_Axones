@@ -442,6 +442,111 @@ const Laminacion = {
         document.querySelectorAll('.adhesivo-input').forEach(input => {
             input.addEventListener('input', () => this.calcularConsumoAdhesivo());
         });
+
+        // Material virgen - cargar del inventario
+        const materialSelect = document.getElementById('materialVirgen');
+        if (materialSelect) {
+            this.cargarMaterialVirgen();
+            materialSelect.addEventListener('change', (e) => this.onMaterialSeleccionado(e));
+        }
+    },
+
+    /**
+     * Carga el material virgen del inventario
+     */
+    cargarMaterialVirgen: function() {
+        const select = document.getElementById('materialVirgen');
+        if (!select) return;
+
+        let inventario = [];
+        const invData = localStorage.getItem('axones_inventario');
+        if (invData) {
+            try {
+                inventario = JSON.parse(invData);
+            } catch (e) {}
+        }
+
+        select.innerHTML = '<option value="">Seleccionar del inventario...</option>';
+
+        inventario.sort((a, b) => {
+            if (a.material !== b.material) return a.material.localeCompare(b.material);
+            return (a.ancho || 0) - (b.ancho || 0);
+        });
+
+        inventario.forEach(item => {
+            if (item.cantidad > 0 || item.stockKg > 0) {
+                const stock = item.cantidad || item.stockKg || 0;
+                const sku = item.sku || item.id || '';
+                const option = document.createElement('option');
+                option.value = item.id || sku;
+                option.dataset.material = item.material || '';
+                option.dataset.ancho = item.ancho || '';
+                option.dataset.micras = item.micras || '';
+                option.dataset.densidad = item.densidad || this.getDensidadMaterial(item.material);
+                option.dataset.stock = stock;
+                option.textContent = `${sku} - ${item.material} ${item.ancho}mm x ${item.micras}µ (${stock.toFixed(0)} Kg)`;
+                select.appendChild(option);
+            }
+        });
+    },
+
+    getDensidadMaterial: function(material) {
+        const densidades = {
+            'BOPP NORMAL': 0.90, 'BOPP MATE': 0.90, 'BOPP PASTA': 0.90,
+            'BOPP PERLADO': 0.80, 'PERLADO': 0.80,
+            'CAST': 0.92, 'METAL': 0.90,
+            'PEBD': 0.93, 'PEBD PIGMENT': 0.93,
+            'PET': 1.40, 'PA': 1.14, 'NYLON': 1.14
+        };
+        for (const [key, val] of Object.entries(densidades)) {
+            if (material && material.toUpperCase().includes(key)) return val;
+        }
+        return 0.90;
+    },
+
+    onMaterialSeleccionado: function(e) {
+        const option = e.target.selectedOptions[0];
+        if (!option || !option.value) {
+            document.getElementById('materialVirgenInfo').textContent = '';
+            return;
+        }
+
+        const material = option.dataset.material;
+        const ancho = parseFloat(option.dataset.ancho) || 0;
+        const micras = parseFloat(option.dataset.micras) || 0;
+        const densidad = parseFloat(option.dataset.densidad) || 0.90;
+        const stock = parseFloat(option.dataset.stock) || 0;
+
+        document.getElementById('materialVirgenAncho').value = ancho;
+        document.getElementById('materialVirgenMicraje').value = micras;
+        document.getElementById('materialVirgenTipo').value = material;
+        document.getElementById('materialVirgenDensidad').value = densidad;
+
+        const info = document.getElementById('materialVirgenInfo');
+        if (info) {
+            info.textContent = `${material} | ${ancho}mm x ${micras}µ | Densidad: ${densidad} | Stock: ${stock.toFixed(0)} Kg`;
+        }
+
+        this.calcularMetrosEstimados();
+    },
+
+    calcularMetrosEstimados: function() {
+        const totalEntradaEl = document.getElementById('totalEntrada');
+        const metrosEl = document.getElementById('metrosEstimados');
+        if (!totalEntradaEl || !metrosEl) return;
+
+        const kg = parseFloat(totalEntradaEl.value) || 0;
+        const ancho = parseFloat(document.getElementById('materialVirgenAncho')?.value) || 0;
+        const micras = parseFloat(document.getElementById('materialVirgenMicraje')?.value) || 0;
+        const densidad = parseFloat(document.getElementById('materialVirgenDensidad')?.value) || 0.90;
+
+        if (kg > 0 && ancho > 0 && micras > 0) {
+            const gramaje = (ancho / 1000) * micras * densidad;
+            const metros = (kg * 1000) / gramaje;
+            metrosEl.value = metros.toLocaleString('es-VE', { maximumFractionDigits: 0 }) + ' m';
+        } else {
+            metrosEl.value = '';
+        }
     },
 
     /**

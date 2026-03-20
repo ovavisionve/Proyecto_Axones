@@ -208,17 +208,17 @@ Gramaje = Ancho(m) × Micras × Densidad
 - [x] Metros/Bobina: calculado automaticamente (Peso / Gramaje)
 
 ### CAMPOS A MODIFICAR EN IMPRESION
-- [ ] Despues de ancho de corte: numero de banda
-- [ ] Despues de frecuencia: repeticiones
-- [ ] Figura de Embobinado: opciones 1-8
-- [ ] Tipo de impresion: Superficie y Reverso
-- [ ] Colores: 8 posiciones (1=color, 2=color, etc.)
-- [x] Pinon automatico: desarrollo / 5 (IMPLEMENTADO)
-- [ ] Linea de corte: 3mm y 5mm
-- [x] ELIMINAR: Ubicacion de Fotocelda, Gramaje en tinta (ELIMINADOS)
-- [ ] Sustratos virgen: buscar SKU del inventario (Ancho x Micraje)
-- [ ] Kg de Salida: solo al terminar la orden
-- [x] Metros estimados: se calculan al seleccionar producto + pedidoKg (IMPLEMENTADO)
+- [x] Despues de ancho de corte: numero de banda - IMPLEMENTADO
+- [x] Despues de frecuencia: repeticiones - IMPLEMENTADO
+- [x] Figura de Embobinado: opciones 1-8 - IMPLEMENTADO
+- [x] Tipo de impresion: Superficie y Reverso - IMPLEMENTADO
+- [x] Colores: 8 posiciones (1=color, 2=color, etc.) - YA EXISTE EN ordenes.html
+- [x] Pinon automatico: desarrollo / 5 - IMPLEMENTADO
+- [x] Linea de corte: 3mm y 5mm - IMPLEMENTADO
+- [x] ELIMINAR: Ubicacion de Fotocelda, Gramaje en tinta - ELIMINADOS
+- [x] Sustratos virgen: buscar SKU del inventario (Ancho x Micraje) - IMPLEMENTADO
+- [x] Kg de Salida: solo al terminar la orden - YA IMPLEMENTADO
+- [x] Metros estimados: se calculan al seleccionar producto + pedidoKg - IMPLEMENTADO
 
 ### TINTAS Y SOLVENTES
 - [ ] Atados a orden de trabajo pero editables
@@ -245,8 +245,11 @@ Gramaje = Ancho(m) × Micras × Densidad
 - [ ] Seleccionar paletas/bobinas a despachar
 
 ### LAMINACION
-- [ ] Gramaje adhesivo: permitir coma decimal
-- [ ] Materiales: elegir tipo de adhesivo del inventario al finalizar
+- [x] Gramaje adhesivo: permitir coma decimal - IMPLEMENTADO (input type="text")
+- [x] Materiales: elegir tipo de adhesivo del inventario al finalizar - IMPLEMENTADO
+- [x] Tipo de laminado: Bilaminado/Trilaminado - IMPLEMENTADO
+- [x] Figura de embobinado: opciones 1-8 - IMPLEMENTADO
+- [x] Material virgen desde inventario - IMPLEMENTADO
 
 ## Convenciones de Codigo
 

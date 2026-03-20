@@ -721,6 +721,139 @@ const Impresion = {
         document.querySelectorAll('.scrap-input').forEach(input => {
             input.addEventListener('input', () => this.calcularTotales());
         });
+
+        // Piñón automático: Desarrollo / 5
+        const desarrolloInput = document.getElementById('desarrollo');
+        const pinonInput = document.getElementById('pinon');
+        if (desarrolloInput && pinonInput) {
+            desarrolloInput.addEventListener('input', () => {
+                const desarrollo = parseFloat(desarrolloInput.value) || 0;
+                pinonInput.value = desarrollo > 0 ? (desarrollo / 5).toFixed(2) : '';
+            });
+        }
+
+        // Sustratos virgen - cargar del inventario
+        const sustratosSelect = document.getElementById('sustratosVirgen');
+        if (sustratosSelect) {
+            this.cargarSustratosVirgen();
+            sustratosSelect.addEventListener('change', (e) => this.onSustratoSeleccionado(e));
+        }
+    },
+
+    /**
+     * Carga los sustratos virgen del inventario
+     */
+    cargarSustratosVirgen: function() {
+        const select = document.getElementById('sustratosVirgen');
+        if (!select) return;
+
+        // Obtener inventario
+        let inventario = [];
+        const invData = localStorage.getItem('axones_inventario');
+        if (invData) {
+            try {
+                inventario = JSON.parse(invData);
+            } catch (e) {}
+        }
+
+        // Limpiar opciones excepto la primera
+        select.innerHTML = '<option value="">Seleccionar del inventario...</option>';
+
+        // Ordenar por tipo y ancho
+        inventario.sort((a, b) => {
+            if (a.material !== b.material) return a.material.localeCompare(b.material);
+            return (a.ancho || 0) - (b.ancho || 0);
+        });
+
+        // Agregar opciones
+        inventario.forEach(item => {
+            if (item.cantidad > 0 || item.stockKg > 0) {
+                const stock = item.cantidad || item.stockKg || 0;
+                const sku = item.sku || item.id || '';
+                const option = document.createElement('option');
+                option.value = item.id || sku;
+                option.dataset.material = item.material || '';
+                option.dataset.ancho = item.ancho || '';
+                option.dataset.micras = item.micras || '';
+                option.dataset.densidad = item.densidad || this.getDensidadMaterial(item.material);
+                option.dataset.stock = stock;
+                option.textContent = `${sku} - ${item.material} ${item.ancho}mm x ${item.micras}µ (${stock.toFixed(0)} Kg)`;
+                select.appendChild(option);
+            }
+        });
+    },
+
+    /**
+     * Obtiene la densidad según el tipo de material
+     */
+    getDensidadMaterial: function(material) {
+        const densidades = {
+            'BOPP NORMAL': 0.90, 'BOPP MATE': 0.90, 'BOPP PASTA': 0.90,
+            'BOPP PERLADO': 0.80, 'PERLADO': 0.80,
+            'CAST': 0.92, 'METAL': 0.90,
+            'PEBD': 0.93, 'PEBD PIGMENT': 0.93,
+            'PET': 1.40, 'PA': 1.14, 'NYLON': 1.14
+        };
+        for (const [key, val] of Object.entries(densidades)) {
+            if (material && material.toUpperCase().includes(key)) return val;
+        }
+        return 0.90;
+    },
+
+    /**
+     * Maneja la selección de un sustrato
+     */
+    onSustratoSeleccionado: function(e) {
+        const option = e.target.selectedOptions[0];
+        if (!option || !option.value) {
+            document.getElementById('sustratosVirgenInfo').textContent = '';
+            return;
+        }
+
+        const material = option.dataset.material;
+        const ancho = parseFloat(option.dataset.ancho) || 0;
+        const micras = parseFloat(option.dataset.micras) || 0;
+        const densidad = parseFloat(option.dataset.densidad) || 0.90;
+        const stock = parseFloat(option.dataset.stock) || 0;
+
+        // Guardar en campos ocultos
+        document.getElementById('sustratosVirgenAncho').value = ancho;
+        document.getElementById('sustratosVirgenMicraje').value = micras;
+        document.getElementById('sustratosVirgenTipo').value = material;
+        document.getElementById('sustratosVirgenDensidad').value = densidad;
+
+        // Mostrar info
+        const info = document.getElementById('sustratosVirgenInfo');
+        if (info) {
+            info.textContent = `${material} | ${ancho}mm x ${micras}µ | Densidad: ${densidad} | Stock: ${stock.toFixed(0)} Kg`;
+        }
+
+        // Calcular metros estimados si hay kg de entrada
+        this.calcularMetrosEstimados();
+    },
+
+    /**
+     * Calcula los metros estimados
+     */
+    calcularMetrosEstimados: function() {
+        const totalEntradaEl = document.getElementById('totalMaterialEntrada');
+        const metrosEl = document.getElementById('metrosEstimados');
+        if (!totalEntradaEl || !metrosEl) return;
+
+        const kg = parseFloat(totalEntradaEl.value) || 0;
+        const ancho = parseFloat(document.getElementById('sustratosVirgenAncho')?.value) || 0;
+        const micras = parseFloat(document.getElementById('sustratosVirgenMicraje')?.value) || 0;
+        const densidad = parseFloat(document.getElementById('sustratosVirgenDensidad')?.value) || 0.90;
+
+        if (kg > 0 && ancho > 0 && micras > 0) {
+            // Gramaje = Ancho(m) x Micras x Densidad
+            const gramaje = (ancho / 1000) * micras * densidad;
+            // Metros = Kg * 1000 / Gramaje
+            const metros = (kg * 1000) / gramaje;
+            metrosEl.value = metros.toLocaleString('es-VE', { maximumFractionDigits: 0 }) + ' m';
+        } else {
+            metrosEl.value = '';
+        }
     },
 
     /**
@@ -772,6 +905,9 @@ const Impresion = {
         document.getElementById('footerSalida').textContent = totalSalida.toFixed(0);
         document.getElementById('footerMerma').textContent = merma.toFixed(2);
         document.getElementById('footerRefil').textContent = porcentajeRefil.toFixed(2);
+
+        // Recalcular metros estimados
+        this.calcularMetrosEstimados();
     },
 
     /**

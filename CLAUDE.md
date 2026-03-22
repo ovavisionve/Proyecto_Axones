@@ -323,7 +323,7 @@ ControlTiempo.getResumenOrden(ordenId)           // Resumen de todas las fases
 
 ### Google Sheets
 ```javascript
-CONFIG.API.BASE_URL = 'https://script.google.com/macros/s/AKfycbx6NVPUNtloiPV1Tz42_Njj8zXrGaont4s7M3cqdEvyrDX8LqntvviTCJx8pjTvi7Qs/exec'
+CONFIG.API.BASE_URL = 'https://script.google.com/macros/s/AKfycbx5ahuSXRS7D6NZM4eLa2ay32A2RHcQcOoTOb7nfVI0KorzAltcVLUU2otjhFd9jHcw/exec'
 CONFIG.API.SHEETS_ID = '1TOpqDc-X4kthwYNzduGYO6MpN1dOdvbjqIIoW_oYL88'
 ```
 

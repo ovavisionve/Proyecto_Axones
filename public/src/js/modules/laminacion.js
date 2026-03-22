@@ -178,27 +178,55 @@ const Laminacion = {
             clienteEl.dispatchEvent(new Event('change'));
         }
 
-        // === ESPECIFICACIONES DE LAMINACION (desde OT) ===
+        // === ESPECIFICACIONES TECNICAS (desde OT) ===
         precargar('figuraEmbobinado', orden.figuraEmbobinadoLam);
-        precargar('relacionMezcla', orden.relacionMezcla);
-
-        // Gramaje adhesivo (puede tener rango "desde-hasta")
-        if (orden.gramajeAdhesivo) {
-            const gramaje = String(orden.gramajeAdhesivo);
-            precargar('gramajeAdhesivo', gramaje);
+        // Relacion mezcla: puede venir como texto "100/80" o numerico "1.25"
+        if (orden.relacionMezcla) {
+            precargar('relacionMezcla', orden.relacionMezcla);
+        } else if (orden.fichaRelacionCatalizador) {
+            // Convertir valor numerico a texto del select
+            const mapRelacion = { '1.25': '100/80', '10': '10:1', '5': '5:1', '3': '3:1' };
+            const textoRelacion = mapRelacion[String(orden.fichaRelacionCatalizador)] || orden.fichaRelacionCatalizador;
+            precargar('relacionMezcla', textoRelacion);
         }
 
-        // Metros estimados (tomados de impresion si existen)
-        if (orden.metrosImp) {
-            precargar('metrosEstimados', orden.metrosImp);
-            precargar('metraje', orden.metrosImp);
+        // Tipo de laminado: inferir de ficha tecnica
+        if (orden.fichaTipoMat2 && !orden.fichaTipoMat3) {
+            precargar('tipoLaminado', 'bilaminado');
+        } else if (orden.fichaTipoMat3 || (orden.capasAdicionales && orden.capasAdicionales.length > 0)) {
+            precargar('tipoLaminado', 'trilaminado');
         }
 
-        // Materiales planificados desde la OT
-        if (orden.boppKg) precargar('boppKgPlan', orden.boppKg);
-        if (orden.castKg) precargar('castKgPlan', orden.castKg);
-        if (orden.adhesivoKg) precargar('adhesivoKgPlan', orden.adhesivoKg);
-        if (orden.catalizadorKg) precargar('catalizadorKgPlan', orden.catalizadorKg);
+        // Gramaje adhesivo (rango desde-hasta)
+        if (orden.fichaGramajeAdhesivo || orden.gramajeAdhesivo) {
+            precargar('gramajeAdhesivo', orden.fichaGramajeAdhesivo || orden.gramajeAdhesivo);
+        }
+        if (orden.fichaGramajeAdhesivoHasta) {
+            precargar('gramajeAdhesivoHasta', orden.fichaGramajeAdhesivoHasta);
+        }
+
+        // Tipo de adhesivo
+        precargar('tipoAdhesivo', orden.fichaTipoAdhesivo);
+
+        // Metros estimados
+        let metros = orden.metrosImp || orden.metrosEstimados || orden.metraje;
+        // Si no hay metros pero hay datos de ficha tecnica, calcular
+        if (!metros && orden.pedidoKg && orden.fichaMicras1 && orden.fichaAncho1) {
+            const ancho = parseFloat(orden.fichaAncho1) / 1000;
+            const micras = parseFloat(orden.fichaMicras1);
+            const densidad = parseFloat(orden.fichaDensidad1) || 0.90;
+            const gramaje = ancho * micras * densidad;
+            if (gramaje > 0) {
+                metros = Math.round((parseFloat(orden.pedidoKg) * 1000) / gramaje);
+            }
+        }
+        if (metros) {
+            precargar('metrosEstimados', metros);
+            precargar('metraje', metros);
+        }
+
+        // Observaciones de laminacion
+        precargar('obsLaminacion', orden.obsLaminacion);
 
         // Guardar referencia
         this.ordenCargada = orden;

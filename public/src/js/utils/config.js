@@ -194,7 +194,7 @@ const CONFIG = {
     // Maquinas de la planta (Ficha Tecnica seccion 3)
     MAQUINAS: {
         IMPRESORAS: [
-            { id: 'comexi_1', nombre: 'COMEXI 1', tipo: 'impresora', anchoMax: 830, velocidadMax: 130, estado: 'activa' },
+            { id: 'comexi_1', nombre: 'COMEXI 1 (Plancha 067)', tipo: 'impresora', anchoMax: 830, velocidadMax: 130, estado: 'activa' },
             { id: 'comexi_3', nombre: 'COMEXI 3', tipo: 'impresora', anchoMax: 1200, velocidadMax: 130, estado: 'activa' },
         ],
         LAMINADORAS: [

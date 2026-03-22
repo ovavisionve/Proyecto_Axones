@@ -30,6 +30,8 @@ const Auth = {
         'chatbot.html':      'chatbot.acceso',
         'admin.html':        'usuarios.gestionar',
         'nota-entrega.html': 'calidad.ver',
+        'clientes.html':     'ordenes.ver',
+        'proveedores.html':  'inventario.ver',
     },
 
     // Mapa de pagina -> permiso para filtrar navbar

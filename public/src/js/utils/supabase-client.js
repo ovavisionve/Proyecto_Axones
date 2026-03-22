@@ -12,8 +12,8 @@
 // CONFIGURACION - Actualizar con datos del proyecto Supabase
 // ============================================================
 const SUPABASE_CONFIG = {
-    url: '', // Ejemplo: 'https://xxxxx.supabase.co'
-    anonKey: '', // Ejemplo: 'eyJhbGciOiJIUzI1NiIs...'
+    url: 'https://lzjuzfbzgyjazhzhfhzv.supabase.co',
+    anonKey: 'sb_publishable_2qO868gEzBLLUyO2GmvgIg_69IhUvb7',
 };
 
 // ============================================================

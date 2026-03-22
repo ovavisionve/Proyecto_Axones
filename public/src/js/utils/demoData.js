@@ -535,6 +535,117 @@ const DemoData = {
                 fechaInicio: hoy,
                 fechaEntrega: '2026-04-10',
                 observacionesGenerales: ''
+            },
+            // OT REAL - ALTROM AVENA VENELA (basada en orden fisica 030-FEB26)
+            {
+                id: 'OT_' + (Date.now() + 3),
+                numeroOrden: 'OT-2026-0004',
+                fechaOrden: '2026-02-10',
+                fechaCreacion: ahora,
+                registradoPor: 'ovisionve',
+                registradoPorNombre: 'Oscar Vasquez',
+                cliente: 'ALTROM, C.A.',
+                clienteRif: 'J-30582298-0',
+                producto: 'AVENA EN HOJUELA VENELA 200g',
+                cpe: '0624562471',
+                mpps: 'A-152.448',
+                codigoBarra: '732388293308',
+                estructuraMaterial: 'MATE 800 x 25(667 Kg) + CAST 660 x 25(83Kg) + CAST 680 x 25(481Kg)',
+                maquina: 'COMEXI 3',
+                planchas: '045',
+                pedidoKg: 1000,
+                estadoOrden: 'pendiente',
+                prioridad: 'alta',
+                etapa: 'pendiente',
+                // AREA DE MONTAJE
+                frecuencia: 200,
+                anchoCorte: 320,
+                anchoMontaje: 640,
+                numBandas: 2,
+                numRepeticion: 2,
+                figuraEmbobinadoMontaje: '1',
+                tipoImpresion: 'Reverso',
+                desarrollo: 400,
+                numColores: 8,
+                // AREA DE IMPRESION
+                pinon: null, // N/A
+                lineaCorte: 'SI',
+                sustratosVirgen: 'MATE 800 X 25 (667 Kg)',
+                kgIngresadoImp: 665,
+                kgSalidaImp: 667,
+                mermaImp: 2,
+                metrosImp: 37056,
+                // Tintas (8 colores)
+                tintas: [
+                    { posicion: 1, color: 'NEGRO', anilox: '320', viscosidad: 19, porcentaje: null, observaciones: '' },
+                    { posicion: 2, color: 'ROJO P485C', anilox: '240', viscosidad: 23, porcentaje: null, observaciones: '' },
+                    { posicion: 3, color: 'NARANJA P165C', anilox: '160', viscosidad: 23, porcentaje: null, observaciones: '' },
+                    { posicion: 4, color: 'AMARILLO', anilox: '320', viscosidad: 20, porcentaje: null, observaciones: 'FOTOCELDA 19mm X 10mm' },
+                    { posicion: 5, color: 'MAGENTA', anilox: '260', viscosidad: 21, porcentaje: null, observaciones: '' },
+                    { posicion: 6, color: 'CYAN', anilox: '280', viscosidad: 20, porcentaje: null, observaciones: '' },
+                    { posicion: 7, color: 'VERDE P390C', anilox: '160', viscosidad: 23, porcentaje: null, observaciones: '' },
+                    { posicion: 8, color: 'BLANCO', anilox: '120', viscosidad: 20, porcentaje: null, observaciones: '' }
+                ],
+                // Materia prima principal
+                tipoMaterial: 'BOPP MATE',
+                micrasMaterial: 25,
+                anchoMaterial: 800,
+                kgDisponible: 700,
+                densidadMaterial: 0.90,
+                // FICHA TECNICA - Estructura del producto
+                fichaTipoMat1: 'BOPP MATE',
+                fichaMicras1: 25,
+                fichaDensidad1: 0.90,
+                fichaKg1: 667,
+                fichaSku1: 'BM-25-800',
+                fichaTipoAdhesivo: 'Base solvente',
+                fichaGramajeAdhesivo: '1,5',
+                fichaGramajeAdhesivoHasta: '1,7',
+                fichaRelacionCatalizador: '1.25',
+                fichaKgAdhesivo: 22,
+                fichaKgCatalizador: 16,
+                fichaTipoMat2: 'CAST',
+                fichaMicras2: 25,
+                fichaDensidad2: 0.93,
+                fichaKg2: 667,
+                fichaSku2: 'CA-25-660',
+                // Capas adicionales (CAST 680)
+                capasAdicionales: [
+                    {
+                        capa: 3,
+                        tipoMaterial: 'CAST',
+                        micras: 25,
+                        densidad: 0.93,
+                        kg: 481,
+                        sku: 'CA-25-680'
+                    }
+                ],
+                // AREA DE LAMINACION
+                figuraEmbobinadoLam: '1',
+                gramajeAdhesivo: '1,5 A 1,7',
+                relacionMezcla: '100/80',
+                adhesivoKg: 22,
+                catalizadorKg: 16,
+                boppKg: 667,
+                boppMetros: 37056,
+                castKg: 667,
+                castMetros: 37056,
+                obsLaminacion: 'MATERIA PRIMA VIRGEN: Cast 660 x 25(83Kg) + Cast 680 x 25(481Kg)',
+                // AREA DE CORTE/EMBALAJE
+                anchoCorteFinal: 270,
+                pesoBobina: '19-20',
+                metrosBobina: 650,
+                diametroBobina: 300,
+                distFotoceldaBorde: 1,
+                anchoCore: 320,
+                cantidadCores: 58,
+                diametroCore: 3,
+                tipoEmpalme: 'EXTERNO',
+                maxEmpalmes: 2,
+                // Programacion
+                fechaInicio: '2026-02-11',
+                fechaEntrega: '2026-03-01',
+                observacionesGenerales: 'OT basada en orden real 030-FEB26. Gramaje tinta: 1,50 g/m2. Figura embobinado impresion: 2.'
             }
         ];
 

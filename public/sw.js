@@ -1,61 +1,30 @@
 /**
  * Service Worker - Sistema Axones
- * Permite uso offline y caching de recursos
+ * Estrategia: Network-first con fallback a cache
+ * Version incrementada para forzar actualizacion
  */
 
-const CACHE_NAME = 'axones-v1.0';
+const CACHE_NAME = 'axones-v2.1';
 const OFFLINE_URL = '/offline.html';
 
-// Recursos a cachear inmediatamente
-const PRECACHE_URLS = [
-    '/',
-    '/index.html',
-    '/impresion.html',
-    '/corte.html',
-    '/tintas.html',
-    '/inventario.html',
-    '/alertas.html',
-    '/reportes.html',
-    '/chatbot.html',
-    '/admin.html',
-    '/offline.html',
-    '/manifest.json',
-    '../src/css/main.css',
-    '../src/js/utils/config.js',
-    '../src/js/utils/auth.js',
-    '../src/js/utils/demoData.js',
-    '../src/js/main.js',
-    '../src/js/modules/home.js',
-    '../src/js/modules/impresion.js',
-    '../src/js/modules/corte.js',
-    '../src/js/modules/tintas.js',
-    '../src/js/modules/inventario.js',
-    '../src/js/modules/alertas.js',
-    '../src/js/modules/reportes.js',
-    '../src/js/modules/chatbot.js',
-    '../src/js/modules/admin.js',
-];
-
-// CDN resources to cache
+// CDN resources - estos SI usan cache-first (no cambian)
 const CDN_URLS = [
     'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css',
     'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css',
     'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js',
 ];
 
-// Install event - precache resources
+// Install event - cache solo CDN y offline page
 self.addEventListener('install', (event) => {
-    console.log('[SW] Installing Service Worker...');
+    console.log('[SW] Installing Service Worker v2.1...');
 
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then((cache) => {
-                console.log('[SW] Precaching app shell...');
-                // Cache local files
-                const localPromise = cache.addAll(PRECACHE_URLS).catch(err => {
-                    console.log('[SW] Error caching local files:', err);
+                // Solo cachear CDN y pagina offline
+                const offlinePromise = cache.add(OFFLINE_URL).catch(err => {
+                    console.log('[SW] Error caching offline page:', err);
                 });
-                // Cache CDN files
                 const cdnPromise = Promise.all(
                     CDN_URLS.map(url =>
                         fetch(url, { mode: 'cors' })
@@ -67,18 +36,19 @@ self.addEventListener('install', (event) => {
                             .catch(err => console.log('[SW] Error caching CDN:', url, err))
                     )
                 );
-                return Promise.all([localPromise, cdnPromise]);
+                return Promise.all([offlinePromise, cdnPromise]);
             })
             .then(() => {
-                console.log('[SW] Precaching complete');
+                console.log('[SW] Install complete');
+                // Forzar activacion inmediata (no esperar a que cierre la tab)
                 return self.skipWaiting();
             })
     );
 });
 
-// Activate event - cleanup old caches
+// Activate event - limpiar caches viejos y tomar control inmediato
 self.addEventListener('activate', (event) => {
-    console.log('[SW] Activating Service Worker...');
+    console.log('[SW] Activating Service Worker v2.1...');
 
     event.waitUntil(
         caches.keys()
@@ -93,13 +63,13 @@ self.addEventListener('activate', (event) => {
                 );
             })
             .then(() => {
-                console.log('[SW] Activation complete');
+                console.log('[SW] Activation complete - taking control of all clients');
                 return self.clients.claim();
             })
     );
 });
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event - NETWORK-FIRST para todo, cache solo como fallback offline
 self.addEventListener('fetch', (event) => {
     const { request } = event;
     const url = new URL(request.url);
@@ -109,60 +79,55 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Skip Google Apps Script API calls (always fetch from network)
-    if (url.hostname.includes('script.google.com')) {
+    // Skip API calls entirely (Google Apps Script)
+    if (url.hostname.includes('script.google.com') ||
+        url.hostname.includes('api.groq.com')) {
         return;
     }
 
-    // Handle navigation requests
-    if (request.mode === 'navigate') {
+    // CDN resources - cache-first (estos nunca cambian por version en URL)
+    if (url.hostname.includes('cdn.jsdelivr.net')) {
         event.respondWith(
-            fetch(request)
-                .catch(() => {
-                    return caches.match(request)
-                        .then((response) => {
-                            return response || caches.match(OFFLINE_URL);
-                        });
+            caches.match(request)
+                .then((cachedResponse) => {
+                    return cachedResponse || fetch(request).then((response) => {
+                        if (response.ok) {
+                            const clone = response.clone();
+                            caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+                        }
+                        return response;
+                    });
                 })
         );
         return;
     }
 
-    // Cache-first strategy for static assets
+    // Todo lo demas: NETWORK-FIRST
+    // Intenta la red primero, si falla usa cache, si no hay cache muestra offline
     event.respondWith(
-        caches.match(request)
-            .then((cachedResponse) => {
-                if (cachedResponse) {
-                    // Return cached response
-                    return cachedResponse;
+        fetch(request)
+            .then((response) => {
+                // Guardar en cache para uso offline
+                if (response.ok && response.type === 'basic') {
+                    const responseToCache = response.clone();
+                    caches.open(CACHE_NAME).then((cache) => {
+                        cache.put(request, responseToCache);
+                    });
                 }
-
-                // Fetch from network
-                return fetch(request)
-                    .then((response) => {
-                        // Don't cache non-successful responses
-                        if (!response || response.status !== 200 || response.type !== 'basic') {
-                            return response;
+                return response;
+            })
+            .catch(() => {
+                // Sin red - intentar desde cache
+                return caches.match(request)
+                    .then((cachedResponse) => {
+                        if (cachedResponse) {
+                            return cachedResponse;
                         }
-
-                        // Clone the response
-                        const responseToCache = response.clone();
-
-                        // Cache the fetched resource
-                        caches.open(CACHE_NAME)
-                            .then((cache) => {
-                                cache.put(request, responseToCache);
-                            });
-
-                        return response;
-                    })
-                    .catch(() => {
-                        // Return offline page for navigation
+                        // Si es navegacion, mostrar pagina offline
                         if (request.mode === 'navigate') {
                             return caches.match(OFFLINE_URL);
                         }
-                        // Return nothing for other resources
-                        return new Response('', { status: 408, statusText: 'Request Timeout' });
+                        return new Response('', { status: 408, statusText: 'Offline' });
                     });
             })
     );
@@ -180,12 +145,9 @@ self.addEventListener('sync', (event) => {
 // Sync pending production data
 async function syncProduccion() {
     try {
-        // Get pending data from IndexedDB or localStorage
         const pendingData = await getPendingData();
-
         if (pendingData && pendingData.length > 0) {
             console.log('[SW] Syncing pending data:', pendingData.length, 'items');
-
             for (const item of pendingData) {
                 try {
                     await sendToServer(item);
@@ -200,66 +162,36 @@ async function syncProduccion() {
     }
 }
 
-// Helper functions (would need IndexedDB implementation)
-async function getPendingData() {
-    // Placeholder - would use IndexedDB in production
-    return [];
-}
-
-async function sendToServer(data) {
-    // Placeholder - would send to Google Apps Script
-    console.log('[SW] Would send to server:', data);
-}
-
-async function removePendingItem(id) {
-    // Placeholder - would remove from IndexedDB
-    console.log('[SW] Would remove item:', id);
-}
+async function getPendingData() { return []; }
+async function sendToServer(data) { console.log('[SW] Would send:', data); }
+async function removePendingItem(id) { console.log('[SW] Would remove:', id); }
 
 // Push notifications
 self.addEventListener('push', (event) => {
-    console.log('[SW] Push received:', event);
-
     let data = { title: 'Sistema Axones', body: 'Nueva notificacion' };
-
     if (event.data) {
-        try {
-            data = event.data.json();
-        } catch (e) {
-            data.body = event.data.text();
-        }
+        try { data = event.data.json(); } catch (e) { data.body = event.data.text(); }
     }
-
-    const options = {
-        body: data.body,
-        icon: '/icons/icon-192x192.png',
-        badge: '/icons/icon-72x72.png',
-        vibrate: [100, 50, 100],
-        data: {
-            url: data.url || '/'
-        },
-        actions: [
-            { action: 'view', title: 'Ver' },
-            { action: 'close', title: 'Cerrar' }
-        ]
-    };
-
     event.waitUntil(
-        self.registration.showNotification(data.title, options)
+        self.registration.showNotification(data.title, {
+            body: data.body,
+            icon: '/icons/icon-192x192.png',
+            badge: '/icons/icon-72x72.png',
+            vibrate: [100, 50, 100],
+            data: { url: data.url || '/' },
+            actions: [
+                { action: 'view', title: 'Ver' },
+                { action: 'close', title: 'Cerrar' }
+            ]
+        })
     );
 });
 
-// Notification click
 self.addEventListener('notificationclick', (event) => {
-    console.log('[SW] Notification clicked:', event);
-
     event.notification.close();
-
     if (event.action === 'view' || !event.action) {
-        event.waitUntil(
-            clients.openWindow(event.notification.data.url || '/')
-        );
+        event.waitUntil(clients.openWindow(event.notification.data.url || '/'));
     }
 });
 
-console.log('[SW] Service Worker loaded');
+console.log('[SW] Service Worker v2.1 loaded');

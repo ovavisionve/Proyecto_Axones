@@ -105,6 +105,7 @@ const Ordenes = {
         fichaSku1: 'fichaSku1',
         fichaTipoAdhesivo: 'fichaTipoAdhesivo',
         fichaGramajeAdhesivo: 'fichaGramajeAdhesivo',
+        fichaGramajeAdhesivoHasta: 'fichaGramajeAdhesivoHasta',
         fichaRelacionCatalizador: 'fichaRelacionCatalizador',
         fichaKgAdhesivo: 'fichaKgAdhesivo',
         fichaKgCatalizador: 'fichaKgCatalizador',
@@ -112,7 +113,9 @@ const Ordenes = {
         fichaMicras2: 'fichaMicras2',
         fichaDensidad2: 'fichaDensidad2',
         fichaKg2: 'fichaKg2',
-        fichaSku2: 'fichaSku2'
+        fichaSku2: 'fichaSku2',
+        fichaAncho1: 'fichaAncho1',
+        fichaAncho2: 'fichaAncho2'
     },
 
     // Densidades por tipo de material
@@ -127,7 +130,8 @@ const Ordenes = {
         'PEBD': 0.93,
         'PEBD PIGMENT': 0.93,
         'PERLADO': 0.80,
-        'METAL': 0.90
+        'METAL': 0.90,
+        'POLIETILENO': 0.92
     },
 
     /**
@@ -751,13 +755,123 @@ const Ordenes = {
         }
 
         // Recalcular cuando cambian los valores
-        ['fichaMicras1', 'fichaMicras2', 'fichaGramajeAdhesivo', 'fichaRelacionCatalizador'].forEach(id => {
+        ['fichaMicras1', 'fichaMicras2', 'fichaAncho1', 'fichaAncho2', 'fichaGramajeAdhesivo', 'fichaGramajeAdhesivoHasta', 'fichaRelacionCatalizador'].forEach(id => {
             const el = document.getElementById(id);
             if (el) {
                 el.addEventListener('input', () => this.calcularMaterialesFichaTecnica());
                 el.addEventListener('change', () => this.calcularMaterialesFichaTecnica());
             }
         });
+
+        // Boton agregar capa adicional
+        this.capasAdicionalesCount = 0;
+        const btnAgregarCapa = document.getElementById('btnAgregarCapa');
+        if (btnAgregarCapa) {
+            btnAgregarCapa.addEventListener('click', () => this.agregarCapaAdicional());
+        }
+    },
+
+    /**
+     * Agrega una capa adicional (3, 4, 5...) dinamicamente
+     */
+    agregarCapaAdicional: function() {
+        this.capasAdicionalesCount++;
+        const numCapa = this.capasAdicionalesCount + 2; // Capa 3, 4, 5...
+        const container = document.getElementById('capasAdicionalesContainer');
+        if (!container) return;
+
+        const capaDiv = document.createElement('div');
+        capaDiv.className = 'row g-2 mt-2';
+        capaDiv.id = `fichaCapaExtra${numCapa}`;
+
+        const colores = ['info', 'secondary', 'dark', 'danger'];
+        const color = colores[(numCapa - 3) % colores.length];
+
+        capaDiv.innerHTML = `
+            <div class="col-12">
+                <label class="form-label fw-bold text-${color}">
+                    <i class="bi bi-${numCapa}-circle me-1"></i>Capa ${numCapa} - Material Adicional
+                    <button type="button" class="btn btn-outline-danger btn-sm ms-2 py-0 px-1" onclick="OrdenesModule.eliminarCapaAdicional(${numCapa})" title="Eliminar capa">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </label>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Tipo Material Capa ${numCapa}</label>
+                <select class="form-select form-select-sm" id="fichaTipoMat${numCapa}">
+                    <option value="">Seleccionar...</option>
+                    <option value="BOPP NORMAL">BOPP NORMAL</option>
+                    <option value="BOPP MATE">BOPP MATE</option>
+                    <option value="BOPP PASTA">BOPP PASTA</option>
+                    <option value="BOPP PERLADO">BOPP PERLADO</option>
+                    <option value="CAST">CAST</option>
+                    <option value="PEBD">PEBD</option>
+                    <option value="PEBD PIGMENT">PEBD PIGMENT</option>
+                    <option value="POLIETILENO">POLIETILENO (PB)</option>
+                    <option value="PERLADO">PERLADO</option>
+                    <option value="METAL">METAL</option>
+                    <option value="PET">PET</option>
+                    <option value="PA">PA (Nylon)</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Micras Capa ${numCapa}</label>
+                <input type="number" class="form-control form-control-sm" id="fichaMicras${numCapa}" step="0.1" placeholder="ej: 25">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Ancho Bobina (mm)</label>
+                <input type="number" class="form-control form-control-sm" id="fichaAncho${numCapa}" step="1" placeholder="ej: 660">
+            </div>
+            <div class="col-md-1">
+                <label class="form-label">Densidad</label>
+                <input type="number" class="form-control form-control-sm" id="fichaDensidad${numCapa}" step="0.01" value="0.93" readonly style="background-color: #e9ecef;">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Kg Necesarios</label>
+                <input type="number" class="form-control form-control-sm" id="fichaKg${numCapa}" style="background-color: #e0f7fa; font-weight: bold;">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">SKU del Inventario</label>
+                <select class="form-select form-select-sm" id="fichaSku${numCapa}">
+                    <option value="">Buscar en inventario...</option>
+                </select>
+            </div>
+        `;
+
+        container.appendChild(capaDiv);
+
+        // Eventos para la nueva capa
+        const tipoMatSelect = document.getElementById(`fichaTipoMat${numCapa}`);
+        if (tipoMatSelect) {
+            tipoMatSelect.addEventListener('change', () => {
+                const densidad = this.DENSIDADES[tipoMatSelect.value] || 0.93;
+                const densidadInput = document.getElementById(`fichaDensidad${numCapa}`);
+                if (densidadInput) densidadInput.value = densidad;
+                this.cargarSkusPorTipo(`fichaSku${numCapa}`, tipoMatSelect.value);
+                this.calcularMaterialesFichaTecnica();
+            });
+        }
+
+        const micrasInput = document.getElementById(`fichaMicras${numCapa}`);
+        if (micrasInput) {
+            micrasInput.addEventListener('input', () => this.calcularMaterialesFichaTecnica());
+        }
+
+        const anchoInput = document.getElementById(`fichaAncho${numCapa}`);
+        if (anchoInput) {
+            anchoInput.addEventListener('input', () => this.calcularMaterialesFichaTecnica());
+        }
+    },
+
+    /**
+     * Elimina una capa adicional
+     */
+    eliminarCapaAdicional: function(numCapa) {
+        const capaDiv = document.getElementById(`fichaCapaExtra${numCapa}`);
+        if (capaDiv) {
+            capaDiv.remove();
+            this.calcularMaterialesFichaTecnica();
+        }
     },
 
     /**
@@ -795,69 +909,161 @@ const Ordenes = {
      */
     calcularMaterialesFichaTecnica: function() {
         const pedidoKg = parseFloat(document.getElementById('pedidoKg')?.value) || 0;
-        const anchoCorteMm = parseFloat(document.getElementById('anchoCorteFinal')?.value) ||
-                             parseFloat(document.getElementById('anchoMaterial')?.value) || 0;
 
-        // Datos capa 1
-        const tipoMat1 = document.getElementById('fichaTipoMat1')?.value || '';
+        // Ancho del producto laminado (anchoMontaje es el ancho comun de todas las capas durante laminacion)
+        const anchoMontajeMm = parseFloat(document.getElementById('anchoMontaje')?.value) ||
+                               parseFloat(document.getElementById('anchoMaterial')?.value) || 0;
+
+        // Datos capa 1 - con ancho propio de bobina
         const micras1 = parseFloat(document.getElementById('fichaMicras1')?.value) || 0;
         const densidad1 = parseFloat(document.getElementById('fichaDensidad1')?.value) || 0.90;
+        const anchoCapa1Mm = parseFloat(document.getElementById('fichaAncho1')?.value) || anchoMontajeMm;
 
-        // Datos capa 2
-        const tipoMat2 = document.getElementById('fichaTipoMat2')?.value || '';
+        // Datos capa 2 - con ancho propio de bobina
         const micras2 = parseFloat(document.getElementById('fichaMicras2')?.value) || 0;
         const densidad2 = parseFloat(document.getElementById('fichaDensidad2')?.value) || 0.93;
+        const anchoCapa2Mm = parseFloat(document.getElementById('fichaAncho2')?.value) || anchoMontajeMm;
 
-        // Datos adhesivo
-        const gramajeAdhesivo = parseFloat(document.getElementById('fichaGramajeAdhesivo')?.value) || 0;
+        // Datos adhesivo - soporte para rango (desde/hasta)
+        const gramajeAdhDesde = parseFloat(document.getElementById('fichaGramajeAdhesivo')?.value?.toString().replace(',', '.')) || 0;
+        const gramajeAdhHasta = parseFloat(document.getElementById('fichaGramajeAdhesivoHasta')?.value?.toString().replace(',', '.')) || gramajeAdhDesde;
+        const gramajeAdhesivo = gramajeAdhHasta > gramajeAdhDesde ? (gramajeAdhDesde + gramajeAdhHasta) / 2 : gramajeAdhDesde;
         const relacionCatalizador = parseFloat(document.getElementById('fichaRelacionCatalizador')?.value) || 0;
 
         // Actualizar indicador de kg pedidos
         const kgPedidoEl = document.getElementById('fichaKgPedido');
         if (kgPedidoEl) kgPedidoEl.textContent = pedidoKg.toLocaleString('es-VE');
 
-        if (pedidoKg <= 0 || anchoCorteMm <= 0) {
+        if (pedidoKg <= 0) {
             this.limpiarCalculosFicha();
             return;
         }
 
-        const anchoM = anchoCorteMm / 1000;
-
-        // Calcular gramaje de cada capa (g/m lineal)
-        const gramajeCapa1 = micras1 > 0 ? anchoM * micras1 * densidad1 : 0;
-        const gramajeCapa2 = micras2 > 0 ? anchoM * micras2 * densidad2 : 0;
-        const gramajeAdhesivoLineal = gramajeAdhesivo > 0 ? anchoM * gramajeAdhesivo : 0; // g/m lineal
-
-        // Gramaje total del producto laminado
-        const gramajeTotal = gramajeCapa1 + gramajeCapa2 + gramajeAdhesivoLineal;
-
-        if (gramajeTotal <= 0) {
+        // Necesitamos al menos un ancho para calcular
+        if (anchoMontajeMm <= 0 && anchoCapa1Mm <= 0) {
             this.limpiarCalculosFicha();
             return;
         }
 
-        // Metros totales necesarios
-        const metrosTotales = (pedidoKg * 1000) / gramajeTotal;
+        // ============================================================
+        // LOGICA DE CALCULO:
+        // 1. pedidoKg = peso PRODUCTO TERMINADO (todas las capas juntas)
+        // 2. Calcular gramajeTotal al ancho de laminacion (anchoMontaje)
+        // 3. metros = pedidoKg * 1000 / gramajeTotal
+        // 4. Cada capa calcula Kg a su propio ancho de bobina (puede ser mayor)
+        // ============================================================
 
-        // Kg de cada componente
-        const kgCapa1 = gramajeCapa1 > 0 ? (metrosTotales * gramajeCapa1) / 1000 : 0;
-        const kgCapa2 = gramajeCapa2 > 0 ? (metrosTotales * gramajeCapa2) / 1000 : 0;
-        const kgAdhesivo = gramajeAdhesivoLineal > 0 ? (metrosTotales * gramajeAdhesivoLineal) / 1000 : 0;
-        const kgCatalizador = relacionCatalizador > 0 ? kgAdhesivo / relacionCatalizador : 0;
+        const anchoCapa1M = anchoCapa1Mm / 1000;
+        const anchoCapa2M = anchoCapa2Mm / 1000;
+        // Ancho de laminacion: es el ancho del producto final (anchoMontaje)
+        const anchoLamMm = anchoMontajeMm > 0 ? anchoMontajeMm : Math.min(anchoCapa1Mm, anchoCapa2Mm || anchoCapa1Mm);
+        const anchoLamM = anchoLamMm / 1000;
 
-        // Actualizar campos
-        this.actualizarCampo('fichaKg1', kgCapa1.toFixed(2));
-        this.actualizarCampo('fichaKg2', kgCapa2.toFixed(2));
-        this.actualizarCampo('fichaKgAdhesivo', kgAdhesivo.toFixed(2));
-        this.actualizarCampo('fichaKgCatalizador', kgCatalizador.toFixed(2));
+        // Gramajes al ancho de LAMINACION (para calcular metros del producto final)
+        const gramajeCapa1Lam = micras1 > 0 ? anchoLamM * micras1 * densidad1 : 0;
+        const gramajeCapa2Lam = micras2 > 0 ? anchoLamM * micras2 * densidad2 : 0;
+        const gramajeAdhLam = gramajeAdhesivo > 0 ? anchoLamM * gramajeAdhesivo : 0;
 
-        // Actualizar resumen
-        this.actualizarTexto('fichaResumen1', kgCapa1.toFixed(1));
-        this.actualizarTexto('fichaResumen2', kgCapa2.toFixed(1));
-        this.actualizarTexto('fichaResumenAdh', kgAdhesivo.toFixed(1));
-        this.actualizarTexto('fichaResumenCat', kgCatalizador.toFixed(1));
+        const gramajeTotalLam = gramajeCapa1Lam + gramajeCapa2Lam + gramajeAdhLam;
 
-        console.log(`Ficha Tecnica: ${pedidoKg}kg pedido => Capa1: ${kgCapa1.toFixed(1)}kg, Capa2: ${kgCapa2.toFixed(1)}kg, Adhesivo: ${kgAdhesivo.toFixed(1)}kg, Catalizador: ${kgCatalizador.toFixed(1)}kg`);
+        if (gramajeTotalLam <= 0) {
+            this.limpiarCalculosFicha();
+            return;
+        }
+
+        // Metros del producto terminado
+        const metrosTotales = (pedidoKg * 1000) / gramajeTotalLam;
+
+        // Kg de cada capa a su ANCHO DE BOBINA real (puede ser mas ancha que el laminado)
+        const gramajeCapa1Bob = micras1 > 0 ? anchoCapa1M * micras1 * densidad1 : 0;
+        const kgCapa1 = gramajeCapa1Bob > 0 ? (metrosTotales * gramajeCapa1Bob) / 1000 : 0;
+
+        const gramajeCapa2Bob = micras2 > 0 ? anchoCapa2M * micras2 * densidad2 : 0;
+        const kgCapa2 = gramajeCapa2Bob > 0 ? (metrosTotales * gramajeCapa2Bob) / 1000 : 0;
+
+        // Adhesivo: aplicado al ancho de laminacion
+        const gramajeAdhesivoLineal = gramajeAdhLam;
+        const totalMezclaAdhesivo = gramajeAdhesivoLineal > 0 ? (metrosTotales * gramajeAdhesivoLineal) / 1000 : 0;
+
+        // Separar mezcla en adhesivo base y catalizador
+        let kgAdhesivo, kgCatalizador;
+        if (relacionCatalizador > 0 && totalMezclaAdhesivo > 0) {
+            const partesBase = relacionCatalizador;
+            const partesCat = 1;
+            const totalPartes = partesBase + partesCat;
+            kgAdhesivo = totalMezclaAdhesivo * partesBase / totalPartes;
+            kgCatalizador = totalMezclaAdhesivo * partesCat / totalPartes;
+        } else {
+            kgAdhesivo = totalMezclaAdhesivo;
+            kgCatalizador = 0;
+        }
+
+        // Capas adicionales (3, 4, 5...)
+        const capasExtraData = [];
+        for (let i = 3; i <= 10; i++) {
+            const micrasEl = document.getElementById(`fichaMicras${i}`);
+            const densidadEl = document.getElementById(`fichaDensidad${i}`);
+            const anchoEl = document.getElementById(`fichaAncho${i}`);
+            if (micrasEl && micrasEl.closest('#capasAdicionalesContainer')) {
+                const micras = parseFloat(micrasEl.value) || 0;
+                const densidad = parseFloat(densidadEl?.value) || 0.93;
+                const anchoCapa = parseFloat(anchoEl?.value) || anchoCapa2Mm || anchoMontajeMm;
+                const anchoCapaM = anchoCapa / 1000;
+                const gramaje = micras > 0 ? anchoCapaM * micras * densidad : 0;
+                const kgCapa = gramaje > 0 ? (metrosTotales * gramaje) / 1000 : 0;
+                capasExtraData.push({ num: i, gramaje, micras, kgCapa });
+            }
+        }
+
+        // Solo actualizar campos que NO tienen valor manual
+        // Si el usuario ya escribio un valor, respetarlo
+        this.actualizarCampoSiVacio('fichaKg1', kgCapa1.toFixed(2));
+        this.actualizarCampoSiVacio('fichaKg2', kgCapa2.toFixed(2));
+        this.actualizarCampoSiVacio('fichaKgAdhesivo', kgAdhesivo.toFixed(2));
+        this.actualizarCampoSiVacio('fichaKgCatalizador', kgCatalizador.toFixed(2));
+
+        // Leer valores finales (pueden ser los manuales o los calculados)
+        const kgCapa1Final = parseFloat(document.getElementById('fichaKg1')?.value) || kgCapa1;
+        const kgCapa2Final = parseFloat(document.getElementById('fichaKg2')?.value) || kgCapa2;
+        const kgAdhFinal = parseFloat(document.getElementById('fichaKgAdhesivo')?.value) || kgAdhesivo;
+        const kgCatFinal = parseFloat(document.getElementById('fichaKgCatalizador')?.value) || kgCatalizador;
+
+        // Capas extra
+        let resumenExtraHTML = '';
+        capasExtraData.forEach(capa => {
+            if (capa.kgCapa > 0) {
+                this.actualizarCampoSiVacio(`fichaKg${capa.num}`, capa.kgCapa.toFixed(2));
+                const kgFinal = parseFloat(document.getElementById(`fichaKg${capa.num}`)?.value) || capa.kgCapa;
+                resumenExtraHTML += `<span>Capa ${capa.num}: <strong>${kgFinal.toFixed(1)}</strong> kg</span> `;
+            }
+        });
+
+        // Agregar resumen
+        const resumenContainer = document.getElementById('fichaResumenCapas');
+        if (resumenContainer) {
+            let html = `<div class="d-flex gap-4 flex-wrap">
+                <span>Capa 1: <strong id="fichaResumen1">${kgCapa1Final.toFixed(1)}</strong> kg</span>
+                <span>Adhesivo: <strong id="fichaResumenAdh">${kgAdhFinal.toFixed(1)}</strong> kg</span>
+                <span>Catalizador: <strong id="fichaResumenCat">${kgCatFinal.toFixed(1)}</strong> kg</span>
+                ${kgCatFinal > 0 ? `<span class="text-muted">(Mezcla: <strong>${(kgAdhFinal + kgCatFinal).toFixed(1)}</strong> kg)</span>` : ''}
+                <span>Capa 2: <strong id="fichaResumen2">${kgCapa2Final.toFixed(1)}</strong> kg</span>
+                ${resumenExtraHTML}
+                <span class="text-info"><i class="bi bi-rulers me-1"></i>${metrosTotales.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.')} metros</span>
+            </div>`;
+            resumenContainer.innerHTML = html;
+        }
+
+        console.log(`Ficha Tecnica: ${pedidoKg}kg pedido => Capa1: ${kgCapa1.toFixed(1)}kg, Capa2: ${kgCapa2.toFixed(1)}kg, Adhesivo: ${kgAdhesivo.toFixed(1)}kg, Catalizador: ${kgCatalizador.toFixed(1)}kg, Capas extra: ${capasExtraData.length}`);
+    },
+
+    actualizarCampoSiVacio: function(id, valor) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        // Solo actualizar si el campo esta vacio o tiene valor 0
+        const current = el.value.trim();
+        if (current === '' || current === '0' || current === '0.00') {
+            el.value = valor;
+        }
     },
 
     actualizarCampo: function(id, valor) {
@@ -1374,6 +1580,23 @@ const Ordenes = {
             }
         });
 
+        // Capas adicionales (3+)
+        data.capasAdicionales = [];
+        for (let i = 3; i <= 10; i++) {
+            const tipoEl = document.getElementById(`fichaTipoMat${i}`);
+            if (tipoEl && tipoEl.closest('#capasAdicionalesContainer')) {
+                data.capasAdicionales.push({
+                    capa: i,
+                    tipoMaterial: tipoEl.value || '',
+                    micras: parseFloat(document.getElementById(`fichaMicras${i}`)?.value) || 0,
+                    ancho: parseFloat(document.getElementById(`fichaAncho${i}`)?.value) || 0,
+                    densidad: parseFloat(document.getElementById(`fichaDensidad${i}`)?.value) || 0,
+                    kg: parseFloat(document.getElementById(`fichaKg${i}`)?.value) || 0,
+                    sku: document.getElementById(`fichaSku${i}`)?.value || ''
+                });
+            }
+        }
+
         // Tabla de tintas (8 posiciones)
         data.tintas = [];
         for (let i = 1; i <= 8; i++) {
@@ -1534,6 +1757,24 @@ const Ordenes = {
                     document.getElementById(`tinta${i}Pct`).value = tinta.porcentaje || '';
                     document.getElementById(`tinta${i}Obs`).value = tinta.observaciones || '';
                 }
+            });
+        }
+
+        // Cargar capas adicionales (3+)
+        if (orden.capasAdicionales && Array.isArray(orden.capasAdicionales)) {
+            orden.capasAdicionales.forEach(capa => {
+                this.agregarCapaAdicional();
+                const num = capa.capa;
+                const tipoEl = document.getElementById(`fichaTipoMat${num}`);
+                if (tipoEl) tipoEl.value = capa.tipoMaterial || '';
+                const micrasEl = document.getElementById(`fichaMicras${num}`);
+                if (micrasEl) micrasEl.value = capa.micras || '';
+                const anchoEl = document.getElementById(`fichaAncho${num}`);
+                if (anchoEl) anchoEl.value = capa.ancho || '';
+                const densidadEl = document.getElementById(`fichaDensidad${num}`);
+                if (densidadEl) densidadEl.value = capa.densidad || 0.93;
+                const kgEl = document.getElementById(`fichaKg${num}`);
+                if (kgEl) kgEl.value = capa.kg || '';
             });
         }
 

@@ -141,30 +141,72 @@ const Laminacion = {
      * Precarga campos del formulario desde una orden
      */
     precargarCamposOrden: function(orden) {
-        const camposOrden = {
-            'ordenTrabajo': orden.ot || orden.numeroOrden,
-            'cliente': orden.cliente,
-            'producto': orden.producto
+        console.log('Precargando datos de orden en laminacion:', orden);
+
+        // Helper para precargar un campo
+        const precargar = (id, valor) => {
+            if (!valor && valor !== 0) return;
+            const el = document.getElementById(id);
+            if (!el) return;
+
+            if (el.tagName === 'SELECT') {
+                const opciones = Array.from(el.options).map(o => o.value);
+                if (opciones.includes(String(valor))) {
+                    el.value = String(valor);
+                } else {
+                    return;
+                }
+            } else {
+                el.value = valor;
+            }
+            el.classList.add('precargado-orden');
+            el.style.backgroundColor = '#e8f4e8';
+            el.style.borderColor = '#198754';
         };
 
-        Object.entries(camposOrden).forEach(([campo, valor]) => {
-            const input = document.getElementById(campo);
-            if (input && valor) {
-                input.value = valor;
-                input.classList.add('precargado-orden');
-                input.setAttribute('readonly', true);
-                input.style.backgroundColor = '#e8f4e8';
-            }
-        });
+        // === INFORMACION DE ORDEN ===
+        precargar('ordenTrabajo', orden.ot || orden.numeroOrden);
+        precargar('producto', orden.producto);
 
-        const clienteSelect = document.getElementById('cliente');
-        if (clienteSelect && orden.cliente) {
-            clienteSelect.value = orden.cliente;
-            clienteSelect.dispatchEvent(new Event('change'));
+        // Cliente (puede ser input o select)
+        const clienteEl = document.getElementById('cliente');
+        if (clienteEl && orden.cliente) {
+            clienteEl.value = orden.cliente;
+            clienteEl.classList.add('precargado-orden');
+            clienteEl.style.backgroundColor = '#e8f4e8';
+            clienteEl.style.borderColor = '#198754';
+            clienteEl.dispatchEvent(new Event('change'));
         }
+
+        // === ESPECIFICACIONES DE LAMINACION (desde OT) ===
+        precargar('figuraEmbobinado', orden.figuraEmbobinadoLam);
+        precargar('relacionMezcla', orden.relacionMezcla);
+
+        // Gramaje adhesivo (puede tener rango "desde-hasta")
+        if (orden.gramajeAdhesivo) {
+            const gramaje = String(orden.gramajeAdhesivo);
+            precargar('gramajeAdhesivo', gramaje);
+        }
+
+        // Metros estimados (tomados de impresion si existen)
+        if (orden.metrosImp) {
+            precargar('metrosEstimados', orden.metrosImp);
+            precargar('metraje', orden.metrosImp);
+        }
+
+        // Materiales planificados desde la OT
+        if (orden.boppKg) precargar('boppKgPlan', orden.boppKg);
+        if (orden.castKg) precargar('castKgPlan', orden.castKg);
+        if (orden.adhesivoKg) precargar('adhesivoKgPlan', orden.adhesivoKg);
+        if (orden.catalizadorKg) precargar('catalizadorKgPlan', orden.catalizadorKg);
+
+        // Guardar referencia
+        this.ordenCargada = orden;
 
         // Actualizar control de tiempo
         this.actualizarControlTiempo(orden.id || orden.ot, orden.numeroOrden || orden.ot);
+
+        console.log('Orden precargada en laminacion:', orden.numeroOrden || orden.ot);
     },
 
     /**
@@ -256,7 +298,7 @@ const Laminacion = {
             return;
         }
 
-        // Obtener ordenes pendientes
+        // Obtener ordenes pendientes desde localStorage primero
         let ordenes = [];
         try {
             ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
@@ -266,6 +308,36 @@ const Laminacion = {
         }
 
         console.log('[Laminacion] Ordenes en localStorage:', ordenes.length);
+
+        // Cargar desde API en background y actualizar selector
+        if (typeof AxonesAPI !== 'undefined') {
+            AxonesAPI.getOrdenes().then(result => {
+                if (result && result.success && Array.isArray(result.data) && result.data.length > 0) {
+                    const ordenesAPI = result.data.map(o => {
+                        if (o.datosCompletos && typeof o.datosCompletos === 'object') {
+                            return { ...o.datosCompletos, id: o.id, estado: o.estado, etapa: o.etapa };
+                        }
+                        return o;
+                    });
+                    const idsAPI = new Set(ordenesAPI.map(o => o.id));
+                    const soloLocales = ordenes.filter(o => !idsAPI.has(o.id));
+                    const ordenesMerged = [...ordenesAPI, ...soloLocales];
+                    localStorage.setItem('axones_ordenes_trabajo', JSON.stringify(ordenesMerged));
+                    console.log('[Laminacion] Ordenes sincronizadas desde Sheets:', ordenesAPI.length);
+                    const selectorExistente = document.getElementById('selectorOrden');
+                    if (selectorExistente) selectorExistente.remove();
+                    this._renderSelectorOrdenes(ordenesMerged);
+                }
+            }).catch(e => console.warn('[Laminacion] Error cargando ordenes desde API:', e.message));
+        }
+
+        // Renderizar con datos locales inicialmente
+        this._renderSelectorOrdenes(ordenes);
+    },
+
+    _renderSelectorOrdenes: function(ordenes) {
+        const otInput = document.getElementById('ordenTrabajo');
+        if (!otInput) return;
 
         // Filtrar ordenes no completadas
         const ordenesDisponibles = ordenes.filter(o => o.estadoOrden !== 'completada');

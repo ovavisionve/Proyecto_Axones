@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clientes - Sistema Axones</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#212529">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="src/css/main.css" rel="stylesheet">
+    <style>
+        .table-clientes td { vertical-align: middle; }
+        .cliente-card { border-left: 4px solid #0d6efd; transition: all 0.2s; }
+        .cliente-card:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .search-box { max-width: 400px; }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="index.html">
+                <i class="bi bi-gear-wide-connected me-2"></i>
+                <span class="fw-bold">AXONES</span>
+                <span class="badge bg-info ms-2">Clientes</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarMain">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item"><a class="nav-link" href="index.html"><i class="bi bi-house-door me-1"></i> Inicio</a></li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"><i class="bi bi-clipboard-data me-1"></i> Produccion</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="ordenes.html"><i class="bi bi-clipboard-check me-2"></i>Ordenes de Trabajo</a></li>
+                            <li><a class="dropdown-item" href="impresion.html"><i class="bi bi-printer me-2"></i>Impresion</a></li>
+                            <li><a class="dropdown-item" href="laminacion.html"><i class="bi bi-layers me-2"></i>Laminacion</a></li>
+                            <li><a class="dropdown-item" href="corte.html"><i class="bi bi-scissors me-2"></i>Corte</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item"><a class="nav-link" href="inventario.html"><i class="bi bi-box-seam me-1"></i> Inventario</a></li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle active" href="#" data-bs-toggle="dropdown"><i class="bi bi-database me-1"></i> Datos Maestros</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item active" href="clientes.html"><i class="bi bi-people me-2"></i>Clientes</a></li>
+                            <li><a class="dropdown-item" href="proveedores.html"><i class="bi bi-truck me-2"></i>Proveedores</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item"><a class="nav-link" href="admin.html"><i class="bi bi-gear me-1"></i> Admin</a></li>
+                </ul>
+                <div class="d-flex align-items-center">
+                    <span class="text-light me-3" id="userInfo"></span>
+                    <button class="btn btn-outline-light btn-sm" onclick="Auth.logout()">
+                        <i class="bi bi-box-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container-fluid" style="margin-top: 70px;">
+        <!-- Header -->
+        <div class="row mb-3">
+            <div class="col">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-0"><i class="bi bi-people text-primary me-2"></i>Gestion de Clientes</h4>
+                        <small class="text-muted">Registro y administracion de clientes</small>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <div class="input-group search-box">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control" id="buscarCliente" placeholder="Buscar cliente...">
+                        </div>
+                        <button class="btn btn-primary" onclick="ClientesModule.mostrarModal()">
+                            <i class="bi bi-plus-lg me-1"></i> Nuevo Cliente
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body py-2 text-center">
+                        <h5 class="mb-0" id="totalClientes">0</h5>
+                        <small class="text-muted">Total Clientes</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body py-2 text-center">
+                        <h5 class="mb-0 text-success" id="clientesActivos">0</h5>
+                        <small class="text-muted">Activos</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body py-2 text-center">
+                        <h5 class="mb-0 text-primary" id="clientesConOrdenes">0</h5>
+                        <small class="text-muted">Con Ordenes</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body py-2 text-center">
+                        <span class="badge bg-success" id="statusDB">
+                            <i class="bi bi-circle-fill me-1" style="font-size:0.5rem;"></i> Conectado
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de Clientes -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-clientes mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Nombre / Razon Social</th>
+                                <th>RIF</th>
+                                <th>Telefono</th>
+                                <th>Email</th>
+                                <th>Contacto</th>
+                                <th class="text-center">Estado</th>
+                                <th class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaClientes">
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted">
+                                    <i class="bi bi-hourglass-split me-2"></i>Cargando clientes...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Crear/Editar Cliente -->
+    <div class="modal fade" id="modalCliente" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="modalClienteTitulo">
+                        <i class="bi bi-person-plus me-2"></i>Nuevo Cliente
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formCliente">
+                        <input type="hidden" id="clienteId">
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label class="form-label">Nombre / Razon Social <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="clienteNombre" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">RIF</label>
+                                <input type="text" class="form-control" id="clienteRif" placeholder="J-12345678-9">
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label">Direccion</label>
+                                <input type="text" class="form-control" id="clienteDireccion">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Telefono</label>
+                                <input type="text" class="form-control" id="clienteTelefono">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" id="clienteEmail">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Persona de Contacto</label>
+                                <input type="text" class="form-control" id="clienteContactoNombre">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Telefono Contacto</label>
+                                <input type="text" class="form-control" id="clienteContactoTelefono">
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label">Notas</label>
+                                <textarea class="form-control" id="clienteNotas" rows="2"></textarea>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="ClientesModule.guardar()">
+                        <i class="bi bi-check-lg me-1"></i> Guardar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="src/js/utils/config.js"></script>
+    <script src="src/js/utils/auth.js"></script>
+    <script src="src/js/utils/supabase-client.js"></script>
+    <script src="src/js/modules/clientes.js"></script>
+</body>
+</html>

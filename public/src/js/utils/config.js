@@ -22,7 +22,7 @@ const CONFIG = {
 
     // URLs de Google Apps Script - CONFIGURACION FIJA
     API: {
-        BASE_URL: 'https://script.google.com/macros/s/AKfycbxsMrUSHR6QkAgiZJ8owAfBGOvfz09D4kf96fK8Dr_zeTA1PfiQs2xdxEKC2IoeA9zK/exec',
+        BASE_URL: 'https://script.google.com/macros/s/AKfycbx6NVPUNtloiPV1Tz42_Njj8zXrGaont4s7M3cqdEvyrDX8LqntvviTCJx8pjTvi7Qs/exec',
         SHEETS_ID: '1TOpqDc-X4kthwYNzduGYO6MpN1dOdvbjqIIoW_oYL88',
     },
 

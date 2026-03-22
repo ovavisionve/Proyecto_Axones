@@ -961,8 +961,26 @@ const Ordenes = {
         // Kg de cada componente
         const kgCapa1 = gramajeCapa1 > 0 ? (metrosTotales * gramajeCapa1) / 1000 : 0;
         const kgCapa2 = gramajeCapa2 > 0 ? (metrosTotales * gramajeCapa2) / 1000 : 0;
-        const kgAdhesivo = gramajeAdhesivoLineal > 0 ? (metrosTotales * gramajeAdhesivoLineal) / 1000 : 0;
-        const kgCatalizador = relacionCatalizador > 0 ? kgAdhesivo / relacionCatalizador : 0;
+
+        // Adhesivo: el gramaje ingresado (1,5-1,7 g/m2) es el gramaje HUMEDO de la mezcla total
+        // La mezcla total = base adhesiva + catalizador
+        // Para ratio 100/80 (valor 1.25): base=100 partes, catalizador=80, total=180
+        // Para ratio 10:1 (valor 10): base=10 partes, catalizador=1, total=11
+        const totalMezclaAdhesivo = gramajeAdhesivoLineal > 0 ? (metrosTotales * gramajeAdhesivoLineal) / 1000 : 0;
+        let kgAdhesivo, kgCatalizador;
+        if (relacionCatalizador > 0 && totalMezclaAdhesivo > 0) {
+            // Separar mezcla total en base y catalizador
+            // relacionCatalizador = partes_base / partes_catalizador
+            // Ej: 100/80 = 1.25, 10:1 = 10
+            const partesBase = relacionCatalizador;
+            const partesCat = 1;
+            const totalPartes = partesBase + partesCat;
+            kgAdhesivo = totalMezclaAdhesivo * partesBase / totalPartes;
+            kgCatalizador = totalMezclaAdhesivo * partesCat / totalPartes;
+        } else {
+            kgAdhesivo = totalMezclaAdhesivo;
+            kgCatalizador = 0;
+        }
 
         // Actualizar campos basicos
         this.actualizarCampo('fichaKg1', kgCapa1.toFixed(2));
@@ -991,8 +1009,9 @@ const Ordenes = {
         if (resumenContainer) {
             let html = `<div class="d-flex gap-4 flex-wrap">
                 <span>Capa 1: <strong id="fichaResumen1">${kgCapa1.toFixed(1)}</strong> kg</span>
-                <span>Adhesivo: <strong id="fichaResumenAdh">${kgAdhesivo.toFixed(1)}</strong> kg</span>
+                <span>Adhesivo base: <strong id="fichaResumenAdh">${kgAdhesivo.toFixed(1)}</strong> kg</span>
                 <span>Catalizador: <strong id="fichaResumenCat">${kgCatalizador.toFixed(1)}</strong> kg</span>
+                ${kgCatalizador > 0 ? `<span class="text-muted">(Mezcla total: <strong>${(kgAdhesivo + kgCatalizador).toFixed(1)}</strong> kg)</span>` : ''}
                 <span>Capa 2: <strong id="fichaResumen2">${kgCapa2.toFixed(1)}</strong> kg</span>
                 ${resumenExtraHTML}
             </div>`;

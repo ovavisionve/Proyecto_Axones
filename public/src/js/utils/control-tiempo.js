@@ -9,6 +9,12 @@ const ControlTiempo = {
     // Intervalos activos para actualizacion de cronometros
     intervalos: {},
 
+    // Sync: timer para polling de estado remoto
+    _syncTimerId: null,
+    _syncInterval: 5000, // 5 segundos
+    _lastSyncTimestamp: 0,
+    _syncEnCurso: false,
+
     /**
      * Obtiene todos los registros de tiempo
      */
@@ -100,6 +106,9 @@ const ControlTiempo = {
             this.renderControles(ordenId, fase, contenedor.id);
         }
 
+        // Sincronizar con API para que otros usuarios vean el cambio
+        this.sincronizarConAPI();
+
         console.log(`ControlTiempo: PLAY ${ordenId} - ${fase}`);
         return { exito: true, mensaje: 'Cronometro iniciado', registro };
     },
@@ -135,6 +144,9 @@ const ControlTiempo = {
 
         // Detener intervalo
         this.detenerIntervalo(ordenId, fase);
+
+        // Sincronizar con API para que otros usuarios vean el cambio
+        this.sincronizarConAPI();
 
         console.log(`ControlTiempo: PAUSA ${ordenId} - ${fase} (${this.formatearTiempo(registro.tiempoTotal)})`);
         return { exito: true, mensaje: 'Cronometro pausado', registro };
@@ -174,6 +186,9 @@ const ControlTiempo = {
 
         // Enviar a API si esta disponible
         this.enviarTiempoAPI(registro);
+
+        // Sincronizar estado completo con API
+        this.sincronizarConAPI();
 
         console.log(`ControlTiempo: COMPLETADO ${ordenId} - ${fase} (Total: ${this.formatearTiempo(registro.tiempoTotal)})`);
         return { exito: true, mensaje: 'Orden completada', registro };
@@ -629,6 +644,9 @@ const ControlTiempo = {
             registros[key] = registro;
             self.saveRegistros(registros);
 
+            // Sincronizar con API
+            self.sincronizarConAPI();
+
             // Cerrar modal
             const bsModal = bootstrap.Modal.getInstance(modal);
             if (bsModal) bsModal.hide();
@@ -956,6 +974,204 @@ const ControlTiempo = {
         }
 
         this.mostrarNotificacion(`Orden ${orden.numeroOrden || orden.ot} seleccionada`, 'success');
+    },
+
+    // ==================== SINCRONIZACION ENTRE USUARIOS ====================
+
+    /**
+     * Inicia la sincronizacion periodica de temporizadores con la API
+     * Permite que multiples usuarios vean el mismo estado del timer
+     */
+    iniciarSync: function() {
+        if (this._syncTimerId) return; // Ya esta corriendo
+
+        console.log('[ControlTiempo] Iniciando sincronizacion de timers cada ' + (this._syncInterval / 1000) + 's');
+
+        // Sync inmediato al iniciar
+        this.sincronizarConAPI();
+
+        // Polling periodico
+        this._syncTimerId = setInterval(() => {
+            this.recibirSyncRemoto();
+        }, this._syncInterval);
+    },
+
+    /**
+     * Detiene la sincronizacion
+     */
+    detenerSync: function() {
+        if (this._syncTimerId) {
+            clearInterval(this._syncTimerId);
+            this._syncTimerId = null;
+        }
+    },
+
+    /**
+     * Envia el estado COMPLETO de todos los timers a la API
+     * Se llama en cada play/pausa/completar/despacho
+     */
+    sincronizarConAPI: async function() {
+        if (typeof AxonesAPI === 'undefined') return;
+        if (this._syncEnCurso) return;
+
+        this._syncEnCurso = true;
+        try {
+            const registros = this.getRegistros();
+            const usuario = (typeof Auth !== 'undefined' && Auth.getUsuarioActual)
+                ? Auth.getUsuarioActual()?.usuario || 'desconocido'
+                : 'desconocido';
+
+            await AxonesAPI.post('saveControlTiempo', {
+                registros: registros,
+                timestamp: Date.now(),
+                usuario: usuario
+            });
+
+            this._lastSyncTimestamp = Date.now();
+            console.log('[ControlTiempo] Estado sincronizado con API');
+        } catch (e) {
+            console.warn('[ControlTiempo] Error sincronizando con API:', e.message);
+        } finally {
+            this._syncEnCurso = false;
+        }
+    },
+
+    /**
+     * Recibe estado de timers desde la API y merge con el estado local
+     * Resuelve conflictos: el estado mas reciente gana
+     */
+    recibirSyncRemoto: async function() {
+        if (typeof AxonesAPI === 'undefined') return;
+
+        try {
+            const result = await AxonesAPI.get('getControlTiempo', {
+                since: this._lastSyncTimestamp || 0
+            }, { skipCache: true });
+
+            if (!result || !result.success || !result.data) return;
+
+            const remoto = result.data;
+            if (!remoto.registros || !remoto.timestamp) return;
+
+            // Solo procesar si es mas reciente que nuestro ultimo sync
+            if (remoto.timestamp <= this._lastSyncTimestamp) return;
+
+            const registrosLocales = this.getRegistros();
+            const registrosRemotos = remoto.registros;
+            let cambios = false;
+
+            // Merge: para cada key, el registro con mas actividad reciente gana
+            Object.keys(registrosRemotos).forEach(key => {
+                const remotoReg = registrosRemotos[key];
+                const localReg = registrosLocales[key];
+
+                if (!localReg) {
+                    // No existe localmente - adoptar el remoto
+                    registrosLocales[key] = remotoReg;
+                    cambios = true;
+                    return;
+                }
+
+                // Determinar cual es mas reciente
+                const ultimoRemoto = this._getUltimaActividad(remotoReg);
+                const ultimoLocal = this._getUltimaActividad(localReg);
+
+                if (ultimoRemoto > ultimoLocal) {
+                    // El remoto es mas reciente - adoptar
+                    registrosLocales[key] = remotoReg;
+                    cambios = true;
+                }
+            });
+
+            if (cambios) {
+                this.saveRegistros(registrosLocales);
+                this._lastSyncTimestamp = remoto.timestamp;
+
+                // Re-renderizar los controles activos en pantalla
+                this._actualizarUISync(registrosLocales);
+
+                console.log('[ControlTiempo] Estado actualizado desde otro usuario');
+            } else {
+                this._lastSyncTimestamp = remoto.timestamp;
+            }
+
+        } catch (e) {
+            // Silencioso - no interrumpir UX por error de sync
+            console.warn('[ControlTiempo] Error recibiendo sync:', e.message);
+        }
+    },
+
+    /**
+     * Obtiene el timestamp de la ultima actividad de un registro
+     */
+    _getUltimaActividad: function(registro) {
+        let ultimo = 0;
+
+        if (registro.completado && registro.completado.timestamp) {
+            ultimo = Math.max(ultimo, registro.completado.timestamp);
+        }
+
+        if (registro.inicios && registro.inicios.length > 0) {
+            const ultimoInicio = registro.inicios[registro.inicios.length - 1];
+            ultimo = Math.max(ultimo, ultimoInicio.timestamp || 0);
+        }
+
+        if (registro.pausas && registro.pausas.length > 0) {
+            const ultimaPausa = registro.pausas[registro.pausas.length - 1];
+            ultimo = Math.max(ultimo, ultimaPausa.timestamp || 0);
+        }
+
+        if (registro.despachos && registro.despachos.length > 0) {
+            const ultimoDespacho = registro.despachos[registro.despachos.length - 1];
+            const ts = new Date(ultimoDespacho.fecha).getTime();
+            if (!isNaN(ts)) ultimo = Math.max(ultimo, ts);
+        }
+
+        return ultimo;
+    },
+
+    /**
+     * Actualiza la UI despues de recibir cambios remotos
+     */
+    _actualizarUISync: function(registros) {
+        // Buscar contenedores de control de tiempo visibles
+        const fases = ['Impresion', 'Laminacion', 'Corte'];
+
+        fases.forEach(faseCapital => {
+            const fase = faseCapital.toLowerCase();
+            const contenedorId = `contenedorControlTiempo${faseCapital}`;
+            const contenedor = document.getElementById(contenedorId);
+
+            if (contenedor) {
+                const ordenId = contenedor.getAttribute('data-orden-id');
+                if (ordenId) {
+                    const key = `${ordenId}_${fase}`;
+                    const registro = registros[key];
+
+                    if (registro) {
+                        // Re-renderizar controles
+                        this.renderControles(ordenId, fase, contenedorId);
+
+                        // Si esta en progreso, reiniciar intervalo
+                        if (registro.estado === 'en_progreso') {
+                            this.iniciarIntervalo(ordenId, fase);
+                        } else {
+                            this.detenerIntervalo(ordenId, fase);
+                        }
+                    }
+                }
+            }
+        });
+
+        // Actualizar tiempos en las comandas
+        Object.keys(registros).forEach(key => {
+            const reg = registros[key];
+            const tiempoEl = document.querySelector(`[data-comanda-tiempo="${key}"]`);
+            if (tiempoEl) {
+                const tiempo = this.getTiempoActual(reg.ordenId, reg.fase);
+                tiempoEl.querySelector('span').textContent = this.formatearTiempo(tiempo);
+            }
+        });
     }
 };
 
@@ -963,3 +1179,13 @@ const ControlTiempo = {
 if (typeof window !== 'undefined') {
     window.ControlTiempo = ControlTiempo;
 }
+
+// Auto-iniciar sync cuando se carga la pagina
+document.addEventListener('DOMContentLoaded', function() {
+    // Esperar a que AxonesAPI se inicialice
+    setTimeout(function() {
+        if (typeof ControlTiempo !== 'undefined') {
+            ControlTiempo.iniciarSync();
+        }
+    }, 3000);
+});

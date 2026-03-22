@@ -787,31 +787,62 @@ const Corte = {
      * Precarga campos del formulario desde una orden
      */
     precargarCamposOrden: function(orden) {
-        const camposOrden = {
-            'ordenTrabajo': orden.ot || orden.numeroOrden,
-            'cliente': orden.cliente,
-            'producto': orden.producto
+        console.log('Precargando datos de orden en corte:', orden);
+
+        // Helper para precargar un campo
+        const precargar = (id, valor) => {
+            if (!valor && valor !== 0) return;
+            const el = document.getElementById(id);
+            if (!el) return;
+
+            if (el.tagName === 'SELECT') {
+                const opciones = Array.from(el.options).map(o => o.value);
+                if (opciones.includes(String(valor))) {
+                    el.value = String(valor);
+                } else {
+                    return;
+                }
+            } else {
+                el.value = valor;
+            }
+            el.classList.add('precargado-orden');
+            el.style.backgroundColor = '#e8f4e8';
+            el.style.borderColor = '#198754';
         };
 
-        Object.entries(camposOrden).forEach(([campo, valor]) => {
-            const input = document.getElementById(campo);
-            if (input && valor) {
-                input.value = valor;
-                input.classList.add('precargado-orden');
-                input.setAttribute('readonly', true);
-                input.style.backgroundColor = '#e8f4e8';
-            }
-        });
+        // === INFORMACION DE ORDEN ===
+        precargar('ordenTrabajo', orden.ot || orden.numeroOrden);
+        precargar('producto', orden.producto);
 
-        const clienteSelect = document.getElementById('clienteOrden') || document.getElementById('cliente');
-        if (clienteSelect && orden.cliente) {
-            clienteSelect.value = orden.cliente;
-            clienteSelect.style.backgroundColor = '#e8f4e8';
-            clienteSelect.style.borderColor = '#198754';
+        // Cliente
+        const clienteEl = document.getElementById('clienteOrden') || document.getElementById('cliente');
+        if (clienteEl && orden.cliente) {
+            clienteEl.value = orden.cliente;
+            clienteEl.classList.add('precargado-orden');
+            clienteEl.style.backgroundColor = '#e8f4e8';
+            clienteEl.style.borderColor = '#198754';
         }
+
+        // === ESPECIFICACIONES DE CORTE (desde OT) ===
+        precargar('anchoCorte', orden.anchoCorteFinal);
+        precargar('tipoEmpalme', orden.tipoEmpalme);
+        precargar('figuraEmbobinado', orden.figuraEmbobinadoMontaje || orden.orientacionEmbalaje);
+        precargar('pesoBobina', orden.pesoBobina);
+        precargar('diametroCore', orden.diametroCore);
+        precargar('numPistas', orden.numBandas);
+
+        // Metros por bobina (si existe en la OT)
+        if (orden.metrosBobina) {
+            precargar('metrosBobina', orden.metrosBobina);
+        }
+
+        // Guardar referencia
+        this.ordenCargada = orden;
 
         // Actualizar control de tiempo
         this.actualizarControlTiempo(orden.id || orden.ot, orden.numeroOrden || orden.ot);
+
+        console.log('Orden precargada en corte:', orden.numeroOrden || orden.ot);
     },
 
     /**

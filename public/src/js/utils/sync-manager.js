@@ -179,9 +179,53 @@ const SyncManager = {
             this.notifyListeners('producto_terminado', data.producto_terminado);
         }
 
+        // --- CONTROL DE TIEMPO ---
+        if (data.control_tiempo) {
+            this.mergeControlTiempo(data.control_tiempo);
+            this.notifyListeners('control_tiempo', data.control_tiempo);
+        }
+
         // --- HISTORIAL ---
         if (data.historial && data.historial.length > 0) {
             this.notifyListeners('historial', data.historial);
+        }
+    },
+
+    /**
+     * Merge control de tiempo del servidor con localStorage
+     * Usa la funcion de ControlTiempo si esta disponible
+     */
+    mergeControlTiempo: function(data) {
+        if (typeof ControlTiempo !== 'undefined' && data.registros && data.timestamp) {
+            // Delegar al modulo de ControlTiempo
+            var registrosLocales = ControlTiempo.getRegistros();
+            var registrosRemotos = data.registros;
+            var cambios = false;
+
+            Object.keys(registrosRemotos).forEach(function(key) {
+                var remotoReg = registrosRemotos[key];
+                var localReg = registrosLocales[key];
+
+                if (!localReg) {
+                    registrosLocales[key] = remotoReg;
+                    cambios = true;
+                    return;
+                }
+
+                var ultimoRemoto = ControlTiempo._getUltimaActividad(remotoReg);
+                var ultimoLocal = ControlTiempo._getUltimaActividad(localReg);
+
+                if (ultimoRemoto > ultimoLocal) {
+                    registrosLocales[key] = remotoReg;
+                    cambios = true;
+                }
+            });
+
+            if (cambios) {
+                ControlTiempo.saveRegistros(registrosLocales);
+                ControlTiempo._actualizarUISync(registrosLocales);
+                console.log('[SyncManager] Control de tiempo actualizado desde servidor');
+            }
         }
     },
 

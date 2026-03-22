@@ -150,28 +150,36 @@ const Impresion = {
     precargarCamposOrden: function(orden) {
         console.log('Precargando datos de orden:', orden);
 
-        // Mapeo de campos OT -> campos formulario impresion
-        const camposOrden = {
-            'ordenTrabajo': orden.numeroOrden || orden.ot,
-            'producto': orden.producto,
-            'fecha': orden.fechaOrden,
-            'totalColores': orden.numColores,
-            'numPistas': orden.numBandas
+        // Helper para precargar un campo
+        const precargar = (id, valor) => {
+            if (!valor && valor !== 0) return;
+            const el = document.getElementById(id);
+            if (!el) return;
+
+            if (el.tagName === 'SELECT') {
+                // Para selects, verificar que la opcion exista
+                const opciones = Array.from(el.options).map(o => o.value);
+                if (opciones.includes(String(valor))) {
+                    el.value = String(valor);
+                } else {
+                    return; // No precargar si la opcion no existe
+                }
+            } else {
+                el.value = valor;
+            }
+            el.classList.add('precargado-orden');
+            el.style.backgroundColor = '#e8f4e8';
+            el.style.borderColor = '#198754';
         };
 
-        // Precargar campos de texto/numero
-        Object.entries(camposOrden).forEach(([campo, valor]) => {
-            const input = document.getElementById(campo);
-            if (input && valor) {
-                input.value = valor;
-                // Marcar como precargado
-                input.classList.add('precargado-orden');
-                input.style.backgroundColor = '#e8f4e8';
-                input.style.borderColor = '#198754';
-            }
-        });
+        // === INFORMACION DE ORDEN ===
+        precargar('ordenTrabajo', orden.numeroOrden || orden.ot);
+        precargar('producto', orden.producto);
+        precargar('fecha', orden.fechaOrden);
+        precargar('totalColores', orden.numColores);
+        precargar('numPistas', orden.numBandas);
 
-        // Precargar campo de cliente (ahora es input editable)
+        // Precargar campo de cliente
         const clienteInput = document.getElementById('cliente');
         if (clienteInput && orden.cliente) {
             clienteInput.value = orden.cliente;
@@ -184,7 +192,6 @@ const Impresion = {
         // Precargar select de maquina
         const maquinaSelect = document.getElementById('maquina');
         if (maquinaSelect && orden.maquina) {
-            // Mapear nombre de maquina al valor del select
             const maquinaMap = {
                 'COMEXI 1': 'comexi1',
                 'COMEXI 2': 'comexi2',
@@ -193,8 +200,6 @@ const Impresion = {
                 'COMEXI 045': 'comexi2'
             };
             const maquinaValue = maquinaMap[orden.maquina] || orden.maquina.toLowerCase().replace(/\s+/g, '');
-
-            // Intentar seleccionar por valor mapeado o directo
             if (Array.from(maquinaSelect.options).some(opt => opt.value === maquinaValue)) {
                 maquinaSelect.value = maquinaValue;
             } else if (Array.from(maquinaSelect.options).some(opt => opt.value === orden.maquina)) {
@@ -202,6 +207,59 @@ const Impresion = {
             }
             maquinaSelect.classList.add('precargado-orden');
             maquinaSelect.style.backgroundColor = '#e8f4e8';
+        }
+
+        // === ESPECIFICACIONES TECNICAS (desde OT) ===
+        precargar('frecuencia', orden.frecuencia);
+        precargar('repeticiones', orden.numRepeticion);
+        precargar('anchoCorte', orden.anchoCorte);
+        precargar('figuraEmbobinado', orden.figuraEmbobinadoMontaje);
+        precargar('tipoImpresion', orden.tipoImpresion);
+        precargar('desarrollo', orden.desarrollo);
+        precargar('lineaCorte', orden.lineaCorte);
+
+        // Pinon (auto-calculado desde desarrollo)
+        if (orden.pinon || orden.desarrollo) {
+            const pinonVal = orden.pinon || (orden.desarrollo ? Math.round(orden.desarrollo / 5) : null);
+            precargar('pinon', pinonVal);
+        }
+
+        // Metros estimados
+        if (orden.metrosImp) {
+            precargar('metrosEstimados', orden.metrosImp);
+            precargar('metraje', orden.metrosImp);
+        }
+
+        // Sustratos virgen (select del inventario)
+        if (orden.sustratosVirgen) {
+            const sustratosSelect = document.getElementById('sustratosVirgen');
+            if (sustratosSelect) {
+                // Intentar match por valor exacto o parcial
+                const opciones = Array.from(sustratosSelect.options);
+                const match = opciones.find(o => o.value === orden.sustratosVirgen) ||
+                              opciones.find(o => o.value && o.value.includes(orden.sustratosVirgen)) ||
+                              opciones.find(o => o.textContent && o.textContent.includes(orden.sustratosVirgen));
+                if (match) {
+                    sustratosSelect.value = match.value;
+                    sustratosSelect.classList.add('precargado-orden');
+                    sustratosSelect.style.backgroundColor = '#e8f4e8';
+                    sustratosSelect.style.borderColor = '#198754';
+                    // Disparar change para que cargue datos del material
+                    sustratosSelect.dispatchEvent(new Event('change'));
+                }
+            }
+        }
+
+        // === TINTAS (8 posiciones) ===
+        if (orden.tintas && Array.isArray(orden.tintas)) {
+            orden.tintas.forEach(tinta => {
+                const i = tinta.posicion;
+                precargar(`tinta${i}Color`, tinta.color);
+                precargar(`tinta${i}Anilox`, tinta.anilox);
+                precargar(`tinta${i}Visc`, tinta.viscosidad);
+                precargar(`tinta${i}Pct`, tinta.porcentaje);
+                precargar(`tinta${i}Obs`, tinta.observaciones);
+            });
         }
 
         // Guardar referencia de la orden para calculos

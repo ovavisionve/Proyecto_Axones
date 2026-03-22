@@ -4,7 +4,7 @@
  * Version incrementada para forzar actualizacion
  */
 
-const CACHE_NAME = 'axones-v2.0';
+const CACHE_NAME = 'axones-v2.1';
 const OFFLINE_URL = '/offline.html';
 
 // CDN resources - estos SI usan cache-first (no cambian)
@@ -16,7 +16,7 @@ const CDN_URLS = [
 
 // Install event - cache solo CDN y offline page
 self.addEventListener('install', (event) => {
-    console.log('[SW] Installing Service Worker v2.0...');
+    console.log('[SW] Installing Service Worker v2.1...');
 
     event.waitUntil(
         caches.open(CACHE_NAME)
@@ -48,7 +48,7 @@ self.addEventListener('install', (event) => {
 
 // Activate event - limpiar caches viejos y tomar control inmediato
 self.addEventListener('activate', (event) => {
-    console.log('[SW] Activating Service Worker v2.0...');
+    console.log('[SW] Activating Service Worker v2.1...');
 
     event.waitUntil(
         caches.keys()
@@ -194,4 +194,4 @@ self.addEventListener('notificationclick', (event) => {
     }
 });
 
-console.log('[SW] Service Worker v2.0 loaded');
+console.log('[SW] Service Worker v2.1 loaded');

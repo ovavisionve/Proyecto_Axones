@@ -211,9 +211,9 @@
                                 <select class="form-select form-select-sm" id="maquina" required>
                                     <option value="">Seleccionar...</option>
                                     <optgroup label="Impresion">
-                                        <option value="COMEXI 1">COMEXI 1 (Plancha 067)</option>
+                                        <option value="COMEXI 1">COMEXI 1 (Planchas 067)</option>
                                         <option value="COMEXI 2">COMEXI 2</option>
-                                        <option value="COMEXI 3">COMEXI 3</option>
+                                        <option value="COMEXI 3">COMEXI 3 (Planchas 045)</option>
                                     </optgroup>
                                     <optgroup label="Laminacion">
                                         <option value="NEXUS">NEXUS (Principal)</option>
@@ -324,6 +324,7 @@
                                     <option value="BOPP MATE">BOPP MATE</option>
                                     <option value="BOPP PASTA">BOPP PASTA</option>
                                     <option value="BOPP PERLADO">BOPP PERLADO</option>
+                                    <option value="POLIETILENO">POLIETILENO (PB)</option>
                                     <option value="PET">PET</option>
                                     <option value="PA">PA (Nylon)</option>
                                 </select>
@@ -364,16 +365,20 @@
                                 </select>
                             </div>
                             <div class="col-md-2">
-                                <label class="form-label">Gramaje (g/m<sup>2</sup>)</label>
-                                <input type="number" class="form-control form-control-sm" id="fichaGramajeAdhesivo" step="0.1" placeholder="ej: 2.5">
-                                <small class="text-muted" style="font-size: 0.7rem;">
-                                    <i class="bi bi-question-circle"></i> Cuantos gramos de adhesivo por metro cuadrado?
-                                </small>
+                                <label class="form-label">Gramaje Desde (g/m<sup>2</sup>)</label>
+                                <input type="text" class="form-control form-control-sm" id="fichaGramajeAdhesivo" placeholder="ej: 1,5">
+                                <small class="text-muted" style="font-size: 0.7rem;">Minimo</small>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Gramaje Hasta (g/m<sup>2</sup>)</label>
+                                <input type="text" class="form-control form-control-sm" id="fichaGramajeAdhesivoHasta" placeholder="ej: 1,7">
+                                <small class="text-muted" style="font-size: 0.7rem;">Maximo (opcional)</small>
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label">Relacion Catalizador</label>
                                 <select class="form-select form-select-sm" id="fichaRelacionCatalizador">
                                     <option value="">Sin catalizador</option>
+                                    <option value="1.25">100/80 (100 partes adh, 80 catalizador)</option>
                                     <option value="10">10:1 (10 partes adhesivo, 1 catalizador)</option>
                                     <option value="5">5:1</option>
                                     <option value="4">4:1</option>
@@ -402,6 +407,7 @@
                                     <option value="CAST">CAST</option>
                                     <option value="PEBD">PEBD</option>
                                     <option value="PEBD PIGMENT">PEBD PIGMENT</option>
+                                    <option value="POLIETILENO">POLIETILENO (PB)</option>
                                     <option value="PERLADO">PERLADO</option>
                                     <option value="METAL">METAL</option>
                                 </select>
@@ -425,6 +431,16 @@
                                 </select>
                             </div>
 
+                            <!-- Capas adicionales (3+) - contenedor dinamico -->
+                            <div class="col-12" id="capasAdicionalesContainer"></div>
+
+                            <!-- Boton agregar capa -->
+                            <div class="col-12 mt-2">
+                                <button type="button" class="btn btn-outline-success btn-sm" id="btnAgregarCapa">
+                                    <i class="bi bi-plus-circle me-1"></i>Agregar Capa Adicional
+                                </button>
+                            </div>
+
                             <!-- Resumen y preguntas para el equipo -->
                             <div class="col-12 mt-3">
                                 <div class="card bg-light">
@@ -432,11 +448,13 @@
                                         <div class="row align-items-center">
                                             <div class="col-md-8">
                                                 <h6 class="mb-1"><i class="bi bi-calculator me-2"></i>Resumen de Materiales para <span id="fichaKgPedido" class="text-primary">0</span> kg pedidos:</h6>
-                                                <div class="d-flex gap-4">
-                                                    <span>Capa 1: <strong id="fichaResumen1">-</strong> kg</span>
-                                                    <span>Adhesivo: <strong id="fichaResumenAdh">-</strong> kg</span>
-                                                    <span>Catalizador: <strong id="fichaResumenCat">-</strong> kg</span>
-                                                    <span>Capa 2: <strong id="fichaResumen2">-</strong> kg</span>
+                                                <div id="fichaResumenCapas">
+                                                    <div class="d-flex gap-4 flex-wrap">
+                                                        <span>Capa 1: <strong id="fichaResumen1">-</strong> kg</span>
+                                                        <span>Adhesivo: <strong id="fichaResumenAdh">-</strong> kg</span>
+                                                        <span>Catalizador: <strong id="fichaResumenCat">-</strong> kg</span>
+                                                        <span>Capa 2: <strong id="fichaResumen2">-</strong> kg</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                             <div class="col-md-4 text-end">

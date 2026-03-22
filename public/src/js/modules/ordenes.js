@@ -105,6 +105,7 @@ const Ordenes = {
         fichaSku1: 'fichaSku1',
         fichaTipoAdhesivo: 'fichaTipoAdhesivo',
         fichaGramajeAdhesivo: 'fichaGramajeAdhesivo',
+        fichaGramajeAdhesivoHasta: 'fichaGramajeAdhesivoHasta',
         fichaRelacionCatalizador: 'fichaRelacionCatalizador',
         fichaKgAdhesivo: 'fichaKgAdhesivo',
         fichaKgCatalizador: 'fichaKgCatalizador',
@@ -127,7 +128,8 @@ const Ordenes = {
         'PEBD': 0.93,
         'PEBD PIGMENT': 0.93,
         'PERLADO': 0.80,
-        'METAL': 0.90
+        'METAL': 0.90,
+        'POLIETILENO': 0.92
     },
 
     /**
@@ -751,13 +753,114 @@ const Ordenes = {
         }
 
         // Recalcular cuando cambian los valores
-        ['fichaMicras1', 'fichaMicras2', 'fichaGramajeAdhesivo', 'fichaRelacionCatalizador'].forEach(id => {
+        ['fichaMicras1', 'fichaMicras2', 'fichaGramajeAdhesivo', 'fichaGramajeAdhesivoHasta', 'fichaRelacionCatalizador'].forEach(id => {
             const el = document.getElementById(id);
             if (el) {
                 el.addEventListener('input', () => this.calcularMaterialesFichaTecnica());
                 el.addEventListener('change', () => this.calcularMaterialesFichaTecnica());
             }
         });
+
+        // Boton agregar capa adicional
+        this.capasAdicionalesCount = 0;
+        const btnAgregarCapa = document.getElementById('btnAgregarCapa');
+        if (btnAgregarCapa) {
+            btnAgregarCapa.addEventListener('click', () => this.agregarCapaAdicional());
+        }
+    },
+
+    /**
+     * Agrega una capa adicional (3, 4, 5...) dinamicamente
+     */
+    agregarCapaAdicional: function() {
+        this.capasAdicionalesCount++;
+        const numCapa = this.capasAdicionalesCount + 2; // Capa 3, 4, 5...
+        const container = document.getElementById('capasAdicionalesContainer');
+        if (!container) return;
+
+        const capaDiv = document.createElement('div');
+        capaDiv.className = 'row g-2 mt-2';
+        capaDiv.id = `fichaCapaExtra${numCapa}`;
+
+        const colores = ['info', 'secondary', 'dark', 'danger'];
+        const color = colores[(numCapa - 3) % colores.length];
+
+        capaDiv.innerHTML = `
+            <div class="col-12">
+                <label class="form-label fw-bold text-${color}">
+                    <i class="bi bi-${numCapa}-circle me-1"></i>Capa ${numCapa} - Material Adicional
+                    <button type="button" class="btn btn-outline-danger btn-sm ms-2 py-0 px-1" onclick="OrdenesModule.eliminarCapaAdicional(${numCapa})" title="Eliminar capa">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </label>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Tipo Material Capa ${numCapa}</label>
+                <select class="form-select form-select-sm" id="fichaTipoMat${numCapa}">
+                    <option value="">Seleccionar...</option>
+                    <option value="BOPP NORMAL">BOPP NORMAL</option>
+                    <option value="BOPP MATE">BOPP MATE</option>
+                    <option value="BOPP PASTA">BOPP PASTA</option>
+                    <option value="BOPP PERLADO">BOPP PERLADO</option>
+                    <option value="CAST">CAST</option>
+                    <option value="PEBD">PEBD</option>
+                    <option value="PEBD PIGMENT">PEBD PIGMENT</option>
+                    <option value="POLIETILENO">POLIETILENO (PB)</option>
+                    <option value="PERLADO">PERLADO</option>
+                    <option value="METAL">METAL</option>
+                    <option value="PET">PET</option>
+                    <option value="PA">PA (Nylon)</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Micras Capa ${numCapa}</label>
+                <input type="number" class="form-control form-control-sm" id="fichaMicras${numCapa}" step="0.1" placeholder="ej: 25">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Densidad</label>
+                <input type="number" class="form-control form-control-sm" id="fichaDensidad${numCapa}" step="0.01" value="0.93" readonly style="background-color: #e9ecef;">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Kg Necesarios</label>
+                <input type="number" class="form-control form-control-sm" id="fichaKg${numCapa}" readonly style="background-color: #e0f7fa; font-weight: bold;">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">SKU del Inventario</label>
+                <select class="form-select form-select-sm" id="fichaSku${numCapa}">
+                    <option value="">Buscar en inventario...</option>
+                </select>
+            </div>
+        `;
+
+        container.appendChild(capaDiv);
+
+        // Eventos para la nueva capa
+        const tipoMatSelect = document.getElementById(`fichaTipoMat${numCapa}`);
+        if (tipoMatSelect) {
+            tipoMatSelect.addEventListener('change', () => {
+                const densidad = this.DENSIDADES[tipoMatSelect.value] || 0.93;
+                const densidadInput = document.getElementById(`fichaDensidad${numCapa}`);
+                if (densidadInput) densidadInput.value = densidad;
+                this.cargarSkusPorTipo(`fichaSku${numCapa}`, tipoMatSelect.value);
+                this.calcularMaterialesFichaTecnica();
+            });
+        }
+
+        const micrasInput = document.getElementById(`fichaMicras${numCapa}`);
+        if (micrasInput) {
+            micrasInput.addEventListener('input', () => this.calcularMaterialesFichaTecnica());
+        }
+    },
+
+    /**
+     * Elimina una capa adicional
+     */
+    eliminarCapaAdicional: function(numCapa) {
+        const capaDiv = document.getElementById(`fichaCapaExtra${numCapa}`);
+        if (capaDiv) {
+            capaDiv.remove();
+            this.calcularMaterialesFichaTecnica();
+        }
     },
 
     /**
@@ -796,20 +899,21 @@ const Ordenes = {
     calcularMaterialesFichaTecnica: function() {
         const pedidoKg = parseFloat(document.getElementById('pedidoKg')?.value) || 0;
         const anchoCorteMm = parseFloat(document.getElementById('anchoCorteFinal')?.value) ||
+                             parseFloat(document.getElementById('anchoMontaje')?.value) ||
                              parseFloat(document.getElementById('anchoMaterial')?.value) || 0;
 
         // Datos capa 1
-        const tipoMat1 = document.getElementById('fichaTipoMat1')?.value || '';
         const micras1 = parseFloat(document.getElementById('fichaMicras1')?.value) || 0;
         const densidad1 = parseFloat(document.getElementById('fichaDensidad1')?.value) || 0.90;
 
         // Datos capa 2
-        const tipoMat2 = document.getElementById('fichaTipoMat2')?.value || '';
         const micras2 = parseFloat(document.getElementById('fichaMicras2')?.value) || 0;
         const densidad2 = parseFloat(document.getElementById('fichaDensidad2')?.value) || 0.93;
 
-        // Datos adhesivo
-        const gramajeAdhesivo = parseFloat(document.getElementById('fichaGramajeAdhesivo')?.value) || 0;
+        // Datos adhesivo - soporte para rango (desde/hasta)
+        const gramajeAdhDesde = parseFloat(document.getElementById('fichaGramajeAdhesivo')?.value?.toString().replace(',', '.')) || 0;
+        const gramajeAdhHasta = parseFloat(document.getElementById('fichaGramajeAdhesivoHasta')?.value?.toString().replace(',', '.')) || gramajeAdhDesde;
+        const gramajeAdhesivo = gramajeAdhHasta > gramajeAdhDesde ? (gramajeAdhDesde + gramajeAdhHasta) / 2 : gramajeAdhDesde;
         const relacionCatalizador = parseFloat(document.getElementById('fichaRelacionCatalizador')?.value) || 0;
 
         // Actualizar indicador de kg pedidos
@@ -826,10 +930,25 @@ const Ordenes = {
         // Calcular gramaje de cada capa (g/m lineal)
         const gramajeCapa1 = micras1 > 0 ? anchoM * micras1 * densidad1 : 0;
         const gramajeCapa2 = micras2 > 0 ? anchoM * micras2 * densidad2 : 0;
-        const gramajeAdhesivoLineal = gramajeAdhesivo > 0 ? anchoM * gramajeAdhesivo : 0; // g/m lineal
+        const gramajeAdhesivoLineal = gramajeAdhesivo > 0 ? anchoM * gramajeAdhesivo : 0;
+
+        // Capas adicionales (3, 4, 5...)
+        let gramajeCapasExtra = 0;
+        const capasExtraData = [];
+        for (let i = 3; i <= 10; i++) {
+            const micrasEl = document.getElementById(`fichaMicras${i}`);
+            const densidadEl = document.getElementById(`fichaDensidad${i}`);
+            if (micrasEl && micrasEl.closest('#capasAdicionalesContainer')) {
+                const micras = parseFloat(micrasEl.value) || 0;
+                const densidad = parseFloat(densidadEl?.value) || 0.93;
+                const gramaje = micras > 0 ? anchoM * micras * densidad : 0;
+                gramajeCapasExtra += gramaje;
+                capasExtraData.push({ num: i, gramaje, micras });
+            }
+        }
 
         // Gramaje total del producto laminado
-        const gramajeTotal = gramajeCapa1 + gramajeCapa2 + gramajeAdhesivoLineal;
+        const gramajeTotal = gramajeCapa1 + gramajeCapa2 + gramajeAdhesivoLineal + gramajeCapasExtra;
 
         if (gramajeTotal <= 0) {
             this.limpiarCalculosFicha();
@@ -845,19 +964,42 @@ const Ordenes = {
         const kgAdhesivo = gramajeAdhesivoLineal > 0 ? (metrosTotales * gramajeAdhesivoLineal) / 1000 : 0;
         const kgCatalizador = relacionCatalizador > 0 ? kgAdhesivo / relacionCatalizador : 0;
 
-        // Actualizar campos
+        // Actualizar campos basicos
         this.actualizarCampo('fichaKg1', kgCapa1.toFixed(2));
         this.actualizarCampo('fichaKg2', kgCapa2.toFixed(2));
         this.actualizarCampo('fichaKgAdhesivo', kgAdhesivo.toFixed(2));
         this.actualizarCampo('fichaKgCatalizador', kgCatalizador.toFixed(2));
 
-        // Actualizar resumen
+        // Actualizar resumen basico
         this.actualizarTexto('fichaResumen1', kgCapa1.toFixed(1));
         this.actualizarTexto('fichaResumen2', kgCapa2.toFixed(1));
         this.actualizarTexto('fichaResumenAdh', kgAdhesivo.toFixed(1));
         this.actualizarTexto('fichaResumenCat', kgCatalizador.toFixed(1));
 
-        console.log(`Ficha Tecnica: ${pedidoKg}kg pedido => Capa1: ${kgCapa1.toFixed(1)}kg, Capa2: ${kgCapa2.toFixed(1)}kg, Adhesivo: ${kgAdhesivo.toFixed(1)}kg, Catalizador: ${kgCatalizador.toFixed(1)}kg`);
+        // Capas extra: actualizar kg y resumen
+        let resumenExtraHTML = '';
+        capasExtraData.forEach(capa => {
+            if (capa.gramaje > 0) {
+                const kgCapa = (metrosTotales * capa.gramaje) / 1000;
+                this.actualizarCampo(`fichaKg${capa.num}`, kgCapa.toFixed(2));
+                resumenExtraHTML += `<span>Capa ${capa.num}: <strong>${kgCapa.toFixed(1)}</strong> kg</span> `;
+            }
+        });
+
+        // Agregar resumen de capas extra al contenedor
+        const resumenContainer = document.getElementById('fichaResumenCapas');
+        if (resumenContainer) {
+            let html = `<div class="d-flex gap-4 flex-wrap">
+                <span>Capa 1: <strong id="fichaResumen1">${kgCapa1.toFixed(1)}</strong> kg</span>
+                <span>Adhesivo: <strong id="fichaResumenAdh">${kgAdhesivo.toFixed(1)}</strong> kg</span>
+                <span>Catalizador: <strong id="fichaResumenCat">${kgCatalizador.toFixed(1)}</strong> kg</span>
+                <span>Capa 2: <strong id="fichaResumen2">${kgCapa2.toFixed(1)}</strong> kg</span>
+                ${resumenExtraHTML}
+            </div>`;
+            resumenContainer.innerHTML = html;
+        }
+
+        console.log(`Ficha Tecnica: ${pedidoKg}kg pedido => Capa1: ${kgCapa1.toFixed(1)}kg, Capa2: ${kgCapa2.toFixed(1)}kg, Adhesivo: ${kgAdhesivo.toFixed(1)}kg, Catalizador: ${kgCatalizador.toFixed(1)}kg, Capas extra: ${capasExtraData.length}`);
     },
 
     actualizarCampo: function(id, valor) {
@@ -1374,6 +1516,22 @@ const Ordenes = {
             }
         });
 
+        // Capas adicionales (3+)
+        data.capasAdicionales = [];
+        for (let i = 3; i <= 10; i++) {
+            const tipoEl = document.getElementById(`fichaTipoMat${i}`);
+            if (tipoEl && tipoEl.closest('#capasAdicionalesContainer')) {
+                data.capasAdicionales.push({
+                    capa: i,
+                    tipoMaterial: tipoEl.value || '',
+                    micras: parseFloat(document.getElementById(`fichaMicras${i}`)?.value) || 0,
+                    densidad: parseFloat(document.getElementById(`fichaDensidad${i}`)?.value) || 0,
+                    kg: parseFloat(document.getElementById(`fichaKg${i}`)?.value) || 0,
+                    sku: document.getElementById(`fichaSku${i}`)?.value || ''
+                });
+            }
+        }
+
         // Tabla de tintas (8 posiciones)
         data.tintas = [];
         for (let i = 1; i <= 8; i++) {
@@ -1534,6 +1692,22 @@ const Ordenes = {
                     document.getElementById(`tinta${i}Pct`).value = tinta.porcentaje || '';
                     document.getElementById(`tinta${i}Obs`).value = tinta.observaciones || '';
                 }
+            });
+        }
+
+        // Cargar capas adicionales (3+)
+        if (orden.capasAdicionales && Array.isArray(orden.capasAdicionales)) {
+            orden.capasAdicionales.forEach(capa => {
+                this.agregarCapaAdicional();
+                const num = capa.capa;
+                const tipoEl = document.getElementById(`fichaTipoMat${num}`);
+                if (tipoEl) tipoEl.value = capa.tipoMaterial || '';
+                const micrasEl = document.getElementById(`fichaMicras${num}`);
+                if (micrasEl) micrasEl.value = capa.micras || '';
+                const densidadEl = document.getElementById(`fichaDensidad${num}`);
+                if (densidadEl) densidadEl.value = capa.densidad || 0.93;
+                const kgEl = document.getElementById(`fichaKg${num}`);
+                if (kgEl) kgEl.value = capa.kg || '';
             });
         }
 

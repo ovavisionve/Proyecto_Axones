@@ -194,8 +194,8 @@ const CONFIG = {
     // Maquinas de la planta (Ficha Tecnica seccion 3)
     MAQUINAS: {
         IMPRESORAS: [
-            { id: 'comexi_1', nombre: 'COMEXI 1 (Plancha 067)', tipo: 'impresora', anchoMax: 830, velocidadMax: 130, estado: 'activa' },
-            { id: 'comexi_3', nombre: 'COMEXI 3', tipo: 'impresora', anchoMax: 1200, velocidadMax: 130, estado: 'activa' },
+            { id: 'comexi_1', nombre: 'COMEXI 1 (Planchas 067)', tipo: 'impresora', anchoMax: 830, velocidadMax: 130, estado: 'activa' },
+            { id: 'comexi_3', nombre: 'COMEXI 3 (Planchas 045)', tipo: 'impresora', anchoMax: 1200, velocidadMax: 130, estado: 'activa' },
         ],
         LAMINADORAS: [
             { id: 'nexus', nombre: 'NEXUS', tipo: 'laminadora', anchoMax: 1200, velocidadMax: 100, estado: 'activa' },
@@ -359,6 +359,7 @@ const CONFIG = {
     // Clientes (se cargan dinamicamente de Sheets, estos son ejemplos)
     CLIENTES_EJEMPLO: [
         'Alivensa',
+        'ALTROM, C.A.',
         'Amacorp',
         'Agua Blanca',
         'Alimentos Alvarigua',
@@ -371,6 +372,11 @@ const CONFIG = {
         'Corporacion de Alimentos Regina',
         'Representaciones Saj',
     ],
+
+    // RIF de clientes conocidos
+    CLIENTES_RIF: {
+        'ALTROM, C.A.': 'J-30582298-0',
+    },
 
     // Umbrales de desperdicio (Ficha Tecnica seccion 9.1)
     UMBRALES_REFIL: {

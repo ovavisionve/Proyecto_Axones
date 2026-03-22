@@ -341,7 +341,7 @@ const Inventario = {
             { id: 'INV022', material: 'BOPP MATE', micras: 20, ancho: 815, kg: 1826.52, producto: 'CAFE 200g', importado: true },
             { id: 'INV024', material: 'BOPP MATE', micras: 25, ancho: 580, kg: 0, producto: 'CACAO', importado: false },
             { id: 'INV026', material: 'BOPP MATE', micras: 25, ancho: 740, kg: 0, producto: 'BUDARE', importado: false },
-            { id: 'INV028', material: 'BOPP MATE', micras: 25, ancho: 800, kg: 0, producto: '', importado: false },
+            { id: 'INV028', material: 'BOPP MATE', micras: 25, ancho: 800, kg: 700, producto: 'AVENA VENELA', importado: false },
 
             // METAL
             { id: 'INV031', material: 'METAL', micras: 17, ancho: 620, kg: 498.0, producto: '', importado: false },
@@ -388,9 +388,9 @@ const Inventario = {
             { id: 'INV103', material: 'CAST', micras: 25, ancho: 580, kg: 0, producto: 'GRANOS', importado: false },
             { id: 'INV105', material: 'CAST', micras: 25, ancho: 620, kg: 888.66, producto: '', importado: true },
             { id: 'INV107', material: 'CAST', micras: 25, ancho: 620, kg: 2155.7, producto: 'SIRENA LARGA', importado: false },
-            { id: 'INV109', material: 'CAST', micras: 25, ancho: 660, kg: 0, producto: '', importado: false },
+            { id: 'INV109', material: 'CAST', micras: 25, ancho: 660, kg: 100, producto: 'AVENA VENELA', importado: false },
             { id: 'INV111', material: 'CAST', micras: 25, ancho: 674, kg: 0, producto: 'INALSA', importado: false },
-            { id: 'INV113', material: 'CAST', micras: 25, ancho: 680, kg: 370.72, producto: 'AVENA Y ZAFIRO', importado: false },
+            { id: 'INV113', material: 'CAST', micras: 25, ancho: 680, kg: 500, producto: 'AVENA VENELA / ZAFIRO', importado: false },
             { id: 'INV115', material: 'CAST', micras: 25, ancho: 680, kg: 6710.46, producto: '', importado: true },
             { id: 'INV117', material: 'CAST', micras: 25, ancho: 700, kg: 1449.68, producto: '', importado: true },
             { id: 'INV119', material: 'CAST', micras: 25, ancho: 700, kg: 1225.3, producto: 'FINA BLOQ', importado: false },

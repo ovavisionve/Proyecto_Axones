@@ -225,6 +225,16 @@ const Laminacion = {
             precargar('metraje', metros);
         }
 
+        // === CONTROL DE ADHESIVO (pre-carga desde OT) ===
+        // Kg planificados de adhesivo
+        if (orden.fichaKgAdhesivo || orden.adhesivoKg) {
+            precargar('adhesivoEntrada', orden.fichaKgAdhesivo || orden.adhesivoKg);
+        }
+        // Kg planificados de catalizador
+        if (orden.fichaKgCatalizador || orden.catalizadorKg) {
+            precargar('catalizadorEntrada', orden.fichaKgCatalizador || orden.catalizadorKg);
+        }
+
         // Observaciones de laminacion
         precargar('obsLaminacion', orden.obsLaminacion);
 
@@ -552,6 +562,16 @@ const Laminacion = {
             input.addEventListener('input', () => this.calcularTotales());
         });
 
+        // Calcular total de bobinas virgen (materia prima)
+        document.querySelectorAll('.bobina-virgen').forEach(input => {
+            input.addEventListener('input', () => this.calcularTotales());
+        });
+
+        // Calcular total de restante virgen
+        document.querySelectorAll('.restante-virgen').forEach(input => {
+            input.addEventListener('input', () => this.calcularTotales());
+        });
+
         // Calcular consumo de adhesivo
         document.querySelectorAll('.adhesivo-input').forEach(input => {
             input.addEventListener('input', () => this.calcularConsumoAdhesivo());
@@ -741,6 +761,26 @@ const Laminacion = {
         const totalConsumidoEl = document.getElementById('totalConsumido');
         if (totalConsumidoEl) totalConsumidoEl.textContent = totalConsumido.toFixed(2);
 
+        // Total bobinas virgen (materia prima)
+        let totalEntradaVirgen = 0;
+        document.querySelectorAll('.bobina-virgen').forEach(input => {
+            totalEntradaVirgen += parseFloat(input.value) || 0;
+        });
+        const totalEntradaVirgenEl = document.getElementById('totalEntradaVirgen');
+        if (totalEntradaVirgenEl) totalEntradaVirgenEl.value = totalEntradaVirgen.toFixed(2);
+
+        // Total restante virgen
+        let totalRestanteVirgen = 0;
+        document.querySelectorAll('.restante-virgen').forEach(input => {
+            totalRestanteVirgen += parseFloat(input.value) || 0;
+        });
+        const totalRestanteVirgenEl = document.getElementById('totalRestanteVirgen');
+        if (totalRestanteVirgenEl) totalRestanteVirgenEl.value = totalRestanteVirgen.toFixed(2);
+
+        const totalConsumidoVirgen = totalEntradaVirgen - totalRestanteVirgen;
+        const totalConsumidoVirgenEl = document.getElementById('totalConsumidoVirgen');
+        if (totalConsumidoVirgenEl) totalConsumidoVirgenEl.textContent = totalConsumidoVirgen.toFixed(2);
+
         // Consumo adhesivo para resumen
         const consumoAdhesivo = parseFloat(document.getElementById('consumoAdhesivo')?.textContent) || 0;
 
@@ -756,6 +796,13 @@ const Laminacion = {
         if (resEntrada) resEntrada.textContent = totalEntrada.toFixed(2) + ' Kg';
         if (resRestante) resRestante.textContent = totalRestante.toFixed(2) + ' Kg';
         if (resConsumido) resConsumido.textContent = totalConsumido.toFixed(2) + ' Kg';
+        // Resumen virgen
+        const resEntradaVirgen = document.getElementById('resumenEntradaVirgen');
+        const resRestanteVirgen = document.getElementById('resumenRestanteVirgen');
+        const resConsumidoVirgen = document.getElementById('resumenConsumidoVirgen');
+        if (resEntradaVirgen) resEntradaVirgen.textContent = totalEntradaVirgen.toFixed(2) + ' Kg';
+        if (resRestanteVirgen) resRestanteVirgen.textContent = totalRestanteVirgen.toFixed(2) + ' Kg';
+        if (resConsumidoVirgen) resConsumidoVirgen.textContent = totalConsumidoVirgen.toFixed(2) + ' Kg';
         if (resSalida) resSalida.textContent = totalSalida.toFixed(2) + ' Kg';
         if (resScrap) resScrap.textContent = totalScrap.toFixed(2) + ' Kg';
         if (resAdhesivo) resAdhesivo.textContent = consumoAdhesivo.toFixed(2) + ' Kg';
@@ -938,6 +985,24 @@ const Laminacion = {
             }
         }
 
+        // Obtener bobinas virgen (materia prima)
+        const bobinasVirgen = [];
+        for (let i = 1; i <= 14; i++) {
+            const valor = parseFloat(document.getElementById('bobVirg' + i)?.value) || 0;
+            if (valor > 0) {
+                bobinasVirgen.push({ posicion: i, peso: valor });
+            }
+        }
+
+        // Obtener restante de bobinas virgen
+        const bobinasRestanteVirgen = [];
+        for (let i = 1; i <= 14; i++) {
+            const valor = parseFloat(document.getElementById('restVirg' + i)?.value) || 0;
+            if (valor > 0) {
+                bobinasRestanteVirgen.push({ posicion: i, peso: valor });
+            }
+        }
+
         // Obtener bobinas de salida
         const bobinasSalida = [];
         for (let i = 1; i <= 22; i++) {
@@ -970,10 +1035,17 @@ const Laminacion = {
             bobinasEntrada: bobinasEntrada,
             totalEntrada: parseFloat(document.getElementById('totalEntrada').value) || 0,
 
-            // Restante de bobinas
+            // Restante de bobinas impresas
             bobinasRestante: bobinasRestante,
             totalRestante: parseFloat(document.getElementById('totalRestante')?.value) || 0,
             totalConsumido: parseFloat(document.getElementById('totalConsumido')?.textContent) || 0,
+
+            // Bobinas virgen (materia prima) - se descuentan del inventario
+            bobinasVirgen: bobinasVirgen,
+            totalEntradaVirgen: parseFloat(document.getElementById('totalEntradaVirgen')?.value) || 0,
+            bobinasRestanteVirgen: bobinasRestanteVirgen,
+            totalRestanteVirgen: parseFloat(document.getElementById('totalRestanteVirgen')?.value) || 0,
+            totalConsumidoVirgen: parseFloat(document.getElementById('totalConsumidoVirgen')?.textContent) || 0,
 
             // Adhesivo
             adhesivoEntrada: parseFloat(document.getElementById('adhesivoEntrada').value) || 0,
@@ -1113,10 +1185,11 @@ const Laminacion = {
                 this.verificarStockBajoAdhesivos(adhesivos);
             }
 
-            // 2. Descontar material de sustrato (bobinas de entrada)
+            // 2. Descontar material VIRGEN (materia prima) del inventario
+            // NOTA: Las bobinas impresas NO se descuentan aqui porque ya fueron
+            // descontadas en el area de impresion. Solo se descuenta el material virgen.
             const inventario = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
-            // Usar totalConsumido (entrada - restante) en vez de totalEntrada
-            const cantidadUsada = parseFloat(datos.totalConsumido) || parseFloat(datos.totalEntrada) || 0;
+            const cantidadUsada = parseFloat(datos.totalConsumidoVirgen) || parseFloat(datos.totalEntradaVirgen) || 0;
 
             if (cantidadUsada > 0) {
                 let descontado = false;
@@ -1539,6 +1612,14 @@ const Laminacion = {
             document.getElementById('consumoAdhesivo').textContent = '0';
             document.getElementById('consumoCatalizador').textContent = '0';
             document.getElementById('consumoAcetato').textContent = '0';
+
+            // Limpiar campos calculados de bobinas virgen
+            const totalEntradaVirgen = document.getElementById('totalEntradaVirgen');
+            const totalRestanteVirgen = document.getElementById('totalRestanteVirgen');
+            const totalConsumidoVirgen = document.getElementById('totalConsumidoVirgen');
+            if (totalEntradaVirgen) totalEntradaVirgen.value = '';
+            if (totalRestanteVirgen) totalRestanteVirgen.value = '';
+            if (totalConsumidoVirgen) totalConsumidoVirgen.textContent = '0';
 
             const indicador = document.getElementById('indicadorRefil');
             if (indicador) {

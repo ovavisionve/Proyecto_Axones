@@ -824,17 +824,52 @@ const Corte = {
         }
 
         // === ESPECIFICACIONES DE CORTE (desde OT) ===
-        precargar('anchoCorte', orden.anchoCorteFinal);
+        precargar('anchoCorte', orden.anchoCorteFinal || orden.anchoCorte);
         precargar('tipoEmpalme', orden.tipoEmpalme);
         precargar('figuraEmbobinado', orden.figuraEmbobinadoMontaje || orden.orientacionEmbalaje);
         precargar('pesoBobina', orden.pesoBobina);
         precargar('diametroCore', orden.diametroCore);
         precargar('numPistas', orden.numBandas);
 
-        // Metros por bobina (si existe en la OT)
+        // Fotocelda
+        if (orden.ubicFotoceldaCorte) {
+            precargar('fotocelda', orden.ubicFotoceldaCorte);
+        }
+
+        // Metros por bobina (calcular si no existe)
         if (orden.metrosBobina) {
             precargar('metrosBobina', orden.metrosBobina);
+        } else if (orden.pesoBobina) {
+            // Intentar calcular metros/bobina con datos de ficha tecnica
+            const ancho = parseFloat(orden.fichaAncho1 || orden.anchoMaterial || orden.anchoCorteFinal) || 0;
+            const micras = parseFloat(orden.fichaMicras1 || orden.micrasMaterial) || 0;
+            const densidad = parseFloat(orden.fichaDensidad1) || this.getDensidadMaterial(orden.fichaTipoMat1 || orden.tipoMaterial);
+            if (ancho > 0 && micras > 0) {
+                const gramaje = (ancho / 1000) * micras * densidad;
+                if (gramaje > 0) {
+                    const metros = Math.round((parseFloat(orden.pesoBobina) * 1000) / gramaje);
+                    precargar('metrosBobina', metros);
+                }
+            }
         }
+
+        // Datos de material (hidden fields para calculo de metros/bobina)
+        const materialAncho = document.getElementById('materialAncho');
+        const materialMicraje = document.getElementById('materialMicraje');
+        const materialDensidad = document.getElementById('materialDensidad');
+        if (materialAncho) {
+            materialAncho.value = orden.fichaAncho1 || orden.anchoMaterial || orden.anchoCorteFinal || '';
+        }
+        if (materialMicraje) {
+            materialMicraje.value = orden.fichaMicras1 || orden.micrasMaterial || '';
+        }
+        if (materialDensidad) {
+            const densidad = orden.fichaDensidad1 || this.getDensidadMaterial(orden.fichaTipoMat1 || orden.tipoMaterial);
+            materialDensidad.value = densidad || '';
+        }
+
+        // Pedido Kg (si existe campo)
+        precargar('pedidoKg', orden.pedidoKg);
 
         // Guardar referencia
         this.ordenCargada = orden;
@@ -843,6 +878,24 @@ const Corte = {
         this.actualizarControlTiempo(orden.id || orden.ot, orden.numeroOrden || orden.ot);
 
         console.log('Orden precargada en corte:', orden.numeroOrden || orden.ot);
+    },
+
+    /**
+     * Devuelve la densidad segun el tipo de material
+     */
+    getDensidadMaterial: function(material) {
+        if (!material) return 0.90;
+        const densidades = {
+            'BOPP NORMAL': 0.90, 'BOPP MATE': 0.90, 'BOPP PASTA': 0.90,
+            'BOPP PERLADO': 0.80, 'PERLADO': 0.80,
+            'CAST': 0.92, 'METAL': 0.90,
+            'PEBD': 0.93, 'PEBD PIGMENT': 0.93,
+            'PET': 1.40, 'PA': 1.14, 'NYLON': 1.14
+        };
+        for (const [key, val] of Object.entries(densidades)) {
+            if (material.toUpperCase().includes(key)) return val;
+        }
+        return 0.90;
     },
 
     /**

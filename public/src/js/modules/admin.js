@@ -117,11 +117,15 @@ const AdminModule = {
                 if (response.success && response.data && response.data.length > 0) {
                     usuarios = response.data.map(u => ({
                         id: u.id,
-                        nombre: u.nombre,
+                        nombre: u.apellido ? (u.nombre + ' ' + u.apellido) : u.nombre,
                         usuario: u.usuario || u.email || '',
                         rol: u.rol,
-                        activo: u.activo !== false && u.activo !== 'false'
+                        area: u.area || '',
+                        cargo: u.cargo || '',
+                        activo: u.activo === true || u.activo === 'SI' || u.activo === 'true'
                     }));
+                    // Guardar en localStorage para que coincida
+                    localStorage.setItem('axones_usuarios', JSON.stringify(usuarios));
                     console.log('Usuarios cargados desde API:', usuarios.length);
                 }
             }

@@ -2202,18 +2202,12 @@ function syncInventarioCompleto(data) {
   }
 
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+
+  // Borrar y recrear para evitar desfase de headers
   var sheet = ss.getSheetByName(SHEETS.INVENTARIO);
-
-  if (!sheet) {
-    sheet = ss.insertSheet(SHEETS.INVENTARIO);
-    sheet.appendRow(INVENTARIO_HEADERS);
-  }
-
-  // Limpiar datos existentes
-  var lastRow = sheet.getLastRow();
-  if (lastRow > 1) {
-    sheet.deleteRows(2, lastRow - 1);
-  }
+  if (sheet) { ss.deleteSheet(sheet); }
+  sheet = ss.insertSheet(SHEETS.INVENTARIO);
+  sheet.appendRow(INVENTARIO_HEADERS);
 
   // Preparar filas
   var rows = [];
@@ -2268,17 +2262,11 @@ function cargarTintasDesdeAPI() {
   var sheetName = SHEETS.TINTAS_INVENTARIO;
   var headers = ['id', 'nombre', 'tipo', 'codigo', 'cantidad', 'unidad', 'proveedor', 'ultimaActualizacion'];
 
+  // Borrar y recrear para evitar desfase de headers
   var sheet = ss.getSheetByName(sheetName);
-  if (!sheet) {
-    sheet = ss.insertSheet(sheetName);
-    sheet.appendRow(headers);
-  }
-
-  // Limpiar datos existentes
-  var lastRow = sheet.getLastRow();
-  if (lastRow > 1) {
-    sheet.deleteRows(2, lastRow - 1);
-  }
+  if (sheet) { ss.deleteSheet(sheet); }
+  sheet = ss.insertSheet(sheetName);
+  sheet.appendRow(headers);
 
   var datos = [
     // Tintas Laminacion (43 items)
@@ -2390,17 +2378,11 @@ function cargarAdhesivosDesdeAPI() {
   var sheetName = SHEETS.ADHESIVOS_INVENTARIO;
   var headers = ['id', 'nombre', 'tipo', 'codigo', 'cantidad', 'unidad', 'proveedor', 'ultimaActualizacion'];
 
+  // Borrar y recrear para evitar desfase de headers
   var sheet = ss.getSheetByName(sheetName);
-  if (!sheet) {
-    sheet = ss.insertSheet(sheetName);
-    sheet.appendRow(headers);
-  }
-
-  // Limpiar datos existentes
-  var lastRow = sheet.getLastRow();
-  if (lastRow > 1) {
-    sheet.deleteRows(2, lastRow - 1);
-  }
+  if (sheet) { ss.deleteSheet(sheet); }
+  sheet = ss.insertSheet(sheetName);
+  sheet.appendRow(headers);
 
   var datos = [
     // Solventes
@@ -2474,17 +2456,13 @@ function cargarUsuariosDesdeAPI() {
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   var sheetName = SHEETS.USUARIOS;
 
+  // Borrar hoja vieja y crear nueva para evitar desfase de headers
   var sheet = ss.getSheetByName(sheetName);
-  if (!sheet) {
-    sheet = ss.insertSheet(sheetName);
-    sheet.appendRow(USUARIOS_HEADERS);
+  if (sheet) {
+    ss.deleteSheet(sheet);
   }
-
-  // Limpiar datos existentes
-  var lastRow = sheet.getLastRow();
-  if (lastRow > 1) {
-    sheet.deleteRows(2, lastRow - 1);
-  }
+  sheet = ss.insertSheet(sheetName);
+  sheet.appendRow(USUARIOS_HEADERS);
 
   var usuarios = [
     // Gerencia

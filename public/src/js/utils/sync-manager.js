@@ -41,11 +41,11 @@ const SyncManager = {
         // Crear indicador visual
         this.createIndicator();
 
-        // Primer sync inmediato
-        this.sync();
+        // Primer sync: full sync para cargar todo desde Sheets
+        this.forceFullSync();
 
-        // Polling cada 10 segundos
-        this._timerId = setInterval(() => this.sync(), this.INTERVAL);
+        // Polling cada 10 segundos (con full refresh cada 60s)
+        this._timerId = setInterval(() => this.syncWithFullRefresh(), this.INTERVAL);
 
         console.log('[SyncManager] Iniciado - polling cada ' + (this.INTERVAL / 1000) + 's');
     },
@@ -187,6 +187,8 @@ const SyncManager = {
 
     /**
      * Merge ordenes del servidor con localStorage
+     * Bidireccional: si Sheets tiene ordenes que no estan en local, las agrega
+     * Si Sheets tiene version mas reciente, actualiza
      */
     mergeOrdenes: function(nuevas) {
         var local = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
@@ -202,9 +204,13 @@ const SyncManager = {
                 ? { ...nueva.datosCompletos, id: nueva.id, estado: nueva.estado, etapa: nueva.etapa }
                 : nueva;
 
-            var idx = local.findIndex(function(o) { return o.id === nueva.id; });
+            // Buscar por ID o por numeroOrden
+            var idx = local.findIndex(function(o) {
+                return o.id === nueva.id || (o.numeroOrden && o.numeroOrden === nueva.numeroOrden);
+            });
+
             if (idx >= 0) {
-                // Actualizar si es mas reciente
+                // Actualizar si Sheets tiene version mas reciente
                 var localTs = local[idx].fechaModificacion || local[idx].fechaCreacion || '';
                 var serverTs = nueva.fechaModificacion || nueva.timestamp || '';
                 if (serverTs > localTs) {
@@ -212,50 +218,62 @@ const SyncManager = {
                     changed = true;
                 }
             } else {
+                // Orden nueva desde Sheets - agregar a localStorage
                 local.push(obj);
                 changed = true;
+                console.log('[SyncManager] Orden nueva desde Sheets:', obj.numeroOrden || obj.id);
             }
         });
 
         if (changed) {
             localStorage.setItem('axones_ordenes_trabajo', JSON.stringify(local));
+            console.log('[SyncManager] Ordenes actualizadas desde Sheets');
         }
     },
 
     /**
      * Merge inventario del servidor con localStorage
+     * Si Sheets tiene datos con campo 'material', actualiza TODOS los campos
      */
     mergeInventario: function(nuevos) {
+        // Solo aceptar datos completos del servidor (que tengan material)
+        var datosValidos = nuevos.filter(function(n) { return n.material && n.material.trim() !== ''; });
+        if (datosValidos.length === 0) return;
+
         var local = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
         var changed = false;
 
-        nuevos.forEach(function(nuevo) {
+        datosValidos.forEach(function(nuevo) {
+            var mapped = {
+                id: nuevo.id,
+                sku: nuevo.sku || '',
+                codigoBarra: nuevo.codigoBarra || '',
+                material: nuevo.material || '',
+                micras: nuevo.micras || '',
+                ancho: nuevo.ancho || '',
+                kg: parseFloat(nuevo.kg) || 0,
+                producto: nuevo.producto || '',
+                importado: nuevo.importado === 'SI' || nuevo.importado === true,
+                densidad: parseFloat(nuevo.densidad) || 0,
+                proveedor: nuevo.proveedor || '',
+                lote: nuevo.lote || ''
+            };
+
             var idx = local.findIndex(function(i) { return i.id === nuevo.id; });
             if (idx >= 0) {
-                // Solo actualizar kg y campos modificables
-                if (nuevo.kg !== undefined) {
-                    local[idx].kg = parseFloat(nuevo.kg) || 0;
-                    changed = true;
-                }
+                // Actualizar TODOS los campos del item existente
+                Object.assign(local[idx], mapped);
+                changed = true;
             } else {
-                local.push({
-                    id: nuevo.id,
-                    sku: nuevo.sku || '',
-                    codigoBarra: nuevo.codigoBarra || '',
-                    material: nuevo.material || '',
-                    micras: nuevo.micras || '',
-                    ancho: nuevo.ancho || '',
-                    kg: parseFloat(nuevo.kg) || 0,
-                    producto: nuevo.producto || '',
-                    importado: nuevo.importado === 'SI' || nuevo.importado === true,
-                    densidad: parseFloat(nuevo.densidad) || 0
-                });
+                // Item nuevo desde Sheets - agregar
+                local.push(mapped);
                 changed = true;
             }
         });
 
         if (changed) {
             localStorage.setItem('axones_inventario', JSON.stringify(local));
+            console.log('[SyncManager] Inventario actualizado desde Sheets:', datosValidos.length, 'items');
         }
     },
 
@@ -409,9 +427,63 @@ const SyncManager = {
      * Fuerza una recarga completa de todos los datos desde Sheets
      */
     forceFullSync: async function() {
-        console.log('[SyncManager] Recarga completa forzada');
-        this._lastSync = new Date(0).toISOString(); // Desde el inicio
-        await this.sync();
+        console.log('[SyncManager] Recarga completa forzada desde Sheets');
+        this.updateIndicator('syncing');
+
+        try {
+            // Cargar inventario completo desde Sheets
+            if (typeof AxonesAPI !== 'undefined') {
+                var invResult = await AxonesAPI.getInventario();
+                if (invResult && invResult.success && Array.isArray(invResult.data)) {
+                    var datosValidos = invResult.data.filter(function(i) { return i.material && i.material.trim() !== ''; });
+                    if (datosValidos.length > 0) {
+                        this.mergeInventario(datosValidos);
+                        this.notifyListeners('inventario', datosValidos);
+                    }
+                }
+
+                // Cargar ordenes completas desde Sheets
+                var ordResult = await AxonesAPI.getOrdenes();
+                if (ordResult && ordResult.success && Array.isArray(ordResult.data) && ordResult.data.length > 0) {
+                    this.mergeOrdenes(ordResult.data);
+                    this.notifyListeners('ordenes', ordResult.data);
+                }
+
+                // Cargar alertas desde Sheets
+                var altResult = await AxonesAPI.getAlertas();
+                if (altResult && altResult.success && Array.isArray(altResult.data)) {
+                    this.mergeAlertas(altResult.data);
+                    this.notifyListeners('alertas', altResult.data);
+                }
+            }
+
+            this._lastSync = new Date().toISOString();
+            this.updateIndicator('ok');
+            console.log('[SyncManager] Full sync completado');
+        } catch (error) {
+            console.warn('[SyncManager] Error en full sync:', error.message);
+            this.updateIndicator('error');
+        }
+    },
+
+    /**
+     * Sync completo cada 60 segundos (para captar ediciones manuales en Sheets)
+     * Se suma al polling incremental de 10s
+     */
+    _fullSyncCount: 0,
+
+    /**
+     * Ejecuta sync incremental, y cada 6 ciclos (60s) hace full sync
+     */
+    syncWithFullRefresh: async function() {
+        this._fullSyncCount = (this._fullSyncCount || 0) + 1;
+        if (this._fullSyncCount >= 6) {
+            // Cada 60 segundos, hacer full sync para captar ediciones manuales en Sheets
+            this._fullSyncCount = 0;
+            await this.forceFullSync();
+        } else {
+            await this.sync();
+        }
     }
 };
 

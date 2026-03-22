@@ -224,26 +224,32 @@ const Inventario = {
             if (typeof AxonesAPI !== 'undefined') {
                 const response = await AxonesAPI.getInventario();
                 if (response && response.success && Array.isArray(response.data) && response.data.length > 0) {
-                    // Mapear datos de API a formato local
-                    this.items = response.data.map(item => ({
-                        id: item.id,
-                        sku: item.sku || '',
-                        codigoBarra: item.codigoBarra || '',
-                        material: item.material || '',
-                        micras: item.micras || '',
-                        ancho: item.ancho || '',
-                        kg: parseFloat(item.kg) || parseFloat(item.cantidad) || 0,
-                        producto: item.producto || '',
-                        importado: item.importado === 'SI' || item.importado === true,
-                        densidad: parseFloat(item.densidad) || 0,
-                        proveedor: item.proveedor || '',
-                        lote: item.lote || ''
-                    }));
-                    // Guardar copia local como respaldo
-                    localStorage.setItem(CONFIG.CACHE.PREFIJO + 'inventario', JSON.stringify(this.items));
-                    console.log('[Inventario] Cargado desde Sheets:', this.items.length, 'items');
-                    this.filteredItems = [...this.items];
-                    return;
+                    // Verificar que los datos de API son completos (tienen campo material)
+                    const datosCompletos = response.data.filter(item => item.material && item.material.trim() !== '');
+                    if (datosCompletos.length > 0) {
+                        // Mapear datos de API a formato local
+                        this.items = datosCompletos.map(item => ({
+                            id: item.id,
+                            sku: item.sku || '',
+                            codigoBarra: item.codigoBarra || '',
+                            material: item.material || '',
+                            micras: item.micras || '',
+                            ancho: item.ancho || '',
+                            kg: parseFloat(item.kg) || parseFloat(item.cantidad) || 0,
+                            producto: item.producto || '',
+                            importado: item.importado === 'SI' || item.importado === true,
+                            densidad: parseFloat(item.densidad) || 0,
+                            proveedor: item.proveedor || '',
+                            lote: item.lote || ''
+                        }));
+                        // Guardar copia local como respaldo
+                        localStorage.setItem(CONFIG.CACHE.PREFIJO + 'inventario', JSON.stringify(this.items));
+                        console.log('[Inventario] Cargado desde Sheets:', this.items.length, 'items');
+                        this.filteredItems = [...this.items];
+                        return;
+                    } else {
+                        console.warn('[Inventario] API devolvio datos incompletos (sin material), usando localStorage');
+                    }
                 }
             }
         } catch (error) {
@@ -253,7 +259,16 @@ const Inventario = {
         // Fallback a localStorage
         const stored = localStorage.getItem(CONFIG.CACHE.PREFIJO + 'inventario');
         if (stored) {
-            this.items = JSON.parse(stored);
+            const parsed = JSON.parse(stored);
+            // Verificar que los datos locales son completos (tienen campo material)
+            const tienenMaterial = parsed.filter(item => item.material && item.material.trim() !== '');
+            if (tienenMaterial.length > parsed.length * 0.5) {
+                this.items = parsed;
+            } else {
+                // Datos locales estan dañados/incompletos, regenerar desde Excel
+                console.warn('[Inventario] Datos locales incompletos, regenerando desde Excel...');
+                this.items = this.getDatosEjemplo();
+            }
         } else {
             this.items = this.getDatosEjemplo();
         }

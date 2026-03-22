@@ -143,6 +143,9 @@ const Inventario = {
         // Escanear inventario y generar alertas basadas en stock real
         this.generarAlertasDeInventarioReal();
 
+        // Sync inicial: subir localStorage a Sheets para que siempre coincidan
+        this.syncInicialASheets();
+
         // Escuchar cambios del SyncManager para actualizar inventario
         if (typeof SyncManager !== 'undefined') {
             SyncManager.on('inventario', () => {
@@ -216,61 +219,25 @@ const Inventario = {
     },
 
     /**
-     * Carga el inventario desde API o localStorage
+     * Carga el inventario: localStorage es la fuente de verdad,
+     * despues sincroniza CON Sheets (localStorage -> Sheets)
      */
     loadInventario: async function() {
-        // Intentar cargar desde API primero
-        try {
-            if (typeof AxonesAPI !== 'undefined') {
-                const response = await AxonesAPI.getInventario();
-                if (response && response.success && Array.isArray(response.data) && response.data.length > 0) {
-                    // Verificar que los datos de API son completos (tienen campo material)
-                    const datosCompletos = response.data.filter(item => item.material && item.material.trim() !== '');
-                    if (datosCompletos.length > 0) {
-                        // Mapear datos de API a formato local
-                        this.items = datosCompletos.map(item => ({
-                            id: item.id,
-                            sku: item.sku || '',
-                            codigoBarra: item.codigoBarra || '',
-                            material: item.material || '',
-                            micras: item.micras || '',
-                            ancho: item.ancho || '',
-                            kg: parseFloat(item.kg) || parseFloat(item.cantidad) || 0,
-                            producto: item.producto || '',
-                            importado: item.importado === 'SI' || item.importado === true,
-                            densidad: parseFloat(item.densidad) || 0,
-                            proveedor: item.proveedor || '',
-                            lote: item.lote || ''
-                        }));
-                        // Guardar copia local como respaldo
-                        localStorage.setItem(CONFIG.CACHE.PREFIJO + 'inventario', JSON.stringify(this.items));
-                        console.log('[Inventario] Cargado desde Sheets:', this.items.length, 'items');
-                        this.filteredItems = [...this.items];
-                        return;
-                    } else {
-                        console.warn('[Inventario] API devolvio datos incompletos (sin material), usando localStorage');
-                    }
-                }
-            }
-        } catch (error) {
-            console.warn('[Inventario] Error cargando desde API, usando localStorage:', error);
-        }
-
-        // Fallback a localStorage
+        // PASO 1: Siempre cargar desde localStorage primero (fuente de verdad)
         const stored = localStorage.getItem(CONFIG.CACHE.PREFIJO + 'inventario');
         if (stored) {
             const parsed = JSON.parse(stored);
-            // Verificar que los datos locales son completos (tienen campo material)
             const tienenMaterial = parsed.filter(item => item.material && item.material.trim() !== '');
             if (tienenMaterial.length > parsed.length * 0.5) {
                 this.items = parsed;
+                console.log('[Inventario] Cargado desde localStorage:', this.items.length, 'items');
             } else {
-                // Datos locales estan dañados/incompletos, regenerar desde Excel
                 console.warn('[Inventario] Datos locales incompletos, regenerando desde Excel...');
                 this.items = this.getDatosEjemplo();
             }
         } else {
             this.items = this.getDatosEjemplo();
+            console.log('[Inventario] Generado desde Excel: 158 productos');
         }
 
         // Agregar SKU y codigo de barras si no existen
@@ -287,8 +254,29 @@ const Inventario = {
             return item;
         });
 
-        this.saveInventario();
+        this.saveInventario(); // Guarda en localStorage Y sincroniza a Sheets
         this.filteredItems = [...this.items];
+    },
+
+    /**
+     * Sync inicial: sube localStorage a Sheets al cargar la pagina
+     * Garantiza que Sheets siempre refleje localStorage
+     */
+    syncInicialASheets: function() {
+        if (typeof AxonesAPI === 'undefined') return;
+        // Solo sincronizar si hay items validos
+        if (this.items.length === 0) return;
+        const tienenMaterial = this.items.filter(i => i.material && i.material.trim() !== '');
+        if (tienenMaterial.length < 10) return;
+
+        const usuario = typeof Auth !== 'undefined' && Auth.getUser() ? Auth.getUser().usuario : 'sistema';
+        AxonesAPI.syncInventarioCompleto(this.items, usuario)
+            .then(result => {
+                if (result && result.success) {
+                    console.log('[Inventario] Sync inicial a Sheets completado:', this.items.length, 'items');
+                }
+            })
+            .catch(e => console.warn('[Inventario] Error sync inicial:', e.message));
     },
 
     /**
@@ -473,14 +461,39 @@ const Inventario = {
     },
 
     /**
-     * Guarda el inventario en localStorage (respaldo local)
+     * Guarda el inventario en localStorage Y sincroniza con Sheets
+     * localStorage es la fuente de verdad -> se replica a Sheets
      */
     saveInventario: function() {
         localStorage.setItem(CONFIG.CACHE.PREFIJO + 'inventario', JSON.stringify(this.items));
+
+        // Sincronizar completo a Sheets en background
+        this.syncCompleteToSheets();
     },
 
     /**
-     * Sincroniza un cambio de inventario con Google Sheets
+     * Sincroniza el inventario COMPLETO de localStorage a Sheets
+     * Esto asegura que Sheets siempre sea espejo de localStorage
+     */
+    syncCompleteToSheets: function() {
+        if (typeof AxonesAPI === 'undefined') return;
+
+        // Usar debounce para no hacer sync en cada cambio individual
+        if (this._syncTimeout) clearTimeout(this._syncTimeout);
+        this._syncTimeout = setTimeout(() => {
+            const usuario = typeof Auth !== 'undefined' && Auth.getUser() ? Auth.getUser().usuario : 'sistema';
+            AxonesAPI.syncInventarioCompleto(this.items, usuario)
+                .then(result => {
+                    if (result && result.success) {
+                        console.log('[Inventario] Sync completo a Sheets OK:', result.count || this.items.length, 'items');
+                    }
+                })
+                .catch(e => console.warn('[Inventario] Error sync completo a Sheets:', e.message));
+        }, 2000); // Esperar 2 seg para agrupar cambios rapidos
+    },
+
+    /**
+     * Sincroniza un cambio individual de inventario con Google Sheets
      */
     syncInventarioToSheets: async function(itemId, datos) {
         if (typeof AxonesAPI === 'undefined') return;

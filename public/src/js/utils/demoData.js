@@ -33,121 +33,80 @@ const DemoData = {
         console.log('Datos limpiados');
     },
 
-    // Sincronizar datos de demo con Google Sheets API
+    // Sincronizar TODOS los datos de localStorage a Google Sheets
+    // Regla: localStorage = fuente de verdad, Sheets = espejo
     async syncToAPI() {
         if (typeof AxonesAPI === 'undefined') {
             console.warn('AxonesAPI no disponible, saltando sync');
             return;
         }
 
-        console.log('Sincronizando datos de demo con Google Sheets...');
+        console.log('Sincronizando localStorage completo a Google Sheets...');
         let synced = 0;
         let errors = 0;
 
-        // Sync produccion (solo los ultimos 10 para no saturar)
-        const produccion = JSON.parse(localStorage.getItem('axones_produccion') || '[]');
-        const prodRecientes = produccion.slice(0, 10);
-        for (const reg of prodRecientes) {
-            try {
-                await AxonesAPI.createProduccion({
-                    fecha: reg.fecha,
-                    turno: reg.turno,
-                    maquina: reg.maquina,
-                    proceso: reg.tipo || 'impresion',
-                    cliente: reg.cliente,
-                    producto: reg.producto,
-                    ot: reg.ordenTrabajo,
-                    kilos_producidos: reg.pesoTotal || reg.totalSalida || 0,
-                    kilos_entrada: reg.totalMaterialEntrada || reg.totalEntrada || 0,
-                    refil_kg: reg.merma || 0,
-                    tiempo_trabajo_min: reg.tiempoEfectivo || 0,
-                    tiempo_muerto_min: reg.tiempoMuerto || 0,
-                    operador: reg.operador,
-                    observaciones: 'Datos de demo'
-                });
-                synced++;
-            } catch (e) {
-                errors++;
+        // 1. INVENTARIO COMPLETO (158 productos) via syncInventarioCompleto
+        try {
+            const inventario = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
+            if (inventario.length > 0) {
+                const result = await AxonesAPI.syncInventarioCompleto(inventario, 'sistema');
+                if (result && result.success) { synced++; console.log('[Sync] Inventario: ' + inventario.length + ' items'); }
             }
-        }
+        } catch (e) { errors++; console.warn('[Sync] Error inventario:', e.message); }
 
-        // Sync alertas
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
-        for (const alerta of alertas) {
-            try {
-                await AxonesAPI.createAlerta({
-                    tipo: alerta.tipo,
-                    nivel: alerta.nivel,
-                    mensaje: alerta.mensaje,
-                    usuario_id: null,
-                    referencia_id: null,
-                    referencia_tipo: alerta.tipo
-                });
-                synced++;
-            } catch (e) {
-                errors++;
+        // 2. ORDENES DE TRABAJO (todas)
+        try {
+            const ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
+            for (const orden of ordenes) {
+                try {
+                    await AxonesAPI.createOrden(orden);
+                    synced++;
+                } catch (e) { errors++; }
             }
-        }
+            if (ordenes.length > 0) console.log('[Sync] Ordenes: ' + ordenes.length);
+        } catch (e) { errors++; }
 
-        // Sync inventario (5 items de muestra)
-        const inventario = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
-        const invMuestra = inventario.slice(0, 5);
-        for (const item of invMuestra) {
-            try {
-                await AxonesAPI.createInventario({
-                    tipo: item.material,
-                    material: item.material + ' ' + item.micras + 'µ x ' + item.ancho + 'mm',
-                    cantidad: item.kg,
-                    unidad: 'Kg',
-                    ubicacion: item.producto || 'Almacen',
-                    lote: '',
-                    proveedor: item.importado ? 'Importado' : 'Nacional',
-                    observaciones: 'Demo'
-                });
-                synced++;
-            } catch (e) {
-                errors++;
+        // 3. ALERTAS (todas las pendientes)
+        try {
+            const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
+            for (const alerta of alertas) {
+                try {
+                    await AxonesAPI.createAlerta({
+                        tipo: alerta.tipo,
+                        nivel: alerta.nivel,
+                        mensaje: alerta.mensaje,
+                        referencia_id: alerta.ot || null,
+                        referencia_tipo: alerta.tipo
+                    });
+                    synced++;
+                } catch (e) { errors++; }
             }
-        }
+            if (alertas.length > 0) console.log('[Sync] Alertas: ' + alertas.length);
+        } catch (e) { errors++; }
 
-        // Sync tintas (5 registros de muestra)
-        const tintas = JSON.parse(localStorage.getItem('axones_tintas') || '[]');
-        const tintasMuestra = tintas.slice(0, 5);
-        for (const tinta of tintasMuestra) {
-            try {
-                await AxonesAPI.createConsumoTinta({
-                    fecha: tinta.fecha,
-                    turno: '1',
-                    maquina: tinta.maquina,
-                    produccion_id: null,
-                    tinta_tipo: 'laminacion',
-                    tinta_nombre: 'Mix tintas demo',
-                    cantidad_kg: parseFloat(tinta.totalTintasLaminacion) || 0,
-                    operador: tinta.operador
-                });
-                synced++;
-            } catch (e) {
-                errors++;
+        // 4. PRODUCCION (todos los registros)
+        try {
+            const produccion = JSON.parse(localStorage.getItem('axones_produccion') || '[]');
+            for (const reg of produccion) {
+                try {
+                    await AxonesAPI.createProduccion({
+                        fecha: reg.fecha, turno: reg.turno, maquina: reg.maquina,
+                        proceso: reg.tipo || 'impresion', cliente: reg.cliente,
+                        producto: reg.producto, ot: reg.ordenTrabajo,
+                        kilos_producidos: reg.pesoTotal || reg.totalSalida || 0,
+                        kilos_entrada: reg.totalMaterialEntrada || reg.totalEntrada || 0,
+                        refil_kg: reg.merma || 0,
+                        tiempo_trabajo_min: reg.tiempoEfectivo || 0,
+                        tiempo_muerto_min: reg.tiempoMuerto || 0,
+                        operador: reg.operador, observaciones: reg.observaciones || ''
+                    });
+                    synced++;
+                } catch (e) { errors++; }
             }
-        }
+            if (produccion.length > 0) console.log('[Sync] Produccion: ' + produccion.length);
+        } catch (e) { errors++; }
 
-        console.log(`Sync completado: ${synced} registros enviados, ${errors} errores`);
-
-        // Mostrar notificacion si hay funcion de toast disponible
-        if (typeof bootstrap !== 'undefined') {
-            let toastContainer = document.querySelector('.toast-container');
-            if (!toastContainer) {
-                toastContainer = document.createElement('div');
-                toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-                document.body.appendChild(toastContainer);
-            }
-            const toast = document.createElement('div');
-            toast.className = 'toast align-items-center text-white bg-success border-0';
-            toast.innerHTML = '<div class="d-flex"><div class="toast-body"><i class="bi bi-cloud-check me-1"></i>Datos de demo sincronizados con Google Sheets (' + synced + ' registros)</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>';
-            toastContainer.appendChild(toast);
-            new bootstrap.Toast(toast).show();
-            toast.addEventListener('hidden.bs.toast', () => toast.remove());
-        }
+        console.log(`Sync completo: ${synced} registros enviados a Sheets, ${errors} errores`);
     },
 
     // Generar inventario de sustratos

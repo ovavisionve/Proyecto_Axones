@@ -903,7 +903,7 @@ const Corte = {
             return;
         }
 
-        // Obtener ordenes pendientes
+        // Obtener ordenes pendientes desde localStorage primero
         let ordenes = [];
         try {
             ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
@@ -913,6 +913,36 @@ const Corte = {
         }
 
         console.log('[Corte] Ordenes en localStorage:', ordenes.length);
+
+        // Cargar desde API en background y actualizar selector
+        if (typeof AxonesAPI !== 'undefined') {
+            AxonesAPI.getOrdenes().then(result => {
+                if (result && result.success && Array.isArray(result.data) && result.data.length > 0) {
+                    const ordenesAPI = result.data.map(o => {
+                        if (o.datosCompletos && typeof o.datosCompletos === 'object') {
+                            return { ...o.datosCompletos, id: o.id, estado: o.estado, etapa: o.etapa };
+                        }
+                        return o;
+                    });
+                    const idsAPI = new Set(ordenesAPI.map(o => o.id));
+                    const soloLocales = ordenes.filter(o => !idsAPI.has(o.id));
+                    const ordenesMerged = [...ordenesAPI, ...soloLocales];
+                    localStorage.setItem('axones_ordenes_trabajo', JSON.stringify(ordenesMerged));
+                    console.log('[Corte] Ordenes sincronizadas desde Sheets:', ordenesAPI.length);
+                    const selectorExistente = document.getElementById('selectorOrden');
+                    if (selectorExistente) selectorExistente.remove();
+                    this._renderSelectorOrdenes(ordenesMerged);
+                }
+            }).catch(e => console.warn('[Corte] Error cargando ordenes desde API:', e.message));
+        }
+
+        // Renderizar con datos locales inicialmente
+        this._renderSelectorOrdenes(ordenes);
+    },
+
+    _renderSelectorOrdenes: function(ordenes) {
+        const otInput = document.getElementById('ordenTrabajo');
+        if (!otInput) return;
 
         // Filtrar ordenes no completadas
         const ordenesDisponibles = ordenes.filter(o => o.estadoOrden !== 'completada');

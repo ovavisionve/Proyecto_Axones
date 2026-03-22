@@ -806,12 +806,38 @@ const ControlTiempo = {
         const contenedor = document.getElementById(contenedorId);
         if (!contenedor) return;
 
-        // Obtener ordenes disponibles
+        // Obtener ordenes disponibles desde localStorage primero
         let ordenes = [];
         try {
             ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
         } catch (e) {
             ordenes = [];
+        }
+
+        // Cargar desde API en background y actualizar panel (solo una vez)
+        if (typeof AxonesAPI !== 'undefined' && !this._comandasLoading) {
+            this._comandasLoading = true;
+            AxonesAPI.getOrdenes().then(result => {
+                this._comandasLoading = false;
+                if (result && result.success && Array.isArray(result.data) && result.data.length > 0) {
+                    const ordenesAPI = result.data.map(o => {
+                        if (o.datosCompletos && typeof o.datosCompletos === 'object') {
+                            return { ...o.datosCompletos, id: o.id, estado: o.estado, etapa: o.etapa };
+                        }
+                        return o;
+                    });
+                    const idsAPI = new Set(ordenesAPI.map(o => o.id));
+                    const soloLocales = ordenes.filter(o => !idsAPI.has(o.id));
+                    const ordenesMerged = [...ordenesAPI, ...soloLocales];
+                    localStorage.setItem('axones_ordenes_trabajo', JSON.stringify(ordenesMerged));
+                    console.log('[ControlTiempo] Ordenes sincronizadas desde Sheets:', ordenesAPI.length);
+                    // Re-renderizar panel con datos actualizados
+                    this.renderPanelComandas(fase, contenedorId, onSeleccionarOrden);
+                }
+            }).catch(e => {
+                this._comandasLoading = false;
+                console.warn('[ControlTiempo] Error cargando ordenes desde API:', e.message);
+            });
         }
 
         const ordenesDisponibles = ordenes.filter(o => o.estadoOrden !== 'completada');

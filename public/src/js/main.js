@@ -92,18 +92,7 @@ const Axones = {
         const stats = this.calcularEstadisticasReales();
         this.updateStats(stats);
 
-        // Si hay API configurada, intentar sincronizar
-        if (CONFIG.API.BASE_URL !== '') {
-            try {
-                const response = await fetch(CONFIG.API.BASE_URL + '?action=getStats');
-                const data = await response.json();
-                if (data) {
-                    this.updateStats(data);
-                }
-            } catch (error) {
-                console.warn('Error cargando estadisticas de API, usando datos locales:', error);
-            }
-        }
+        // Datos sincronizados via Supabase (AxonesSync)
     },
 
     /**
@@ -199,18 +188,7 @@ const Axones = {
             `;
         }
 
-        // Si hay API, intentar sincronizar
-        if (CONFIG.API.BASE_URL !== '') {
-            try {
-                const response = await fetch(CONFIG.API.BASE_URL + '?action=getRecentAlerts&limit=5');
-                const data = await response.json();
-                if (data && data.length > 0) {
-                    this.renderAlerts(data);
-                }
-            } catch (error) {
-                console.warn('Error sincronizando alertas con API:', error);
-            }
-        }
+        // Alertas sincronizadas via Supabase (AxonesSync)
     },
 
     /**

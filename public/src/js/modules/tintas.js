@@ -629,17 +629,491 @@ const Tintas = {
     },
 
     // =========================================================
-    // TAB 3: CEMENTERIO (Fase 2C - placeholder)
+    // TAB 3: CEMENTERIO (Fase 2C)
     // =========================================================
-    initCementerio: function() {
-        // TODO: Fase 2C
+    initCementerio: async function() {
+        // Setup confirmar archivar button
+        const btnConfirmar = document.getElementById('btnConfirmarArchivar');
+        if (btnConfirmar) {
+            btnConfirmar.addEventListener('click', async () => {
+                const id = document.getElementById('archivarId')?.value;
+                const motivo = document.getElementById('archivarMotivo')?.value || 'agotada';
+                if (!id) return;
+
+                await this.archivarTinta(id, motivo);
+
+                // Close the modal
+                const modalEl = document.getElementById('modalArchivar');
+                if (modalEl) {
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) modal.hide();
+                }
+            });
+        }
+
+        // Render cementerio table
+        await this.renderCementerio();
+    },
+
+    /** Archive a tinta: move from tintas to tintas_cementerio */
+    archivarTinta: async function(id, motivo) {
+        if (!AxonesDB.isReady()) {
+            // Fallback localStorage
+            const items = this.getInventario();
+            const idx = items.findIndex(t => t.id === id);
+            if (idx < 0) return;
+
+            const tinta = items[idx];
+            items.splice(idx, 1);
+            this.saveInventario(items);
+
+            const cementerio = JSON.parse(localStorage.getItem('axones_tintas_cementerio') || '[]');
+            cementerio.unshift({
+                ...tinta,
+                motivo: motivo,
+                archivado_por: (typeof Auth !== 'undefined' && Auth.getUser()) ? Auth.getUser().nombre : 'Unknown',
+                archivado_en: new Date().toISOString(),
+            });
+            localStorage.setItem('axones_tintas_cementerio', JSON.stringify(cementerio));
+
+            this.renderInventario();
+            await this.renderCementerio();
+            this.mostrarToast('Tinta archivada', 'success');
+            return;
+        }
+
+        try {
+            // Get the tinta from Supabase
+            const { data: tinta, error: fetchError } = await AxonesDB.client
+                .from('tintas')
+                .select('*')
+                .eq('id', id)
+                .single();
+
+            if (fetchError || !tinta) {
+                this.mostrarToast('Error al obtener la tinta', 'danger');
+                return;
+            }
+
+            const usuario = (typeof Auth !== 'undefined' && Auth.getUser()) ? Auth.getUser() : null;
+
+            // Insert into tintas_cementerio
+            const { error: insertError } = await AxonesDB.client
+                .from('tintas_cementerio')
+                .insert({
+                    tinta_id: tinta.id,
+                    nombre: tinta.nombre,
+                    color: tinta.color,
+                    tipo: tinta.tipo,
+                    categoria: tinta.categoria,
+                    stock_final: tinta.stock || 0,
+                    proveedor: tinta.proveedor,
+                    lote: tinta.lote,
+                    notas: tinta.notas,
+                    motivo: motivo,
+                    archivado_por: usuario ? usuario.nombre : 'Unknown',
+                    archivado_por_id: usuario ? usuario.id : null,
+                });
+
+            if (insertError) {
+                console.error('Error archivando tinta:', insertError);
+                this.mostrarToast('Error al archivar: ' + insertError.message, 'danger');
+                return;
+            }
+
+            // Soft delete from tintas (set activo=false)
+            const { error: deleteError } = await AxonesDB.client
+                .from('tintas')
+                .update({ activo: false })
+                .eq('id', id);
+
+            if (deleteError) {
+                console.error('Error desactivando tinta:', deleteError);
+            }
+
+            // Also remove from localStorage inventory
+            const items = this.getInventario();
+            const localIdx = items.findIndex(t => t.id === id);
+            if (localIdx >= 0) {
+                items.splice(localIdx, 1);
+                this.saveInventario(items);
+            }
+
+            this.renderInventario();
+            await this.renderCementerio();
+            this.mostrarToast('Tinta archivada', 'success');
+        } catch (err) {
+            console.error('Error en archivarTinta:', err);
+            this.mostrarToast('Error al archivar tinta', 'danger');
+        }
+    },
+
+    /** Restore a tinta from cementerio back to inventory */
+    restaurarTinta: async function(id) {
+        if (!AxonesDB.isReady()) {
+            // Fallback localStorage
+            const cementerio = JSON.parse(localStorage.getItem('axones_tintas_cementerio') || '[]');
+            const idx = cementerio.findIndex(t => t.id === id);
+            if (idx < 0) return;
+
+            const archived = cementerio[idx];
+            cementerio.splice(idx, 1);
+            localStorage.setItem('axones_tintas_cementerio', JSON.stringify(cementerio));
+
+            // Remove cementerio-specific fields and restore
+            const restored = { ...archived };
+            delete restored.motivo;
+            delete restored.archivado_por;
+            delete restored.archivado_en;
+            restored.updatedAt = new Date().toISOString();
+
+            const items = this.getInventario();
+            items.unshift(restored);
+            this.saveInventario(items);
+
+            this.renderInventario();
+            await this.renderCementerio();
+            this.mostrarToast('Tinta restaurada al inventario', 'success');
+            return;
+        }
+
+        try {
+            // Get the archived record
+            const { data: archived, error: fetchError } = await AxonesDB.client
+                .from('tintas_cementerio')
+                .select('*')
+                .eq('id', id)
+                .single();
+
+            if (fetchError || !archived) {
+                this.mostrarToast('Error al obtener registro archivado', 'danger');
+                return;
+            }
+
+            // Reactivate in tintas table if tinta_id exists
+            if (archived.tinta_id) {
+                const { error: updateError } = await AxonesDB.client
+                    .from('tintas')
+                    .update({ activo: true, stock: archived.stock_final || 0 })
+                    .eq('id', archived.tinta_id);
+
+                if (updateError) {
+                    // If update fails (record doesn't exist), insert new
+                    const { error: insertError } = await AxonesDB.client
+                        .from('tintas')
+                        .insert({
+                            nombre: archived.nombre,
+                            color: archived.color,
+                            tipo: archived.tipo,
+                            categoria: archived.categoria,
+                            stock: archived.stock_final || 0,
+                            proveedor: archived.proveedor,
+                            lote: archived.lote,
+                            notas: archived.notas,
+                            activo: true,
+                        });
+
+                    if (insertError) {
+                        console.error('Error restaurando tinta:', insertError);
+                        this.mostrarToast('Error al restaurar: ' + insertError.message, 'danger');
+                        return;
+                    }
+                }
+            }
+
+            // Delete from tintas_cementerio
+            const { error: deleteError } = await AxonesDB.client
+                .from('tintas_cementerio')
+                .delete()
+                .eq('id', id);
+
+            if (deleteError) {
+                console.error('Error eliminando de cementerio:', deleteError);
+            }
+
+            this.renderInventario();
+            await this.renderCementerio();
+            this.mostrarToast('Tinta restaurada al inventario', 'success');
+        } catch (err) {
+            console.error('Error en restaurarTinta:', err);
+            this.mostrarToast('Error al restaurar tinta', 'danger');
+        }
+    },
+
+    /** Render the cementerio table from Supabase */
+    renderCementerio: async function() {
+        const body = document.getElementById('bodyCementerio');
+        if (!body) return;
+
+        let items = [];
+
+        if (AxonesDB.isReady()) {
+            try {
+                const { data, error } = await AxonesDB.client
+                    .from('tintas_cementerio')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (!error && data) {
+                    items = data;
+                }
+            } catch (err) {
+                console.error('Error cargando cementerio:', err);
+            }
+        } else {
+            // Fallback localStorage
+            items = JSON.parse(localStorage.getItem('axones_tintas_cementerio') || '[]');
+        }
+
+        // Update badge count
+        const badge = document.getElementById('cementerioCount');
+        if (badge) badge.textContent = items.length;
+
+        if (items.length === 0) {
+            body.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4"><i class="bi bi-archive me-2"></i>No hay tintas archivadas</td></tr>';
+            return;
+        }
+
+        const motivoLabels = {
+            'agotada': 'Agotada',
+            'vencida': 'Vencida',
+            'contaminada': 'Contaminada',
+            'descontinuada': 'Descontinuada',
+            'otro': 'Otro',
+        };
+
+        const motivoBadgeClass = {
+            'agotada': 'bg-secondary',
+            'vencida': 'bg-warning text-dark',
+            'contaminada': 'bg-danger',
+            'descontinuada': 'bg-dark',
+            'otro': 'bg-info',
+        };
+
+        body.innerHTML = items.map(item => {
+            const fecha = item.created_at || item.archivado_en || '';
+            const fechaStr = fecha ? new Date(fecha).toLocaleDateString('es-VE') : '-';
+            const motivoText = motivoLabels[item.motivo] || item.motivo || '-';
+            const motivoClass = motivoBadgeClass[item.motivo] || 'bg-secondary';
+            const stock = parseFloat(item.stock_final) || 0;
+
+            return `<tr>
+                <td><span class="color-dot" style="background:${item.color || '#999'};border:1px solid #ccc;"></span></td>
+                <td><strong>${item.nombre || ''}</strong></td>
+                <td><small>${item.tipo === 'laminacion' ? 'Laminacion' : 'Superficie'}</small></td>
+                <td><span class="badge ${motivoClass}">${motivoText}</span></td>
+                <td><small>${fechaStr}</small></td>
+                <td>${stock.toFixed(2)} Kg</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-success btn-restaurar-tinta" data-id="${item.id}" title="Restaurar al inventario">
+                        <i class="bi bi-arrow-counterclockwise"></i> Restaurar
+                    </button>
+                </td>
+            </tr>`;
+        }).join('');
+
+        // Attach restore event listeners
+        body.querySelectorAll('.btn-restaurar-tinta').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.restaurarTinta(btn.dataset.id);
+            });
+        });
     },
 
     // =========================================================
-    // TAB 4: MEZCLAS (Fase 2D - placeholder)
+    // TAB 4: MEZCLAS (COLORISTA)
     // =========================================================
+    _componenteCount: 0,
+
     initMezclas: function() {
-        // TODO: Fase 2D
+        this.agregarComponente();
+        this.setupMezclasEvents();
+        this.renderMezclas();
+    },
+
+    setupMezclasEvents: function() {
+        const btnAgregar = document.getElementById('btnAgregarComponente');
+        if (btnAgregar) {
+            btnAgregar.addEventListener('click', () => this.agregarComponente());
+        }
+
+        const btnGuardar = document.getElementById('btnGuardarMezcla');
+        if (btnGuardar) {
+            btnGuardar.addEventListener('click', () => this.guardarMezcla());
+        }
+    },
+
+    agregarComponente: function() {
+        const container = document.getElementById('mezclaComponentes');
+        if (!container) return;
+
+        this._componenteCount++;
+        const idx = this._componenteCount;
+
+        const html = `
+            <div class="mezcla-item d-flex gap-2 align-items-center" id="comp_${idx}">
+                <input type="text" class="form-control form-control-sm comp-nombre" placeholder="Nombre tinta" style="flex:2;">
+                <input type="number" class="form-control form-control-sm comp-kg" placeholder="Kg" step="0.01" min="0" style="flex:1;">
+                <button class="btn btn-sm btn-outline-danger" onclick="document.getElementById('comp_${idx}').remove();">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>`;
+        container.insertAdjacentHTML('beforeend', html);
+    },
+
+    recopilarComponentes: function() {
+        const items = [];
+        document.querySelectorAll('.mezcla-item').forEach(el => {
+            const nombre = el.querySelector('.comp-nombre')?.value?.trim();
+            const kg = parseFloat(el.querySelector('.comp-kg')?.value) || 0;
+            if (nombre && kg > 0) {
+                items.push({ nombre, kg });
+            }
+        });
+        return items;
+    },
+
+    guardarMezcla: async function() {
+        const nombre = document.getElementById('mezclaNombre')?.value?.trim();
+        if (!nombre) {
+            this.mostrarToast('El nombre de la mezcla es requerido', 'warning');
+            return;
+        }
+
+        const componentes = this.recopilarComponentes();
+        if (componentes.length === 0) {
+            this.mostrarToast('Agrega al menos un componente con Kg', 'warning');
+            return;
+        }
+
+        const totalKg = componentes.reduce((sum, c) => sum + c.kg, 0);
+
+        const mezcla = {
+            nombre: nombre,
+            tipo: document.getElementById('mezclaTipo')?.value || 'laminacion',
+            numero_ot: document.getElementById('mezclaOT')?.value || null,
+            componentes: componentes,
+            solvente: document.getElementById('mezclaSolvente')?.value || null,
+            solvente_cantidad: parseFloat(document.getElementById('mezclaSolventeCant')?.value) || 0,
+            total_kg: totalKg,
+            notas: document.getElementById('mezclaNotas')?.value || '',
+            creado_por: (typeof Auth !== 'undefined' && Auth.getUser()) ? Auth.getUser().id : null,
+            creado_por_nombre: (typeof Auth !== 'undefined' && Auth.getUser()) ? Auth.getUser().nombre : 'Unknown',
+        };
+
+        try {
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                await AxonesDB.client.from('tintas_mezclas').insert(mezcla);
+            } else {
+                const mezclas = JSON.parse(localStorage.getItem('axones_tintas_mezclas') || '[]');
+                mezcla.id = 'MEZ_' + Date.now();
+                mezcla.created_at = new Date().toISOString();
+                mezclas.unshift(mezcla);
+                localStorage.setItem('axones_tintas_mezclas', JSON.stringify(mezclas));
+            }
+
+            this.mostrarToast('Mezcla guardada correctamente', 'success');
+            this.limpiarFormMezcla();
+            this.renderMezclas();
+        } catch (err) {
+            console.error('Error guardando mezcla:', err);
+            this.mostrarToast('Error al guardar mezcla', 'danger');
+        }
+    },
+
+    limpiarFormMezcla: function() {
+        ['mezclaNombre', 'mezclaOT', 'mezclaNotas'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+        document.getElementById('mezclaSolventeCant').value = '0';
+        document.getElementById('mezclaSolvente').value = '';
+        document.getElementById('mezclaTipo').value = 'laminacion';
+
+        const container = document.getElementById('mezclaComponentes');
+        if (container) container.innerHTML = '';
+        this._componenteCount = 0;
+        this.agregarComponente();
+    },
+
+    renderMezclas: async function() {
+        const container = document.getElementById('listaMezclas');
+        if (!container) return;
+
+        let mezclas = [];
+        try {
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                const { data } = await AxonesDB.client
+                    .from('tintas_mezclas')
+                    .select('*')
+                    .eq('activo', true)
+                    .order('created_at', { ascending: false })
+                    .limit(50);
+                mezclas = data || [];
+            } else {
+                mezclas = JSON.parse(localStorage.getItem('axones_tintas_mezclas') || '[]');
+            }
+        } catch (err) {
+            console.error('Error cargando mezclas:', err);
+            mezclas = JSON.parse(localStorage.getItem('axones_tintas_mezclas') || '[]');
+        }
+
+        if (mezclas.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center py-3">No hay mezclas guardadas</p>';
+            return;
+        }
+
+        container.innerHTML = mezclas.map(m => {
+            const comps = (m.componentes || []).map(c =>
+                `<span class="badge bg-light text-dark me-1">${c.nombre}: ${c.kg} Kg</span>`
+            ).join('');
+
+            const fecha = m.created_at ? new Date(m.created_at).toLocaleDateString('es-VE') : '-';
+            const solvInfo = m.solvente ? `<small class="text-muted">Solvente: ${m.solvente} (${m.solvente_cantidad} Lt)</small>` : '';
+
+            return `
+                <div class="mezcla-item">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong>${m.nombre}</strong>
+                            <span class="badge bg-${m.tipo === 'laminacion' ? 'primary' : 'warning'} ms-2">${m.tipo}</span>
+                            ${m.numero_ot ? '<span class="badge bg-secondary ms-1">' + m.numero_ot + '</span>' : ''}
+                        </div>
+                        <div>
+                            <strong>${(m.total_kg || 0).toFixed(2)} Kg</strong>
+                            <button class="btn btn-sm btn-outline-danger ms-2 btn-eliminar-mezcla" data-id="${m.id}" title="Eliminar">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-1">${comps}</div>
+                    ${solvInfo}
+                    <div class="mt-1">
+                        <small class="text-muted">${fecha} - ${m.creado_por_nombre || 'Sistema'}</small>
+                        ${m.notas ? '<br><small class="text-muted fst-italic">' + m.notas + '</small>' : ''}
+                    </div>
+                </div>`;
+        }).join('');
+
+        // Eliminar mezcla
+        container.querySelectorAll('.btn-eliminar-mezcla').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                if (!confirm('¿Eliminar esta mezcla?')) return;
+                try {
+                    if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                        await AxonesDB.client.from('tintas_mezclas').update({ activo: false }).eq('id', btn.dataset.id);
+                    } else {
+                        let mezclas = JSON.parse(localStorage.getItem('axones_tintas_mezclas') || '[]');
+                        mezclas = mezclas.filter(m => m.id !== btn.dataset.id);
+                        localStorage.setItem('axones_tintas_mezclas', JSON.stringify(mezclas));
+                    }
+                    this.mostrarToast('Mezcla eliminada', 'success');
+                    this.renderMezclas();
+                } catch (err) {
+                    this.mostrarToast('Error al eliminar', 'danger');
+                }
+            });
+        });
     },
 
     // =========================================================

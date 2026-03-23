@@ -719,16 +719,7 @@ const InventarioService = {
                     }
                 });
 
-                // Enviar email de alerta automatica
-                if (typeof AxonesAPI !== 'undefined') {
-                    AxonesAPI.enviarAlertaEmail({
-                        tipo: 'stock_insuficiente_pedido',
-                        nivel: nivel,
-                        mensaje: `EPA! No hay suficiente ${tipoMat} para la orden ${orden.numeroOrden} del cliente ${orden.cliente}. Se necesitan ${pedidoKg} Kg pero solo hay ${disponible.toFixed(1)} Kg disponibles. Faltan ${faltante.toFixed(1)} Kg. POR FAVOR COMPRAR!`,
-                        ot: orden.numeroOrden,
-                        maquina: orden.maquina || ''
-                    }).catch(e => console.warn('Error enviando email de stock:', e));
-                }
+                // Alerta de stock registrada en localStorage (sincronizada via Supabase)
             }
 
             // Tambien verificar ficha tecnica (materiales secundarios)

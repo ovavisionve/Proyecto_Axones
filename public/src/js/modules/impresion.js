@@ -381,31 +381,7 @@ const Impresion = {
 
         console.log('[Impresion] Ordenes en localStorage:', ordenes.length);
 
-        // Cargar desde API en background y actualizar selector
-        if (typeof AxonesAPI !== 'undefined') {
-            AxonesAPI.getOrdenes().then(result => {
-                if (result && result.success && Array.isArray(result.data) && result.data.length > 0) {
-                    const ordenesAPI = result.data.map(o => {
-                        if (o.datosCompletos && typeof o.datosCompletos === 'object') {
-                            return { ...o.datosCompletos, id: o.id, estado: o.estado, etapa: o.etapa };
-                        }
-                        return o;
-                    });
-                    // Merge: API + locales que no esten en API
-                    const idsAPI = new Set(ordenesAPI.map(o => o.id));
-                    const soloLocales = ordenes.filter(o => !idsAPI.has(o.id));
-                    const ordenesMerged = [...ordenesAPI, ...soloLocales];
-                    localStorage.setItem('axones_ordenes_trabajo', JSON.stringify(ordenesMerged));
-                    console.log('[Impresion] Ordenes sincronizadas desde Sheets:', ordenesAPI.length);
-                    // Reconstruir selector con datos actualizados
-                    const selectorExistente = document.getElementById('selectorOrden');
-                    if (selectorExistente) selectorExistente.remove();
-                    this._renderSelectorOrdenes(ordenesMerged);
-                }
-            }).catch(e => console.warn('[Impresion] Error cargando ordenes desde API:', e.message));
-        }
-
-        // Renderizar con datos locales inicialmente
+        // Renderizar con datos locales
         this._renderSelectorOrdenes(ordenes);
     },
 
@@ -471,39 +447,16 @@ const Impresion = {
     /**
      * Carga datos iniciales (inventario, clientes, productos)
      */
-    cargarDatosIniciales: async function() {
-        // Intentar cargar clientes desde API
-        try {
-            const response = await AxonesAPI.getClientes();
-            if (response.success && response.data) {
-                this.clientesCache = response.data.map(c => c.nombre);
-                console.log('Clientes cargados desde API:', this.clientesCache.length);
-            }
-        } catch (error) {
-            console.warn('Error cargando clientes de API, usando CONFIG:', error);
-            this.clientesCache = CONFIG.CLIENTES || [];
-        }
+    cargarDatosIniciales: function() {
+        // Cargar clientes desde CONFIG
+        this.clientesCache = CONFIG.CLIENTES || [];
 
-        // Intentar cargar inventario desde API
-        try {
-            const response = await AxonesAPI.getInventario();
-            if (response.success && response.data) {
-                this.inventarioCache = response.data;
-            }
-        } catch (error) {
-            this.inventarioCache = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
-        }
+        // Cargar inventario desde localStorage (sincronizado con Supabase)
+        this.inventarioCache = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
 
         // Cargar historial de produccion para autocompletado
-        try {
-            const response = await AxonesAPI.getProduccion({ proceso: 'impresion' });
-            if (response.success && response.data) {
-                this.productosCache = [...new Set(response.data.map(p => p.producto).filter(Boolean))];
-            }
-        } catch (error) {
-            const produccion = JSON.parse(localStorage.getItem('axones_impresion') || '[]');
-            this.productosCache = [...new Set(produccion.map(p => p.producto).filter(Boolean))];
-        }
+        const produccion = JSON.parse(localStorage.getItem('axones_impresion') || '[]');
+        this.productosCache = [...new Set(produccion.map(p => p.producto).filter(Boolean))];
 
         // Poblar datalist de clientes despues de cargar
         this.poblarSelectClientes();
@@ -1109,7 +1062,7 @@ const Impresion = {
     /**
      * Guarda el registro
      */
-    guardar: async function() {
+    guardar: function() {
         // Validacion personalizada
         const errores = this.validarCamposRequeridos();
         if (errores.length > 0) {
@@ -1136,49 +1089,22 @@ const Impresion = {
         }
 
         try {
-            // Preparar datos para la API
-            const datosAPI = {
-                fecha: datos.fecha,
-                turno: datos.turno,
-                maquina: datos.maquina,
-                proceso: 'impresion',
-                cliente: datos.cliente,
-                producto: datos.producto,
-                ot: datos.ordenTrabajo,
-                kilos_producidos: datos.pesoTotal,
-                kilos_entrada: datos.totalMaterialEntrada,
-                refil_kg: datos.totalScrap + datos.merma,
-                tiempo_trabajo_min: datos.tiempoEfectivo,
-                tiempo_muerto_min: datos.tiempoMuerto,
-                operador: datos.operador,
-                observaciones: datos.observaciones + (datos.motivosParadas ? ' | Paradas: ' + datos.motivosParadas : '')
-            };
+            // Guardar en localStorage (sincronizado con Supabase via sync-realtime)
+            this.guardarLocal(datos);
 
-            // Guardar en API
-            const result = await AxonesAPI.createProduccion(datosAPI);
+            // Descontar material del inventario automaticamente
+            this.descontarInventario(datos);
 
-            if (result.success) {
-                this.mostrarToast('Registro guardado en Google Sheets (ID: ' + result.id + ')', 'success');
+            // Verificar alertas
+            this.verificarAlertas(datos);
 
-                // Tambien guardar localmente como respaldo
-                this.guardarLocal(datos);
+            this.mostrarToast('Registro guardado', 'success');
 
-                // Descontar material del inventario automaticamente
-                this.descontarInventario(datos);
-
-                // Verificar alertas
-                this.verificarAlertas(datos);
-
-                // Limpiar formulario
-                this.limpiar();
-            } else {
-                throw new Error(result.error || 'Error desconocido');
-            }
+            // Limpiar formulario
+            this.limpiar();
         } catch (error) {
             console.error('Error guardando registro:', error);
-            // Guardar localmente como fallback
-            this.guardarLocal(datos);
-            this.mostrarToast('Guardado localmente (sin conexion): ' + error.message, 'warning');
+            this.mostrarToast('Error al guardar: ' + error.message, 'danger');
         } finally {
             // Restaurar boton
             if (btnGuardar) {
@@ -1375,13 +1301,6 @@ const Impresion = {
                 localStorage.setItem('axones_inventario', JSON.stringify(inventario));
                 console.log('Inventario actualizado despues de produccion');
 
-                // Sincronizar descuentos con Sheets
-                if (typeof AxonesAPI !== 'undefined') {
-                    for (const item of inventario.filter(i => parseFloat(i.kg) >= 0)) {
-                        AxonesAPI.updateInventario(item.id, { kg: item.kg }).catch(() => {});
-                    }
-                }
-
                 // Verificar si hay stock bajo y generar alerta
                 this.verificarStockBajo(inventario);
             }
@@ -1480,23 +1399,6 @@ const Impresion = {
         const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
         alertas.unshift(alerta);
         localStorage.setItem('axones_alertas', JSON.stringify(alertas));
-
-        // Enviar alerta a API en background
-        if (typeof AxonesAPI !== 'undefined') {
-            AxonesAPI.createAlerta({
-                tipo: alerta.tipo,
-                nivel: alerta.nivel,
-                maquina: alerta.maquina,
-                ot: alerta.ot,
-                mensaje: alerta.mensaje,
-                refil_porcentaje: porcentaje,
-                producto: datos.producto,
-                cliente: datos.cliente,
-                operador: datos.operador
-            }).then(result => {
-                if (result.success) console.log('Alerta enviada a Sheets:', result.id);
-            }).catch(e => console.warn('Error enviando alerta a API:', e));
-        }
 
         // Actualizar badge de alertas si existe
         this.actualizarBadgeAlertas();

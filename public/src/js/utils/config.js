@@ -20,12 +20,6 @@ const CONFIG = {
         emails: ['axones2008@gmail.com', 'gerenciaaxones@gmail.com'],
     },
 
-    // URLs de Google Apps Script - CONFIGURACION FIJA
-    API: {
-        BASE_URL: 'https://script.google.com/macros/s/AKfycbziy293l5ew920CUt9gy11EWmESGbMa7-HmX4SJCAEUW574s7fWMX2iKZqNhA8qJjJb/exec',
-        SHEETS_ID: '1TOpqDc-X4kthwYNzduGYO6MpN1dOdvbjqIIoW_oYL88',
-    },
-
     // Configuracion de Groq para el chatbot (HARDCODEADO - NO EDITABLE DESDE UI)
     CHATBOT: {
         API_URL: 'https://api.groq.com/openai/v1/chat/completions',
@@ -470,24 +464,6 @@ const CONFIG = {
         },
     },
 
-    // Nombres de las hojas en Google Sheets
-    SHEETS: {
-        PRODUCCION: 'PRODUCCION',
-        RESUMEN_CLIENTE: 'RESUMEN PRODUCCION POR CLIENTE',
-        CONSUMO_TINTAS: 'CONSUMO DE TINTAS Y SOLVENTES',
-        CLIENTES: 'CLIENTES',
-        ALERTAS: 'ALERTAS',
-        CONFIGURACION: 'CONFIGURACION',
-        CUENTAS_COBRAR: 'CUENTAS_COBRAR',
-        USUARIOS: 'USUARIOS',
-        MAQUINAS: 'MAQUINAS',
-        MATERIALES: 'MATERIALES',
-        DESPACHOS: 'DESPACHOS',
-        INVENTARIO: 'INVENTARIO',
-        AUDITORIA: 'AUDITORIA',
-        PROVEEDORES: 'PROVEEDORES',
-    },
-
     // Formato de documentos (Ficha Tecnica seccion 10)
     DOCUMENTOS: {
         FORMATO_OT: 'OT-{YYYY}-{NNNN}', // OT-2026-0001
@@ -511,17 +487,6 @@ const CONFIG = {
         MAX_BOBINAS_SALIDA: 22,
     },
 };
-
-// Funcion para obtener configuracion dinamica desde Sheets
-async function cargarConfiguracionRemota() {
-    try {
-        console.log('Cargando configuracion remota...');
-        return CONFIG;
-    } catch (error) {
-        console.error('Error cargando configuracion:', error);
-        return CONFIG;
-    }
-}
 
 // Funcion para obtener todas las maquinas como array plano
 function getTodasLasMaquinas() {
@@ -565,5 +530,5 @@ function getStockMinimo(producto, categoria) {
 
 // Exportar configuracion
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { CONFIG, cargarConfiguracionRemota, getTodasLasMaquinas, getTodosLosMateriales, getDensidadMaterial, getStockMinimo };
+    module.exports = { CONFIG, getTodasLasMaquinas, getTodosLosMateriales, getDensidadMaterial, getStockMinimo };
 }

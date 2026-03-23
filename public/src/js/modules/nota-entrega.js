@@ -268,7 +268,7 @@ const NotaEntrega = {
     },
 
     /**
-     * Guarda la nota de entrega en localStorage y Sheets
+     * Guarda la nota de entrega en localStorage (sincronizado con Supabase)
      */
     guardar: function() {
         if (!this.otSeleccionada) {
@@ -316,28 +316,6 @@ const NotaEntrega = {
         this.saveNotas();
         this.renderHistorial();
         this.generarNumeroNota();
-
-        // Sincronizar con Sheets
-        if (typeof AxonesAPI !== 'undefined') {
-            AxonesAPI.createDespacho({
-                notaEntrega: nota.numeroNota,
-                ot: nota.ordenTrabajo,
-                ordenCompra: nota.ordenCompra,
-                cliente: nota.cliente,
-                productos: nota.producto,
-                cantidadTotal: nota.totalBobinas,
-                kgDespachados: nota.totalKilos,
-                paletas: nota.totalPaletas,
-                vehiculo: nota.vehiculo,
-                conductor: nota.conductor,
-                autorizadoPor: nota.autorizadoPor,
-                despachadoPor: nota.despachadoPor,
-                observaciones: nota.observaciones,
-                registradoPor: nota.registradoPor
-            }).then(() => {
-                console.log('Nota de entrega sincronizada con Sheets');
-            }).catch(e => console.warn('Error sincronizando nota:', e));
-        }
 
         alert('Nota de Entrega N° ' + nota.numeroNota + ' guardada exitosamente');
     },

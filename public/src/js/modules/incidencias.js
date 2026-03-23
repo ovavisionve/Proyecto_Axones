@@ -299,43 +299,11 @@ const Incidencias = {
         this.renderIncidencias();
         this.updateContadores();
 
-        // Enviar a API/Sheets
-        await this.enviarASheets(incidencia);
-
         // Cerrar modal
         bootstrap.Modal.getInstance(document.getElementById('modalIncidencia'))?.hide();
 
         if (typeof Axones !== 'undefined') {
             Axones.showSuccess(esEdicion ? 'Incidencia actualizada' : 'Incidencia registrada');
-        }
-    },
-
-    /**
-     * Envia incidencia a Google Sheets
-     */
-    enviarASheets: async function(incidencia) {
-        if (typeof AxonesAPI === 'undefined') return;
-
-        try {
-            const categoria = this.CATEGORIAS.find(c => c.id === incidencia.categoria);
-            const severidad = this.SEVERIDADES.find(s => s.id === incidencia.severidad);
-            const estado = this.ESTADOS.find(e => e.id === incidencia.estado);
-
-            await AxonesAPI.post('registrarIncidencia', {
-                id: incidencia.id,
-                fecha: incidencia.fecha,
-                categoria: categoria?.nombre || incidencia.categoria,
-                severidad: severidad?.nombre || incidencia.severidad,
-                estado: estado?.nombre || incidencia.estado,
-                relacion: incidencia.relacion,
-                ordenTrabajo: incidencia.ordenTrabajo,
-                titulo: incidencia.titulo,
-                descripcion: incidencia.descripcion,
-                reportadoPor: incidencia.reportadoPor
-            });
-            console.log('Incidencia enviada a Sheets');
-        } catch (e) {
-            console.warn('Error enviando incidencia a Sheets:', e);
         }
     },
 
@@ -584,9 +552,6 @@ const Incidencias = {
         this.saveIncidencias();
         this.renderIncidencias();
         this.updateContadores();
-
-        // Enviar actualizacion a Sheets
-        this.enviarASheets(inc);
 
         if (typeof Axones !== 'undefined') {
             Axones.showSuccess(`Estado cambiado a: ${this.ESTADOS.find(e => e.id === nuevoEstado)?.nombre}`);

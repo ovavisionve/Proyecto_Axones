@@ -163,7 +163,7 @@ const Auth = {
         btnSubmit.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Verificando...';
         errorDiv.classList.add('d-none');
 
-        // Intentar login local primero
+        // Intentar login local
         const loginLocal = this.loginLocal(usuario, password);
         if (loginLocal) {
             this.setSession(loginLocal);
@@ -176,27 +176,7 @@ const Auth = {
             return;
         }
 
-        // Intentar con API
-        try {
-            const response = await AxonesAPI.login(usuario, password);
-            if (response && response.success && response.usuario) {
-                const user = {
-                    id: response.usuario.id,
-                    usuario: response.usuario.usuario,
-                    nombre: response.usuario.nombre,
-                    rol: response.usuario.rol,
-                };
-                this.setSession(user);
-                modal.hide();
-                this.mostrarToast('Bienvenido, ' + user.nombre, 'success');
-                window.location.reload();
-                return;
-            }
-        } catch (e) {
-            console.warn('API login error:', e);
-        }
-
-        // Error
+        // Error - usuario no encontrado
         errorDiv.textContent = 'Usuario o contrasena incorrectos';
         errorDiv.classList.remove('d-none');
         btnSubmit.disabled = false;
@@ -305,7 +285,7 @@ const Auth = {
     },
 
     /**
-     * Procesa el login - primero local, luego API
+     * Procesa el login con la lista local de usuarios
      */
     procesarLogin: async function() {
         const usuario = document.getElementById('loginUsuario').value;
@@ -317,7 +297,7 @@ const Auth = {
         btnSubmit.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Verificando...';
         errorDiv.classList.add('d-none');
 
-        // PASO 1: Siempre intentar login local primero
+        // Intentar login local
         const loginLocal = this.loginLocal(usuario, password);
         if (loginLocal) {
             this.setSession(loginLocal);
@@ -329,27 +309,7 @@ const Auth = {
             return;
         }
 
-        // PASO 2: Si no hay match local, intentar con API
-        try {
-            const response = await AxonesAPI.login(usuario, password);
-            if (response && response.success && response.usuario) {
-                const user = {
-                    id: response.usuario.id,
-                    usuario: response.usuario.usuario,
-                    nombre: response.usuario.nombre,
-                    rol: response.usuario.rol,
-                };
-                this.setSession(user);
-                const modal = bootstrap.Modal.getInstance(document.getElementById('modalLogin'));
-                modal.hide();
-                this.mostrarToast('Bienvenido, ' + user.nombre, 'success');
-                return;
-            }
-        } catch (e) {
-            console.warn('API login error:', e);
-        }
-
-        // PASO 3: Si nada funciono, mostrar error
+        // Usuario no encontrado
         errorDiv.textContent = 'Usuario o contrasena incorrectos';
         errorDiv.classList.remove('d-none');
         btnSubmit.disabled = false;

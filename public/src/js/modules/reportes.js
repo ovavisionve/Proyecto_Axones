@@ -12,53 +12,12 @@ const ReportesModule = {
     charts: {},
 
     // Inicializar
-    async init() {
+    init() {
         console.log('Inicializando modulo de Reportes...');
         this.setFechasDefault();
         this.cargarMaquinas();
-        await this.cargarDatosDesdeAPI();
         this.cargarFiltrosAvanzados();
         this.aplicarFiltros();
-    },
-
-    // Cargar datos desde API y guardar en localStorage
-    async cargarDatosDesdeAPI() {
-        try {
-            if (typeof AxonesAPI === 'undefined') return;
-
-            const response = await AxonesAPI.getProduccion({});
-            if (response.success && response.data && response.data.length > 0) {
-                // Mapear datos de API al formato local
-                const produccion = response.data.map(r => ({
-                    id: r.id,
-                    fecha: r.fecha,
-                    turno: r.turno,
-                    maquina: r.maquina,
-                    tipo: r.proceso || 'impresion',
-                    cliente: r.cliente,
-                    producto: r.producto,
-                    ordenTrabajo: r.ot,
-                    operador: r.operador,
-                    totalMaterialEntrada: parseFloat(r.kilos_entrada) || 0,
-                    totalEntrada: parseFloat(r.kilos_entrada) || 0,
-                    pesoTotal: parseFloat(r.kilos_producidos) || 0,
-                    totalSalida: parseFloat(r.kilos_producidos) || 0,
-                    merma: parseFloat(r.refil_kg) || 0,
-                    porcentajeRefil: parseFloat(r.refil_porcentaje) || 0,
-                    tiempoEfectivo: parseFloat(r.tiempo_trabajo_min) || 0,
-                    tiempoMuerto: parseFloat(r.tiempo_muerto_min) || 0,
-                    observaciones: r.observaciones || ''
-                }));
-                // Merge: API + localStorage
-                const locales = JSON.parse(localStorage.getItem('axones_produccion') || '[]');
-                const idsAPI = new Set(produccion.map(p => p.id));
-                const merged = [...produccion, ...locales.filter(l => !idsAPI.has(l.id))];
-                localStorage.setItem('axones_produccion', JSON.stringify(merged));
-                console.log('Reportes: cargados', merged.length, 'registros (API + local)');
-            }
-        } catch (e) {
-            console.warn('Reportes: Error cargando de API, usando localStorage:', e);
-        }
     },
 
     // Establecer fechas por defecto (ultimo mes)

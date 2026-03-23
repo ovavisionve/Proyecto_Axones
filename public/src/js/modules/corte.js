@@ -998,29 +998,7 @@ const Corte = {
 
         console.log('[Corte] Ordenes en localStorage:', ordenes.length);
 
-        // Cargar desde API en background y actualizar selector
-        if (typeof AxonesAPI !== 'undefined') {
-            AxonesAPI.getOrdenes().then(result => {
-                if (result && result.success && Array.isArray(result.data) && result.data.length > 0) {
-                    const ordenesAPI = result.data.map(o => {
-                        if (o.datosCompletos && typeof o.datosCompletos === 'object') {
-                            return { ...o.datosCompletos, id: o.id, estado: o.estado, etapa: o.etapa };
-                        }
-                        return o;
-                    });
-                    const idsAPI = new Set(ordenesAPI.map(o => o.id));
-                    const soloLocales = ordenes.filter(o => !idsAPI.has(o.id));
-                    const ordenesMerged = [...ordenesAPI, ...soloLocales];
-                    localStorage.setItem('axones_ordenes_trabajo', JSON.stringify(ordenesMerged));
-                    console.log('[Corte] Ordenes sincronizadas desde Sheets:', ordenesAPI.length);
-                    const selectorExistente = document.getElementById('selectorOrden');
-                    if (selectorExistente) selectorExistente.remove();
-                    this._renderSelectorOrdenes(ordenesMerged);
-                }
-            }).catch(e => console.warn('[Corte] Error cargando ordenes desde API:', e.message));
-        }
-
-        // Renderizar con datos locales inicialmente
+        // Renderizar con datos locales
         this._renderSelectorOrdenes(ordenes);
     },
 
@@ -1180,55 +1158,26 @@ const Corte = {
         }
 
         try {
-            // Preparar datos para API
-            const datosAPI = {
-                fecha: datos.fecha,
-                turno: datos.turno,
-                maquina: datos.maquina,
-                proceso: 'corte',
-                cliente: datos.cliente || '',
-                producto: datos.producto || '',
-                ot: datos.ordenTrabajo,
-                kilos_producidos: datos.totalSalida || 0,
-                kilos_entrada: datos.totalEntrada || 0,
-                refil_kg: datos.merma || 0,
-                tiempo_trabajo_min: datos.tiempoEfectivo || 0,
-                tiempo_muerto_min: datos.tiempoMuerto || 0,
-                operador: datos.operador,
-                observaciones: datos.observaciones || ''
-            };
+            this.guardarLocal(datos);
+            this.mostrarToast('Registro de corte guardado', 'success');
 
-            const result = await AxonesAPI.createProduccion(datosAPI);
+            // Descontar material del inventario
+            this.descontarInventario(datos);
 
-            if (result.success) {
-                this.mostrarToast('Registro de corte guardado en Google Sheets (ID: ' + result.id + ')', 'success');
-                this.guardarLocal(datos);
+            // Registrar producto terminado en inventario
+            this.registrarProductoTerminado(datos);
 
-                // Descontar material del inventario
-                this.descontarInventario(datos);
-
-                // Registrar producto terminado en inventario
-                this.registrarProductoTerminado(datos);
-
-                const porcentajeRefil = parseFloat(datos.porcentajeRefil) || 0;
-                const umbral = CONFIG.UMBRALES_REFIL.default;
-                if (porcentajeRefil > umbral.maximo) {
-                    this.generarAlerta(datos);
-                }
-
-                // Ofrecer generar Nota de Entrega
-                this.ofrecerNotaEntrega(datos);
-            } else {
-                throw new Error(result.error || 'Error desconocido');
+            const porcentajeRefil = parseFloat(datos.porcentajeRefil) || 0;
+            const umbral = CONFIG.UMBRALES_REFIL.default;
+            if (porcentajeRefil > umbral.maximo) {
+                this.generarAlerta(datos);
             }
+
+            // Ofrecer generar Nota de Entrega
+            this.ofrecerNotaEntrega(datos);
         } catch (error) {
             console.error('Error guardando registro:', error);
-            this.guardarLocal(datos);
-            this.registrarProductoTerminado(datos);
-            Axones.showWarning('Guardado localmente: ' + error.message);
-
-            // Ofrecer generar Nota de Entrega incluso si fallo la API
-            this.ofrecerNotaEntrega(datos);
+            Axones.showWarning('Error al guardar: ' + error.message);
         } finally {
             if (btnGuardar) {
                 btnGuardar.disabled = false;
@@ -1409,13 +1358,6 @@ const Corte = {
                 localStorage.setItem('axones_inventario', JSON.stringify(inventario));
                 console.log('Inventario actualizado despues de corte');
 
-                // Sincronizar descuentos con Sheets
-                if (typeof AxonesAPI !== 'undefined') {
-                    for (const item of inventario.filter(i => parseFloat(i.kg) >= 0)) {
-                        AxonesAPI.updateInventario(item.id, { kg: item.kg }).catch(() => {});
-                    }
-                }
-
                 // Verificar stock bajo y generar alertas
                 this.verificarStockBajo(inventario);
             }
@@ -1479,23 +1421,6 @@ const Corte = {
         const alertas = JSON.parse(localStorage.getItem(CONFIG.CACHE.PREFIJO + 'alertas') || '[]');
         alertas.unshift(alerta);
         localStorage.setItem(CONFIG.CACHE.PREFIJO + 'alertas', JSON.stringify(alertas));
-
-        // Enviar alerta a API en background
-        if (typeof AxonesAPI !== 'undefined') {
-            AxonesAPI.createAlerta({
-                tipo: alerta.tipo,
-                nivel: alerta.nivel,
-                maquina: alerta.maquina,
-                ot: datos.ordenTrabajo,
-                mensaje: alerta.mensaje,
-                refil_porcentaje: datos.porcentajeRefil,
-                producto: datos.producto || '',
-                cliente: datos.cliente || '',
-                operador: datos.operador
-            }).then(result => {
-                if (result.success) console.log('Alerta corte enviada a Sheets:', result.id);
-            }).catch(e => console.warn('Error enviando alerta corte a API:', e));
-        }
 
         Axones.showToast(
             `ALERTA: Refil ${datos.porcentajeRefil.toFixed(1)}% excedido en corte`,
@@ -1580,22 +1505,6 @@ const Corte = {
             const totalPaletas = paletasConDatos.length;
             const totalBobinas = paletasConDatos.reduce((sum, p) => sum + p.totalBobinas, 0);
             console.log(`Producto terminado: ${totalPaletas} paletas, ${totalBobinas} bobinas, ${pesoSalida.toFixed(2)} Kg registrados`);
-
-            // Sincronizar producto terminado con Sheets
-            if (typeof AxonesAPI !== 'undefined') {
-                paletasConDatos.forEach(paleta => {
-                    AxonesAPI.createProductoTerminado({
-                        ot: datos.ordenTrabajo,
-                        cliente: datos.cliente,
-                        producto: datos.producto,
-                        maquina: datos.maquina,
-                        paleta: paleta.numero,
-                        bobinas: JSON.stringify(paleta.bobinas),
-                        pesoTotal: paleta.pesoTotal,
-                        operador: datos.operador
-                    }).catch(e => console.warn('[Corte] Error sync PT Sheets:', e.message));
-                });
-            }
 
             this.mostrarToast(
                 `Producto terminado registrado: ${totalPaletas} paleta(s), ${totalBobinas} bobina(s), ${pesoSalida.toFixed(2)} Kg`,

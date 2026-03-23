@@ -202,28 +202,6 @@
                     return;
                 }
 
-                // Intentar con API
-                try {
-                    if (typeof AxonesAPI !== 'undefined') {
-                        const response = await AxonesAPI.login(usuario, password);
-                        if (response && response.success && response.usuario) {
-                            const user = {
-                                id: response.usuario.id,
-                                usuario: response.usuario.usuario,
-                                nombre: response.usuario.nombre,
-                                rol: response.usuario.rol,
-                            };
-                            Auth.setSession(user);
-                            const returnTo = sessionStorage.getItem('axones_return_to');
-                            sessionStorage.removeItem('axones_return_to');
-                            window.location.href = returnTo || 'index.html';
-                            return;
-                        }
-                    }
-                } catch (err) {
-                    console.warn('API login error:', err);
-                }
-
                 // Error
                 errorDiv.textContent = 'Usuario o contrasena incorrectos';
                 errorDiv.classList.remove('d-none');

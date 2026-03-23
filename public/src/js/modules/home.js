@@ -73,139 +73,15 @@ const HomeModule = {
         }, 1000);
     },
 
-    // Cargar todos los datos del dashboard
+    // Cargar todos los datos del dashboard desde localStorage (sincronizado con Supabase)
     async cargarDatos() {
-        // Intentar cargar desde API primero
-        try {
-            await this.cargarDatosDesdeAPI();
-        } catch (error) {
-            console.warn('Error cargando desde API, usando localStorage:', error);
-            this.cargarDatosDesdeLocal();
-        }
+        this.cargarDatosDesdeLocal();
     },
 
-    // Cargar datos desde la API de Google Sheets
-    async cargarDatosDesdeAPI() {
-        try {
-            const dashboardData = await AxonesAPI.getDashboardData();
-
-            if (dashboardData.success && dashboardData.data) {
-                const data = dashboardData.data;
-
-                // Actualizar KPIs
-                const statProduccion = document.getElementById('statProduccion');
-                const statRefil = document.getElementById('statRefil');
-                const refilStatus = document.getElementById('refilStatus');
-                const statAlertas = document.getElementById('statAlertas');
-
-                if (statProduccion) {
-                    statProduccion.textContent = this.formatearNumero(data.resumen.total_kilos_producidos);
-                }
-
-                if (statRefil) {
-                    const refil = parseFloat(data.resumen.promedio_refil_porcentaje) || 0;
-                    statRefil.textContent = refil.toFixed(1) + '%';
-
-                    if (refilStatus) {
-                        if (refil > 6) {
-                            refilStatus.className = 'text-danger';
-                            refilStatus.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Alto';
-                        } else if (refil > 5) {
-                            refilStatus.className = 'text-warning';
-                            refilStatus.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i>Advertencia';
-                        } else {
-                            refilStatus.className = 'text-success';
-                            refilStatus.innerHTML = '<i class="bi bi-check-circle me-1"></i>OK';
-                        }
-                    }
-                }
-
-                if (statAlertas) {
-                    statAlertas.textContent = data.resumen.alertas_pendientes || 0;
-
-                    // Badge en navbar
-                    const alertasBadge = document.getElementById('alertasBadge');
-                    if (alertasBadge) {
-                        if (data.resumen.alertas_pendientes > 0) {
-                            alertasBadge.textContent = data.resumen.alertas_pendientes;
-                            alertasBadge.style.display = 'inline-block';
-                        } else {
-                            alertasBadge.style.display = 'none';
-                        }
-                    }
-                }
-
-                // Cargar grafico por maquina
-                this.cargarGraficoDesdeAPI(data.por_maquina, data.por_cliente);
-
-                // Cargar produccion por maquina en la tabla
-                this.cargarProduccionPorMaquina(data.por_maquina);
-            }
-
-            // Cargar alertas desde API
-            await this.cargarAlertasDesdeAPI();
-
-            // Cargar maquinas desde API
-            await this.cargarMaquinasDesdeAPI();
-
-            // Inventario desde API
-            await this.cargarInventarioDesdeAPI();
-
-            // Graficos Power BI (usa localStorage como cache)
-            this.cargarGraficosPowerBI();
-
-        } catch (error) {
-            throw error;
-        }
-    },
-
-    // Cargar alertas desde API
-    async cargarAlertasDesdeAPI() {
-        try {
-            const response = await AxonesAPI.getAlertas({ no_leidas: 'true' });
-            if (response.success && response.data) {
-                const container = document.getElementById('alertasRecientes');
-                if (!container) return;
-
-                const alertas = response.data.slice(0, 5);
-
-                if (alertas.length === 0) {
-                    container.innerHTML = `
-                        <div class="text-center text-muted py-4">
-                            <i class="bi bi-check-circle display-6 text-success d-block mb-2"></i>
-                            <p class="mb-0">No hay alertas pendientes</p>
-                        </div>
-                    `;
-                    return;
-                }
-
-                container.innerHTML = alertas.map(alerta => {
-                    const icono = this.obtenerIconoAlerta(alerta.tipo);
-                    const clase = alerta.nivel === 'danger' || alerta.nivel === 'critical' ? 'danger' : 'warning';
-                    return `
-                        <div class="alert-item ${clase} p-3 border-bottom">
-                            <div class="d-flex align-items-start">
-                                <i class="bi ${icono} me-2 mt-1 text-${clase}"></i>
-                                <div class="flex-grow-1">
-                                    <p class="mb-1 small fw-medium">${alerta.mensaje}</p>
-                                    <small class="text-muted">
-                                        <i class="bi bi-clock me-1"></i>${this.formatearFecha(alerta.fecha)}
-                                    </small>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            }
-        } catch (error) {
-            console.warn('Error cargando alertas:', error);
-        }
-    },
-
-    // Cargar maquinas desde API
+    // Cargar maquinas (placeholder - datos vienen de localStorage via Supabase)
     async cargarMaquinasDesdeAPI() {
         try {
-            const response = await AxonesAPI.getMaquinas();
+            const response = { success: false };
             if (response.success && response.data) {
                 const container = document.getElementById('listaMaquinas');
                 if (!container) return;
@@ -229,10 +105,10 @@ const HomeModule = {
         }
     },
 
-    // Cargar inventario desde API
+    // Cargar inventario (placeholder - datos vienen de localStorage via Supabase)
     async cargarInventarioDesdeAPI() {
         try {
-            const response = await AxonesAPI.getInventario();
+            const response = { success: false };
             if (response.success && response.data) {
                 const inventario = response.data;
                 const tbody = document.getElementById('inventarioBajo');
@@ -1336,22 +1212,8 @@ const HomeModule = {
         // Obtener datos de produccion
         let produccion = [];
 
-        try {
-            // Intentar obtener de API
-            if (typeof AxonesAPI !== 'undefined') {
-                const response = await AxonesAPI.getProduccion({});
-                if (response.success && response.data) {
-                    produccion = response.data;
-                }
-            }
-        } catch (e) {
-            console.warn('Usando datos locales para detalle de refil');
-        }
-
-        // Si no hay datos de API, usar localStorage
-        if (produccion.length === 0) {
-            produccion = JSON.parse(localStorage.getItem('axones_produccion') || '[]');
-        }
+        // Datos desde localStorage (sincronizado con Supabase)
+        produccion = JSON.parse(localStorage.getItem('axones_produccion') || '[]');
 
         // Calcular totales generales
         let totalEntrada = 0;

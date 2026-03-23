@@ -347,29 +347,7 @@ const Laminacion = {
 
         console.log('[Laminacion] Ordenes en localStorage:', ordenes.length);
 
-        // Cargar desde API en background y actualizar selector
-        if (typeof AxonesAPI !== 'undefined') {
-            AxonesAPI.getOrdenes().then(result => {
-                if (result && result.success && Array.isArray(result.data) && result.data.length > 0) {
-                    const ordenesAPI = result.data.map(o => {
-                        if (o.datosCompletos && typeof o.datosCompletos === 'object') {
-                            return { ...o.datosCompletos, id: o.id, estado: o.estado, etapa: o.etapa };
-                        }
-                        return o;
-                    });
-                    const idsAPI = new Set(ordenesAPI.map(o => o.id));
-                    const soloLocales = ordenes.filter(o => !idsAPI.has(o.id));
-                    const ordenesMerged = [...ordenesAPI, ...soloLocales];
-                    localStorage.setItem('axones_ordenes_trabajo', JSON.stringify(ordenesMerged));
-                    console.log('[Laminacion] Ordenes sincronizadas desde Sheets:', ordenesAPI.length);
-                    const selectorExistente = document.getElementById('selectorOrden');
-                    if (selectorExistente) selectorExistente.remove();
-                    this._renderSelectorOrdenes(ordenesMerged);
-                }
-            }).catch(e => console.warn('[Laminacion] Error cargando ordenes desde API:', e.message));
-        }
-
-        // Renderizar con datos locales inicialmente
+        // Renderizar con datos locales
         this._renderSelectorOrdenes(ordenes);
     },
 
@@ -435,20 +413,11 @@ const Laminacion = {
     /**
      * Carga clientes en datalist (permite escribir nuevos o seleccionar existentes)
      */
-    cargarClientes: async function() {
+    cargarClientes: function() {
         const datalist = document.getElementById('listaClientes');
         if (!datalist) return;
 
-        try {
-            const response = await AxonesAPI.getClientes();
-            if (response.success && response.data) {
-                this.clientesCache = response.data.map(c => c.nombre);
-            } else {
-                this.clientesCache = CONFIG.CLIENTES || [];
-            }
-        } catch (error) {
-            this.clientesCache = CONFIG.CLIENTES || [];
-        }
+        this.clientesCache = CONFIG.CLIENTES || [];
 
         // Agregar clientes de registros anteriores de laminacion
         const laminaciones = JSON.parse(localStorage.getItem('axones_laminacion') || '[]');
@@ -912,47 +881,23 @@ const Laminacion = {
         }
 
         try {
-            // Preparar datos para API
-            const datosAPI = {
-                fecha: datos.fecha,
-                turno: datos.turno,
-                maquina: datos.maquina || 'Laminadora',
-                proceso: 'laminacion',
-                cliente: datos.cliente,
-                producto: datos.producto,
-                ot: datos.ordenTrabajo,
-                kilos_producidos: datos.pesoTotal || 0,
-                kilos_entrada: datos.totalEntrada || 0,
-                refil_kg: (datos.totalEntrada || 0) - (datos.pesoTotal || 0),
-                tiempo_trabajo_min: datos.tiempoEfectivo || 0,
-                tiempo_muerto_min: datos.tiempoMuerto || 0,
-                operador: datos.operador,
-                observaciones: datos.observaciones || ''
-            };
+            this.guardarLocal(datos);
 
-            const result = await AxonesAPI.createProduccion(datosAPI);
+            // Descontar materiales del inventario (adhesivo, catalizador, acetato)
+            this.descontarInventarioLaminacion(datos);
 
-            if (result.success) {
-                this.mostrarToast('Registro de laminacion guardado en Google Sheets (ID: ' + result.id + ')', 'success');
-                this.guardarLocal(datos);
-
-                // Descontar materiales del inventario (adhesivo, catalizador, acetato)
-                this.descontarInventarioLaminacion(datos);
-
-                const porcentajeRefil = parseFloat(datos.porcentajeRefil) || 0;
-                const umbral = CONFIG.UMBRALES_REFIL.default;
-                if (porcentajeRefil > umbral.maximo) {
-                    this.generarAlerta(datos);
-                }
-
-                this.limpiar();
-            } else {
-                throw new Error(result.error || 'Error desconocido');
+            const porcentajeRefil = parseFloat(datos.porcentajeRefil) || 0;
+            const umbral = CONFIG.UMBRALES_REFIL.default;
+            if (porcentajeRefil > umbral.maximo) {
+                this.generarAlerta(datos);
             }
+
+            this.mostrarToast('Registro de laminacion guardado', 'success');
+            this.limpiar();
         } catch (error) {
             console.error('Error guardando registro:', error);
             this.guardarLocal(datos);
-            Axones.showWarning('Guardado localmente: ' + error.message);
+            Axones.showWarning('Error al guardar: ' + error.message);
         } finally {
             if (btnGuardar) {
                 btnGuardar.disabled = false;
@@ -1173,15 +1118,6 @@ const Laminacion = {
                 localStorage.setItem('axones_adhesivos_inventario', JSON.stringify(adhesivos));
                 console.log('Inventario de adhesivos actualizado despues de laminacion');
 
-                // Sincronizar adhesivos con Sheets
-                if (typeof AxonesAPI !== 'undefined') {
-                    adhesivos.forEach(a => {
-                        if (a.id) {
-                            AxonesAPI.updateInventario(a.id, { kg: a.cantidad }).catch(() => {});
-                        }
-                    });
-                }
-
                 this.verificarStockBajoAdhesivos(adhesivos);
             }
 
@@ -1218,13 +1154,6 @@ const Laminacion = {
                 if (descontado) {
                     localStorage.setItem('axones_inventario', JSON.stringify(inventario));
                     console.log('Inventario de materiales actualizado despues de laminacion');
-
-                    // Sincronizar descuentos con Sheets
-                    if (typeof AxonesAPI !== 'undefined') {
-                        for (const item of inventario.filter(i => parseFloat(i.kg) >= 0)) {
-                            AxonesAPI.updateInventario(item.id, { kg: item.kg }).catch(() => {});
-                        }
-                    }
 
                     this.verificarStockBajoMaterial(inventario);
                 }
@@ -1327,23 +1256,6 @@ const Laminacion = {
         const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
         alertas.unshift(alerta);
         localStorage.setItem('axones_alertas', JSON.stringify(alertas));
-
-        // Enviar alerta a API en background
-        if (typeof AxonesAPI !== 'undefined') {
-            AxonesAPI.createAlerta({
-                tipo: alerta.tipo,
-                nivel: alerta.nivel,
-                maquina: alerta.maquina,
-                ot: alerta.ot,
-                mensaje: alerta.mensaje,
-                refil_porcentaje: datos.porcentajeRefil,
-                producto: datos.producto,
-                cliente: datos.cliente,
-                operador: datos.operador
-            }).then(result => {
-                if (result.success) console.log('Alerta laminacion enviada a Sheets:', result.id);
-            }).catch(e => console.warn('Error enviando alerta laminacion a API:', e));
-        }
 
         this.mostrarNotificacion(
             `ALERTA: Refil ${datos.porcentajeRefil.toFixed(1)}% excedido en laminacion`,

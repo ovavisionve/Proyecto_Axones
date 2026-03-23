@@ -1,7 +1,7 @@
 /**
  * Modulo de Administracion - Sistema Axones
  * Panel de configuracion y gestion del sistema
- * Con integracion API para usuarios y datos de prueba
+ * Gestion de usuarios y configuracion del sistema
  */
 
 const AdminModule = {
@@ -18,26 +18,15 @@ const AdminModule = {
     cargarConfiguracion() {
         const config = JSON.parse(localStorage.getItem('axones_config') || '{}');
 
-        // Mostrar configuracion desde CONFIG global (solo lectura)
-        const apiUrl = document.getElementById('apiUrl');
-        if (apiUrl && typeof CONFIG !== 'undefined') {
-            apiUrl.value = CONFIG.API.BASE_URL || 'No configurado';
-        }
-
-        const sheetsId = document.getElementById('sheetsId');
-        if (sheetsId && typeof CONFIG !== 'undefined') {
-            sheetsId.value = CONFIG.API.SHEETS_ID || 'No configurado';
-        }
-
         // Umbrales
         const umbralAdvertencia = document.getElementById('umbralAdvertencia');
         const umbralMaximo = document.getElementById('umbralMaximo');
         if (umbralAdvertencia) umbralAdvertencia.value = config.umbralAdvertencia || 5;
         if (umbralMaximo) umbralMaximo.value = config.umbralMaximo || 6;
 
-        // Modo sistema - siempre produccion si hay CONFIG
+        // Modo sistema - produccion si Supabase esta configurado
         const modoSistema = document.getElementById('modoSistema');
-        if (modoSistema && typeof CONFIG !== 'undefined' && CONFIG.API.BASE_URL) {
+        if (modoSistema && typeof CONFIG !== 'undefined') {
             modoSistema.textContent = 'Produccion';
             modoSistema.className = 'badge bg-success';
         } else if (modoSistema) {
@@ -80,63 +69,12 @@ const AdminModule = {
         this.mostrarNotificacion('Umbrales guardados correctamente', 'success');
     },
 
-    // Probar conexion usando AxonesAPI
-    async probarConexion() {
-        const statusEl = document.getElementById('conexionStatus');
-
-        if (typeof AxonesAPI === 'undefined') {
-            statusEl.innerHTML = '<span class="text-warning"><i class="bi bi-exclamation-circle me-1"></i>API no disponible</span>';
-            return;
-        }
-
-        statusEl.innerHTML = '<span class="text-muted"><i class="bi bi-arrow-repeat spin me-1"></i>Probando...</span>';
-
-        try {
-            const result = await AxonesAPI.ping();
-            if (result.success) {
-                statusEl.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Conexion exitosa</span>';
-            } else {
-                throw new Error(result.error || 'Error en respuesta');
-            }
-        } catch (error) {
-            statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle me-1"></i>Error: ${error.message}</span>`;
-        }
-    },
-
-    // Cargar usuarios desde API y localStorage
+    // Cargar usuarios desde localStorage (sincronizado con Supabase via sync-realtime.js)
     async cargarUsuarios() {
         const tbody = document.getElementById('tablaUsuarios');
         if (!tbody) return;
 
-        let usuarios = [];
-
-        // Intentar cargar desde API
-        try {
-            if (typeof AxonesAPI !== 'undefined') {
-                const response = await AxonesAPI.getUsuarios();
-                if (response.success && response.data && response.data.length > 0) {
-                    usuarios = response.data.map(u => ({
-                        id: u.id,
-                        nombre: u.apellido ? (u.nombre + ' ' + u.apellido) : u.nombre,
-                        usuario: u.usuario || u.email || '',
-                        rol: u.rol,
-                        area: u.area || '',
-                        cargo: u.cargo || '',
-                        activo: u.activo === true || u.activo === 'SI' || u.activo === 'true'
-                    }));
-                    // Guardar en localStorage para que coincida
-                    localStorage.setItem('axones_usuarios', JSON.stringify(usuarios));
-                    console.log('Usuarios cargados desde API:', usuarios.length);
-                }
-            }
-        } catch (e) {
-            console.warn('Error cargando usuarios de API:', e);
-        }
-
-        // Fallback a localStorage
-        if (usuarios.length === 0) {
-            usuarios = JSON.parse(localStorage.getItem('axones_usuarios') || '[]');
-        }
+        let usuarios = JSON.parse(localStorage.getItem('axones_usuarios') || '[]');
 
         if (usuarios.length === 0) {
             // Cargar los 22 usuarios reales de Axones + admin del sistema
@@ -280,24 +218,6 @@ const AdminModule = {
             activo: true
         };
 
-        // Guardar en API
-        try {
-            if (typeof AxonesAPI !== 'undefined') {
-                const result = await AxonesAPI.createUsuario({
-                    nombre: nombre,
-                    usuario: usuario,
-                    password: password,
-                    email: email,
-                    rol: rol
-                });
-                if (result.success) {
-                    this.mostrarNotificacion('Usuario guardado en Google Sheets', 'success');
-                }
-            }
-        } catch (e) {
-            console.warn('Error guardando usuario en API:', e);
-        }
-
         // Guardar en localStorage
         usuarios.push(nuevoUsuario);
         localStorage.setItem('axones_usuarios', JSON.stringify(usuarios));
@@ -319,36 +239,12 @@ const AdminModule = {
         }
     },
 
-    // Actualizar estadisticas (from API + localStorage)
-    async actualizarEstadisticas() {
-        let prodCount = 0;
-        let invCount = 0;
-        let alertCount = 0;
-        let tintaCount = 0;
-
-        // Try API first
-        try {
-            if (typeof AxonesAPI !== 'undefined') {
-                const [prodResp, invResp, alertResp, tintaResp] = await Promise.allSettled([
-                    AxonesAPI.getProduccion({}),
-                    AxonesAPI.getInventario({}),
-                    AxonesAPI.getAlertas({}),
-                    AxonesAPI.getConsumoTintas({})
-                ]);
-                if (prodResp.status === 'fulfilled' && prodResp.value.success) prodCount = prodResp.value.data?.length || 0;
-                if (invResp.status === 'fulfilled' && invResp.value.success) invCount = invResp.value.data?.length || 0;
-                if (alertResp.status === 'fulfilled' && alertResp.value.success) alertCount = alertResp.value.data?.length || 0;
-                if (tintaResp.status === 'fulfilled' && tintaResp.value.success) tintaCount = tintaResp.value.data?.length || 0;
-            }
-        } catch (e) {
-            // Fallback below
-        }
-
-        // Fallback to localStorage counts
-        if (prodCount === 0) prodCount = JSON.parse(localStorage.getItem('axones_produccion') || '[]').length;
-        if (invCount === 0) invCount = JSON.parse(localStorage.getItem('axones_inventario') || '[]').length;
-        if (alertCount === 0) alertCount = JSON.parse(localStorage.getItem('axones_alertas') || '[]').length;
-        if (tintaCount === 0) tintaCount = JSON.parse(localStorage.getItem('axones_tintas') || '[]').length;
+    // Actualizar estadisticas desde localStorage (sincronizado con Supabase via sync-realtime.js)
+    actualizarEstadisticas() {
+        const prodCount = JSON.parse(localStorage.getItem('axones_produccion') || '[]').length;
+        const invCount = JSON.parse(localStorage.getItem('axones_inventario') || '[]').length;
+        const alertCount = JSON.parse(localStorage.getItem('axones_alertas') || '[]').length;
+        const tintaCount = JSON.parse(localStorage.getItem('axones_tintas') || '[]').length;
 
         const statProduccion = document.getElementById('statProduccion');
         const statInventario = document.getElementById('statInventario');
@@ -395,7 +291,7 @@ const AdminModule = {
             DemoData.init();
             this.actualizarEstadisticas();
             this.actualizarStorage();
-            this.mostrarNotificacion('Datos de prueba generados y sincronizando con Google Sheets...', 'success');
+            this.mostrarNotificacion('Datos de prueba generados y sincronizando con Supabase...', 'success');
         } else {
             this.mostrarNotificacion('Modulo DemoData no disponible', 'danger');
         }

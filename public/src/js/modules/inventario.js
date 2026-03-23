@@ -143,8 +143,7 @@ const Inventario = {
         // Escanear inventario y generar alertas basadas en stock real
         this.generarAlertasDeInventarioReal();
 
-        // Sync inicial: subir localStorage a Sheets para que siempre coincidan
-        this.syncInicialASheets();
+        // Sync via AxonesSync (Supabase) se maneja automaticamente
 
         // Escuchar cambios del SyncManager para actualizar inventario
         if (typeof SyncManager !== 'undefined') {
@@ -192,12 +191,12 @@ const Inventario = {
             // Guardar nueva version
             localStorage.setItem(versionKey, this.DATA_VERSION);
 
-            console.log('Inventario: Datos migrados. Se cargaran los nuevos datos del Excel.');
+            console.log('Inventario: Datos migrados a nueva version.');
 
             // Mostrar notificacion al usuario
             setTimeout(() => {
                 if (typeof Axones !== 'undefined') {
-                    Axones.showSuccess('Inventario actualizado con datos del Excel 26-02-2026');
+                    Axones.showSuccess('Inventario actualizado con datos de Supabase');
                 }
             }, 1000);
         }
@@ -219,8 +218,7 @@ const Inventario = {
     },
 
     /**
-     * Carga el inventario: localStorage es la fuente de verdad,
-     * despues sincroniza CON Sheets (localStorage -> Sheets)
+     * Carga el inventario desde localStorage (sincronizado con Supabase via AxonesSync)
      */
     loadInventario: async function() {
         // PASO 1: Siempre cargar desde localStorage primero (fuente de verdad)
@@ -232,12 +230,12 @@ const Inventario = {
                 this.items = parsed;
                 console.log('[Inventario] Cargado desde localStorage:', this.items.length, 'items');
             } else {
-                console.warn('[Inventario] Datos locales incompletos, regenerando desde Excel...');
+                console.warn('[Inventario] Datos locales incompletos, regenerando desde datos base...');
                 this.items = this.getDatosEjemplo();
             }
         } else {
             this.items = this.getDatosEjemplo();
-            console.log('[Inventario] Generado desde Excel: 158 productos');
+            console.log('[Inventario] Generado desde datos base: 158 productos');
         }
 
         // Agregar SKU y codigo de barras si no existen
@@ -254,33 +252,12 @@ const Inventario = {
             return item;
         });
 
-        this.saveInventario(); // Guarda en localStorage Y sincroniza a Sheets
+        this.saveInventario(); // Guarda en localStorage (AxonesSync sube a Supabase)
         this.filteredItems = [...this.items];
     },
 
     /**
-     * Sync inicial: sube localStorage a Sheets al cargar la pagina
-     * Garantiza que Sheets siempre refleje localStorage
-     */
-    syncInicialASheets: function() {
-        if (typeof AxonesAPI === 'undefined') return;
-        // Solo sincronizar si hay items validos
-        if (this.items.length === 0) return;
-        const tienenMaterial = this.items.filter(i => i.material && i.material.trim() !== '');
-        if (tienenMaterial.length < 10) return;
-
-        const usuario = typeof Auth !== 'undefined' && Auth.getUser() ? Auth.getUser().usuario : 'sistema';
-        AxonesAPI.syncInventarioCompleto(this.items, usuario)
-            .then(result => {
-                if (result && result.success) {
-                    console.log('[Inventario] Sync inicial a Sheets completado:', this.items.length, 'items');
-                }
-            })
-            .catch(e => console.warn('[Inventario] Error sync inicial:', e.message));
-    },
-
-    /**
-     * Datos reales del inventario de Axones (basado en Excel 26-02-2026)
+     * Datos reales del inventario de Axones
      */
     getDatosEjemplo: function() {
         return [
@@ -461,50 +438,10 @@ const Inventario = {
     },
 
     /**
-     * Guarda el inventario en localStorage Y sincroniza con Sheets
-     * localStorage es la fuente de verdad -> se replica a Sheets
+     * Guarda el inventario en localStorage (AxonesSync sube a Supabase automaticamente)
      */
     saveInventario: function() {
         localStorage.setItem(CONFIG.CACHE.PREFIJO + 'inventario', JSON.stringify(this.items));
-
-        // Sincronizar completo a Sheets en background
-        this.syncCompleteToSheets();
-    },
-
-    /**
-     * Sincroniza el inventario COMPLETO de localStorage a Sheets
-     * Esto asegura que Sheets siempre sea espejo de localStorage
-     */
-    syncCompleteToSheets: function() {
-        if (typeof AxonesAPI === 'undefined') return;
-
-        // Usar debounce para no hacer sync en cada cambio individual
-        if (this._syncTimeout) clearTimeout(this._syncTimeout);
-        this._syncTimeout = setTimeout(() => {
-            const usuario = typeof Auth !== 'undefined' && Auth.getUser() ? Auth.getUser().usuario : 'sistema';
-            AxonesAPI.syncInventarioCompleto(this.items, usuario)
-                .then(result => {
-                    if (result && result.success) {
-                        console.log('[Inventario] Sync completo a Sheets OK:', result.count || this.items.length, 'items');
-                    }
-                })
-                .catch(e => console.warn('[Inventario] Error sync completo a Sheets:', e.message));
-        }, 2000); // Esperar 2 seg para agrupar cambios rapidos
-    },
-
-    /**
-     * Sincroniza un cambio individual de inventario con Google Sheets
-     */
-    syncInventarioToSheets: async function(itemId, datos) {
-        if (typeof AxonesAPI === 'undefined') return;
-        try {
-            const result = await AxonesAPI.updateInventario(itemId, datos);
-            if (result && result.success) {
-                console.log('[Inventario] Sincronizado con Sheets:', itemId);
-            }
-        } catch (e) {
-            console.warn('[Inventario] Error sync Sheets:', e.message);
-        }
     },
 
     /**
@@ -522,7 +459,7 @@ const Inventario = {
     },
 
     /**
-     * Datos reales de tintas (basado en Excel 26-02-2026)
+     * Datos reales de tintas
      */
     getDatosTintasEjemplo: function() {
         return [
@@ -614,7 +551,7 @@ const Inventario = {
     },
 
     /**
-     * Datos reales de quimicos/adhesivos (basado en Excel 26-02-2026)
+     * Datos reales de quimicos/adhesivos
      */
     getDatosAdhesivosEjemplo: function() {
         return [
@@ -973,55 +910,16 @@ const Inventario = {
             btnExportar.addEventListener('click', () => this.exportarCSV());
         }
 
-        // Sincronizar a Sheets
-        const btnSyncSheets = document.getElementById('btnSyncSheets');
-        if (btnSyncSheets) {
-            btnSyncSheets.addEventListener('click', () => this.syncToSheets());
-        }
-    },
-
-    /**
-     * Sube todo el inventario actual de la plataforma a Google Sheets
-     */
-    syncToSheets: async function() {
-        if (typeof AxonesAPI === 'undefined') {
-            alert('API no disponible');
-            return;
-        }
-
-        const btn = document.getElementById('btnSyncSheets');
-        const textoOriginal = btn.innerHTML;
-
-        if (!confirm('Esto subira los ' + this.items.length + ' productos del inventario a Google Sheets. Continuar?')) {
-            return;
-        }
-
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Subiendo...';
-
-        try {
-            const session = JSON.parse(localStorage.getItem('axones_session') || '{}');
-            const result = await AxonesAPI.syncInventarioCompleto(this.items, session.usuario || 'sistema');
-
-            if (result && result.success) {
+        // Sincronizar a Supabase
+        const btnSyncSupabase = document.getElementById('btnSyncSupabase');
+        if (btnSyncSupabase) {
+            btnSyncSupabase.addEventListener('click', () => {
+                // Forzar sync guardando en localStorage (AxonesSync lo sube)
+                this.saveInventario();
                 if (typeof Axones !== 'undefined') {
-                    Axones.showSuccess('Inventario sincronizado a Sheets: ' + (result.count || this.items.length) + ' productos');
-                } else {
-                    alert('Inventario sincronizado exitosamente');
+                    Axones.showSuccess('Inventario sincronizado con Supabase');
                 }
-            } else {
-                throw new Error(result?.error || 'Error desconocido');
-            }
-        } catch (e) {
-            console.error('Error sincronizando inventario:', e);
-            if (typeof Axones !== 'undefined') {
-                Axones.showError('Error al sincronizar: ' + e.message);
-            } else {
-                alert('Error: ' + e.message);
-            }
-        } finally {
-            btn.disabled = false;
-            btn.innerHTML = textoOriginal;
+            });
         }
     },
 
@@ -1241,28 +1139,6 @@ const Inventario = {
         this.renderInventario();
         this.updateTotales();
 
-        // Sincronizar con Google Sheets
-        if (typeof AxonesAPI !== 'undefined') {
-            try {
-                await AxonesAPI.createInventario({
-                    id: nuevoItem.id,
-                    sku: nuevoItem.sku || '',
-                    codigoBarra: nuevoItem.codigoBarra || '',
-                    material: nuevoItem.material,
-                    micras: nuevoItem.micras,
-                    ancho: nuevoItem.ancho,
-                    kg: nuevoItem.kg,
-                    producto: nuevoItem.producto || '',
-                    proveedor: nuevoItem.importado ? 'Importado' : 'Nacional',
-                    densidad: nuevoItem.densidad || this.getDensidad(nuevoItem.material),
-                    lote: ''
-                });
-                console.log('[Inventario] Guardado en Sheets');
-            } catch (e) {
-                console.warn('[Inventario] Error guardando en Sheets:', e);
-            }
-        }
-
         // Cerrar modal y limpiar
         bootstrap.Modal.getInstance(document.getElementById('modalAgregarItem')).hide();
         form.reset();
@@ -1297,9 +1173,6 @@ const Inventario = {
             this.saveInventario();
             this.renderInventario();
             this.updateTotales();
-
-            // Sincronizar con Sheets
-            this.syncInventarioToSheets(item.id, { kg: item.kg });
 
             Axones.showSuccess('Cantidad actualizada');
         }
@@ -1351,15 +1224,6 @@ const Inventario = {
             this.saveInventario();
             this.renderInventario();
             this.updateTotales();
-
-            // Sincronizar descuento con Sheets
-            if (typeof AxonesAPI !== 'undefined') {
-                AxonesAPI.descontarInventario({
-                    id: item.id,
-                    kgDescontar: cantidadUsar,
-                    motivo: 'Uso manual desde inventario'
-                }).catch(e => console.warn('[Inventario] Error descuento Sheets:', e.message));
-            }
 
             Axones.showSuccess(`Se descontaron ${cantidadUsar} Kg del inventario`);
         }

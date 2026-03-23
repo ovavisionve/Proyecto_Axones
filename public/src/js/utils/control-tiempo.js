@@ -106,9 +106,6 @@ const ControlTiempo = {
             this.renderControles(ordenId, fase, contenedor.id);
         }
 
-        // Sincronizar con API para que otros usuarios vean el cambio
-        this.sincronizarConAPI();
-
         console.log(`ControlTiempo: PLAY ${ordenId} - ${fase}`);
         return { exito: true, mensaje: 'Cronometro iniciado', registro };
     },
@@ -145,9 +142,6 @@ const ControlTiempo = {
         // Detener intervalo
         this.detenerIntervalo(ordenId, fase);
 
-        // Sincronizar con API para que otros usuarios vean el cambio
-        this.sincronizarConAPI();
-
         console.log(`ControlTiempo: PAUSA ${ordenId} - ${fase} (${this.formatearTiempo(registro.tiempoTotal)})`);
         return { exito: true, mensaje: 'Cronometro pausado', registro };
     },
@@ -183,12 +177,6 @@ const ControlTiempo = {
 
         // Detener intervalo
         this.detenerIntervalo(ordenId, fase);
-
-        // Enviar a API si esta disponible
-        this.enviarTiempoAPI(registro);
-
-        // Sincronizar estado completo con API
-        this.sincronizarConAPI();
 
         console.log(`ControlTiempo: COMPLETADO ${ordenId} - ${fase} (Total: ${this.formatearTiempo(registro.tiempoTotal)})`);
         return { exito: true, mensaje: 'Orden completada', registro };
@@ -644,9 +632,6 @@ const ControlTiempo = {
             registros[key] = registro;
             self.saveRegistros(registros);
 
-            // Sincronizar con API
-            self.sincronizarConAPI();
-
             // Cerrar modal
             const bsModal = bootstrap.Modal.getInstance(modal);
             if (bsModal) bsModal.hide();
@@ -724,28 +709,6 @@ const ControlTiempo = {
         }
 
         return resultado;
-    },
-
-    /**
-     * Envia tiempo a la API
-     */
-    enviarTiempoAPI: async function(registro) {
-        if (typeof AxonesAPI === 'undefined') return;
-
-        try {
-            await AxonesAPI.post('registrarTiempo', {
-                ordenId: registro.ordenId,
-                fase: registro.fase,
-                tiempoTotal: registro.tiempoTotal,
-                tiempoFormateado: this.formatearTiempo(registro.tiempoTotal),
-                operadores: registro.operadores,
-                fechaCompletado: registro.completado?.timestamp,
-                sesiones: registro.inicios.length
-            });
-            console.log('Tiempo enviado a API');
-        } catch (e) {
-            console.warn('Error enviando tiempo a API:', e);
-        }
     },
 
     /**
@@ -832,31 +795,7 @@ const ControlTiempo = {
             ordenes = [];
         }
 
-        // Cargar desde API en background y actualizar panel (solo una vez)
-        if (typeof AxonesAPI !== 'undefined' && !this._comandasLoading) {
-            this._comandasLoading = true;
-            AxonesAPI.getOrdenes().then(result => {
-                this._comandasLoading = false;
-                if (result && result.success && Array.isArray(result.data) && result.data.length > 0) {
-                    const ordenesAPI = result.data.map(o => {
-                        if (o.datosCompletos && typeof o.datosCompletos === 'object') {
-                            return { ...o.datosCompletos, id: o.id, estado: o.estado, etapa: o.etapa };
-                        }
-                        return o;
-                    });
-                    const idsAPI = new Set(ordenesAPI.map(o => o.id));
-                    const soloLocales = ordenes.filter(o => !idsAPI.has(o.id));
-                    const ordenesMerged = [...ordenesAPI, ...soloLocales];
-                    localStorage.setItem('axones_ordenes_trabajo', JSON.stringify(ordenesMerged));
-                    console.log('[ControlTiempo] Ordenes sincronizadas desde Sheets:', ordenesAPI.length);
-                    // Re-renderizar panel con datos actualizados
-                    this.renderPanelComandas(fase, contenedorId, onSeleccionarOrden);
-                }
-            }).catch(e => {
-                this._comandasLoading = false;
-                console.warn('[ControlTiempo] Error cargando ordenes desde API:', e.message);
-            });
-        }
+        // Ordenes se sincronizan via Supabase (sync-realtime.js)
 
         const ordenesDisponibles = ordenes.filter(o => o.estadoOrden !== 'completada');
 
@@ -977,23 +916,15 @@ const ControlTiempo = {
     },
 
     // ==================== SINCRONIZACION ENTRE USUARIOS ====================
+    // Sincronizacion se maneja via Supabase (sync-realtime.js)
 
     /**
-     * Inicia la sincronizacion periodica de temporizadores con la API
-     * Permite que multiples usuarios vean el mismo estado del timer
+     * Inicia la sincronizacion periodica de temporizadores via Supabase
+     * Los datos se sincronizan automaticamente via sync-realtime.js
      */
     iniciarSync: function() {
-        if (this._syncTimerId) return; // Ya esta corriendo
-
-        console.log('[ControlTiempo] Iniciando sincronizacion de timers cada ' + (this._syncInterval / 1000) + 's');
-
-        // Sync inmediato al iniciar
-        this.sincronizarConAPI();
-
-        // Polling periodico
-        this._syncTimerId = setInterval(() => {
-            this.recibirSyncRemoto();
-        }, this._syncInterval);
+        // Sincronizacion manejada por sync-realtime.js (Supabase)
+        console.log('[ControlTiempo] Sincronizacion via Supabase (sync-realtime.js)');
     },
 
     /**
@@ -1003,101 +934,6 @@ const ControlTiempo = {
         if (this._syncTimerId) {
             clearInterval(this._syncTimerId);
             this._syncTimerId = null;
-        }
-    },
-
-    /**
-     * Envia el estado COMPLETO de todos los timers a la API
-     * Se llama en cada play/pausa/completar/despacho
-     */
-    sincronizarConAPI: async function() {
-        if (typeof AxonesAPI === 'undefined') return;
-        if (this._syncEnCurso) return;
-
-        this._syncEnCurso = true;
-        try {
-            const registros = this.getRegistros();
-            const usuario = (typeof Auth !== 'undefined' && Auth.getUsuarioActual)
-                ? Auth.getUsuarioActual()?.usuario || 'desconocido'
-                : 'desconocido';
-
-            await AxonesAPI.post('saveControlTiempo', {
-                registros: registros,
-                timestamp: Date.now(),
-                usuario: usuario
-            });
-
-            this._lastSyncTimestamp = Date.now();
-            console.log('[ControlTiempo] Estado sincronizado con API');
-        } catch (e) {
-            console.warn('[ControlTiempo] Error sincronizando con API:', e.message);
-        } finally {
-            this._syncEnCurso = false;
-        }
-    },
-
-    /**
-     * Recibe estado de timers desde la API y merge con el estado local
-     * Resuelve conflictos: el estado mas reciente gana
-     */
-    recibirSyncRemoto: async function() {
-        if (typeof AxonesAPI === 'undefined') return;
-
-        try {
-            const result = await AxonesAPI.get('getControlTiempo', {
-                since: this._lastSyncTimestamp || 0
-            }, { skipCache: true });
-
-            if (!result || !result.success || !result.data) return;
-
-            const remoto = result.data;
-            if (!remoto.registros || !remoto.timestamp) return;
-
-            // Solo procesar si es mas reciente que nuestro ultimo sync
-            if (remoto.timestamp <= this._lastSyncTimestamp) return;
-
-            const registrosLocales = this.getRegistros();
-            const registrosRemotos = remoto.registros;
-            let cambios = false;
-
-            // Merge: para cada key, el registro con mas actividad reciente gana
-            Object.keys(registrosRemotos).forEach(key => {
-                const remotoReg = registrosRemotos[key];
-                const localReg = registrosLocales[key];
-
-                if (!localReg) {
-                    // No existe localmente - adoptar el remoto
-                    registrosLocales[key] = remotoReg;
-                    cambios = true;
-                    return;
-                }
-
-                // Determinar cual es mas reciente
-                const ultimoRemoto = this._getUltimaActividad(remotoReg);
-                const ultimoLocal = this._getUltimaActividad(localReg);
-
-                if (ultimoRemoto > ultimoLocal) {
-                    // El remoto es mas reciente - adoptar
-                    registrosLocales[key] = remotoReg;
-                    cambios = true;
-                }
-            });
-
-            if (cambios) {
-                this.saveRegistros(registrosLocales);
-                this._lastSyncTimestamp = remoto.timestamp;
-
-                // Re-renderizar los controles activos en pantalla
-                this._actualizarUISync(registrosLocales);
-
-                console.log('[ControlTiempo] Estado actualizado desde otro usuario');
-            } else {
-                this._lastSyncTimestamp = remoto.timestamp;
-            }
-
-        } catch (e) {
-            // Silencioso - no interrumpir UX por error de sync
-            console.warn('[ControlTiempo] Error recibiendo sync:', e.message);
         }
     },
 
@@ -1182,10 +1018,7 @@ if (typeof window !== 'undefined') {
 
 // Auto-iniciar sync cuando se carga la pagina
 document.addEventListener('DOMContentLoaded', function() {
-    // Esperar a que AxonesAPI se inicialice
-    setTimeout(function() {
-        if (typeof ControlTiempo !== 'undefined') {
-            ControlTiempo.iniciarSync();
-        }
-    }, 3000);
+    if (typeof ControlTiempo !== 'undefined') {
+        ControlTiempo.iniciarSync();
+    }
 });

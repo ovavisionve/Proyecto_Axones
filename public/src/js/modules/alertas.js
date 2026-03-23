@@ -131,36 +131,8 @@ const AlertasModule = {
         });
     },
 
-    // Cargar alertas (intenta API primero, fallback a localStorage)
+    // Cargar alertas desde localStorage (sincronizado con Supabase via sync-realtime.js)
     async cargarAlertas() {
-        // Intentar cargar desde API
-        try {
-            if (typeof AxonesAPI !== 'undefined') {
-                const response = await AxonesAPI.getAlertas({});
-                if (response.success && response.data) {
-                    // Guardar en localStorage como cache
-                    const alertasAPI = response.data.map(a => ({
-                        id: a.id,
-                        tipo: a.tipo,
-                        nivel: a.nivel,
-                        mensaje: a.mensaje,
-                        fecha: a.fecha,
-                        estado: (a.leida === true || a.leida === 'TRUE' || a.leida === 'true') ? 'resuelta' : 'pendiente',
-                        maquina: a.maquina || null,
-                        ot: a.referencia_id || null,
-                        datos: {}
-                    }));
-                    // Merge con alertas locales (priorizar las locales que no estan en API)
-                    const locales = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
-                    const idsAPI = new Set(alertasAPI.map(a => a.id));
-                    const merged = [...alertasAPI, ...locales.filter(l => !idsAPI.has(l.id))];
-                    localStorage.setItem('axones_alertas', JSON.stringify(merged));
-                }
-            }
-        } catch (e) {
-            console.warn('Error cargando alertas de API:', e);
-        }
-
         const alertas = this.obtenerAlertasFiltradas();
         this.actualizarEstadisticas(alertas);
         this.renderizarAlertas(alertas);
@@ -426,12 +398,6 @@ const AlertasModule = {
             alertas[index].fechaResolucion = new Date().toISOString();
             localStorage.setItem('axones_alertas', JSON.stringify(alertas));
 
-            // Marcar como leida en API
-            if (typeof AxonesAPI !== 'undefined') {
-                AxonesAPI.marcarAlertaLeida(this.config.alertaSeleccionada)
-                    .catch(e => console.warn('Error marcando alerta en API:', e));
-            }
-
             // Cerrar modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalDetalle'));
             if (modal) modal.hide();
@@ -478,18 +444,6 @@ const AlertasModule = {
 
         alertas.unshift(nuevaAlerta);
         localStorage.setItem('axones_alertas', JSON.stringify(alertas));
-
-        // Enviar a API en background
-        if (typeof AxonesAPI !== 'undefined') {
-            AxonesAPI.createAlerta({
-                tipo: tipo,
-                nivel: datos.nivel || 'warning',
-                mensaje: mensaje,
-                usuario_id: null,
-                referencia_id: datos.ot || null,
-                referencia_tipo: tipo
-            }).catch(e => console.warn('Error enviando alerta a API:', e));
-        }
 
         return nuevaAlerta;
     },

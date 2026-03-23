@@ -374,42 +374,11 @@ const Ordenes = {
     },
 
     /**
-     * Carga ordenes desde Google Sheets (API), fallback a localStorage
+     * Carga ordenes desde localStorage (sincronizado con Supabase via AxonesSync)
      */
     loadOrdenes: async function() {
-        // Cargar primero desde localStorage (incluye ordenes creadas localmente)
         const stored = localStorage.getItem('axones_ordenes_trabajo');
-        const ordenesLocales = stored ? JSON.parse(stored) : [];
-
-        try {
-            if (typeof AxonesAPI !== 'undefined') {
-                const result = await AxonesAPI.getOrdenes();
-                if (result && result.success && Array.isArray(result.data) && result.data.length > 0) {
-                    // Usar datosCompletos si existe (tiene todos los campos)
-                    const ordenesAPI = result.data.map(o => {
-                        if (o.datosCompletos && typeof o.datosCompletos === 'object') {
-                            return { ...o.datosCompletos, id: o.id, estado: o.estado, etapa: o.etapa };
-                        }
-                        return o;
-                    });
-
-                    // Merge: API + locales que no esten en API (por id)
-                    const idsAPI = new Set(ordenesAPI.map(o => o.id));
-                    const soloLocales = ordenesLocales.filter(o => !idsAPI.has(o.id));
-                    this.ordenes = [...ordenesAPI, ...soloLocales];
-
-                    localStorage.setItem('axones_ordenes_trabajo', JSON.stringify(this.ordenes));
-                    console.log('[Ordenes] Cargadas desde Sheets:', ordenesAPI.length, '+ locales:', soloLocales.length);
-                    this.filteredOrdenes = [...this.ordenes];
-                    return;
-                }
-            }
-        } catch (e) {
-            console.warn('[Ordenes] Error cargando desde API, usando localStorage:', e.message);
-        }
-
-        // Fallback a localStorage
-        this.ordenes = ordenesLocales;
+        this.ordenes = stored ? JSON.parse(stored) : [];
         this.filteredOrdenes = [...this.ordenes];
     },
 
@@ -1517,9 +1486,6 @@ const Ordenes = {
         // Guardar localmente como respaldo
         this.saveOrdenes();
 
-        // Sincronizar con Google Sheets
-        this.syncOrdenToSheets(ordenData, !!ordenId);
-
         // Aprender de esta orden para sugerencias futuras
         if (typeof ClienteMemoria !== 'undefined') {
             ClienteMemoria.aprenderDeOrden(ordenData);
@@ -1538,28 +1504,6 @@ const Ordenes = {
         // Limpiar formulario para nueva orden
         this.limpiarFormulario();
         this.generarNumeroOrden();
-    },
-
-    /**
-     * Sincroniza una orden con Google Sheets (async, no bloquea UI)
-     */
-    syncOrdenToSheets: async function(ordenData, isEdit) {
-        if (typeof AxonesAPI === 'undefined') return;
-        try {
-            let result;
-            if (isEdit) {
-                result = await AxonesAPI.updateOrden(ordenData.id, ordenData);
-            } else {
-                result = await AxonesAPI.createOrden(ordenData);
-            }
-            if (result && result.success) {
-                console.log('[Ordenes] Sincronizada con Sheets:', ordenData.numeroOrden);
-            } else {
-                console.warn('[Ordenes] Error sync Sheets:', result?.error);
-            }
-        } catch (e) {
-            console.warn('[Ordenes] Sin conexion, guardada localmente:', e.message);
-        }
     },
 
     /**
@@ -1665,30 +1609,6 @@ const Ordenes = {
             }
         });
         localStorage.setItem('axones_alertas', JSON.stringify(alertas));
-
-        // Enviar email inmediato
-        if (typeof AxonesAPI !== 'undefined') {
-            AxonesAPI.enviarAlertaEmail({
-                tipo: 'stock_insuficiente_pedido',
-                nivel: nivel,
-                mensaje: mensaje,
-                ot: orden.numeroOrden,
-                maquina: orden.maquina || ''
-            }).then(() => {
-                console.log('Email de alerta de stock enviado para ' + orden.numeroOrden);
-            }).catch(e => console.warn('Error enviando email:', e));
-        }
-
-        // Sincronizar alerta a Sheets
-        if (typeof AxonesAPI !== 'undefined') {
-            AxonesAPI.createAlerta({
-                tipo: 'stock_insuficiente_pedido',
-                nivel: nivel,
-                mensaje: mensaje,
-                referencia_id: orden.numeroOrden,
-                referencia_tipo: 'stock_insuficiente_pedido'
-            }).catch(e => console.warn('Error sincronizando alerta:', e));
-        }
 
         // Mostrar aviso visual pero NO bloquear la creacion de la OT
         if (typeof Axones !== 'undefined') {
@@ -1879,13 +1799,6 @@ const Ordenes = {
             this.saveOrdenes();
             this.renderTablaOrdenes();
 
-            // Sincronizar eliminacion con Sheets
-            if (typeof AxonesAPI !== 'undefined') {
-                AxonesAPI.deleteOrden(id).catch(e => {
-                    console.warn('[Ordenes] Error eliminando en Sheets:', e.message);
-                });
-            }
-
             if (typeof Axones !== 'undefined') {
                 Axones.showSuccess('Orden eliminada');
             }
@@ -1982,20 +1895,8 @@ const Ordenes = {
             enviarEmail: true
         };
 
-        try {
-            if (typeof AxonesAPI !== 'undefined') {
-                const result = await AxonesAPI.post('enviarAlertaEmail', datosAlerta);
-                if (result.success) {
-                    console.log('Alerta por email enviada exitosamente');
-                    this.registrarAlertaEmailEnviada(orden.id);
-                }
-            }
-            // Crear alerta local
-            this.crearAlertaConEmail(orden, diasRestantes, disponible);
-        } catch (error) {
-            console.error('Error enviando alerta por email:', error);
-            this.crearAlertaConEmail(orden, diasRestantes, disponible);
-        }
+        // Crear alerta local
+        this.crearAlertaConEmail(orden, diasRestantes, disponible);
     },
 
     /**
@@ -2178,23 +2079,8 @@ const Ordenes = {
             </div>
         `;
 
-        // Cargar historial desde API
-        try {
-            let historial = [];
-            if (typeof AxonesAPI !== 'undefined') {
-                const result = await AxonesAPI.getHistorialOrden(id);
-                if (result && result.success && Array.isArray(result.data)) {
-                    historial = result.data;
-                }
-            }
-
-            this.renderTimeline(historial, orden);
-        } catch (e) {
-            document.getElementById('historialTimeline').innerHTML =
-                '<div class="alert alert-warning">No se pudo cargar el historial del servidor. ' + e.message + '</div>';
-            // Mostrar historial local basico
-            this.renderTimelineLocal(orden);
-        }
+        // Renderizar historial local
+        this.renderTimeline([], orden);
     },
 
     /**

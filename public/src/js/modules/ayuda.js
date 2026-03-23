@@ -142,8 +142,7 @@ const AyudaBot = {
             titulo: 'Panel de Administracion',
             pasos: [
                 '1. Configuracion de Backend:',
-                '   - URL de Google Apps Script: Conecta con la hoja de calculo',
-                '   - ID de Google Sheets: Identifica tu spreadsheet',
+                '   - Backend: Supabase (fuente unica de verdad)',
                 '   - API Key de Groq: Habilita el chatbot con IA',
                 '2. Umbrales de Refil:',
                 '   - Advertencia: Genera alerta amarilla (default 5%)',

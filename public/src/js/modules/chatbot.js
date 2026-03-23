@@ -7,10 +7,10 @@ const Chatbot = {
     // Historial de conversacion
     conversationHistory: [],
 
-    // Datos de cuentas por cobrar (se cargan de Sheets)
+    // Datos de cuentas por cobrar (se cargan de Supabase/localStorage)
     cuentasPorCobrar: [],
 
-    // Datos de produccion (se cargan de localStorage/API)
+    // Datos de produccion (se cargan de localStorage)
     datosProduccion: [],
 
     /**
@@ -79,24 +79,12 @@ const Chatbot = {
     },
 
     /**
-     * Carga datos de produccion desde localStorage y API
+     * Carga datos de produccion desde localStorage
      */
-    loadDatosProduccion: async function() {
-        // Cargar de localStorage
+    loadDatosProduccion: function() {
+        // Cargar de localStorage (sincronizado con Supabase via sync-realtime.js)
         this.datosProduccion = JSON.parse(localStorage.getItem('axones_produccion') || '[]');
-
-        // Intentar cargar de API si AxonesAPI esta disponible
-        try {
-            if (typeof AxonesAPI !== 'undefined') {
-                const response = await AxonesAPI.getProduccion({});
-                if (response.success && response.data && response.data.length > 0) {
-                    this.datosProduccion = response.data;
-                    console.log('Chatbot: cargados', this.datosProduccion.length, 'registros de produccion');
-                }
-            }
-        } catch (e) {
-            console.warn('Chatbot: usando datos locales de produccion');
-        }
+        console.log('Chatbot: cargados', this.datosProduccion.length, 'registros de produccion');
     },
 
     /**
@@ -135,24 +123,10 @@ const Chatbot = {
     },
 
     /**
-     * Carga las cuentas por cobrar desde Google Sheets o localStorage
+     * Carga las cuentas por cobrar desde localStorage (sincronizado con Supabase)
      */
-    loadCuentasPorCobrar: async function() {
-        // Intentar cargar desde API primero
-        if (typeof AxonesAPI !== 'undefined' && CONFIG.API.BASE_URL !== '') {
-            try {
-                const response = await AxonesAPI.getCuentasPorCobrar();
-                if (response.success && response.data && response.data.length > 0) {
-                    this.cuentasPorCobrar = this.procesarCuentasDesdeAPI(response.data);
-                    console.log('Chatbot: Cuentas por cobrar cargadas desde API');
-                    return;
-                }
-            } catch (error) {
-                console.warn('Error cargando cuentas por cobrar desde API:', error);
-            }
-        }
-
-        // Intentar cargar desde localStorage (cache)
+    loadCuentasPorCobrar: function() {
+        // Cargar desde localStorage (sincronizado con Supabase via sync-realtime.js)
         const cached = localStorage.getItem('axones_cuentas_por_cobrar');
         if (cached) {
             try {
@@ -166,7 +140,7 @@ const Chatbot = {
 
         // Si no hay datos, mostrar array vacio con mensaje
         this.cuentasPorCobrar = [];
-        console.log('Chatbot: No hay datos de cuentas por cobrar. Configure la hoja de Google Sheets.');
+        console.log('Chatbot: No hay datos de cuentas por cobrar.');
     },
 
     /**
@@ -675,7 +649,7 @@ const Chatbot = {
         if (pagos.length === 0) {
             return '**Pagos recientes:**\n\n' +
                    'No hay pagos registrados en el sistema.\n\n' +
-                   '*Para registrar pagos, configure la hoja de Google Sheets correspondiente.*';
+                   '*Para registrar pagos, ingreselos en el sistema.*';
         }
 
         // Filtrar pagos de la ultima semana

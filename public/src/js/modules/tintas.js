@@ -379,10 +379,253 @@ const Tintas = {
     },
 
     // =========================================================
-    // TAB 2: INVENTARIO (Fase 2B - placeholder)
+    // TAB 2: INVENTARIO
     // =========================================================
+    _filtroActivo: 'todas',
+
     initInventario: function() {
-        // TODO: Fase 2B
+        this.renderInventario();
+        this.setupInventarioEvents();
+    },
+
+    /** Obtiene inventario de tintas desde localStorage */
+    getInventario: function() {
+        return JSON.parse(localStorage.getItem('axones_tintas_inventario') || '[]');
+    },
+
+    /** Guarda inventario de tintas en localStorage */
+    saveInventario: function(data) {
+        localStorage.setItem('axones_tintas_inventario', JSON.stringify(data));
+    },
+
+    /** Renderiza la tabla de inventario con filtros */
+    renderInventario: function() {
+        const body = document.getElementById('bodyInventario');
+        if (!body) return;
+
+        let items = this.getInventario();
+        const busqueda = (document.getElementById('buscarTinta')?.value || '').toLowerCase();
+
+        // Filtrar por categoria
+        if (this._filtroActivo !== 'todas') {
+            items = items.filter(t => t.categoria === this._filtroActivo);
+        }
+
+        // Filtrar por busqueda
+        if (busqueda) {
+            items = items.filter(t =>
+                (t.nombre || '').toLowerCase().includes(busqueda) ||
+                (t.proveedor || '').toLowerCase().includes(busqueda) ||
+                (t.lote || '').toLowerCase().includes(busqueda)
+            );
+        }
+
+        // Actualizar contadores
+        const all = this.getInventario();
+        const setCount = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        setCount('countTodas', all.length);
+        setCount('countOriginales', all.filter(t => t.categoria === 'original').length);
+        setCount('countSolventadas', all.filter(t => t.categoria === 'solventada').length);
+        setCount('countArregladas', all.filter(t => t.categoria === 'arreglada').length);
+
+        if (items.length === 0) {
+            body.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">No hay tintas en inventario</td></tr>';
+            return;
+        }
+
+        body.innerHTML = items.map(t => {
+            const badgeClass = t.categoria === 'original' ? 'badge-original' :
+                               t.categoria === 'solventada' ? 'badge-solventada' : 'badge-arreglada';
+            const stock = parseFloat(t.stock) || 0;
+            const stockMin = parseFloat(t.stockMin) || 0;
+            const pct = stockMin > 0 ? Math.min(100, (stock / stockMin) * 100) : 100;
+            const barColor = pct < 30 ? '#dc3545' : pct < 60 ? '#ffc107' : '#198754';
+
+            return `<tr class="tinta-row" data-id="${t.id}">
+                <td><span class="color-dot" style="background:${t.color || '#999'};border:1px solid #ccc;"></span></td>
+                <td><strong>${t.nombre || ''}</strong></td>
+                <td><small>${t.tipo === 'laminacion' ? 'Laminacion' : 'Superficie'}</small></td>
+                <td><span class="badge ${badgeClass}">${t.categoria || 'original'}</span></td>
+                <td>
+                    <strong>${stock.toFixed(2)}</strong> Kg
+                    <div class="stock-bar mt-1"><div class="stock-bar-fill" style="width:${pct}%;background:${barColor};"></div></div>
+                </td>
+                <td><small>${t.proveedor || '-'}</small></td>
+                <td><small>${t.lote || '-'}</small></td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary btn-edit-tinta" data-id="${t.id}" title="Editar">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger btn-archivar-tinta" data-id="${t.id}" title="Archivar">
+                        <i class="bi bi-archive"></i>
+                    </button>
+                </td>
+            </tr>`;
+        }).join('');
+    },
+
+    /** Event listeners para tab Inventario */
+    setupInventarioEvents: function() {
+        // Filtros
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this._filtroActivo = btn.dataset.filter;
+                this.renderInventario();
+            });
+        });
+
+        // Busqueda
+        const buscar = document.getElementById('buscarTinta');
+        if (buscar) {
+            buscar.addEventListener('input', () => this.renderInventario());
+        }
+
+        // Boton nueva tinta
+        const btnAgregar = document.getElementById('btnAgregarTinta');
+        if (btnAgregar) {
+            btnAgregar.addEventListener('click', () => this.abrirModalTinta());
+        }
+
+        // Mostrar/ocultar campos solventada
+        const catSelect = document.getElementById('tintaCategoria');
+        if (catSelect) {
+            catSelect.addEventListener('change', () => {
+                const campos = document.getElementById('camposSolventada');
+                if (campos) {
+                    campos.style.display = (catSelect.value === 'solventada' || catSelect.value === 'arreglada') ? 'block' : 'none';
+                }
+            });
+        }
+
+        // Guardar tinta desde modal
+        const btnGuardar = document.getElementById('btnGuardarTinta');
+        if (btnGuardar) {
+            btnGuardar.addEventListener('click', () => this.guardarTinta());
+        }
+
+        // Delegacion de eventos en tabla
+        const tabla = document.getElementById('tablaInventario');
+        if (tabla) {
+            tabla.addEventListener('click', (e) => {
+                const btnEdit = e.target.closest('.btn-edit-tinta');
+                const btnArch = e.target.closest('.btn-archivar-tinta');
+
+                if (btnEdit) {
+                    this.abrirModalTinta(btnEdit.dataset.id);
+                } else if (btnArch) {
+                    this.abrirModalArchivar(btnArch.dataset.id);
+                }
+            });
+        }
+    },
+
+    /** Abre modal para nueva tinta o editar existente */
+    abrirModalTinta: function(id) {
+        const title = document.getElementById('modalTintaTitle');
+        const editId = document.getElementById('tintaEditId');
+
+        // Reset form
+        ['tintaNombre', 'tintaLote', 'tintaBase', 'tintaProporcion', 'tintaNotas'].forEach(fid => {
+            const el = document.getElementById(fid);
+            if (el) el.value = '';
+        });
+        document.getElementById('tintaStock').value = '0';
+        document.getElementById('tintaStockMin').value = '0';
+        document.getElementById('tintaColor').value = '#00CED1';
+        document.getElementById('tintaTipo').value = 'laminacion';
+        document.getElementById('tintaCategoria').value = 'original';
+        document.getElementById('tintaProveedor').value = '';
+        const campos = document.getElementById('camposSolventada');
+        if (campos) campos.style.display = 'none';
+
+        if (id) {
+            // Editar
+            const items = this.getInventario();
+            const tinta = items.find(t => t.id === id);
+            if (!tinta) return;
+
+            if (title) title.innerHTML = '<i class="bi bi-pencil me-2"></i>Editar Tinta';
+            if (editId) editId.value = id;
+
+            document.getElementById('tintaNombre').value = tinta.nombre || '';
+            document.getElementById('tintaColor').value = tinta.color || '#00CED1';
+            document.getElementById('tintaTipo').value = tinta.tipo || 'laminacion';
+            document.getElementById('tintaCategoria').value = tinta.categoria || 'original';
+            document.getElementById('tintaStock').value = tinta.stock || 0;
+            document.getElementById('tintaStockMin').value = tinta.stockMin || 0;
+            document.getElementById('tintaProveedor').value = tinta.proveedor || '';
+            document.getElementById('tintaLote').value = tinta.lote || '';
+            document.getElementById('tintaNotas').value = tinta.notas || '';
+
+            if (tinta.categoria === 'solventada' || tinta.categoria === 'arreglada') {
+                if (campos) campos.style.display = 'block';
+                document.getElementById('tintaBase').value = tinta.tintaBase || '';
+                document.getElementById('tintaProporcion').value = tinta.proporcion || '';
+            }
+        } else {
+            if (title) title.innerHTML = '<i class="bi bi-droplet me-2"></i>Nueva Tinta';
+            if (editId) editId.value = '';
+        }
+
+        const modal = new bootstrap.Modal(document.getElementById('modalTinta'));
+        modal.show();
+    },
+
+    /** Guarda tinta nueva o editada */
+    guardarTinta: function() {
+        const nombre = document.getElementById('tintaNombre')?.value?.trim();
+        if (!nombre) {
+            this.mostrarToast('El nombre es requerido', 'warning');
+            return;
+        }
+
+        const editId = document.getElementById('tintaEditId')?.value;
+        const items = this.getInventario();
+
+        const tintaData = {
+            id: editId || 'TINTA_' + Date.now(),
+            nombre: nombre,
+            color: document.getElementById('tintaColor')?.value || '#00CED1',
+            tipo: document.getElementById('tintaTipo')?.value || 'laminacion',
+            categoria: document.getElementById('tintaCategoria')?.value || 'original',
+            stock: parseFloat(document.getElementById('tintaStock')?.value) || 0,
+            stockMin: parseFloat(document.getElementById('tintaStockMin')?.value) || 0,
+            proveedor: document.getElementById('tintaProveedor')?.value || '',
+            lote: document.getElementById('tintaLote')?.value || '',
+            notas: document.getElementById('tintaNotas')?.value || '',
+            tintaBase: document.getElementById('tintaBase')?.value || '',
+            proporcion: document.getElementById('tintaProporcion')?.value || '',
+            updatedAt: new Date().toISOString(),
+        };
+
+        if (editId) {
+            const idx = items.findIndex(t => t.id === editId);
+            if (idx >= 0) {
+                tintaData.createdAt = items[idx].createdAt;
+                items[idx] = tintaData;
+            }
+        } else {
+            tintaData.createdAt = new Date().toISOString();
+            items.unshift(tintaData);
+        }
+
+        this.saveInventario(items);
+        this.renderInventario();
+
+        bootstrap.Modal.getInstance(document.getElementById('modalTinta'))?.hide();
+        this.mostrarToast(editId ? 'Tinta actualizada' : 'Tinta agregada al inventario', 'success');
+    },
+
+    /** Abre modal para archivar tinta (enviar a cementerio) */
+    abrirModalArchivar: function(id) {
+        const el = document.getElementById('archivarId');
+        if (el) el.value = id;
+        document.getElementById('archivarMotivo').value = 'agotada';
+
+        const modal = new bootstrap.Modal(document.getElementById('modalArchivar'));
+        modal.show();
     },
 
     // =========================================================

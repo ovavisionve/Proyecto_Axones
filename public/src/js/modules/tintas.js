@@ -921,10 +921,199 @@ const Tintas = {
     },
 
     // =========================================================
-    // TAB 4: MEZCLAS (Fase 2D - placeholder)
+    // TAB 4: MEZCLAS (COLORISTA)
     // =========================================================
+    _componenteCount: 0,
+
     initMezclas: function() {
-        // TODO: Fase 2D
+        this.agregarComponente();
+        this.setupMezclasEvents();
+        this.renderMezclas();
+    },
+
+    setupMezclasEvents: function() {
+        const btnAgregar = document.getElementById('btnAgregarComponente');
+        if (btnAgregar) {
+            btnAgregar.addEventListener('click', () => this.agregarComponente());
+        }
+
+        const btnGuardar = document.getElementById('btnGuardarMezcla');
+        if (btnGuardar) {
+            btnGuardar.addEventListener('click', () => this.guardarMezcla());
+        }
+    },
+
+    agregarComponente: function() {
+        const container = document.getElementById('mezclaComponentes');
+        if (!container) return;
+
+        this._componenteCount++;
+        const idx = this._componenteCount;
+
+        const html = `
+            <div class="mezcla-item d-flex gap-2 align-items-center" id="comp_${idx}">
+                <input type="text" class="form-control form-control-sm comp-nombre" placeholder="Nombre tinta" style="flex:2;">
+                <input type="number" class="form-control form-control-sm comp-kg" placeholder="Kg" step="0.01" min="0" style="flex:1;">
+                <button class="btn btn-sm btn-outline-danger" onclick="document.getElementById('comp_${idx}').remove();">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>`;
+        container.insertAdjacentHTML('beforeend', html);
+    },
+
+    recopilarComponentes: function() {
+        const items = [];
+        document.querySelectorAll('.mezcla-item').forEach(el => {
+            const nombre = el.querySelector('.comp-nombre')?.value?.trim();
+            const kg = parseFloat(el.querySelector('.comp-kg')?.value) || 0;
+            if (nombre && kg > 0) {
+                items.push({ nombre, kg });
+            }
+        });
+        return items;
+    },
+
+    guardarMezcla: async function() {
+        const nombre = document.getElementById('mezclaNombre')?.value?.trim();
+        if (!nombre) {
+            this.mostrarToast('El nombre de la mezcla es requerido', 'warning');
+            return;
+        }
+
+        const componentes = this.recopilarComponentes();
+        if (componentes.length === 0) {
+            this.mostrarToast('Agrega al menos un componente con Kg', 'warning');
+            return;
+        }
+
+        const totalKg = componentes.reduce((sum, c) => sum + c.kg, 0);
+
+        const mezcla = {
+            nombre: nombre,
+            tipo: document.getElementById('mezclaTipo')?.value || 'laminacion',
+            numero_ot: document.getElementById('mezclaOT')?.value || null,
+            componentes: componentes,
+            solvente: document.getElementById('mezclaSolvente')?.value || null,
+            solvente_cantidad: parseFloat(document.getElementById('mezclaSolventeCant')?.value) || 0,
+            total_kg: totalKg,
+            notas: document.getElementById('mezclaNotas')?.value || '',
+            creado_por: (typeof Auth !== 'undefined' && Auth.getUser()) ? Auth.getUser().id : null,
+            creado_por_nombre: (typeof Auth !== 'undefined' && Auth.getUser()) ? Auth.getUser().nombre : 'Unknown',
+        };
+
+        try {
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                await AxonesDB.client.from('tintas_mezclas').insert(mezcla);
+            } else {
+                const mezclas = JSON.parse(localStorage.getItem('axones_tintas_mezclas') || '[]');
+                mezcla.id = 'MEZ_' + Date.now();
+                mezcla.created_at = new Date().toISOString();
+                mezclas.unshift(mezcla);
+                localStorage.setItem('axones_tintas_mezclas', JSON.stringify(mezclas));
+            }
+
+            this.mostrarToast('Mezcla guardada correctamente', 'success');
+            this.limpiarFormMezcla();
+            this.renderMezclas();
+        } catch (err) {
+            console.error('Error guardando mezcla:', err);
+            this.mostrarToast('Error al guardar mezcla', 'danger');
+        }
+    },
+
+    limpiarFormMezcla: function() {
+        ['mezclaNombre', 'mezclaOT', 'mezclaNotas'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+        document.getElementById('mezclaSolventeCant').value = '0';
+        document.getElementById('mezclaSolvente').value = '';
+        document.getElementById('mezclaTipo').value = 'laminacion';
+
+        const container = document.getElementById('mezclaComponentes');
+        if (container) container.innerHTML = '';
+        this._componenteCount = 0;
+        this.agregarComponente();
+    },
+
+    renderMezclas: async function() {
+        const container = document.getElementById('listaMezclas');
+        if (!container) return;
+
+        let mezclas = [];
+        try {
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                const { data } = await AxonesDB.client
+                    .from('tintas_mezclas')
+                    .select('*')
+                    .eq('activo', true)
+                    .order('created_at', { ascending: false })
+                    .limit(50);
+                mezclas = data || [];
+            } else {
+                mezclas = JSON.parse(localStorage.getItem('axones_tintas_mezclas') || '[]');
+            }
+        } catch (err) {
+            console.error('Error cargando mezclas:', err);
+            mezclas = JSON.parse(localStorage.getItem('axones_tintas_mezclas') || '[]');
+        }
+
+        if (mezclas.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center py-3">No hay mezclas guardadas</p>';
+            return;
+        }
+
+        container.innerHTML = mezclas.map(m => {
+            const comps = (m.componentes || []).map(c =>
+                `<span class="badge bg-light text-dark me-1">${c.nombre}: ${c.kg} Kg</span>`
+            ).join('');
+
+            const fecha = m.created_at ? new Date(m.created_at).toLocaleDateString('es-VE') : '-';
+            const solvInfo = m.solvente ? `<small class="text-muted">Solvente: ${m.solvente} (${m.solvente_cantidad} Lt)</small>` : '';
+
+            return `
+                <div class="mezcla-item">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong>${m.nombre}</strong>
+                            <span class="badge bg-${m.tipo === 'laminacion' ? 'primary' : 'warning'} ms-2">${m.tipo}</span>
+                            ${m.numero_ot ? '<span class="badge bg-secondary ms-1">' + m.numero_ot + '</span>' : ''}
+                        </div>
+                        <div>
+                            <strong>${(m.total_kg || 0).toFixed(2)} Kg</strong>
+                            <button class="btn btn-sm btn-outline-danger ms-2 btn-eliminar-mezcla" data-id="${m.id}" title="Eliminar">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-1">${comps}</div>
+                    ${solvInfo}
+                    <div class="mt-1">
+                        <small class="text-muted">${fecha} - ${m.creado_por_nombre || 'Sistema'}</small>
+                        ${m.notas ? '<br><small class="text-muted fst-italic">' + m.notas + '</small>' : ''}
+                    </div>
+                </div>`;
+        }).join('');
+
+        // Eliminar mezcla
+        container.querySelectorAll('.btn-eliminar-mezcla').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                if (!confirm('¿Eliminar esta mezcla?')) return;
+                try {
+                    if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                        await AxonesDB.client.from('tintas_mezclas').update({ activo: false }).eq('id', btn.dataset.id);
+                    } else {
+                        let mezclas = JSON.parse(localStorage.getItem('axones_tintas_mezclas') || '[]');
+                        mezclas = mezclas.filter(m => m.id !== btn.dataset.id);
+                        localStorage.setItem('axones_tintas_mezclas', JSON.stringify(mezclas));
+                    }
+                    this.mostrarToast('Mezcla eliminada', 'success');
+                    this.renderMezclas();
+                } catch (err) {
+                    this.mostrarToast('Error al eliminar', 'danger');
+                }
+            });
+        });
     },
 
     // =========================================================

@@ -20,40 +20,35 @@ const HomeModule = {
         this.iniciarActualizacionAutomatica();
     },
 
-    // Verificar conexion con Google Sheets API
+    // Verificar conexion con Supabase
     async verificarConexion() {
         const badge = document.getElementById('conexionBadge');
         if (!badge) return;
 
-        // Verificar si CONFIG existe y tiene URL
-        if (typeof CONFIG === 'undefined' || !CONFIG.API || !CONFIG.API.BASE_URL) {
-            badge.className = 'ms-2 badge bg-secondary';
-            badge.innerHTML = '<i class="bi bi-database-x me-1"></i>Sin configurar';
+        // Verificar si AxonesDB (Supabase) esta disponible
+        if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+            badge.className = 'ms-2 badge bg-success';
+            badge.innerHTML = '<i class="bi bi-cloud-check me-1"></i>Conectado a Supabase';
+            console.log('Conexion a Supabase activa');
             return;
         }
 
+        // Intentar inicializar AxonesDB
         try {
-            const response = await fetch(CONFIG.API.BASE_URL + '?action=ping', {
-                method: 'GET',
-                mode: 'cors'
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
+            if (typeof AxonesDB !== 'undefined') {
+                await AxonesDB.init();
+                if (AxonesDB.isReady()) {
                     badge.className = 'ms-2 badge bg-success';
-                    badge.innerHTML = '<i class="bi bi-cloud-check me-1"></i>Conectado a Sheets';
-                    console.log('Conexion a Google Sheets exitosa:', data);
-                } else {
-                    throw new Error(data.error || 'Error en respuesta');
+                    badge.innerHTML = '<i class="bi bi-cloud-check me-1"></i>Conectado a Supabase';
+                    return;
                 }
-            } else {
-                throw new Error('HTTP ' + response.status);
             }
+            badge.className = 'ms-2 badge bg-warning text-dark';
+            badge.innerHTML = '<i class="bi bi-database me-1"></i>Modo local';
         } catch (error) {
             badge.className = 'ms-2 badge bg-danger';
             badge.innerHTML = '<i class="bi bi-cloud-slash me-1"></i>Sin conexion';
-            console.error('Error de conexion:', error.message);
+            console.error('Error de conexion Supabase:', error.message);
         }
     },
 

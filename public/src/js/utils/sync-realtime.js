@@ -164,6 +164,7 @@ const AxonesSync = (() => {
 
         /**
          * Descarga todos los datos del cloud al localStorage
+         * SUPABASE ES LA FUENTE DE VERDAD - siempre gana el cloud
          */
         async _download() {
             try {
@@ -173,34 +174,33 @@ const AxonesSync = (() => {
 
                 if (error) throw error;
 
+                // Limpiar keys de Axones en localStorage antes de cargar del cloud
+                // Esto evita que datos demo o viejos persistan
+                _syncing = true;
+                for (const key of SYNC_KEYS) {
+                    _origSetItem(key, '[]');
+                }
+
                 if (!data || data.length === 0) {
-                    // Primera vez: subir datos locales al cloud
-                    console.log('[AxonesSync] Primera sincronizacion - subiendo datos locales...');
-                    await this._uploadAll();
+                    console.log('[AxonesSync] sync_store vacio - localStorage limpio');
+                    _syncing = false;
                     return;
                 }
 
-                // Aplicar datos del cloud al localStorage
-                _syncing = true;
+                // Aplicar datos del cloud al localStorage (cloud SIEMPRE gana)
                 let count = 0;
                 for (const row of data) {
                     if (SYNC_KEYS.includes(row.key) && row.value != null) {
                         const cloudVal = JSON.stringify(row.value);
-                        const localVal = localStorage.getItem(row.key);
-
-                        // Si el cloud tiene datos y el local no, o cloud es mas reciente
-                        if (!localVal || this._isCloudNewer(row.key, row.updated_at)) {
-                            _origSetItem(row.key, cloudVal);
-                            _origSetItem(row.key + '_sync_ts', row.updated_at);
-                            count++;
-                        }
+                        _origSetItem(row.key, cloudVal);
+                        _origSetItem(row.key + '_sync_ts', row.updated_at);
+                        count++;
                     }
                 }
                 _syncing = false;
 
                 if (count > 0) {
                     console.log(`[AxonesSync] ${count} keys descargadas del cloud`);
-                    // Notificar a la UI para que se refresque
                     window.dispatchEvent(new CustomEvent('axones-sync', {
                         detail: { type: 'download', count: count }
                     }));
@@ -213,18 +213,11 @@ const AxonesSync = (() => {
         },
 
         /**
-         * Sube todos los datos locales al cloud (primera vez)
+         * Sube todos los datos locales al cloud
+         * DESHABILITADO: Supabase es la fuente de verdad, no se sube basura local
          */
         async _uploadAll() {
-            const promises = [];
-            for (const key of SYNC_KEYS) {
-                const val = localStorage.getItem(key);
-                if (val && val !== '[]' && val !== '{}' && val !== 'null') {
-                    promises.push(this._upload(key, val));
-                }
-            }
-            await Promise.allSettled(promises);
-            console.log('[AxonesSync] Datos locales subidos al cloud');
+            console.log('[AxonesSync] _uploadAll deshabilitado - Supabase es fuente de verdad');
         },
 
         /**

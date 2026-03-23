@@ -604,3 +604,47 @@ ALTER PUBLICATION supabase_realtime ADD TABLE produccion_impresion;
 ALTER PUBLICATION supabase_realtime ADD TABLE produccion_laminacion;
 ALTER PUBLICATION supabase_realtime ADD TABLE produccion_corte;
 ALTER PUBLICATION supabase_realtime ADD TABLE despachos;
+
+-- ============================================================
+-- SYNC STORE - Tabla key-value para sincronizar localStorage
+-- en tiempo real entre todos los usuarios
+-- ============================================================
+CREATE TABLE IF NOT EXISTS sync_store (
+    key TEXT PRIMARY KEY,
+    value JSONB NOT NULL DEFAULT '{}',
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_by TEXT DEFAULT 'sistema'
+);
+
+ALTER TABLE sync_store ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "sync_store_all" ON sync_store FOR ALL USING (true) WITH CHECK (true);
+ALTER PUBLICATION supabase_realtime ADD TABLE sync_store;
+
+-- ============================================================
+-- CONSUMO DE TINTAS - Registro de uso de tintas por OT
+-- (NO descuenta del inventario, solo registra)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS consumo_tintas (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    fecha DATE NOT NULL DEFAULT CURRENT_DATE,
+    numero_ot TEXT,
+    orden_id UUID REFERENCES ordenes_trabajo(id),
+    cliente TEXT,
+    producto TEXT,
+    maquina TEXT,
+    turno TEXT,
+    -- Consumos por color (JSONB flexible)
+    tintas_laminacion JSONB DEFAULT '{}',
+    tintas_superficie JSONB DEFAULT '{}',
+    solventes JSONB DEFAULT '{}',
+    total_tintas_kg NUMERIC(10,2) DEFAULT 0,
+    total_solventes_lt NUMERIC(10,2) DEFAULT 0,
+    observaciones TEXT,
+    registrado_por UUID REFERENCES usuarios(id),
+    registrado_por_nombre TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE consumo_tintas ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "consumo_tintas_all" ON consumo_tintas FOR ALL USING (true) WITH CHECK (true);
+ALTER PUBLICATION supabase_realtime ADD TABLE consumo_tintas;

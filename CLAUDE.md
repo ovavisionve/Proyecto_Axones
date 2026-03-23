@@ -3,8 +3,8 @@
 ## Descripcion del Proyecto
 Sistema integral de gestion y control de produccion para **Inversiones Axones 2008, C.A.** - empresa de empaques flexibles plasticos en Venezuela.
 
-**Version:** 1.2.0
-**Ultima actualizacion:** 2026-03-20
+**Version:** 1.3.0
+**Ultima actualizacion:** 2026-03-23
 
 ## URLs de Vercel
 - **Desarrollo:** https://proyecto-axones-git-claude-setup-axones-project-ja8zk-ova1.vercel.app/
@@ -30,7 +30,7 @@ public/
 ├── corte.html              # Modulo de corte (3 cortadoras)
 ├── inventario.html         # Inventario (158 productos reales)
 ├── programacion.html       # Programacion Kanban de ordenes
-├── tintas.html             # Gestion de tintas y solventes
+├── tintas.html             # Gestion de tintas (4 tabs: Consumo, Inventario, Cementerio, Mezclas)
 ├── certificado.html        # Certificados de calidad
 ├── etiquetas.html          # Generador de etiquetas
 ├── reportes.html           # Reportes y estadisticas
@@ -49,7 +49,7 @@ public/
 │   │   ├── corte.js        # Logica de corte
 │   │   ├── inventario.js   # Inventario con 158 productos reales
 │   │   ├── programacion.js # Kanban de programacion
-│   │   ├── tintas.js       # Gestion de tintas
+│   │   ├── tintas.js       # Gestion de tintas (reescrito: 4 tabs con Supabase)
 │   │   ├── certificado.js  # Certificados de calidad
 │   │   ├── etiquetas.js    # Generador de etiquetas
 │   │   ├── reportes.js     # Reportes
@@ -63,19 +63,23 @@ public/
 │   └── utils/
 │       ├── config.js           # Configuracion global (IMPORTANTE)
 │       ├── control-tiempo.js   # Control de tiempo Play/Pausa/Completar
-│       ├── demoData.js         # Datos de demo (NO sobrescribe inventario)
+│       ├── demoData.js         # Datos de demo (DESACTIVADO - Supabase es fuente de verdad)
 │       ├── auth.js             # Autenticacion de usuarios
-│       ├── api.js              # Conexion con Google Sheets
+│       ├── api.js              # Conexion con Google Sheets (legacy)
+│       ├── supabase-client.js  # Cliente Supabase (fuente unica de verdad)
+│       ├── sync-realtime.js    # Sincronizacion localStorage <-> Supabase en tiempo real
 │       ├── cliente-memoria.js  # Memoria de clientes
 │       ├── inventario-service.js # Servicio de inventario
 │       └── theme.js            # Tema oscuro/claro
+supabase/
+├── seed-inventario.sql     # Seed SQL: 158 materiales, 58 tintas, 7 adhesivos
 ```
 
 ## Inventario Real
-- **158 productos** cargados desde Excel (26-02-2026)
-- Ubicado en `inventario.js` funcion `getDatosEjemplo()`
+- **158 materiales + 58 tintas + 7 adhesivos** en Supabase (seed SQL)
+- Backup en `inventario.js` funcion `getDatosEjemplo()` (158 productos desde Excel 26-02-2026)
 - Tipos de material: BOPP NORMAL, BOPP MATE, BOPP PASTA, CAST, METAL, PERLADO, PEBD, PEBD PIGMENT
-- **IMPORTANTE:** `demoData.js` NO debe sobrescribir el inventario
+- **IMPORTANTE:** `demoData.js` auto-init DESACTIVADO - Supabase es fuente de verdad
 
 ### SKU y Codigos de Barras
 Cada producto tiene:
@@ -321,11 +325,34 @@ ControlTiempo.getResumenOrden(ordenId)           // Resumen de todas las fases
 
 ## APIs y Servicios Externos
 
-### Google Sheets
+### Supabase (FUENTE UNICA DE VERDAD)
+```javascript
+SUPABASE_URL = 'https://lzjuzfbzgyjazhzhfhzv.supabase.co'
+```
+- **Supabase reemplaza localStorage y Google Sheets** como fuente de verdad
+- `supabase-client.js`: cliente con CRUD generico para todas las tablas
+- `sync-realtime.js`: intercepta localStorage, sincroniza con tabla `sync_store` en Supabase
+- Al cargar cada pagina, descarga datos desde Supabase (la nube siempre gana)
+- `sync-realtime.js` esta incluido en las **20 paginas HTML**
+- Badge del sistema cambiado: "Conectado a Sheets" -> "Conectado a Supabase"
+
+#### Tablas Supabase
+| Tabla | Descripcion |
+|-------|-------------|
+| sync_store | Almacen clave-valor para sincronizar localStorage |
+| tintas_cementerio | Tintas archivadas (soft-delete) |
+| tintas_mezclas | Recetas de mezclas del colorista |
+| consumo_tintas | Registro de consumo de tintas por OT |
+
+#### Seed SQL
+`supabase/seed-inventario.sql` contiene la carga inicial: 158 materiales, 58 tintas, 7 adhesivos.
+
+### Google Sheets (Legacy)
 ```javascript
 CONFIG.API.BASE_URL = 'https://script.google.com/macros/s/AKfycbziy293l5ew920CUt9gy11EWmESGbMa7-HmX4SJCAEUW574s7fWMX2iKZqNhA8qJjJb/exec'
 CONFIG.API.SHEETS_ID = '1TOpqDc-X4kthwYNzduGYO6MpN1dOdvbjqIIoW_oYL88'
 ```
+*Ya no es fuente de verdad. Supabase la reemplaza.*
 
 ### Chatbot (Groq LLaMA)
 ```javascript
@@ -375,11 +402,13 @@ CONFIG.CHATBOT.MODEL = 'llama-3.3-70b-versatile'
 ### AREA DE CORTE/EMBALAJE
 - [x] Metros/Bobina: calculado automaticamente (Peso / Gramaje)
 
-### TINTAS Y SOLVENTES (PENDIENTE)
-- [ ] Atados a orden de trabajo pero editables
-- [ ] Preparados dentro de produccion
+### TINTAS Y SOLVENTES (REESCRITO)
+- [x] Modulo tintas reescrito con 4 tabs - IMPLEMENTADO
+- [x] Tab Consumo por OT: registro de consumo (no descuenta inventario) - IMPLEMENTADO
+- [x] Tab Inventario: CRUD con filtros (original/solventada/arreglada) - IMPLEMENTADO
+- [x] Tab Cementerio: archivar/restaurar tintas via Supabase - IMPLEMENTADO
+- [x] Tab Mezclas: colorista crea recetas con N componentes - IMPLEMENTADO
 - [ ] Solventes: agregar varias medidas/consumos de acetatos
-- [ ] Colorista puede crear colores nuevos (mezcla de N kg de cada tinta)
 
 ### INVENTARIO (PENDIENTE)
 - [ ] Enlazado con orden de compra
@@ -412,7 +441,11 @@ CONFIG.CHATBOT.MODEL = 'llama-3.3-70b-versatile'
 'axones_control_tiempo'     // Control de tiempo (Play/Pausa)
 'axones_tiempo_historial'   // Historial de tiempos reiniciados
 'axones_producto_terminado' // Producto terminado (paletas de corte)
+'axones_consumo_tintas'     // Consumo de tintas por OT
+'axones_tintas_mezclas'     // Mezclas del colorista
 ```
+
+**Nota:** Todas las keys de localStorage funcionan como cache local. Supabase es la fuente de verdad y se sincroniza via `sync-realtime.js`.
 
 ### Prefijo de Cache
 Usar `CONFIG.CACHE.PREFIJO` = `'axones_'`
@@ -441,9 +474,12 @@ git push origin main
 
 ## Archivos Clave para Referencia
 - **config.js**: Todas las constantes, roles, permisos, maquinas, materiales
+- **supabase-client.js**: Cliente Supabase, CRUD generico, fuente unica de verdad
+- **sync-realtime.js**: Sincronizacion bidireccional localStorage <-> Supabase
 - **control-tiempo.js**: Sistema de cronometros y despachos parciales
 - **ordenes.js**: Logica de ordenes de trabajo
 - **inventario.js**: Inventario con SKU y codigos de barras
+- **tintas.js**: Modulo tintas reescrito (4 tabs: Consumo, Inventario, Cementerio, Mezclas)
 
 ## Progreso de Cambios Solicitados por Valeria (19/03/2026)
 
@@ -506,12 +542,37 @@ git push origin main
 | tieneRol() con jerarquia de 7 roles | COMPLETADO |
 | logout() redirige a login.html | COMPLETADO |
 
+### Fase 6: Migracion a Supabase + Reescritura modulo Tintas
+| Cambio | Estado |
+|--------|--------|
+| Infraestructura Supabase: schema, cliente, CRUD | COMPLETADO |
+| supabase-client.js con URL y anon key | COMPLETADO |
+| sync-realtime.js: intercepta localStorage, sincroniza con Supabase | COMPLETADO |
+| sync-realtime.js agregado a las 20 paginas HTML | COMPLETADO |
+| demoData.js auto-init desactivado | COMPLETADO |
+| Badge "Conectado a Sheets" -> "Conectado a Supabase" | COMPLETADO |
+| seed-inventario.sql: 158 materiales, 58 tintas, 7 adhesivos | COMPLETADO |
+| Tab Consumo por OT (solo registro, no descuenta inventario) | COMPLETADO |
+| Tab Inventario CRUD con filtros (original/solventada/arreglada) | COMPLETADO |
+| Tab Cementerio (archivar/restaurar tintas via Supabase) | COMPLETADO |
+| Tab Mezclas colorista (crear recetas con N componentes) | COMPLETADO |
+| Tablas Supabase: tintas_cementerio, tintas_mezclas, consumo_tintas | COMPLETADO |
+
 ### Campos de Etiqueta de Bobina
 **Entrada** (9 campos): Proveedor, Referencia Bobina, Medida/Ancho, Micraje, Trat. Interno, Trat. Externo, Fecha, Maquina Origen, Pedido/Lote
 **Salida** (6 campos): Peso (auto), Fecha, Metraje, Hora, Empalmes, Operador
 
 ## Commits Recientes (Referencia)
 ```
+cf23240 feat: Supabase como fuente unica de verdad, eliminar demo data y Sheets
+b09f59a feat: Fase 2D - Tab Mezclas colorista + SQL seed inventario
+1a41435 feat: Fase 2C - tintas.js Tab Cementerio (archivar/restaurar via Supabase)
+17031c5 feat: Fase 2B - tintas.js Tab Inventario CRUD
+0456a2d feat: Fase 2A - tintas.js Tab Consumo por OT
+2260720 feat: Fase 1 - Agregar sync-realtime.js a las 20 paginas HTML
+c05680c feat: Sync real-time via Supabase + Rediseño tintas.html + Schema sync_store
+e3f9824 feat: Configurar Supabase con credenciales reales y agregar script a todas las paginas
+60952d8 feat: Infraestructura Supabase - schema, cliente, CRUD clientes/proveedores, migracion
 c51cac3 feat: Control de acceso por roles - filtrado de navbar y proteccion de paginas
 03c890c feat: Login obligatorio - pagina dedicada login.html como gate de acceso
 cfbce4d feat: Fase 4 - Producto terminado de corte a inventario

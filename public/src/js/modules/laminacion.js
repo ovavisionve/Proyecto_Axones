@@ -15,9 +15,6 @@ const Laminacion = {
      * Inicializa el modulo
      */
     init: async function() {
-        // Esperar a que AxonesSync termine de descargar datos del cloud
-        await this._esperarSync();
-
         console.log('Inicializando modulo Control de Laminacion');
 
         this.setupEventListeners();
@@ -27,8 +24,8 @@ const Laminacion = {
         this.initSolventes();
 
         // Poblar selector de OTs y verificar si viene una por URL
-        this.poblarSelectorOT();
-        this.cargarDesdeOrden();
+        await this.poblarSelectorOT();
+        await this.cargarDesdeOrden();
 
         // Inicializar controles de tiempo
         this.inicializarControlTiempo();
@@ -45,23 +42,6 @@ const Laminacion = {
         // Escuchar re-sync del cloud para recargar datos
         window.addEventListener('axones-sync', () => {
             this.poblarSelectorOT();
-        });
-    },
-
-    /**
-     * Espera a que AxonesSync termine la descarga inicial (max 5 segundos)
-     */
-    _esperarSync: async function() {
-        if (typeof AxonesSync !== 'undefined' && AxonesSync._isReady && AxonesSync._isReady()) {
-            return;
-        }
-        return new Promise(resolve => {
-            let resuelto = false;
-            const handler = () => { if (!resuelto) { resuelto = true; resolve(); } };
-            window.addEventListener('axones-sync', handler, { once: true });
-            setTimeout(() => {
-                if (!resuelto) { resuelto = true; window.removeEventListener('axones-sync', handler); resolve(); }
-            }, 5000);
         });
     },
 
@@ -121,16 +101,23 @@ const Laminacion = {
     /**
      * Pobla el selector de OT con ordenes pendientes/en-proceso
      */
-    poblarSelectorOT: function() {
+    poblarSelectorOT: async function() {
         const select = document.getElementById('ordenTrabajo');
         if (!select) return;
 
         let ordenes = [];
         try {
-            ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                const rows = await AxonesDB.ordenesHelper.cargar();
+                ordenes = rows.map(r => r.datos ? { ...r.datos, _supaId: r.id } : r);
+            }
         } catch (e) {
+            console.warn('[Laminacion] Error cargando ordenes desde Supabase:', e);
             ordenes = [];
         }
+
+        // Cache local para uso en el change listener
+        this._ordenesCache = ordenes;
 
         // Filtrar ordenes no completadas
         const disponibles = ordenes.filter(o => o.estadoOrden !== 'completada');
@@ -160,8 +147,10 @@ const Laminacion = {
                     this.ocultarResumenYForm();
                     return;
                 }
-                const orden = disponibles.find(o => (o.numeroOrden || o.ot) === otId) ||
-                              ordenes.find(o => (o.numeroOrden || o.ot) === otId);
+                const cachedOrdenes = this._ordenesCache || [];
+                const disponiblesNow = cachedOrdenes.filter(o => o.estadoOrden !== 'completada');
+                const orden = disponiblesNow.find(o => (o.numeroOrden || o.ot) === otId) ||
+                              cachedOrdenes.find(o => (o.numeroOrden || o.ot) === otId);
                 if (orden) {
                     this.seleccionarOrden(orden);
                 }
@@ -181,14 +170,17 @@ const Laminacion = {
     /**
      * Carga OT desde URL (?ot=OT-2026-0001) si viene con parametro
      */
-    cargarDesdeOrden: function() {
+    cargarDesdeOrden: async function() {
         const params = new URLSearchParams(window.location.search);
         const ot = params.get('ot');
         if (!ot) return;
 
         let ordenes = [];
         try {
-            ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                const rows = await AxonesDB.ordenesHelper.cargar();
+                ordenes = rows.map(r => r.datos ? { ...r.datos, _supaId: r.id } : r);
+            }
         } catch (e) { ordenes = []; }
 
         const orden = ordenes.find(o => o.ot === ot || o.numeroOrden === ot);
@@ -634,7 +626,7 @@ const Laminacion = {
         return datos;
     },
 
-    generarReporteRechazo: function() {
+    generarReporteRechazo: async function() {
         const datos = this.recopilarDevolucionRechazada();
         if (datos.length === 0) {
             if (typeof showToast === 'function') showToast('No hay bobinas rechazadas para reportar', 'warning');
@@ -693,9 +685,15 @@ const Laminacion = {
         ventana.document.write('</body></html>');
         ventana.document.close();
         ventana.print();
-        const reportes = JSON.parse(localStorage.getItem('axones_reportes_rechazo') || '[]');
-        reportes.unshift({ id: 'RR_' + Date.now(), timestamp: new Date().toISOString(), ordenTrabajo: numOT, modulo: 'laminacion', datos: this.recopilarDevolucionRechazada(), totalKg: this.calcularTotalDevolucionRechazada() });
-        localStorage.setItem('axones_reportes_rechazo', JSON.stringify(reportes));
+        // Guardar reporte de rechazo en Supabase sync_store
+        try {
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                const { data: existing } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_reportes_rechazo').single();
+                const reportes = (existing && Array.isArray(existing.value)) ? existing.value : [];
+                reportes.unshift({ id: 'RR_' + Date.now(), timestamp: new Date().toISOString(), ordenTrabajo: numOT, modulo: 'laminacion', datos: this.recopilarDevolucionRechazada(), totalKg: this.calcularTotalDevolucionRechazada() });
+                await AxonesDB.client.from('sync_store').upsert({ key: 'axones_reportes_rechazo', value: reportes }, { onConflict: 'key' });
+            }
+        } catch (e) { console.warn('[Laminacion] Error guardando reporte rechazo:', e); }
     },
 
     // ==========================================
@@ -709,13 +707,20 @@ const Laminacion = {
         if (btnDevTinta) btnDevTinta.addEventListener('click', () => this.agregarFilaTinta('devolucion'));
     },
 
-    obtenerTintasInventario: function() {
-        try { return JSON.parse(localStorage.getItem('axones_tintas_inventario') || '[]'); }
-        catch (e) { return []; }
+    obtenerTintasInventario: async function() {
+        try {
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                return await AxonesDB.tintas.listar({ soloActivos: false });
+            }
+            return [];
+        } catch (e) {
+            console.warn('[Laminacion] Error obteniendo tintas:', e);
+            return [];
+        }
     },
 
-    generarOpcionesTintas: function() {
-        const tintas = this.obtenerTintasInventario();
+    generarOpcionesTintas: async function() {
+        const tintas = await this.obtenerTintasInventario();
         let opciones = '<option value="">-- Seleccionar tinta --</option>';
         tintas.forEach((t, idx) => {
             const nombre = t.nombre || t.color || t.tipo || 'Tinta ' + (idx + 1);
@@ -725,11 +730,11 @@ const Laminacion = {
         return opciones;
     },
 
-    agregarFilaTinta: function(tipo) {
+    agregarFilaTinta: async function(tipo) {
         const bodyId = tipo === 'consumo' ? 'bodyConsumoTintas' : 'bodyDevolucionTintas';
         const tbody = document.getElementById(bodyId);
         if (!tbody) return;
-        const opciones = this.generarOpcionesTintas();
+        const opciones = await this.generarOpcionesTintas();
         const fila = document.createElement('tr');
         if (tipo === 'consumo') {
             fila.innerHTML = `
@@ -797,35 +802,42 @@ const Laminacion = {
         return datos;
     },
 
-    descontarTintas: function(datos) {
+    descontarTintas: async function(datos) {
         try {
-            const tintas = this.obtenerTintasInventario();
+            const tintas = await this.obtenerTintasInventario();
             let actualizado = false;
             if (datos.consumoTintas) {
-                datos.consumoTintas.forEach(item => {
+                for (const item of datos.consumoTintas) {
                     if (tintas[item.indice]) {
-                        const campo = tintas[item.indice].cantidad !== undefined ? 'cantidad' : 'kg';
-                        const actual = parseFloat(tintas[item.indice][campo] || 0);
-                        tintas[item.indice][campo] = Math.max(0, actual - item.kg);
+                        const tinta = tintas[item.indice];
+                        const campo = tinta.cantidad !== undefined ? 'cantidad' : 'kg';
+                        const actual = parseFloat(tinta[campo] || 0);
+                        const nuevo = Math.max(0, actual - item.kg);
+                        if (tinta.id && AxonesDB.isReady()) {
+                            await AxonesDB.client.from('tintas').update({ stock_kg: nuevo }).eq('id', tinta.id);
+                        }
                         actualizado = true;
                         console.log(`Tintas: Descontados ${item.kg} Kg de ${item.nombre}`);
                     }
-                });
+                }
             }
             if (datos.devolucionTintas) {
-                datos.devolucionTintas.forEach(item => {
+                for (const item of datos.devolucionTintas) {
                     if (tintas[item.indice]) {
-                        const campo = tintas[item.indice].cantidad !== undefined ? 'cantidad' : 'kg';
-                        const actual = parseFloat(tintas[item.indice][campo] || 0);
-                        tintas[item.indice][campo] = actual + item.kg;
+                        const tinta = tintas[item.indice];
+                        const campo = tinta.cantidad !== undefined ? 'cantidad' : 'kg';
+                        const actual = parseFloat(tinta[campo] || 0);
+                        const nuevo = actual + item.kg;
+                        if (tinta.id && AxonesDB.isReady()) {
+                            await AxonesDB.client.from('tintas').update({ stock_kg: nuevo }).eq('id', tinta.id);
+                        }
                         actualizado = true;
                         console.log(`Tintas: Repuestos ${item.kg} Kg de ${item.nombre}`);
                     }
-                });
+                }
             }
             if (actualizado) {
-                localStorage.setItem('axones_tintas_inventario', JSON.stringify(tintas));
-                console.log('Inventario de tintas actualizado despues de laminacion');
+                console.log('Inventario de tintas actualizado en Supabase despues de laminacion');
             }
         } catch (error) { console.warn('Error al actualizar inventario de tintas:', error); }
     },
@@ -900,22 +912,22 @@ const Laminacion = {
         }
 
         try {
-            this.guardarLocal(datos);
+            await this.guardarLocal(datos);
 
             // Descontar materiales del inventario (adhesivo, catalizador, acetato)
-            this.descontarInventarioLaminacion(datos);
+            await this.descontarInventarioLaminacion(datos);
 
             const porcentajeRefil = parseFloat(datos.porcentajeRefil) || 0;
             const umbral = CONFIG.UMBRALES_REFIL.default;
             if (porcentajeRefil > umbral.maximo) {
-                this.generarAlerta(datos);
+                await this.generarAlerta(datos);
             }
 
             this.mostrarToast('Registro de laminacion guardado', 'success');
             this.limpiar();
         } catch (error) {
             console.error('Error guardando registro:', error);
-            this.guardarLocal(datos);
+            await this.guardarLocal(datos);
             Axones.showWarning('Error al guardar: ' + error.message);
         } finally {
             if (btnGuardar) {
@@ -1094,71 +1106,59 @@ const Laminacion = {
     },
 
     /**
-     * Guarda en localStorage
+     * Guarda registro de produccion en Supabase
      */
-    guardarLocal: function(datos) {
-        // Guardar en produccion general
-        const produccion = JSON.parse(localStorage.getItem('axones_produccion') || '[]');
-        produccion.unshift(datos);
-        localStorage.setItem('axones_produccion', JSON.stringify(produccion));
-
-        // Guardar en key especifica de laminacion
-        const laminacion = JSON.parse(localStorage.getItem('axones_laminacion') || '[]');
-        laminacion.unshift(datos);
-        localStorage.setItem('axones_laminacion', JSON.stringify(laminacion));
+    guardarLocal: async function(datos) {
+        try {
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                await AxonesDB.client.from('produccion_laminacion').insert({
+                    orden_id: datos.otId || null,
+                    numero_ot: datos.ordenTrabajo || '',
+                    datos: datos
+                });
+                console.log('[Laminacion] Registro guardado en Supabase produccion_laminacion');
+            }
+        } catch (e) {
+            console.warn('[Laminacion] Error guardando en Supabase:', e);
+        }
     },
 
     /**
      * Descuenta adhesivo, catalizador, acetato y material del inventario
      */
-    descontarInventarioLaminacion: function(datos) {
+    descontarInventarioLaminacion: async function(datos) {
         try {
+            if (typeof AxonesDB === 'undefined' || !AxonesDB.isReady()) return;
+
             // 1. Descontar adhesivos/catalizador/acetato
-            const adhesivos = JSON.parse(localStorage.getItem('axones_adhesivos_inventario') || '[]');
+            const adhesivos = await AxonesDB.adhesivos.listar({ soloActivos: false });
+
+            const descuentosAdh = [
+                { tipo: 'adhesivo', consumo: datos.consumoAdhesivo || 0, label: 'adhesivo', unidad: 'Kg' },
+                { tipo: 'catalizador', consumo: datos.consumoCatalizador || 0, label: 'catalizador', unidad: 'Kg' },
+                { tipo: 'acetato', consumo: datos.consumoAcetato || 0, label: 'acetato', unidad: 'Lt' }
+            ];
+
             let adhesivosActualizados = false;
-
-            // Descontar adhesivo (usar consumoAdhesivo del formulario)
-            const consumoAdhesivo = datos.consumoAdhesivo || 0;
-            if (consumoAdhesivo > 0) {
-                const adhesivoItem = adhesivos.find(a => a.tipo === 'adhesivo');
-                if (adhesivoItem) {
-                    adhesivoItem.cantidad = Math.max(0, (adhesivoItem.cantidad || 0) - consumoAdhesivo);
-                    adhesivosActualizados = true;
-                    console.log(`Inventario: Descontados ${consumoAdhesivo} Kg de adhesivo (Quedan: ${adhesivoItem.cantidad} Kg)`);
-                }
-            }
-
-            // Descontar catalizador (usar consumoCatalizador del formulario)
-            const consumoCatalizador = datos.consumoCatalizador || 0;
-            if (consumoCatalizador > 0) {
-                const catalizadorItem = adhesivos.find(a => a.tipo === 'catalizador');
-                if (catalizadorItem) {
-                    catalizadorItem.cantidad = Math.max(0, (catalizadorItem.cantidad || 0) - consumoCatalizador);
-                    adhesivosActualizados = true;
-                    console.log(`Inventario: Descontados ${consumoCatalizador} Kg de catalizador (Quedan: ${catalizadorItem.cantidad} Kg)`);
-                }
-            }
-
-            // Descontar acetato (usar consumoAcetato del formulario)
-            const consumoAcetato = datos.consumoAcetato || 0;
-            if (consumoAcetato > 0) {
-                const acetatoItem = adhesivos.find(a => a.tipo === 'acetato');
-                if (acetatoItem) {
-                    acetatoItem.cantidad = Math.max(0, (acetatoItem.cantidad || 0) - consumoAcetato);
-                    adhesivosActualizados = true;
-                    console.log(`Inventario: Descontados ${consumoAcetato} Lt de acetato (Quedan: ${acetatoItem.cantidad} Lt)`);
+            for (const desc of descuentosAdh) {
+                if (desc.consumo > 0) {
+                    const item = adhesivos.find(a => a.tipo === desc.tipo);
+                    if (item && item.id) {
+                        const actual = parseFloat(item.cantidad || item.stock_kg || 0);
+                        const nuevo = Math.max(0, actual - desc.consumo);
+                        await AxonesDB.client.from('adhesivos').update({ stock_kg: nuevo }).eq('id', item.id);
+                        adhesivosActualizados = true;
+                        console.log(`Inventario: Descontados ${desc.consumo} ${desc.unidad} de ${desc.label} (Quedan: ${nuevo} ${desc.unidad})`);
+                    }
                 }
             }
 
             if (adhesivosActualizados) {
-                localStorage.setItem('axones_adhesivos_inventario', JSON.stringify(adhesivos));
-                console.log('Inventario de adhesivos actualizado despues de laminacion');
-
-                this.verificarStockBajoAdhesivos(adhesivos);
+                await this.verificarStockBajoAdhesivos(adhesivos);
             }
 
             // 2. Descontar material VIRGEN (materia prima) del inventario
-            const inventario = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
+            const inventario = await AxonesDB.materiales.listar();
             const cantidadUsada = parseFloat(datos.totalConsumidoVirgen) || parseFloat(datos.totalEntradaVirgen) || 0;
             let invActualizado = false;
 
@@ -1172,13 +1172,16 @@ const Laminacion = {
                          datos.producto?.toLowerCase().includes(item.producto.toLowerCase()));
 
                     if (coincideProducto || !item.producto) {
-                        const disponible = parseFloat(item.kg) || 0;
+                        const disponible = parseFloat(item.kg || item.stock_kg || 0);
                         if (disponible > 0) {
                             const aDescontar = Math.min(disponible, restante);
-                            item.kg = disponible - aDescontar;
+                            const nuevo = disponible - aDescontar;
+                            if (item.id) {
+                                await AxonesDB.client.from('materiales').update({ stock_kg: nuevo }).eq('id', item.id);
+                            }
                             restante -= aDescontar;
                             invActualizado = true;
-                            console.log(`Inventario: Descontados ${aDescontar} Kg de ${item.material} (Quedan: ${item.kg} Kg)`);
+                            console.log(`Inventario: Descontados ${aDescontar} Kg de ${item.material || item.nombre} (Quedan: ${nuevo} Kg)`);
                         }
                     }
                 }
@@ -1193,22 +1196,25 @@ const Laminacion = {
                         (item.producto.toLowerCase().includes(datos.producto?.toLowerCase() || '') ||
                          datos.producto?.toLowerCase().includes(item.producto.toLowerCase()));
                     if (coincideProducto) {
-                        item.kg = (parseFloat(item.kg) || 0) + devBuena;
+                        const actual = parseFloat(item.kg || item.stock_kg || 0);
+                        const nuevo = actual + devBuena;
+                        if (item.id) {
+                            await AxonesDB.client.from('materiales').update({ stock_kg: nuevo }).eq('id', item.id);
+                        }
                         invActualizado = true;
-                        console.log(`Inventario: Repuestos ${devBuena} Kg (devolucion buena) a ${item.material} (Total: ${item.kg} Kg)`);
+                        console.log(`Inventario: Repuestos ${devBuena} Kg (devolucion buena) a ${item.material || item.nombre} (Total: ${nuevo} Kg)`);
                         break;
                     }
                 }
             }
 
             if (invActualizado) {
-                localStorage.setItem('axones_inventario', JSON.stringify(inventario));
-                console.log('Inventario de materiales actualizado despues de laminacion');
-                this.verificarStockBajoMaterial(inventario);
+                console.log('Inventario de materiales actualizado en Supabase despues de laminacion');
+                await this.verificarStockBajoMaterial(inventario);
             }
 
             // 4. Descontar/reponer tintas
-            this.descontarTintas(datos);
+            await this.descontarTintas(datos);
         } catch (error) {
             console.warn('Error al descontar inventario de laminacion:', error);
         }
@@ -1217,100 +1223,97 @@ const Laminacion = {
     /**
      * Verifica si hay materiales con stock bajo
      */
-    verificarStockBajoMaterial: function(inventario) {
+    verificarStockBajoMaterial: async function(inventario) {
         const STOCK_MINIMO = 200; // Kg
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
+        if (typeof AxonesDB === 'undefined' || !AxonesDB.isReady()) return;
 
-        inventario.forEach(item => {
-            if ((item.kg || 0) < STOCK_MINIMO && (item.kg || 0) > 0) {
-                const alertaExistente = alertas.find(a =>
-                    a.tipo === 'stock_bajo' &&
-                    a.datos?.material === item.material &&
-                    new Date(a.fecha) > new Date(Date.now() - 24 * 60 * 60 * 1000)
-                );
+        for (const item of inventario) {
+            const kg = parseFloat(item.kg || item.stock_kg || 0);
+            if (kg < STOCK_MINIMO && kg > 0) {
+                // Verificar si ya existe alerta reciente (ultimas 24h)
+                const hace24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+                const { data: existentes } = await AxonesDB.client.from('alertas')
+                    .select('id')
+                    .eq('tipo', 'stock_bajo')
+                    .gte('created_at', hace24h)
+                    .limit(1);
 
-                if (!alertaExistente) {
-                    alertas.unshift({
-                        id: Date.now(),
+                if (!existentes || existentes.length === 0) {
+                    await AxonesDB.client.from('alertas').insert({
                         tipo: 'stock_bajo',
-                        nivel: item.kg < 50 ? 'danger' : 'warning',
-                        mensaje: `Stock bajo en laminacion: ${item.material} ${item.micras || ''}µ - Quedan ${(item.kg || 0).toFixed(1)} Kg`,
-                        fecha: new Date().toISOString(),
-                        estado: 'pendiente',
-                        datos: { material: item.material, cantidad: item.kg }
+                        nivel: kg < 50 ? 'danger' : 'warning',
+                        titulo: 'Stock bajo en laminacion',
+                        mensaje: `Stock bajo en laminacion: ${item.material || item.nombre} ${item.micras || ''}µ - Quedan ${kg.toFixed(1)} Kg`,
+                        datos: { material: item.material || item.nombre, cantidad: kg }
                     });
-                    console.log('Alerta de stock bajo generada para', item.material);
+                    console.log('Alerta de stock bajo generada para', item.material || item.nombre);
                 }
             }
-        });
-
-        localStorage.setItem('axones_alertas', JSON.stringify(alertas));
+        }
     },
 
     /**
      * Verifica si hay adhesivos con stock bajo
      */
-    verificarStockBajoAdhesivos: function(adhesivos) {
+    verificarStockBajoAdhesivos: async function(adhesivos) {
         const STOCK_MINIMO = 20; // Kg
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
+        if (typeof AxonesDB === 'undefined' || !AxonesDB.isReady()) return;
 
-        adhesivos.forEach(item => {
-            if ((item.cantidad || 0) < STOCK_MINIMO) {
-                const alertaExistente = alertas.find(a =>
-                    a.tipo === 'stock_bajo' &&
-                    a.datos?.nombre === item.nombre &&
-                    new Date(a.fecha) > new Date(Date.now() - 24 * 60 * 60 * 1000)
-                );
+        for (const item of adhesivos) {
+            const cantidad = parseFloat(item.cantidad || item.stock_kg || 0);
+            if (cantidad < STOCK_MINIMO) {
+                const hace24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+                const { data: existentes } = await AxonesDB.client.from('alertas')
+                    .select('id')
+                    .eq('tipo', 'stock_bajo')
+                    .gte('created_at', hace24h)
+                    .limit(1);
 
-                if (!alertaExistente) {
-                    alertas.unshift({
-                        id: Date.now(),
+                if (!existentes || existentes.length === 0) {
+                    await AxonesDB.client.from('alertas').insert({
                         tipo: 'stock_bajo',
-                        nivel: item.cantidad < 5 ? 'danger' : 'warning',
-                        mensaje: `Stock bajo: ${item.nombre} - Quedan ${(item.cantidad || 0).toFixed(1)} ${item.unidad}`,
-                        fecha: new Date().toISOString(),
-                        estado: 'pendiente',
-                        datos: { nombre: item.nombre, cantidad: item.cantidad }
+                        nivel: cantidad < 5 ? 'danger' : 'warning',
+                        titulo: 'Stock bajo adhesivo',
+                        mensaje: `Stock bajo: ${item.nombre} - Quedan ${cantidad.toFixed(1)} ${item.unidad || 'Kg'}`,
+                        datos: { nombre: item.nombre, cantidad: cantidad }
                     });
                 }
             }
-        });
-
-        localStorage.setItem('axones_alertas', JSON.stringify(alertas));
+        }
     },
 
     /**
      * Genera una alerta por refil excedido
      */
-    generarAlerta: function(datos) {
-        const alerta = {
-            id: 'ALT_' + Date.now(),
-            timestamp: new Date().toISOString(),
-            fecha: new Date().toISOString(),
-            tipo: CONFIG.ALERTAS.TIPOS.REFIL_ALTO,
-            nivel: datos.porcentajeRefil > CONFIG.UMBRALES_REFIL.default.maximo * 1.5
-                ? CONFIG.ALERTAS.NIVELES.CRITICAL
-                : CONFIG.ALERTAS.NIVELES.WARNING,
-            maquina: datos.maquina,
-            ot: datos.ordenTrabajo,
-            operador: datos.operador,
-            mensaje: `Refil ${datos.porcentajeRefil.toFixed(1)}% en Laminacion OT ${datos.ordenTrabajo}`,
-            estado: 'pendiente',
-            registro_id: datos.id,
-            datos: {
-                porcentajeRefil: datos.porcentajeRefil,
-                producto: datos.producto,
-                cliente: datos.cliente
-            }
-        };
+    generarAlerta: async function(datos) {
+        const nivel = datos.porcentajeRefil > CONFIG.UMBRALES_REFIL.default.maximo * 1.5
+            ? CONFIG.ALERTAS.NIVELES.CRITICAL
+            : CONFIG.ALERTAS.NIVELES.WARNING;
 
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
-        alertas.unshift(alerta);
-        localStorage.setItem('axones_alertas', JSON.stringify(alertas));
+        try {
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                await AxonesDB.client.from('alertas').insert({
+                    tipo: CONFIG.ALERTAS.TIPOS.REFIL_ALTO,
+                    nivel: nivel,
+                    titulo: `Refil excedido en Laminacion`,
+                    mensaje: `Refil ${datos.porcentajeRefil.toFixed(1)}% en Laminacion OT ${datos.ordenTrabajo}`,
+                    datos: {
+                        porcentajeRefil: datos.porcentajeRefil,
+                        producto: datos.producto,
+                        cliente: datos.cliente,
+                        maquina: datos.maquina,
+                        operador: datos.operador,
+                        registro_id: datos.id
+                    }
+                });
+            }
+        } catch (e) {
+            console.warn('[Laminacion] Error guardando alerta:', e);
+        }
 
         this.mostrarNotificacion(
             `ALERTA: Refil ${datos.porcentajeRefil.toFixed(1)}% excedido en laminacion`,
-            alerta.nivel === CONFIG.ALERTAS.NIVELES.CRITICAL ? 'danger' : 'warning'
+            nivel === CONFIG.ALERTAS.NIVELES.CRITICAL ? 'danger' : 'warning'
         );
     },
 
@@ -1371,7 +1374,7 @@ const Laminacion = {
         if (badge) badge.textContent = `${marcados}/${total} completados`;
     },
 
-    guardarChecklist: function() {
+    guardarChecklist: async function() {
         const items = [];
         document.querySelectorAll('.checklist-item').forEach(cb => {
             items.push({ item: cb.value, completado: cb.checked });
@@ -1391,9 +1394,16 @@ const Laminacion = {
             aprobadoPor: document.getElementById('checklistAprobadoPor')?.value || ''
         };
 
-        const checklists = JSON.parse(localStorage.getItem('axones_checklists') || '[]');
-        checklists.unshift(datos);
-        localStorage.setItem('axones_checklists', JSON.stringify(checklists));
+        try {
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                const { data: existing } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_checklists').single();
+                const checklists = (existing && Array.isArray(existing.value)) ? existing.value : [];
+                checklists.unshift(datos);
+                await AxonesDB.client.from('sync_store').upsert({ key: 'axones_checklists', value: checklists }, { onConflict: 'key' });
+            }
+        } catch (e) {
+            console.warn('[Laminacion] Error guardando checklist:', e);
+        }
 
         this.mostrarToast('Checklist guardado correctamente', 'success');
         const modal = bootstrap.Modal.getInstance(document.getElementById('modalChecklist'));

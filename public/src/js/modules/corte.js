@@ -16,6 +16,10 @@ const Corte = {
     tiempoAcumulado: 0,
     temporizadorActivo: false,
 
+    // Timer state (replaces localStorage corte_temporizador_*)
+    _timerInicio: null,
+    _timerAcumulado: 0,
+
     // Orden cargada desde el modulo de ordenes
     ordenCargada: null,
 
@@ -35,9 +39,6 @@ const Corte = {
      * Inicializa el modulo
      */
     init: async function() {
-        // Esperar a que AxonesSync termine de descargar datos del cloud
-        await this._esperarSync();
-
         console.log('Inicializando modulo Control de Corte');
 
         this.inicializarPaletasDinamicas();
@@ -46,8 +47,8 @@ const Corte = {
         this.setupTemporizador();
 
         // Poblar selector de OTs y verificar si viene una por URL
-        this.poblarSelectorOT();
-        this.cargarDesdeOrden();
+        await this.poblarSelectorOT();
+        await this.cargarDesdeOrden();
 
         // Inicializar controles de tiempo
         this.inicializarControlTiempo();
@@ -62,25 +63,8 @@ const Corte = {
         this.setupEtiquetasBobinas();
 
         // Escuchar re-sync del cloud para recargar datos
-        window.addEventListener('axones-sync', () => {
-            this.poblarSelectorOT();
-        });
-    },
-
-    /**
-     * Espera a que AxonesSync termine la descarga inicial (max 5 segundos)
-     */
-    _esperarSync: async function() {
-        if (typeof AxonesSync !== 'undefined' && AxonesSync._isReady && AxonesSync._isReady()) {
-            return;
-        }
-        return new Promise(resolve => {
-            let resuelto = false;
-            const handler = () => { if (!resuelto) { resuelto = true; resolve(); } };
-            window.addEventListener('axones-sync', handler, { once: true });
-            setTimeout(() => {
-                if (!resuelto) { resuelto = true; window.removeEventListener('axones-sync', handler); resolve(); }
-            }, 5000);
+        window.addEventListener('axones-sync', async () => {
+            await this.poblarSelectorOT();
         });
     },
 
@@ -301,9 +285,9 @@ const Corte = {
         this.temporizadorActivo = true;
         this.tiempoInicio = Date.now();
 
-        // Guardar estado
-        localStorage.setItem('corte_temporizador_inicio', this.tiempoInicio);
-        localStorage.setItem('corte_temporizador_acumulado', this.tiempoAcumulado);
+        // Guardar estado en module-level variables
+        this._timerInicio = this.tiempoInicio;
+        this._timerAcumulado = this.tiempoAcumulado;
 
         this.temporizador = setInterval(() => this.actualizarTemporizador(), 1000);
 
@@ -322,8 +306,8 @@ const Corte = {
         this.tiempoAcumulado += Date.now() - this.tiempoInicio;
         clearInterval(this.temporizador);
 
-        localStorage.setItem('corte_temporizador_acumulado', this.tiempoAcumulado);
-        localStorage.removeItem('corte_temporizador_inicio');
+        this._timerAcumulado = this.tiempoAcumulado;
+        this._timerInicio = null;
 
         document.getElementById('btnIniciarTemporizador').disabled = false;
         document.getElementById('btnPausarTemporizador').disabled = true;
@@ -340,8 +324,8 @@ const Corte = {
         this.tiempoInicio = null;
         clearInterval(this.temporizador);
 
-        localStorage.removeItem('corte_temporizador_inicio');
-        localStorage.removeItem('corte_temporizador_acumulado');
+        this._timerInicio = null;
+        this._timerAcumulado = 0;
 
         document.getElementById('temporizadorDisplay').textContent = '00:00:00';
         document.getElementById('kgPorHora').value = '0';
@@ -381,15 +365,15 @@ const Corte = {
      * Restaura el temporizador si habia uno activo
      */
     restaurarTemporizador: function() {
-        const inicio = localStorage.getItem('corte_temporizador_inicio');
-        const acumulado = localStorage.getItem('corte_temporizador_acumulado');
+        const inicio = this._timerInicio;
+        const acumulado = this._timerAcumulado;
 
         if (acumulado) {
-            this.tiempoAcumulado = parseInt(acumulado) || 0;
+            this.tiempoAcumulado = acumulado;
         }
 
         if (inicio) {
-            this.tiempoInicio = parseInt(inicio);
+            this.tiempoInicio = inicio;
             this.temporizadorActivo = true;
             this.temporizador = setInterval(() => this.actualizarTemporizador(), 1000);
 
@@ -735,13 +719,13 @@ const Corte = {
     /**
      * Pobla el selector de OT con ordenes pendientes/en-proceso
      */
-    poblarSelectorOT: function() {
+    poblarSelectorOT: async function() {
         const select = document.getElementById('ordenTrabajo');
         if (!select) return;
 
         let ordenes = [];
         try {
-            ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
+            ordenes = (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) ? await AxonesDB.ordenesHelper.cargar() : [];
         } catch (e) {
             ordenes = [];
         }
@@ -795,14 +779,14 @@ const Corte = {
     /**
      * Carga OT desde URL (?ot=OT-2026-0001) si viene con parametro
      */
-    cargarDesdeOrden: function() {
+    cargarDesdeOrden: async function() {
         const params = new URLSearchParams(window.location.search);
         const ot = params.get('ot');
         if (!ot) return;
 
         let ordenes = [];
         try {
-            ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
+            ordenes = (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) ? await AxonesDB.ordenesHelper.cargar() : [];
         } catch (e) { ordenes = []; }
 
         const orden = ordenes.find(o => o.ot === ot || o.numeroOrden === ot);
@@ -1024,19 +1008,19 @@ const Corte = {
         }
 
         try {
-            this.guardarLocal(datos);
+            await this.guardarLocal(datos);
             this.mostrarToast('Registro de corte guardado', 'success');
 
             // Descontar material del inventario
-            this.descontarInventario(datos);
+            await this.descontarInventario(datos);
 
             // Registrar producto terminado en inventario
-            this.registrarProductoTerminado(datos);
+            await this.registrarProductoTerminado(datos);
 
             const porcentajeRefil = parseFloat(datos.porcentajeRefil) || 0;
             const umbral = CONFIG.UMBRALES_REFIL.default;
             if (porcentajeRefil > umbral.maximo) {
-                this.generarAlerta(datos);
+                await this.generarAlerta(datos);
             }
 
             // Ofrecer generar Nota de Entrega
@@ -1193,20 +1177,35 @@ const Corte = {
     },
 
     /**
-     * Guarda en localStorage
+     * Guarda en Supabase (produccion_corte)
      */
-    guardarLocal: function(datos) {
-        const registros = JSON.parse(localStorage.getItem(CONFIG.CACHE.PREFIJO + 'corte') || '[]');
-        registros.unshift(datos);
-        localStorage.setItem(CONFIG.CACHE.PREFIJO + 'corte', JSON.stringify(registros));
+    guardarLocal: async function(datos) {
+        try {
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                await AxonesDB.client.from('produccion_corte').insert({
+                    orden_id: datos.otId || null,
+                    numero_ot: datos.ordenTrabajo || '',
+                    maquina: datos.maquina || '',
+                    turno: datos.turno || '',
+                    operador: datos.operador || '',
+                    fecha: datos.fecha || new Date().toISOString().split('T')[0],
+                    datos: datos
+                });
+            }
+        } catch (error) {
+            console.warn('[Corte] Error guardando en Supabase:', error);
+        }
     },
 
     /**
      * Descuenta material del inventario despues de corte
      */
-    descontarInventario: function(datos) {
+    descontarInventario: async function(datos) {
         try {
-            const inventario = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
+            let inventario = [];
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                inventario = await AxonesDB.materiales.listar() || [];
+            }
             // Usar totalConsumido (entrada - restante) en vez de totalEntrada
             const cantidadUsada = parseFloat(datos.totalConsumido) || parseFloat(datos.totalEntrada) || 0;
 
@@ -1231,16 +1230,20 @@ const Corte = {
                         restante -= aDescontar;
                         descontado = true;
                         console.log(`Inventario (Corte): Descontados ${aDescontar} Kg de ${item.material} (Quedan: ${item.kg} Kg)`);
+
+                        // Update in Supabase
+                        if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady() && item.id) {
+                            await AxonesDB.client.from('materiales').update({ kg: item.kg }).eq('id', item.id);
+                        }
                     }
                 }
             }
 
             if (descontado) {
-                localStorage.setItem('axones_inventario', JSON.stringify(inventario));
                 console.log('Inventario actualizado despues de corte');
 
                 // Verificar stock bajo y generar alertas
-                this.verificarStockBajo(inventario);
+                await this.verificarStockBajo(inventario);
             }
         } catch (error) {
             console.warn('Error al descontar inventario en corte:', error);
@@ -1250,62 +1253,63 @@ const Corte = {
     /**
      * Verifica si hay materiales con stock bajo y genera alertas
      */
-    verificarStockBajo: function(inventario) {
+    verificarStockBajo: async function(inventario) {
         const STOCK_MINIMO = 200; // Kg
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
 
-        inventario.forEach(item => {
+        for (const item of inventario) {
             if ((item.kg || 0) < STOCK_MINIMO && (item.kg || 0) > 0) {
-                // Verificar si ya existe una alerta reciente para este material
-                const alertaExistente = alertas.find(a =>
-                    a.tipo === 'stock_bajo' &&
-                    a.datos?.material === item.material &&
-                    new Date(a.fecha) > new Date(Date.now() - 24 * 60 * 60 * 1000) // Ultimas 24 horas
-                );
+                try {
+                    if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                        // Check for recent alert for this material
+                        const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+                        const { data: existing } = await AxonesDB.client.from('alertas')
+                            .select('id')
+                            .eq('tipo', 'stock_bajo')
+                            .gte('created_at', cutoff)
+                            .like('mensaje', `%${item.material}%`)
+                            .limit(1);
 
-                if (!alertaExistente) {
-                    alertas.unshift({
-                        id: Date.now(),
-                        tipo: 'stock_bajo',
-                        nivel: item.kg < 50 ? 'danger' : 'warning',
-                        mensaje: `Stock bajo en corte: ${item.material} ${item.micras || ''}µ - Quedan ${(item.kg || 0).toFixed(1)} Kg`,
-                        fecha: new Date().toISOString(),
-                        estado: 'pendiente',
-                        datos: { material: item.material, cantidad: item.kg }
-                    });
-                    console.log('Alerta de stock bajo generada para', item.material);
+                        if (!existing || existing.length === 0) {
+                            await AxonesDB.client.from('alertas').insert({
+                                tipo: 'stock_bajo',
+                                nivel: item.kg < 50 ? 'danger' : 'warning',
+                                titulo: 'Stock bajo en corte',
+                                mensaje: `Stock bajo en corte: ${item.material} ${item.micras || ''}µ - Quedan ${(item.kg || 0).toFixed(1)} Kg`,
+                            });
+                            console.log('Alerta de stock bajo generada para', item.material);
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[Corte] Error generando alerta stock bajo:', e);
                 }
             }
-        });
-
-        localStorage.setItem('axones_alertas', JSON.stringify(alertas));
+        }
     },
 
     /**
      * Genera una alerta por refil excedido
      */
-    generarAlerta: function(datos) {
-        const alerta = {
-            id: 'ALT_' + Date.now(),
-            timestamp: new Date().toISOString(),
-            tipo: CONFIG.ALERTAS.TIPOS.REFIL_ALTO,
-            nivel: datos.porcentajeRefil > CONFIG.UMBRALES_REFIL.default.maximo * 1.5
-                ? CONFIG.ALERTAS.NIVELES.CRITICAL
-                : CONFIG.ALERTAS.NIVELES.WARNING,
-            maquina: datos.maquina,
-            operador: datos.operador,
-            mensaje: `Refil ${datos.porcentajeRefil.toFixed(1)}% en Corte OT ${datos.ordenTrabajo}`,
-            estado: 'pendiente',
-            registro_id: datos.id,
-        };
+    generarAlerta: async function(datos) {
+        const nivel = datos.porcentajeRefil > CONFIG.UMBRALES_REFIL.default.maximo * 1.5
+            ? CONFIG.ALERTAS.NIVELES.CRITICAL
+            : CONFIG.ALERTAS.NIVELES.WARNING;
 
-        const alertas = JSON.parse(localStorage.getItem(CONFIG.CACHE.PREFIJO + 'alertas') || '[]');
-        alertas.unshift(alerta);
-        localStorage.setItem(CONFIG.CACHE.PREFIJO + 'alertas', JSON.stringify(alertas));
+        try {
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                await AxonesDB.client.from('alertas').insert({
+                    tipo: CONFIG.ALERTAS.TIPOS.REFIL_ALTO,
+                    nivel: nivel,
+                    titulo: 'Refil excedido en corte',
+                    mensaje: `Refil ${datos.porcentajeRefil.toFixed(1)}% en Corte OT ${datos.ordenTrabajo}`,
+                });
+            }
+        } catch (e) {
+            console.warn('[Corte] Error generando alerta refil:', e);
+        }
 
         Axones.showToast(
             `ALERTA: Refil ${datos.porcentajeRefil.toFixed(1)}% excedido en corte`,
-            alerta.nivel === CONFIG.ALERTAS.NIVELES.CRITICAL ? 'danger' : 'warning'
+            nivel === CONFIG.ALERTAS.NIVELES.CRITICAL ? 'danger' : 'warning'
         );
     },
 
@@ -1349,12 +1353,19 @@ const Corte = {
     /**
      * Registra el producto terminado de corte en inventario de producto terminado
      */
-    registrarProductoTerminado: function(datos) {
+    registrarProductoTerminado: async function(datos) {
         try {
             const pesoSalida = parseFloat(datos.pesoTotalSalida) || 0;
             if (pesoSalida <= 0) return;
 
-            const productoTerminado = JSON.parse(localStorage.getItem('axones_producto_terminado') || '[]');
+            // Load existing producto terminado from sync_store
+            let productoTerminado = [];
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                try {
+                    const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_producto_terminado').single();
+                    if (data && data.value) productoTerminado = data.value;
+                } catch (e) { /* key may not exist yet */ }
+            }
 
             // Crear registro por cada paleta con datos
             const paletasConDatos = (datos.paletas || []).filter(p => p.pesoTotal > 0);
@@ -1381,7 +1392,13 @@ const Corte = {
                 });
             });
 
-            localStorage.setItem('axones_producto_terminado', JSON.stringify(productoTerminado));
+            // Save to sync_store
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                await AxonesDB.client.from('sync_store').upsert(
+                    { key: 'axones_producto_terminado', value: productoTerminado },
+                    { onConflict: 'key' }
+                );
+            }
 
             const totalPaletas = paletasConDatos.length;
             const totalBobinas = paletasConDatos.reduce((sum, p) => sum + p.totalBobinas, 0);
@@ -1422,7 +1439,7 @@ const Corte = {
         if (badge) badge.textContent = `${marcados}/${total} completados`;
     },
 
-    guardarChecklist: function() {
+    guardarChecklist: async function() {
         const items = [];
         document.querySelectorAll('.checklist-item').forEach(cb => {
             items.push({ item: cb.value, completado: cb.checked });
@@ -1442,9 +1459,23 @@ const Corte = {
             aprobadoPor: document.getElementById('checklistAprobadoPor')?.value || ''
         };
 
-        const checklists = JSON.parse(localStorage.getItem('axones_checklists') || '[]');
-        checklists.unshift(datos);
-        localStorage.setItem('axones_checklists', JSON.stringify(checklists));
+        // Save to sync_store
+        try {
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                let checklists = [];
+                try {
+                    const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_checklists').single();
+                    if (data && data.value) checklists = data.value;
+                } catch (e) { /* key may not exist yet */ }
+                checklists.unshift(datos);
+                await AxonesDB.client.from('sync_store').upsert(
+                    { key: 'axones_checklists', value: checklists },
+                    { onConflict: 'key' }
+                );
+            }
+        } catch (e) {
+            console.warn('[Corte] Error guardando checklist:', e);
+        }
 
         // Toast
         let toastContainer = document.querySelector('.toast-container');

@@ -17,12 +17,9 @@ const Impresion = {
      * Inicializa el modulo
      */
     init: async function() {
-        // Esperar a que AxonesSync termine de descargar datos del cloud
-        await this._esperarSync();
-
         console.log('Inicializando modulo Control de Impresion');
 
-        this.cargarDatosIniciales();
+        await this.cargarDatosIniciales();
         this.setupEventListeners();
         this.setupCalculations();
         this.initDevolucionRechazada();
@@ -30,8 +27,8 @@ const Impresion = {
         this.initSolventes();
 
         // Poblar selector de OTs y verificar si viene una por URL
-        this.poblarSelectorOT();
-        this.cargarDesdeOrden();
+        await this.poblarSelectorOT();
+        await this.cargarDesdeOrden();
 
         // Inicializar controles de tiempo
         this.inicializarControlTiempo();
@@ -46,26 +43,9 @@ const Impresion = {
         this.setupEtiquetasBobinas();
 
         // Escuchar re-sync del cloud para recargar datos
-        window.addEventListener('axones-sync', () => {
-            this.cargarDatosIniciales();
-            this.poblarSelectorOT();
-        });
-    },
-
-    /**
-     * Espera a que AxonesSync termine la descarga inicial (max 5 segundos)
-     */
-    _esperarSync: async function() {
-        if (typeof AxonesSync !== 'undefined' && AxonesSync._isReady && AxonesSync._isReady()) {
-            return;
-        }
-        return new Promise(resolve => {
-            let resuelto = false;
-            const handler = () => { if (!resuelto) { resuelto = true; resolve(); } };
-            window.addEventListener('axones-sync', handler, { once: true });
-            setTimeout(() => {
-                if (!resuelto) { resuelto = true; window.removeEventListener('axones-sync', handler); resolve(); }
-            }, 5000);
+        window.addEventListener('axones-sync', async () => {
+            await this.cargarDatosIniciales();
+            await this.poblarSelectorOT();
         });
     },
 
@@ -128,16 +108,19 @@ const Impresion = {
     /**
      * Pobla el selector de OT con ordenes pendientes/en-proceso
      */
-    poblarSelectorOT: function() {
+    poblarSelectorOT: async function() {
         const select = document.getElementById('ordenTrabajo');
         if (!select) return;
 
         let ordenes = [];
         try {
-            ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
+            ordenes = AxonesDB.isReady() ? await AxonesDB.ordenesHelper.cargar() : [];
         } catch (e) {
             ordenes = [];
         }
+
+        // Store for later lookup
+        this._ordenesCache = ordenes;
 
         // Filtrar ordenes no completadas
         const disponibles = ordenes.filter(o => o.estadoOrden !== 'completada');
@@ -188,15 +171,18 @@ const Impresion = {
     /**
      * Carga OT desde URL (?ot=OT-2026-0001) si viene con parametro
      */
-    cargarDesdeOrden: function() {
+    cargarDesdeOrden: async function() {
         const params = new URLSearchParams(window.location.search);
         const ot = params.get('ot');
         if (!ot) return;
 
-        let ordenes = [];
-        try {
-            ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
-        } catch (e) { ordenes = []; }
+        // Use cached ordenes from poblarSelectorOT, or fetch fresh
+        let ordenes = this._ordenesCache || [];
+        if (ordenes.length === 0) {
+            try {
+                ordenes = AxonesDB.isReady() ? await AxonesDB.ordenesHelper.cargar() : [];
+            } catch (e) { ordenes = []; }
+        }
 
         const orden = ordenes.find(o => o.ot === ot || o.numeroOrden === ot);
         if (orden) {
@@ -325,19 +311,34 @@ const Impresion = {
     /**
      * Carga datos iniciales (inventario, clientes, productos)
      */
-    cargarDatosIniciales: function() {
+    cargarDatosIniciales: async function() {
         // Cargar clientes desde CONFIG
         this.clientesCache = CONFIG.CLIENTES || [];
 
-        // Cargar inventario desde localStorage (sincronizado con Supabase)
-        this.inventarioCache = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
+        // Cargar inventario desde Supabase
+        try {
+            this.inventarioCache = AxonesDB.isReady() ? await AxonesDB.materiales.listar() : [];
+        } catch (e) {
+            console.warn('Error cargando inventario:', e);
+            this.inventarioCache = [];
+        }
 
         // Cargar historial de produccion para autocompletado
-        const produccion = JSON.parse(localStorage.getItem('axones_impresion') || '[]');
-        this.productosCache = [...new Set(produccion.map(p => p.producto).filter(Boolean))];
+        try {
+            if (AxonesDB.isReady()) {
+                const { data } = await AxonesDB.client.from('produccion_impresion').select('datos');
+                const produccion = (data || []).map(r => r.datos || {});
+                this.productosCache = [...new Set(produccion.map(p => p.producto).filter(Boolean))];
+            } else {
+                this.productosCache = [];
+            }
+        } catch (e) {
+            console.warn('Error cargando historial impresion:', e);
+            this.productosCache = [];
+        }
 
         // Poblar datalist de clientes despues de cargar
-        this.poblarSelectClientes();
+        await this.poblarSelectClientes();
     },
 
     /**
@@ -372,16 +373,23 @@ const Impresion = {
     /**
      * Poblar datalist de clientes (permite escribir nuevos o seleccionar existentes)
      */
-    poblarSelectClientes: function() {
+    poblarSelectClientes: async function() {
         const datalist = document.getElementById('listaClientes');
         if (!datalist) return;
 
-        // Agregar clientes de registros anteriores de impresion
-        const impresiones = JSON.parse(localStorage.getItem('axones_impresion') || '[]');
-        const clientesDeImpresion = impresiones
-            .map(i => i.cliente)
-            .filter(c => c && !this.clientesCache.includes(c));
-        this.clientesCache = [...new Set([...this.clientesCache, ...clientesDeImpresion])].sort();
+        // Agregar clientes de registros anteriores de impresion desde Supabase
+        try {
+            if (AxonesDB.isReady()) {
+                const { data } = await AxonesDB.client.from('produccion_impresion').select('datos');
+                const impresiones = (data || []).map(r => r.datos || {});
+                const clientesDeImpresion = impresiones
+                    .map(i => i.cliente)
+                    .filter(c => c && !this.clientesCache.includes(c));
+                this.clientesCache = [...new Set([...this.clientesCache, ...clientesDeImpresion])].sort();
+            }
+        } catch (e) {
+            console.warn('Error cargando clientes de impresion:', e);
+        }
 
         // Cargar en datalist
         datalist.innerHTML = '';
@@ -414,11 +422,19 @@ const Impresion = {
     /**
      * Busca datos relacionados a una OT
      */
-    buscarDatosOT: function(ot) {
+    buscarDatosOT: async function(ot) {
         if (!ot) return;
 
-        // Buscar en historial de produccion
-        const produccion = JSON.parse(localStorage.getItem('axones_impresion') || '[]');
+        // Buscar en historial de produccion desde Supabase
+        let produccion = [];
+        try {
+            if (AxonesDB.isReady()) {
+                const { data } = await AxonesDB.client.from('produccion_impresion').select('datos');
+                produccion = (data || []).map(r => r.datos || {});
+            }
+        } catch (e) {
+            console.warn('Error buscando historial impresion:', e);
+        }
         const registroAnterior = produccion.find(p => p.ordenTrabajo === ot);
 
         if (registroAnterior) {
@@ -428,11 +444,18 @@ const Impresion = {
             }
         }
 
-        // Buscar consumo de tintas asociado
-        const tintas = JSON.parse(localStorage.getItem('axones_tintas') || '[]');
-        const tintasOT = tintas.find(t => t.ot === ot);
-        if (tintasOT) {
-            console.log('Tintas encontradas para OT:', tintasOT);
+        // Buscar consumo de tintas asociado desde Supabase
+        let tintas = [];
+        try {
+            if (AxonesDB.isReady()) {
+                const { data } = await AxonesDB.client.from('consumo_tintas').select('*').eq('ot', ot);
+                tintas = data || [];
+            }
+        } catch (e) {
+            console.warn('Error buscando tintas OT:', e);
+        }
+        if (tintas.length > 0) {
+            console.log('Tintas encontradas para OT:', tintas);
         }
     },
 
@@ -683,14 +706,8 @@ const Impresion = {
         const select = document.getElementById('sustratosVirgen');
         if (!select) return;
 
-        // Obtener inventario
-        let inventario = [];
-        const invData = localStorage.getItem('axones_inventario');
-        if (invData) {
-            try {
-                inventario = JSON.parse(invData);
-            } catch (e) {}
-        }
+        // Obtener inventario desde cache (cargado en cargarDatosIniciales)
+        let inventario = this.inventarioCache || [];
 
         // Limpiar opciones excepto la primera
         select.innerHTML = '<option value="">Seleccionar del inventario...</option>';
@@ -931,10 +948,14 @@ const Impresion = {
     /**
      * Obtiene tintas del inventario para el selector
      */
-    obtenerTintasInventario: function() {
+    obtenerTintasInventario: async function() {
         try {
-            return JSON.parse(localStorage.getItem('axones_tintas_inventario') || '[]');
+            if (AxonesDB.isReady()) {
+                return await AxonesDB.tintas.listar({soloActivos: false});
+            }
+            return [];
         } catch (e) {
+            console.warn('Error obteniendo tintas:', e);
             return [];
         }
     },
@@ -942,13 +963,14 @@ const Impresion = {
     /**
      * Genera opciones HTML del selector de tintas desde el inventario
      */
-    generarOpcionesTintas: function() {
-        const tintas = this.obtenerTintasInventario();
+    generarOpcionesTintas: async function() {
+        const tintas = await this.obtenerTintasInventario();
+        this._tintasCache = tintas; // Cache for descontarTintas
         let opciones = '<option value="">-- Seleccionar tinta --</option>';
         tintas.forEach((t, idx) => {
             const nombre = t.nombre || t.color || t.tipo || 'Tinta ' + (idx + 1);
             const stock = parseFloat(t.cantidad || t.kg || 0).toFixed(2);
-            opciones += `<option value="${idx}" data-stock="${stock}" data-nombre="${nombre}">${nombre} (${stock} Kg)</option>`;
+            opciones += `<option value="${idx}" data-stock="${stock}" data-nombre="${nombre}" data-id="${t.id || ''}">${nombre} (${stock} Kg)</option>`;
         });
         return opciones;
     },
@@ -956,12 +978,12 @@ const Impresion = {
     /**
      * Agrega fila a tabla de consumo o devolucion de tintas
      */
-    agregarFilaTinta: function(tipo) {
+    agregarFilaTinta: async function(tipo) {
         const bodyId = tipo === 'consumo' ? 'bodyConsumoTintas' : 'bodyDevolucionTintas';
         const tbody = document.getElementById(bodyId);
         if (!tbody) return;
 
-        const opciones = this.generarOpcionesTintas();
+        const opciones = await this.generarOpcionesTintas();
         const fila = document.createElement('tr');
 
         if (tipo === 'consumo') {
@@ -1074,40 +1096,53 @@ const Impresion = {
     /**
      * Descuenta consumo y repone devolucion de tintas en el inventario
      */
-    descontarTintas: function(datos) {
+    descontarTintas: async function(datos) {
         try {
-            const tintas = this.obtenerTintasInventario();
+            const tintas = this._tintasCache || await this.obtenerTintasInventario();
             let actualizado = false;
 
             // Descontar consumo
             if (datos.consumoTintas) {
-                datos.consumoTintas.forEach(item => {
+                for (const item of datos.consumoTintas) {
                     if (tintas[item.indice]) {
-                        const actual = parseFloat(tintas[item.indice].cantidad || tintas[item.indice].kg || 0);
-                        const campo = tintas[item.indice].cantidad !== undefined ? 'cantidad' : 'kg';
-                        tintas[item.indice][campo] = Math.max(0, actual - item.kg);
+                        const tinta = tintas[item.indice];
+                        const actual = parseFloat(tinta.cantidad || tinta.kg || 0);
+                        const campo = tinta.cantidad !== undefined ? 'cantidad' : 'kg';
+                        const nuevoValor = Math.max(0, actual - item.kg);
+                        tinta[campo] = nuevoValor;
                         actualizado = true;
-                        console.log(`Tintas: Descontados ${item.kg} Kg de ${item.nombre} (Quedan: ${tintas[item.indice][campo]} Kg)`);
+                        console.log(`Tintas: Descontados ${item.kg} Kg de ${item.nombre} (Quedan: ${nuevoValor} Kg)`);
+
+                        // Actualizar en Supabase
+                        if (AxonesDB.isReady() && tinta.id) {
+                            await AxonesDB.client.from('tintas').update({ [campo]: nuevoValor }).eq('id', tinta.id);
+                        }
                     }
-                });
+                }
             }
 
             // Reponer devolucion
             if (datos.devolucionTintas) {
-                datos.devolucionTintas.forEach(item => {
+                for (const item of datos.devolucionTintas) {
                     if (tintas[item.indice]) {
-                        const actual = parseFloat(tintas[item.indice].cantidad || tintas[item.indice].kg || 0);
-                        const campo = tintas[item.indice].cantidad !== undefined ? 'cantidad' : 'kg';
-                        tintas[item.indice][campo] = actual + item.kg;
+                        const tinta = tintas[item.indice];
+                        const actual = parseFloat(tinta.cantidad || tinta.kg || 0);
+                        const campo = tinta.cantidad !== undefined ? 'cantidad' : 'kg';
+                        const nuevoValor = actual + item.kg;
+                        tinta[campo] = nuevoValor;
                         actualizado = true;
-                        console.log(`Tintas: Repuestos ${item.kg} Kg de ${item.nombre} (Total: ${tintas[item.indice][campo]} Kg)`);
+                        console.log(`Tintas: Repuestos ${item.kg} Kg de ${item.nombre} (Total: ${nuevoValor} Kg)`);
+
+                        // Actualizar en Supabase
+                        if (AxonesDB.isReady() && tinta.id) {
+                            await AxonesDB.client.from('tintas').update({ [campo]: nuevoValor }).eq('id', tinta.id);
+                        }
                     }
-                });
+                }
             }
 
             if (actualizado) {
-                localStorage.setItem('axones_tintas_inventario', JSON.stringify(tintas));
-                console.log('Inventario de tintas actualizado despues de produccion');
+                console.log('Inventario de tintas actualizado en Supabase despues de produccion');
             }
         } catch (error) {
             console.warn('Error al actualizar inventario de tintas:', error);
@@ -1228,7 +1263,7 @@ const Impresion = {
     /**
      * Genera reporte de bobinas rechazadas agrupado por proveedor
      */
-    generarReporteRechazo: function() {
+    generarReporteRechazo: async function() {
         const datos = this.recopilarDevolucionRechazada();
         if (datos.length === 0) {
             this.mostrarToast('No hay bobinas rechazadas para reportar', 'warning');
@@ -1325,16 +1360,23 @@ const Impresion = {
         ventana.document.close();
         ventana.print();
 
-        // Guardar en localStorage para acceso desde reportes.html
-        const reportes = JSON.parse(localStorage.getItem('axones_reportes_rechazo') || '[]');
-        reportes.unshift({
-            id: 'RR_' + Date.now(),
-            timestamp: new Date().toISOString(),
-            ordenTrabajo: numOT,
-            datos: this.recopilarDevolucionRechazada(),
-            totalKg: this.calcularTotalDevolucionRechazada()
-        });
-        localStorage.setItem('axones_reportes_rechazo', JSON.stringify(reportes));
+        // Guardar en Supabase sync_store para acceso desde reportes.html
+        try {
+            if (AxonesDB.isReady()) {
+                const { data: existing } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_reportes_rechazo').single();
+                const reportes = (existing?.value) ? JSON.parse(existing.value) : [];
+                reportes.unshift({
+                    id: 'RR_' + Date.now(),
+                    timestamp: new Date().toISOString(),
+                    ordenTrabajo: numOT,
+                    datos: this.recopilarDevolucionRechazada(),
+                    totalKg: this.calcularTotalDevolucionRechazada()
+                });
+                await AxonesDB.client.from('sync_store').upsert({ key: 'axones_reportes_rechazo', value: JSON.stringify(reportes) });
+            }
+        } catch (error) {
+            console.warn('Error guardando reporte de rechazo en Supabase:', error);
+        }
     },
 
     /**
@@ -1363,7 +1405,7 @@ const Impresion = {
     /**
      * Guarda el registro
      */
-    guardar: function() {
+    guardar: async function() {
         // Validacion personalizada
         const errores = this.validarCamposRequeridos();
         if (errores.length > 0) {
@@ -1390,17 +1432,17 @@ const Impresion = {
         }
 
         try {
-            // Guardar en localStorage (sincronizado con Supabase via sync-realtime)
-            this.guardarLocal(datos);
+            // Guardar en Supabase
+            await this.guardarLocal(datos);
 
             // Descontar material del inventario automaticamente
-            this.descontarInventario(datos);
+            await this.descontarInventario(datos);
 
             // Descontar tintas del inventario (consumo) y reponer (devolucion)
-            this.descontarTintas(datos);
+            await this.descontarTintas(datos);
 
             // Verificar alertas
-            this.verificarAlertas(datos);
+            await this.verificarAlertas(datos);
 
             this.mostrarToast('Registro guardado', 'success');
 
@@ -1564,26 +1606,28 @@ const Impresion = {
     },
 
     /**
-     * Guarda en localStorage (desarrollo)
+     * Guarda registro de produccion en Supabase
      */
-    guardarLocal: function(datos) {
-        // Guardar en produccion
-        const registros = JSON.parse(localStorage.getItem('axones_produccion') || '[]');
-        registros.unshift(datos);
-        localStorage.setItem('axones_produccion', JSON.stringify(registros));
-
-        // Tambien guardar en key especifica de impresion
-        const impresion = JSON.parse(localStorage.getItem('axones_impresion') || '[]');
-        impresion.unshift(datos);
-        localStorage.setItem('axones_impresion', JSON.stringify(impresion));
+    guardarLocal: async function(datos) {
+        if (AxonesDB.isReady()) {
+            // Guardar en tabla produccion_impresion con columna datos JSONB
+            await AxonesDB.client.from('produccion_impresion').insert({
+                orden_id: datos.otId || null,
+                numero_ot: datos.ordenTrabajo || null,
+                datos: datos
+            });
+            console.log('Registro de impresion guardado en Supabase');
+        } else {
+            console.warn('Supabase no disponible, registro no guardado');
+        }
     },
 
     /**
      * Descuenta material del inventario y repone devolucion buena
      */
-    descontarInventario: function(datos) {
+    descontarInventario: async function(datos) {
         try {
-            const inventario = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
+            const inventario = this.inventarioCache || [];
             // Descontar totalMaterialEntrada (todo lo que se saco del inventario)
             const cantidadUsada = parseFloat(datos.totalMaterialEntrada) || 0;
 
@@ -1610,6 +1654,11 @@ const Impresion = {
                         descontado = true;
 
                         console.log(`Inventario: Descontados ${aDescontar} Kg de ${item.material} (Quedan: ${item.kg} Kg)`);
+
+                        // Actualizar en Supabase
+                        if (AxonesDB.isReady() && item.id) {
+                            await AxonesDB.client.from('materiales').update({ kg: item.kg }).eq('id', item.id);
+                        }
                     }
                 }
             }
@@ -1628,6 +1677,11 @@ const Impresion = {
                         item.kg = (parseFloat(item.kg) || 0) + devBuena;
                         repuesto = true;
                         console.log(`Inventario: Repuestos ${devBuena} Kg (devolucion buena) a ${item.material} (Total: ${item.kg} Kg)`);
+
+                        // Actualizar en Supabase
+                        if (AxonesDB.isReady() && item.id) {
+                            await AxonesDB.client.from('materiales').update({ kg: item.kg }).eq('id', item.id);
+                        }
                         break;
                     }
                 }
@@ -1638,10 +1692,8 @@ const Impresion = {
             }
 
             if (descontado) {
-                localStorage.setItem('axones_inventario', JSON.stringify(inventario));
-                console.log('Inventario actualizado despues de produccion');
-
-                this.verificarStockBajo(inventario);
+                console.log('Inventario actualizado en Supabase despues de produccion');
+                await this.verificarStockBajo(inventario);
             }
         } catch (error) {
             console.warn('Error al descontar inventario:', error);
@@ -1651,51 +1703,63 @@ const Impresion = {
     /**
      * Verifica si hay materiales con stock bajo y genera alertas
      */
-    verificarStockBajo: function(inventario) {
+    verificarStockBajo: async function(inventario) {
         const STOCK_MINIMO = 200; // Kg
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
 
-        inventario.forEach(item => {
+        // Cargar alertas existentes desde Supabase
+        let alertas = [];
+        try {
+            if (AxonesDB.isReady()) {
+                const { data } = await AxonesDB.client.from('alertas').select('*');
+                alertas = data || [];
+            }
+        } catch (e) {
+            console.warn('Error cargando alertas:', e);
+        }
+
+        for (const item of inventario) {
             if ((item.kg || 0) < STOCK_MINIMO && (item.kg || 0) > 0) {
                 // Verificar si ya existe una alerta reciente para este material
                 const alertaExistente = alertas.find(a =>
                     a.tipo === 'stock_bajo' &&
                     a.datos?.material === item.material &&
-                    new Date(a.fecha) > new Date(Date.now() - 24 * 60 * 60 * 1000) // Ultimas 24 horas
+                    new Date(a.fecha || a.created_at) > new Date(Date.now() - 24 * 60 * 60 * 1000)
                 );
 
                 if (!alertaExistente) {
-                    alertas.unshift({
-                        id: Date.now(),
+                    const alerta = {
                         tipo: 'stock_bajo',
                         nivel: item.kg < 50 ? 'danger' : 'warning',
+                        titulo: 'Stock bajo',
                         mensaje: `Stock bajo: ${item.material} ${item.micras || ''}µ - Quedan ${item.kg?.toFixed(1) || 0} Kg`,
                         fecha: new Date().toISOString(),
                         estado: 'pendiente',
                         datos: { material: item.material, cantidad: item.kg }
-                    });
+                    };
+
+                    if (AxonesDB.isReady()) {
+                        await AxonesDB.client.from('alertas').insert(alerta);
+                    }
                     console.log('Alerta de stock bajo generada para', item.material);
                 }
             }
-        });
-
-        localStorage.setItem('axones_alertas', JSON.stringify(alertas));
+        }
     },
 
     /**
      * Verifica y genera alertas segun los datos
      */
-    verificarAlertas: function(datos) {
+    verificarAlertas: async function(datos) {
         const umbral = CONFIG.UMBRALES_REFIL.default;
         const porcentajeRefil = parseFloat(datos.porcentajeRefil) || 0;
 
         // Alerta por Refil alto
         if (porcentajeRefil > umbral.advertencia) {
-            this.generarAlerta(datos);
+            await this.generarAlerta(datos);
         }
 
         // Alerta por tiempo muerto excesivo
-        this.verificarTiempoMuerto(datos);
+        await this.verificarTiempoMuerto(datos);
 
         // Actualizar contadores de produccion si HomeModule esta disponible
         if (typeof HomeModule !== 'undefined') {
@@ -1707,7 +1771,7 @@ const Impresion = {
     /**
      * Genera una alerta por refil excedido
      */
-    generarAlerta: function(datos) {
+    generarAlerta: async function(datos) {
         const porcentaje = parseFloat(datos.porcentajeRefil) || 0;
         const umbral = CONFIG.UMBRALES_REFIL.default;
 
@@ -1717,30 +1781,34 @@ const Impresion = {
         const nivel = esCritico ? 'critical' : 'warning';
 
         const alerta = {
-            id: Date.now(),
-            fecha: new Date().toISOString(),
             tipo: tipo,
             nivel: nivel,
-            maquina: datos.maquina,
-            ot: datos.ordenTrabajo,
+            titulo: esCritico ? 'Refil critico' : 'Refil alto',
             mensaje: `Refil ${porcentaje.toFixed(1)}% en OT ${datos.ordenTrabajo} - ${datos.maquina} - Producto: ${datos.producto}`,
+            fecha: new Date().toISOString(),
             estado: 'pendiente',
             datos: {
                 porcentajeRefil: porcentaje,
                 umbral: umbral.maximo,
                 producto: datos.producto,
                 cliente: datos.cliente,
-                operador: datos.operador
+                operador: datos.operador,
+                maquina: datos.maquina,
+                ot: datos.ordenTrabajo
             }
         };
 
-        // Guardar alerta localmente
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
-        alertas.unshift(alerta);
-        localStorage.setItem('axones_alertas', JSON.stringify(alertas));
+        // Guardar alerta en Supabase
+        try {
+            if (AxonesDB.isReady()) {
+                await AxonesDB.client.from('alertas').insert(alerta);
+            }
+        } catch (error) {
+            console.warn('Error guardando alerta en Supabase:', error);
+        }
 
         // Actualizar badge de alertas si existe
-        this.actualizarBadgeAlertas();
+        await this.actualizarBadgeAlertas();
 
         // Mostrar notificacion visual
         this.mostrarNotificacionAlerta(alerta);
@@ -1749,12 +1817,21 @@ const Impresion = {
     /**
      * Actualiza el badge de alertas en el navbar
      */
-    actualizarBadgeAlertas: function() {
+    actualizarBadgeAlertas: async function() {
         const badge = document.getElementById('alertasBadge');
         if (!badge) return;
 
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
-        const pendientes = alertas.filter(a => a.estado === 'pendiente' || a.estado === 'activa').length;
+        let pendientes = 0;
+        try {
+            if (AxonesDB.isReady()) {
+                const { data, count } = await AxonesDB.client.from('alertas')
+                    .select('id', { count: 'exact', head: true })
+                    .in('estado', ['pendiente', 'activa']);
+                pendientes = count || 0;
+            }
+        } catch (e) {
+            console.warn('Error contando alertas:', e);
+        }
 
         if (pendientes > 0) {
             badge.textContent = pendientes;
@@ -1806,7 +1883,7 @@ const Impresion = {
     /**
      * Verifica tiempo muerto excesivo
      */
-    verificarTiempoMuerto: function(datos) {
+    verificarTiempoMuerto: async function(datos) {
         const tiempoMuerto = parseInt(datos.tiempoMuerto) || 0;
         const tiempoEfectivo = parseInt(datos.tiempoEfectivo) || 0;
 
@@ -1815,24 +1892,28 @@ const Impresion = {
             const porcentajeTiempoMuerto = (tiempoMuerto / (tiempoMuerto + tiempoEfectivo)) * 100;
             if (porcentajeTiempoMuerto > 20) {
                 const alerta = {
-                    id: Date.now() + 1,
-                    fecha: new Date().toISOString(),
                     tipo: 'tiempo_muerto_alto',
                     nivel: 'info',
-                    maquina: datos.maquina,
-                    ot: datos.ordenTrabajo,
+                    titulo: 'Tiempo muerto alto',
                     mensaje: `Tiempo muerto ${porcentajeTiempoMuerto.toFixed(0)}% en OT ${datos.ordenTrabajo}`,
+                    fecha: new Date().toISOString(),
                     estado: 'pendiente',
                     datos: {
                         tiempoMuerto: tiempoMuerto,
                         tiempoEfectivo: tiempoEfectivo,
-                        porcentaje: porcentajeTiempoMuerto
+                        porcentaje: porcentajeTiempoMuerto,
+                        maquina: datos.maquina,
+                        ot: datos.ordenTrabajo
                     }
                 };
 
-                const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
-                alertas.unshift(alerta);
-                localStorage.setItem('axones_alertas', JSON.stringify(alertas));
+                try {
+                    if (AxonesDB.isReady()) {
+                        await AxonesDB.client.from('alertas').insert(alerta);
+                    }
+                } catch (error) {
+                    console.warn('Error guardando alerta tiempo muerto:', error);
+                }
             }
         }
     },
@@ -1868,7 +1949,7 @@ const Impresion = {
         }
     },
 
-    guardarChecklist: function() {
+    guardarChecklist: async function() {
         const items = [];
         document.querySelectorAll('.checklist-item').forEach(cb => {
             items.push({ item: cb.value, completado: cb.checked });
@@ -1888,10 +1969,17 @@ const Impresion = {
             aprobadoPor: document.getElementById('checklistAprobadoPor')?.value || ''
         };
 
-        // Guardar en localStorage
-        const checklists = JSON.parse(localStorage.getItem('axones_checklists') || '[]');
-        checklists.unshift(datos);
-        localStorage.setItem('axones_checklists', JSON.stringify(checklists));
+        // Guardar en Supabase sync_store
+        try {
+            if (AxonesDB.isReady()) {
+                const { data: existing } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_checklists').single();
+                const checklists = (existing?.value) ? JSON.parse(existing.value) : [];
+                checklists.unshift(datos);
+                await AxonesDB.client.from('sync_store').upsert({ key: 'axones_checklists', value: JSON.stringify(checklists) });
+            }
+        } catch (error) {
+            console.warn('Error guardando checklist en Supabase:', error);
+        }
 
         this.mostrarToast('Checklist guardado correctamente', 'success');
 

@@ -105,6 +105,30 @@ ALTER PUBLICATION supabase_realtime ADD TABLE sync_store;`);
             _ready = true;
             this._showIndicator();
             console.log('[AxonesSync] Sincronizacion en tiempo real ACTIVA');
+
+            // Siempre notificar que el sync termino (para que otros modulos recarguen)
+            window.dispatchEvent(new CustomEvent('axones-sync', {
+                detail: { type: 'init-complete' }
+            }));
+        },
+
+        /**
+         * Indica si el sync esta listo
+         */
+        _isReady() {
+            return _ready;
+        },
+
+        /**
+         * Fuerza la subida inmediata de un key a Supabase (sin debounce)
+         */
+        async _forceUpload(key) {
+            if (!_ready) return;
+            const val = localStorage.getItem(key);
+            if (val) {
+                clearTimeout(_timers[key]);
+                await this._upload(key, val);
+            }
         },
 
         /**
@@ -558,11 +582,9 @@ function _showSyncToast(msg) {
     }
 })();
 
-// Auto-iniciar despues de que todo cargue
+// Auto-iniciar despues de que todo cargue (SIN delay para evitar race condition)
 document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-        AxonesSync.init().catch(e => console.warn('[AxonesSync] Init error:', e.message));
-    }, 2000);
+    AxonesSync.init().catch(e => console.warn('[AxonesSync] Init error:', e.message));
 });
 
 // Exportar

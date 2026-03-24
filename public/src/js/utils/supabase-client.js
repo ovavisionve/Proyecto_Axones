@@ -13,7 +13,7 @@
 // ============================================================
 const SUPABASE_CONFIG = {
     url: 'https://lzjuzfbzgyjazhzhfhzv.supabase.co',
-    anonKey: 'sb_publishable_2qO868gEzBLLUyO2GmvgIg_69IhUvb7',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6anV6ZmJ6Z3lqYXpoemhmaHp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMDk5MTQsImV4cCI6MjA4OTc4NTkxNH0.jOvD48v-VFRGCpxB7YTc0LF5v9UO7M1qxoY6Jk9KMZc',
 };
 
 // ============================================================

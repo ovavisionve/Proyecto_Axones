@@ -25,6 +25,7 @@ const Impresion = {
         this.cargarDatosIniciales();
         this.setupEventListeners();
         this.setupCalculations();
+        this.initDevolucionRechazada();
 
         // Poblar selector de OTs y verificar si viene una por URL
         this.poblarSelectorOT();
@@ -659,10 +660,11 @@ const Impresion = {
             input.addEventListener('input', () => this.calcularTotales());
         });
 
-        // Calcular total de restante
-        document.querySelectorAll('.restante-entrada').forEach(input => {
-            input.addEventListener('input', () => this.calcularTotales());
-        });
+        // Calcular al cambiar devolucion buena
+        const devBuenaInput = document.getElementById('devolucionBuenaKg');
+        if (devBuenaInput) {
+            devBuenaInput.addEventListener('input', () => this.calcularTotales());
+        }
 
         // Calcular total de scrap
         document.querySelectorAll('.scrap-input').forEach(input => {
@@ -827,19 +829,28 @@ const Impresion = {
         document.getElementById('pesoTotal').value = totalSalida.toFixed(2);
         document.getElementById('numBobinas').value = numBobinas;
 
-        // Merma (entrada - salida - scrap)
-        const scrapRefile = parseFloat(document.getElementById('scrapRefile').value) || 0;
-        const scrapImpreso = parseFloat(document.getElementById('scrapImpreso').value) || 0;
-        const totalScrap = scrapRefile + scrapImpreso;
+        // Scrap (Transparente + Impreso)
+        const scrapTransparente = parseFloat(document.getElementById('scrapTransparente')?.value) || 0;
+        const scrapImpreso = parseFloat(document.getElementById('scrapImpreso')?.value) || 0;
+        const totalScrap = scrapTransparente + scrapImpreso;
         document.getElementById('totalScrap').value = totalScrap.toFixed(2);
+
+        // Devolucion buena y rechazada
+        const devBuena = parseFloat(document.getElementById('devolucionBuenaKg')?.value) || 0;
+        const devRechazada = this.calcularTotalDevolucionRechazada();
+
+        // Total devuelto = buena + rechazada
+        const totalDevuelto = devBuena + devRechazada;
+
+        // Consumido = Entrada - Devolucion Buena - Devolucion Rechazada
+        const totalConsumido = totalEntrada - totalDevuelto;
 
         const merma = totalEntrada - totalSalida - totalScrap;
         document.getElementById('merma').value = merma.toFixed(2);
 
-        // Porcentaje de Refil
+        // Porcentaje de Scrap
         let porcentajeRefil = 0;
         if (totalEntrada > 0) {
-            // Refil = (Merma + Scrap) / Entrada * 100
             porcentajeRefil = ((merma + totalScrap) / totalEntrada) * 100;
         }
         document.getElementById('porcentajeRefil').value = porcentajeRefil.toFixed(2) + '%';
@@ -847,28 +858,26 @@ const Impresion = {
         // Actualizar indicador de refil
         this.actualizarIndicadorRefil(porcentajeRefil, totalEntrada);
 
-        // Total restante
-        let totalRestante = 0;
-        document.querySelectorAll('.restante-entrada').forEach(input => {
-            totalRestante += parseFloat(input.value) || 0;
-        });
-        const totalRestanteEl = document.getElementById('totalRestante');
-        if (totalRestanteEl) totalRestanteEl.value = totalRestante.toFixed(2);
-
-        const totalConsumido = totalEntrada - totalRestante;
+        // Actualizar badges de devolucion
+        const totalDevBuenoEl = document.getElementById('totalDevueltoBueno');
+        if (totalDevBuenoEl) totalDevBuenoEl.textContent = devBuena.toFixed(2);
+        const totalDevRechazadoEl = document.getElementById('totalDevueltoRechazado');
+        if (totalDevRechazadoEl) totalDevRechazadoEl.textContent = devRechazada.toFixed(2);
         const totalConsumidoEl = document.getElementById('totalConsumido');
         if (totalConsumidoEl) totalConsumidoEl.textContent = totalConsumido.toFixed(2);
 
         // Actualizar Resumen de Produccion
         const resEntrada = document.getElementById('resumenEntrada');
-        const resRestante = document.getElementById('resumenRestante');
+        const resDevBuena = document.getElementById('resumenDevBuena');
+        const resDevRechazada = document.getElementById('resumenDevRechazada');
         const resConsumido = document.getElementById('resumenConsumido');
         const resSalida = document.getElementById('resumenSalida');
         const resScrap = document.getElementById('resumenScrap');
         const resMerma = document.getElementById('resumenMermaCalc');
         const resRefil = document.getElementById('resumenRefilCalc');
         if (resEntrada) resEntrada.textContent = totalEntrada.toFixed(2) + ' Kg';
-        if (resRestante) resRestante.textContent = totalRestante.toFixed(2) + ' Kg';
+        if (resDevBuena) resDevBuena.textContent = devBuena.toFixed(2) + ' Kg';
+        if (resDevRechazada) resDevRechazada.textContent = devRechazada.toFixed(2) + ' Kg';
         if (resConsumido) resConsumido.textContent = totalConsumido.toFixed(2) + ' Kg';
         if (resSalida) resSalida.textContent = totalSalida.toFixed(2) + ' Kg';
         if (resScrap) resScrap.textContent = totalScrap.toFixed(2) + ' Kg';
@@ -916,6 +925,208 @@ const Impresion = {
             indicador.className = 'alert alert-danger py-1 px-2 mb-0 small text-center';
             indicador.innerHTML = '<i class="bi bi-x-circle me-1"></i> Refil excedido';
         }
+    },
+
+    /**
+     * Inicializa la seccion de devolucion rechazada
+     */
+    initDevolucionRechazada: function() {
+        const btnAgregar = document.getElementById('btnAgregarRechazo');
+        if (btnAgregar) {
+            btnAgregar.addEventListener('click', () => this.agregarFilaRechazo());
+        }
+        const btnReporte = document.getElementById('btnReporteRechazo');
+        if (btnReporte) {
+            btnReporte.addEventListener('click', () => this.generarReporteRechazo());
+        }
+    },
+
+    /**
+     * Agrega una fila a la tabla de devolucion rechazada
+     */
+    agregarFilaRechazo: function() {
+        const tbody = document.getElementById('bodyDevolucionRechazada');
+        if (!tbody) return;
+
+        const hoy = new Date().toISOString().split('T')[0];
+        const ahora = new Date().toTimeString().slice(0, 5);
+        const fila = document.createElement('tr');
+        fila.innerHTML = `
+            <td><input type="text" class="form-control form-control-sm rechazo-proveedor" placeholder="Proveedor"></td>
+            <td><input type="text" class="form-control form-control-sm rechazo-ref" placeholder="Ref. bobina"></td>
+            <td><input type="number" class="form-control form-control-sm rechazo-kg" step="0.01" min="0" value="0"></td>
+            <td><select class="form-select form-select-sm rechazo-motivo">
+                <option value="">Seleccionar</option>
+                <option value="Material defectuoso">Material defectuoso</option>
+                <option value="Fuera de especificacion">Fuera de especificacion</option>
+                <option value="Inicio de bobina malo">Inicio de bobina malo</option>
+                <option value="Final de bobina malo">Final de bobina malo</option>
+                <option value="Problemas de tratamiento">Problemas de tratamiento</option>
+                <option value="Contaminacion">Contaminacion</option>
+                <option value="Otro">Otro</option>
+            </select></td>
+            <td><input type="date" class="form-control form-control-sm rechazo-fecha" value="${hoy}"></td>
+            <td><input type="time" class="form-control form-control-sm rechazo-hora" value="${ahora}"></td>
+            <td><button type="button" class="btn btn-sm btn-outline-danger btn-quitar-rechazo" title="Quitar"><i class="bi bi-x"></i></button></td>
+        `;
+
+        // Evento para quitar fila
+        fila.querySelector('.btn-quitar-rechazo').addEventListener('click', () => {
+            fila.remove();
+            this.calcularTotales();
+        });
+
+        // Evento para recalcular al cambiar kg
+        fila.querySelector('.rechazo-kg').addEventListener('input', () => this.calcularTotales());
+
+        tbody.appendChild(fila);
+    },
+
+    /**
+     * Calcula el total de kg de devolucion rechazada
+     */
+    calcularTotalDevolucionRechazada: function() {
+        let total = 0;
+        document.querySelectorAll('.rechazo-kg').forEach(input => {
+            total += parseFloat(input.value) || 0;
+        });
+        const totalEl = document.getElementById('totalDevolucionRechazada');
+        if (totalEl) totalEl.textContent = total.toFixed(2);
+        return total;
+    },
+
+    /**
+     * Recopila datos de la tabla de devolucion rechazada
+     */
+    recopilarDevolucionRechazada: function() {
+        const filas = document.querySelectorAll('#bodyDevolucionRechazada tr');
+        const datos = [];
+        filas.forEach(fila => {
+            const kg = parseFloat(fila.querySelector('.rechazo-kg')?.value) || 0;
+            if (kg > 0) {
+                datos.push({
+                    proveedor: fila.querySelector('.rechazo-proveedor')?.value || '',
+                    referencia: fila.querySelector('.rechazo-ref')?.value || '',
+                    kg: kg,
+                    motivo: fila.querySelector('.rechazo-motivo')?.value || '',
+                    fecha: fila.querySelector('.rechazo-fecha')?.value || '',
+                    hora: fila.querySelector('.rechazo-hora')?.value || ''
+                });
+            }
+        });
+        return datos;
+    },
+
+    /**
+     * Genera reporte de bobinas rechazadas agrupado por proveedor
+     */
+    generarReporteRechazo: function() {
+        const datos = this.recopilarDevolucionRechazada();
+        if (datos.length === 0) {
+            this.mostrarToast('No hay bobinas rechazadas para reportar', 'warning');
+            return;
+        }
+
+        // Agrupar por proveedor
+        const porProveedor = {};
+        datos.forEach(d => {
+            const prov = d.proveedor || 'Sin proveedor';
+            if (!porProveedor[prov]) porProveedor[prov] = [];
+            porProveedor[prov].push(d);
+        });
+
+        // Datos de la OT
+        const ot = this.ordenCargada || {};
+        const numOT = ot.numeroOrden || ot.ot || document.getElementById('ordenTrabajo')?.value || 'N/A';
+
+        // Generar HTML del reporte
+        let html = `
+            <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h2 style="margin:0">INVERSIONES AXONES 2008, C.A.</h2>
+                    <p style="margin:2px 0">RIF: J-40081341-7</p>
+                    <h3 style="margin:10px 0; color: #dc3545;">REPORTE DE MATERIAL RECHAZADO</h3>
+                    <p style="margin:2px 0">Orden de Trabajo: <strong>${numOT}</strong></p>
+                    <p style="margin:2px 0">Fecha de emision: ${new Date().toLocaleDateString('es-VE')}</p>
+                </div>
+        `;
+
+        Object.keys(porProveedor).forEach(proveedor => {
+            const items = porProveedor[proveedor];
+            const totalKg = items.reduce((sum, d) => sum + d.kg, 0);
+
+            html += `
+                <div style="margin-bottom: 20px; border: 1px solid #dc3545; border-radius: 6px; padding: 12px;">
+                    <h4 style="color: #dc3545; margin: 0 0 10px 0;">Proveedor: ${proveedor}</h4>
+                    <table style="width:100%; border-collapse: collapse; font-size: 13px;">
+                        <thead>
+                            <tr style="background: #f8d7da;">
+                                <th style="border:1px solid #ddd; padding:6px;">Ref. Bobina</th>
+                                <th style="border:1px solid #ddd; padding:6px;">Kg</th>
+                                <th style="border:1px solid #ddd; padding:6px;">Motivo</th>
+                                <th style="border:1px solid #ddd; padding:6px;">Fecha</th>
+                                <th style="border:1px solid #ddd; padding:6px;">Hora</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            items.forEach(item => {
+                html += `
+                            <tr>
+                                <td style="border:1px solid #ddd; padding:6px;">${item.referencia}</td>
+                                <td style="border:1px solid #ddd; padding:6px; text-align:right;">${item.kg.toFixed(2)}</td>
+                                <td style="border:1px solid #ddd; padding:6px;">${item.motivo}</td>
+                                <td style="border:1px solid #ddd; padding:6px;">${item.fecha}</td>
+                                <td style="border:1px solid #ddd; padding:6px;">${item.hora}</td>
+                            </tr>
+                `;
+            });
+
+            html += `
+                        </tbody>
+                        <tfoot>
+                            <tr style="background: #f8d7da; font-weight: bold;">
+                                <td style="border:1px solid #ddd; padding:6px; text-align:right;">Total:</td>
+                                <td style="border:1px solid #ddd; padding:6px; text-align:right;">${totalKg.toFixed(2)} Kg</td>
+                                <td colspan="3" style="border:1px solid #ddd; padding:6px;"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            `;
+        });
+
+        html += `
+                <div style="margin-top: 30px; display: flex; justify-content: space-between;">
+                    <div style="text-align: center; width: 40%;">
+                        <div style="border-top: 1px solid #333; padding-top: 5px;">Responsable de Produccion</div>
+                    </div>
+                    <div style="text-align: center; width: 40%;">
+                        <div style="border-top: 1px solid #333; padding-top: 5px;">Jefe de Operaciones</div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Abrir ventana de impresion
+        const ventana = window.open('', '_blank', 'width=850,height=600');
+        ventana.document.write('<html><head><title>Reporte Material Rechazado - ' + numOT + '</title></head><body>');
+        ventana.document.write(html);
+        ventana.document.write('</body></html>');
+        ventana.document.close();
+        ventana.print();
+
+        // Guardar en localStorage para acceso desde reportes.html
+        const reportes = JSON.parse(localStorage.getItem('axones_reportes_rechazo') || '[]');
+        reportes.unshift({
+            id: 'RR_' + Date.now(),
+            timestamp: new Date().toISOString(),
+            ordenTrabajo: numOT,
+            datos: this.recopilarDevolucionRechazada(),
+            totalKg: this.calcularTotalDevolucionRechazada()
+        });
+        localStorage.setItem('axones_reportes_rechazo', JSON.stringify(reportes));
     },
 
     /**
@@ -1042,14 +1253,8 @@ const Impresion = {
             }
         }
 
-        // Obtener restante de bobinas
-        const materialesRestante = [];
-        for (let i = 1; i <= 26; i++) {
-            const valor = parseFloat(document.getElementById('rest' + i)?.value) || 0;
-            if (valor > 0) {
-                materialesRestante.push({ posicion: i, peso: valor });
-            }
-        }
+        // Obtener devolucion rechazada
+        const devolucionRechazada = this.recopilarDevolucionRechazada();
 
         // Obtener bobinas de salida
         const bobinasSalida = [];
@@ -1091,9 +1296,12 @@ const Impresion = {
             materialesEntrada: materialesEntrada,
             totalMaterialEntrada: parseFloat(document.getElementById('totalMaterialEntrada').value) || 0,
 
-            // Restante de bobinas
-            materialesRestante: materialesRestante,
-            totalRestante: parseFloat(document.getElementById('totalRestante')?.value) || 0,
+            // Devolucion
+            devolucionBuenaKg: parseFloat(document.getElementById('devolucionBuenaKg')?.value) || 0,
+            devolucionBuenaFecha: document.getElementById('devolucionBuenaFecha')?.value || '',
+            devolucionBuenaHora: document.getElementById('devolucionBuenaHora')?.value || '',
+            devolucionRechazada: devolucionRechazada,
+            totalDevolucionRechazada: this.calcularTotalDevolucionRechazada(),
             totalConsumido: parseFloat(document.getElementById('totalConsumido')?.textContent) || 0,
 
             // Pesaje
@@ -1108,11 +1316,11 @@ const Impresion = {
             merma: parseFloat(document.getElementById('merma').value) || 0,
             metraje: parseFloat(document.getElementById('metraje').value) || 0,
 
-            // Scrap / Refil
-            scrapRefile: parseFloat(document.getElementById('scrapRefile').value) || 0,
-            scrapImpreso: parseFloat(document.getElementById('scrapImpreso').value) || 0,
-            totalScrap: parseFloat(document.getElementById('totalScrap').value) || 0,
-            porcentajeRefil: parseFloat(document.getElementById('porcentajeRefil').value) || 0,
+            // Scrap (Transparente + Impreso)
+            scrapTransparente: parseFloat(document.getElementById('scrapTransparente')?.value) || 0,
+            scrapImpreso: parseFloat(document.getElementById('scrapImpreso')?.value) || 0,
+            totalScrap: parseFloat(document.getElementById('totalScrap')?.value) || 0,
+            porcentajeScrap: parseFloat(document.getElementById('porcentajeRefil')?.value) || 0,
 
             // Tiempos
             horaInicio: document.getElementById('horaInicio')?.value || '',
@@ -1148,13 +1356,13 @@ const Impresion = {
     },
 
     /**
-     * Descuenta automaticamente el material utilizado del inventario
+     * Descuenta material del inventario y repone devolucion buena
      */
     descontarInventario: function(datos) {
         try {
             const inventario = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
-            // Usar totalConsumido (entrada - restante) en vez de totalEntrada
-            const cantidadUsada = parseFloat(datos.totalConsumido) || parseFloat(datos.totalMaterialEntrada) || 0;
+            // Descontar totalMaterialEntrada (todo lo que se saco del inventario)
+            const cantidadUsada = parseFloat(datos.totalMaterialEntrada) || 0;
 
             if (cantidadUsada <= 0) return;
 
@@ -1165,12 +1373,10 @@ const Impresion = {
             for (let i = 0; i < inventario.length && restante > 0; i++) {
                 const item = inventario[i];
 
-                // Intentar coincidir por producto o por caracteristicas generales
                 const coincideProducto = item.producto &&
                     (item.producto.toLowerCase().includes(datos.producto?.toLowerCase() || '') ||
                      datos.producto?.toLowerCase().includes(item.producto.toLowerCase()));
 
-                // Si coincide el producto o es material generico sin asignar
                 if (coincideProducto || !item.producto) {
                     const disponible = parseFloat(item.kg) || 0;
 
@@ -1185,11 +1391,33 @@ const Impresion = {
                 }
             }
 
+            // Reponer devolucion buena al inventario
+            const devBuena = parseFloat(datos.devolucionBuenaKg) || 0;
+            if (devBuena > 0) {
+                let repuesto = false;
+                for (let i = 0; i < inventario.length; i++) {
+                    const item = inventario[i];
+                    const coincideProducto = item.producto &&
+                        (item.producto.toLowerCase().includes(datos.producto?.toLowerCase() || '') ||
+                         datos.producto?.toLowerCase().includes(item.producto.toLowerCase()));
+
+                    if (coincideProducto) {
+                        item.kg = (parseFloat(item.kg) || 0) + devBuena;
+                        repuesto = true;
+                        console.log(`Inventario: Repuestos ${devBuena} Kg (devolucion buena) a ${item.material} (Total: ${item.kg} Kg)`);
+                        break;
+                    }
+                }
+                if (!repuesto) {
+                    console.warn('No se encontro material para reponer devolucion buena');
+                }
+                descontado = true;
+            }
+
             if (descontado) {
                 localStorage.setItem('axones_inventario', JSON.stringify(inventario));
                 console.log('Inventario actualizado despues de produccion');
 
-                // Verificar si hay stock bajo y generar alerta
                 this.verificarStockBajo(inventario);
             }
         } catch (error) {

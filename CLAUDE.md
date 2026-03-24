@@ -441,6 +441,7 @@ CONFIG.CHATBOT.MODEL = 'llama-3.3-70b-versatile'
 'axones_producto_terminado' // Producto terminado (paletas de corte)
 'axones_consumo_tintas'     // Consumo de tintas por OT
 'axones_tintas_mezclas'     // Mezclas del colorista
+'axones_reportes_rechazo'   // Reportes de material rechazado por proveedor
 ```
 
 **Nota:** Todas las keys de localStorage funcionan como cache local. Supabase es la fuente de verdad y se sincroniza via `sync-realtime.js`.
@@ -513,10 +514,10 @@ git push origin main
 ### Fase 3: Restante de bobinas + Resumen con calculo de inventario
 | Cambio | Estado |
 |--------|--------|
-| Capsula "Restante de bobinas usadas" en impresion (rest1-rest26) | COMPLETADO |
+| ~~Capsula "Restante de bobinas usadas" en impresion (rest1-rest26)~~ | REEMPLAZADO por Resumen de Devolucion (Fase 8) |
 | Capsula "Restante de bobinas usadas" en laminacion (restEnt1-restEnt14) | COMPLETADO |
 | Capsula "Restante de bobinas usadas" en corte (rest1-rest14) | COMPLETADO |
-| JS: calculo automatico totalRestante y totalConsumido | COMPLETADO |
+| ~~JS: calculo automatico totalRestante y totalConsumido~~ | REEMPLAZADO por devolucion buena/rechazada (Fase 8) |
 | Capsula "Resumen de Produccion" (tabla) en impresion | COMPLETADO |
 | Capsula "Resumen de Produccion" (tabla) en laminacion | COMPLETADO |
 | Capsula "Resumen de Produccion" (tabla) en corte | COMPLETADO |
@@ -568,12 +569,42 @@ git push origin main
 | GitHub Actions workflow para deploy a GitHub Pages | COMPLETADO |
 | Fix deploy desde ramas claude/* | COMPLETADO |
 
+### Fase 8: Resumen de Devolucion en Impresion y Laminacion (2026-03-24)
+| Cambio | Estado |
+|--------|--------|
+| Eliminar grilla "Restante de Bobinas Usadas" en impresion y laminacion | COMPLETADO |
+| Nueva seccion "Resumen de Devolucion" con Devolucion Buena (Kg+Fecha+Hora) | COMPLETADO |
+| Tabla dinamica "Devolucion Rechazada" (Proveedor, Ref, Kg, Motivo, Fecha, Hora) | COMPLETADO |
+| Boton "Reporte por proveedor" que abre ventana de impresion | COMPLETADO |
+| Scrap: renombrar "Refile" a "Transparente" en impresion | COMPLETADO |
+| Resumen de Produccion actualizado con filas Devolucion Buena/Rechazada | COMPLETADO |
+| descontarInventario() repone devolucion buena al material correspondiente | COMPLETADO |
+| Reportes de rechazo guardados en axones_reportes_rechazo (localStorage) | COMPLETADO |
+| Aplicado a impresion y laminacion | COMPLETADO |
+| **PENDIENTE:** Aplicar mismo cambio a corte | PENDIENTE |
+
+### Fase 9: Consumo y Devolucion de Tintas + Solventes (2026-03-24)
+| Cambio | Estado |
+|--------|--------|
+| Seccion "Consumo de Tintas" con selector del inventario (axones_tintas_inventario) | COMPLETADO |
+| Selector muestra Tipo/Color y stock actual de cada tinta | COMPLETADO |
+| Seccion "Solventes" (Alcohol IPA, Metoxi, Acetato) con total automatico | COMPLETADO |
+| Seccion "Devolucion de Tintas" con selector del inventario + Kg devueltos | COMPLETADO |
+| descontarTintas() descuenta consumo y repone devolucion al inventario | COMPLETADO |
+| Datos de tintas y solventes incluidos en recopilarDatos() | COMPLETADO |
+| Aplicado a impresion y laminacion | COMPLETADO |
+| **PENDIENTE:** Aplicar mismo cambio a corte | PENDIENTE |
+
 ### Campos de Etiqueta de Bobina
 **Entrada** (9 campos): Proveedor, Referencia Bobina, Medida/Ancho, Micraje, Trat. Interno, Trat. Externo, Fecha, Maquina Origen, Pedido/Lote
 **Salida** (6 campos): Peso (auto), Fecha, Metraje, Hora, Empalmes, Operador
 
 ## Commits Recientes (Referencia)
 ```
+# 2026-03-24 - Devolucion + Tintas + Solventes
+feat: Consumo/devolucion tintas + solventes + devolucion material en impresion y laminacion
+98a51c5 feat: Reemplazar Restante de Bobinas por Resumen de Devolucion en impresion
+
 # 2026-03-23 - Limpieza Sheets + Deploy
 3dfb8a9 fix: Eliminar CONFIG.API references en main.js que causaban error
 457c174 feat: Eliminar TODAS las referencias a Google Sheets y Excel

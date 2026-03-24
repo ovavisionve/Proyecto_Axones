@@ -24,6 +24,9 @@ const Laminacion = {
         this.cargarClientes();
         this.setupEventListeners();
         this.setupCalculations();
+        this.initDevolucionRechazada();
+        this.initConsumoTintas();
+        this.initSolventes();
 
         // Verificar si viene de una orden y cargar datos automaticamente
         this.cargarDesdeOrden();
@@ -546,10 +549,11 @@ const Laminacion = {
             input.addEventListener('input', () => this.calcularTotales());
         });
 
-        // Calcular total de restante
-        document.querySelectorAll('.restante-entrada').forEach(input => {
-            input.addEventListener('input', () => this.calcularTotales());
-        });
+        // Calcular al cambiar devolucion buena
+        const devBuenaInput = document.getElementById('devolucionBuenaKg');
+        if (devBuenaInput) {
+            devBuenaInput.addEventListener('input', () => this.calcularTotales());
+        }
 
         // Calcular total de scrap
         document.querySelectorAll('.scrap-input').forEach(input => {
@@ -743,15 +747,17 @@ const Laminacion = {
         // Actualizar indicador
         this.actualizarIndicadorRefil(porcentajeRefil, totalEntrada);
 
-        // Total restante
-        let totalRestante = 0;
-        document.querySelectorAll('.restante-entrada').forEach(input => {
-            totalRestante += parseFloat(input.value) || 0;
-        });
-        const totalRestanteEl = document.getElementById('totalRestante');
-        if (totalRestanteEl) totalRestanteEl.value = totalRestante.toFixed(2);
+        // Devolucion buena y rechazada
+        const devBuena = parseFloat(document.getElementById('devolucionBuenaKg')?.value) || 0;
+        const devRechazada = this.calcularTotalDevolucionRechazada();
+        const totalDevuelto = devBuena + devRechazada;
+        const totalConsumido = totalEntrada - totalDevuelto;
 
-        const totalConsumido = totalEntrada - totalRestante;
+        // Actualizar badges de devolucion
+        const totalDevBuenoEl = document.getElementById('totalDevueltoBueno');
+        if (totalDevBuenoEl) totalDevBuenoEl.textContent = devBuena.toFixed(2);
+        const totalDevRechazadoEl = document.getElementById('totalDevueltoRechazado');
+        if (totalDevRechazadoEl) totalDevRechazadoEl.textContent = devRechazada.toFixed(2);
         const totalConsumidoEl = document.getElementById('totalConsumido');
         if (totalConsumidoEl) totalConsumidoEl.textContent = totalConsumido.toFixed(2);
 
@@ -780,7 +786,8 @@ const Laminacion = {
 
         // Actualizar Resumen de Produccion
         const resEntrada = document.getElementById('resumenEntrada');
-        const resRestante = document.getElementById('resumenRestante');
+        const resDevBuena = document.getElementById('resumenDevBuena');
+        const resDevRechazada = document.getElementById('resumenDevRechazada');
         const resConsumido = document.getElementById('resumenConsumido');
         const resSalida = document.getElementById('resumenSalida');
         const resScrap = document.getElementById('resumenScrap');
@@ -788,7 +795,8 @@ const Laminacion = {
         const resMerma = document.getElementById('resumenMermaCalc');
         const resRefil = document.getElementById('resumenRefilCalc');
         if (resEntrada) resEntrada.textContent = totalEntrada.toFixed(2) + ' Kg';
-        if (resRestante) resRestante.textContent = totalRestante.toFixed(2) + ' Kg';
+        if (resDevBuena) resDevBuena.textContent = devBuena.toFixed(2) + ' Kg';
+        if (resDevRechazada) resDevRechazada.textContent = devRechazada.toFixed(2) + ' Kg';
         if (resConsumido) resConsumido.textContent = totalConsumido.toFixed(2) + ' Kg';
         // Resumen virgen
         const resEntradaVirgen = document.getElementById('resumenEntradaVirgen');
@@ -845,6 +853,290 @@ const Laminacion = {
     /**
      * Valida campos requeridos con mensajes personalizados
      */
+    // ==========================================
+    // DEVOLUCION RECHAZADA
+    // ==========================================
+
+    initDevolucionRechazada: function() {
+        const btnAgregar = document.getElementById('btnAgregarRechazo');
+        if (btnAgregar) {
+            btnAgregar.addEventListener('click', () => this.agregarFilaRechazo());
+        }
+        const btnReporte = document.getElementById('btnReporteRechazo');
+        if (btnReporte) {
+            btnReporte.addEventListener('click', () => this.generarReporteRechazo());
+        }
+    },
+
+    agregarFilaRechazo: function() {
+        const tbody = document.getElementById('bodyDevolucionRechazada');
+        if (!tbody) return;
+        const hoy = new Date().toISOString().split('T')[0];
+        const ahora = new Date().toTimeString().slice(0, 5);
+        const fila = document.createElement('tr');
+        fila.innerHTML = `
+            <td><input type="text" class="form-control form-control-sm rechazo-proveedor" placeholder="Proveedor"></td>
+            <td><input type="text" class="form-control form-control-sm rechazo-ref" placeholder="Ref. bobina"></td>
+            <td><input type="number" class="form-control form-control-sm rechazo-kg" step="0.01" min="0" value="0"></td>
+            <td><select class="form-select form-select-sm rechazo-motivo">
+                <option value="">Seleccionar</option>
+                <option value="Material defectuoso">Material defectuoso</option>
+                <option value="Fuera de especificacion">Fuera de especificacion</option>
+                <option value="Inicio de bobina malo">Inicio de bobina malo</option>
+                <option value="Final de bobina malo">Final de bobina malo</option>
+                <option value="Problemas de tratamiento">Problemas de tratamiento</option>
+                <option value="Contaminacion">Contaminacion</option>
+                <option value="Otro">Otro</option>
+            </select></td>
+            <td><input type="date" class="form-control form-control-sm rechazo-fecha" value="${hoy}"></td>
+            <td><input type="time" class="form-control form-control-sm rechazo-hora" value="${ahora}"></td>
+            <td><button type="button" class="btn btn-sm btn-outline-danger btn-quitar-rechazo" title="Quitar"><i class="bi bi-x"></i></button></td>
+        `;
+        fila.querySelector('.btn-quitar-rechazo').addEventListener('click', () => { fila.remove(); this.calcularTotales(); });
+        fila.querySelector('.rechazo-kg').addEventListener('input', () => this.calcularTotales());
+        tbody.appendChild(fila);
+    },
+
+    calcularTotalDevolucionRechazada: function() {
+        let total = 0;
+        document.querySelectorAll('.rechazo-kg').forEach(input => { total += parseFloat(input.value) || 0; });
+        const totalEl = document.getElementById('totalDevolucionRechazada');
+        if (totalEl) totalEl.textContent = total.toFixed(2);
+        return total;
+    },
+
+    recopilarDevolucionRechazada: function() {
+        const filas = document.querySelectorAll('#bodyDevolucionRechazada tr');
+        const datos = [];
+        filas.forEach(fila => {
+            const kg = parseFloat(fila.querySelector('.rechazo-kg')?.value) || 0;
+            if (kg > 0) {
+                datos.push({
+                    proveedor: fila.querySelector('.rechazo-proveedor')?.value || '',
+                    referencia: fila.querySelector('.rechazo-ref')?.value || '',
+                    kg: kg,
+                    motivo: fila.querySelector('.rechazo-motivo')?.value || '',
+                    fecha: fila.querySelector('.rechazo-fecha')?.value || '',
+                    hora: fila.querySelector('.rechazo-hora')?.value || ''
+                });
+            }
+        });
+        return datos;
+    },
+
+    generarReporteRechazo: function() {
+        const datos = this.recopilarDevolucionRechazada();
+        if (datos.length === 0) {
+            if (typeof showToast === 'function') showToast('No hay bobinas rechazadas para reportar', 'warning');
+            return;
+        }
+        const porProveedor = {};
+        datos.forEach(d => {
+            const prov = d.proveedor || 'Sin proveedor';
+            if (!porProveedor[prov]) porProveedor[prov] = [];
+            porProveedor[prov].push(d);
+        });
+        const numOT = document.getElementById('ordenTrabajo')?.value || 'N/A';
+        let html = `<div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h2 style="margin:0">INVERSIONES AXONES 2008, C.A.</h2>
+                <p style="margin:2px 0">RIF: J-40081341-7</p>
+                <h3 style="margin:10px 0; color: #dc3545;">REPORTE DE MATERIAL RECHAZADO - LAMINACION</h3>
+                <p style="margin:2px 0">Orden de Trabajo: <strong>${numOT}</strong></p>
+                <p style="margin:2px 0">Fecha de emision: ${new Date().toLocaleDateString('es-VE')}</p>
+            </div>`;
+        Object.keys(porProveedor).forEach(proveedor => {
+            const items = porProveedor[proveedor];
+            const totalKg = items.reduce((sum, d) => sum + d.kg, 0);
+            html += `<div style="margin-bottom: 20px; border: 1px solid #dc3545; border-radius: 6px; padding: 12px;">
+                <h4 style="color: #dc3545; margin: 0 0 10px 0;">Proveedor: ${proveedor}</h4>
+                <table style="width:100%; border-collapse: collapse; font-size: 13px;">
+                    <thead><tr style="background: #f8d7da;">
+                        <th style="border:1px solid #ddd; padding:6px;">Ref. Bobina</th>
+                        <th style="border:1px solid #ddd; padding:6px;">Kg</th>
+                        <th style="border:1px solid #ddd; padding:6px;">Motivo</th>
+                        <th style="border:1px solid #ddd; padding:6px;">Fecha</th>
+                        <th style="border:1px solid #ddd; padding:6px;">Hora</th>
+                    </tr></thead><tbody>`;
+            items.forEach(item => {
+                html += `<tr>
+                    <td style="border:1px solid #ddd; padding:6px;">${item.referencia}</td>
+                    <td style="border:1px solid #ddd; padding:6px; text-align:right;">${item.kg.toFixed(2)}</td>
+                    <td style="border:1px solid #ddd; padding:6px;">${item.motivo}</td>
+                    <td style="border:1px solid #ddd; padding:6px;">${item.fecha}</td>
+                    <td style="border:1px solid #ddd; padding:6px;">${item.hora}</td>
+                </tr>`;
+            });
+            html += `</tbody><tfoot><tr style="background: #f8d7da; font-weight: bold;">
+                <td style="border:1px solid #ddd; padding:6px; text-align:right;">Total:</td>
+                <td style="border:1px solid #ddd; padding:6px; text-align:right;">${totalKg.toFixed(2)} Kg</td>
+                <td colspan="3" style="border:1px solid #ddd; padding:6px;"></td>
+            </tr></tfoot></table></div>`;
+        });
+        html += `<div style="margin-top: 30px; display: flex; justify-content: space-between;">
+            <div style="text-align: center; width: 40%;"><div style="border-top: 1px solid #333; padding-top: 5px;">Responsable de Produccion</div></div>
+            <div style="text-align: center; width: 40%;"><div style="border-top: 1px solid #333; padding-top: 5px;">Jefe de Operaciones</div></div>
+        </div></div>`;
+        const ventana = window.open('', '_blank', 'width=850,height=600');
+        ventana.document.write('<html><head><title>Reporte Material Rechazado - ' + numOT + '</title></head><body>');
+        ventana.document.write(html);
+        ventana.document.write('</body></html>');
+        ventana.document.close();
+        ventana.print();
+        const reportes = JSON.parse(localStorage.getItem('axones_reportes_rechazo') || '[]');
+        reportes.unshift({ id: 'RR_' + Date.now(), timestamp: new Date().toISOString(), ordenTrabajo: numOT, modulo: 'laminacion', datos: this.recopilarDevolucionRechazada(), totalKg: this.calcularTotalDevolucionRechazada() });
+        localStorage.setItem('axones_reportes_rechazo', JSON.stringify(reportes));
+    },
+
+    // ==========================================
+    // CONSUMO Y DEVOLUCION DE TINTAS
+    // ==========================================
+
+    initConsumoTintas: function() {
+        const btnAgregar = document.getElementById('btnAgregarTinta');
+        if (btnAgregar) btnAgregar.addEventListener('click', () => this.agregarFilaTinta('consumo'));
+        const btnDevTinta = document.getElementById('btnAgregarDevTinta');
+        if (btnDevTinta) btnDevTinta.addEventListener('click', () => this.agregarFilaTinta('devolucion'));
+    },
+
+    obtenerTintasInventario: function() {
+        try { return JSON.parse(localStorage.getItem('axones_tintas_inventario') || '[]'); }
+        catch (e) { return []; }
+    },
+
+    generarOpcionesTintas: function() {
+        const tintas = this.obtenerTintasInventario();
+        let opciones = '<option value="">-- Seleccionar tinta --</option>';
+        tintas.forEach((t, idx) => {
+            const nombre = t.nombre || t.color || t.tipo || 'Tinta ' + (idx + 1);
+            const stock = parseFloat(t.cantidad || t.kg || 0).toFixed(2);
+            opciones += `<option value="${idx}" data-stock="${stock}" data-nombre="${nombre}">${nombre} (${stock} Kg)</option>`;
+        });
+        return opciones;
+    },
+
+    agregarFilaTinta: function(tipo) {
+        const bodyId = tipo === 'consumo' ? 'bodyConsumoTintas' : 'bodyDevolucionTintas';
+        const tbody = document.getElementById(bodyId);
+        if (!tbody) return;
+        const opciones = this.generarOpcionesTintas();
+        const fila = document.createElement('tr');
+        if (tipo === 'consumo') {
+            fila.innerHTML = `
+                <td><select class="form-select form-select-sm tinta-selector">${opciones}</select></td>
+                <td><input type="number" class="form-control form-control-sm tinta-kg-consumo" step="0.01" min="0" value="0"></td>
+                <td class="text-center tinta-stock-cell">-</td>
+                <td><button type="button" class="btn btn-sm btn-outline-danger btn-quitar-tinta" title="Quitar"><i class="bi bi-x"></i></button></td>`;
+        } else {
+            fila.innerHTML = `
+                <td><select class="form-select form-select-sm tinta-dev-selector">${opciones}</select></td>
+                <td><input type="number" class="form-control form-control-sm tinta-kg-devolucion" step="0.01" min="0" value="0"></td>
+                <td><button type="button" class="btn btn-sm btn-outline-danger btn-quitar-tinta" title="Quitar"><i class="bi bi-x"></i></button></td>`;
+        }
+        fila.querySelector('.btn-quitar-tinta').addEventListener('click', () => { fila.remove(); this.calcularTotalTintas(); });
+        const selector = fila.querySelector('.tinta-selector, .tinta-dev-selector');
+        if (selector) {
+            selector.addEventListener('change', () => {
+                const opt = selector.selectedOptions[0];
+                const stockCell = fila.querySelector('.tinta-stock-cell');
+                if (stockCell && opt && opt.dataset.stock) stockCell.textContent = opt.dataset.stock + ' Kg';
+                else if (stockCell) stockCell.textContent = '-';
+            });
+        }
+        const kgInput = fila.querySelector('.tinta-kg-consumo, .tinta-kg-devolucion');
+        if (kgInput) kgInput.addEventListener('input', () => this.calcularTotalTintas());
+        tbody.appendChild(fila);
+    },
+
+    calcularTotalTintas: function() {
+        let totalConsumo = 0;
+        document.querySelectorAll('.tinta-kg-consumo').forEach(input => { totalConsumo += parseFloat(input.value) || 0; });
+        const totalConsumoEl = document.getElementById('totalConsumoTintas');
+        if (totalConsumoEl) totalConsumoEl.textContent = totalConsumo.toFixed(2);
+        let totalDev = 0;
+        document.querySelectorAll('.tinta-kg-devolucion').forEach(input => { totalDev += parseFloat(input.value) || 0; });
+        const totalDevEl = document.getElementById('totalDevolucionTintas');
+        if (totalDevEl) totalDevEl.textContent = totalDev.toFixed(2);
+    },
+
+    recopilarConsumoTintas: function() {
+        const filas = document.querySelectorAll('#bodyConsumoTintas tr');
+        const datos = [];
+        filas.forEach(fila => {
+            const selector = fila.querySelector('.tinta-selector');
+            const kg = parseFloat(fila.querySelector('.tinta-kg-consumo')?.value) || 0;
+            if (kg > 0 && selector?.value) {
+                const opt = selector.selectedOptions[0];
+                datos.push({ indice: parseInt(selector.value), nombre: opt?.dataset?.nombre || '', kg: kg });
+            }
+        });
+        return datos;
+    },
+
+    recopilarDevolucionTintas: function() {
+        const filas = document.querySelectorAll('#bodyDevolucionTintas tr');
+        const datos = [];
+        filas.forEach(fila => {
+            const selector = fila.querySelector('.tinta-dev-selector');
+            const kg = parseFloat(fila.querySelector('.tinta-kg-devolucion')?.value) || 0;
+            if (kg > 0 && selector?.value) {
+                const opt = selector.selectedOptions[0];
+                datos.push({ indice: parseInt(selector.value), nombre: opt?.dataset?.nombre || '', kg: kg });
+            }
+        });
+        return datos;
+    },
+
+    descontarTintas: function(datos) {
+        try {
+            const tintas = this.obtenerTintasInventario();
+            let actualizado = false;
+            if (datos.consumoTintas) {
+                datos.consumoTintas.forEach(item => {
+                    if (tintas[item.indice]) {
+                        const campo = tintas[item.indice].cantidad !== undefined ? 'cantidad' : 'kg';
+                        const actual = parseFloat(tintas[item.indice][campo] || 0);
+                        tintas[item.indice][campo] = Math.max(0, actual - item.kg);
+                        actualizado = true;
+                        console.log(`Tintas: Descontados ${item.kg} Kg de ${item.nombre}`);
+                    }
+                });
+            }
+            if (datos.devolucionTintas) {
+                datos.devolucionTintas.forEach(item => {
+                    if (tintas[item.indice]) {
+                        const campo = tintas[item.indice].cantidad !== undefined ? 'cantidad' : 'kg';
+                        const actual = parseFloat(tintas[item.indice][campo] || 0);
+                        tintas[item.indice][campo] = actual + item.kg;
+                        actualizado = true;
+                        console.log(`Tintas: Repuestos ${item.kg} Kg de ${item.nombre}`);
+                    }
+                });
+            }
+            if (actualizado) {
+                localStorage.setItem('axones_tintas_inventario', JSON.stringify(tintas));
+                console.log('Inventario de tintas actualizado despues de laminacion');
+            }
+        } catch (error) { console.warn('Error al actualizar inventario de tintas:', error); }
+    },
+
+    // ==========================================
+    // SOLVENTES
+    // ==========================================
+
+    initSolventes: function() {
+        document.querySelectorAll('.solvente-input').forEach(input => {
+            input.addEventListener('input', () => this.calcularTotalSolventes());
+        });
+    },
+
+    calcularTotalSolventes: function() {
+        let total = 0;
+        document.querySelectorAll('.solvente-input').forEach(input => { total += parseFloat(input.value) || 0; });
+        const el = document.getElementById('totalSolventes');
+        if (el) el.textContent = total.toFixed(2);
+    },
+
     validarCamposRequeridos: function() {
         const errores = [];
         const fecha = document.getElementById('fecha')?.value;
@@ -946,14 +1238,8 @@ const Laminacion = {
             }
         }
 
-        // Obtener restante de bobinas
-        const bobinasRestante = [];
-        for (let i = 1; i <= 14; i++) {
-            const valor = parseFloat(document.getElementById('restEnt' + i)?.value) || 0;
-            if (valor > 0) {
-                bobinasRestante.push({ posicion: i, peso: valor });
-            }
-        }
+        // Obtener devolucion rechazada
+        const devolucionRechazada = this.recopilarDevolucionRechazada();
 
         // Obtener bobinas virgen (materia prima)
         const bobinasVirgen = [];
@@ -1005,9 +1291,12 @@ const Laminacion = {
             bobinasEntrada: bobinasEntrada,
             totalEntrada: parseFloat(document.getElementById('totalEntrada').value) || 0,
 
-            // Restante de bobinas impresas
-            bobinasRestante: bobinasRestante,
-            totalRestante: parseFloat(document.getElementById('totalRestante')?.value) || 0,
+            // Devolucion de material
+            devolucionBuenaKg: parseFloat(document.getElementById('devolucionBuenaKg')?.value) || 0,
+            devolucionBuenaFecha: document.getElementById('devolucionBuenaFecha')?.value || '',
+            devolucionBuenaHora: document.getElementById('devolucionBuenaHora')?.value || '',
+            devolucionRechazada: devolucionRechazada,
+            totalDevolucionRechazada: this.calcularTotalDevolucionRechazada(),
             totalConsumido: parseFloat(document.getElementById('totalConsumido')?.textContent) || 0,
 
             // Bobinas virgen (materia prima) - se descuentan del inventario
@@ -1039,6 +1328,18 @@ const Laminacion = {
             scrapLaminado: parseFloat(document.getElementById('scrapLaminado')?.value) || 0,
             totalScrap: parseFloat(document.getElementById('totalScrap').value) || 0,
             porcentajeRefil: parseFloat(document.getElementById('porcentajeRefil').value) || 0,
+
+            // Consumo y devolucion de tintas
+            consumoTintas: this.recopilarConsumoTintas(),
+            totalConsumoTintas: parseFloat(document.getElementById('totalConsumoTintas')?.textContent) || 0,
+            devolucionTintas: this.recopilarDevolucionTintas(),
+            totalDevolucionTintas: parseFloat(document.getElementById('totalDevolucionTintas')?.textContent) || 0,
+
+            // Solventes
+            solAlcohol: parseFloat(document.getElementById('solAlcohol')?.value) || 0,
+            solMetoxi: parseFloat(document.getElementById('solMetoxi')?.value) || 0,
+            solAcetato: parseFloat(document.getElementById('solAcetato')?.value) || 0,
+            totalSolventes: parseFloat(document.getElementById('totalSolventes')?.textContent) || 0,
 
             motivosParadas: document.getElementById('motivosParadas').value,
             observaciones: document.getElementById('observaciones').value,
@@ -1147,19 +1448,15 @@ const Laminacion = {
             }
 
             // 2. Descontar material VIRGEN (materia prima) del inventario
-            // NOTA: Las bobinas impresas NO se descuentan aqui porque ya fueron
-            // descontadas en el area de impresion. Solo se descuenta el material virgen.
             const inventario = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
             const cantidadUsada = parseFloat(datos.totalConsumidoVirgen) || parseFloat(datos.totalEntradaVirgen) || 0;
+            let invActualizado = false;
 
             if (cantidadUsada > 0) {
-                let descontado = false;
                 let restante = cantidadUsada;
 
                 for (let i = 0; i < inventario.length && restante > 0; i++) {
                     const item = inventario[i];
-
-                    // Intentar coincidir por producto o cliente
                     const coincideProducto = item.producto &&
                         (item.producto.toLowerCase().includes(datos.producto?.toLowerCase() || '') ||
                          datos.producto?.toLowerCase().includes(item.producto.toLowerCase()));
@@ -1170,19 +1467,38 @@ const Laminacion = {
                             const aDescontar = Math.min(disponible, restante);
                             item.kg = disponible - aDescontar;
                             restante -= aDescontar;
-                            descontado = true;
+                            invActualizado = true;
                             console.log(`Inventario: Descontados ${aDescontar} Kg de ${item.material} (Quedan: ${item.kg} Kg)`);
                         }
                     }
                 }
+            }
 
-                if (descontado) {
-                    localStorage.setItem('axones_inventario', JSON.stringify(inventario));
-                    console.log('Inventario de materiales actualizado despues de laminacion');
-
-                    this.verificarStockBajoMaterial(inventario);
+            // 3. Reponer devolucion buena al inventario
+            const devBuena = parseFloat(datos.devolucionBuenaKg) || 0;
+            if (devBuena > 0) {
+                for (let i = 0; i < inventario.length; i++) {
+                    const item = inventario[i];
+                    const coincideProducto = item.producto &&
+                        (item.producto.toLowerCase().includes(datos.producto?.toLowerCase() || '') ||
+                         datos.producto?.toLowerCase().includes(item.producto.toLowerCase()));
+                    if (coincideProducto) {
+                        item.kg = (parseFloat(item.kg) || 0) + devBuena;
+                        invActualizado = true;
+                        console.log(`Inventario: Repuestos ${devBuena} Kg (devolucion buena) a ${item.material} (Total: ${item.kg} Kg)`);
+                        break;
+                    }
                 }
             }
+
+            if (invActualizado) {
+                localStorage.setItem('axones_inventario', JSON.stringify(inventario));
+                console.log('Inventario de materiales actualizado despues de laminacion');
+                this.verificarStockBajoMaterial(inventario);
+            }
+
+            // 4. Descontar/reponer tintas
+            this.descontarTintas(datos);
         } catch (error) {
             console.warn('Error al descontar inventario de laminacion:', error);
         }

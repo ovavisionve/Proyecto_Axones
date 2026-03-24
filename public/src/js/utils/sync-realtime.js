@@ -22,9 +22,7 @@ const AxonesSync = (() => {
         'axones_producto_terminado',
         'axones_alertas',
         'axones_clientes_memoria',
-        'axones_adhesivos_inventario',
-        'axones_clientes',
-        'axones_proveedores'
+        'axones_adhesivos_inventario'
     ];
 
     let _syncing = false;       // Flag para evitar loops infinitos

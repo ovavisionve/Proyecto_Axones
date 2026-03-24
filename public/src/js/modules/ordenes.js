@@ -146,7 +146,7 @@ const Ordenes = {
         await this.loadOrdenes();
         await this.loadInventario();
         this.setupEventListeners();
-        this.cargarClientes();
+        await this.cargarClientes();
         this.setFechaActual();
         this.generarNumeroOrden();
 
@@ -1205,13 +1205,26 @@ const Ordenes = {
     /**
      * Carga clientes en el datalist (permite escribir nuevos o seleccionar existentes)
      */
-    cargarClientes: function() {
-        // Obtener clientes base de CONFIG
-        let clientes = CONFIG?.CLIENTES || [
-            'PEPSICO ALIMENTOS', 'NESTLE VENEZUELA', 'EMPRESAS POLAR',
-            'KRAFT HEINZ', 'ALFONZO RIVAS', 'MONDELEZ', 'MARY',
-            'PLUMROSE', 'KELLOGG\'S', 'BIMBO'
-        ];
+    cargarClientes: async function() {
+        // Cargar clientes desde Supabase (fuente de verdad)
+        let clientes = [];
+        if (AxonesDB.isReady()) {
+            try {
+                const clientesDB = await AxonesDB.clientes.listar({ ordenar: 'nombre', ascendente: true });
+                clientes = clientesDB.map(c => c.nombre).filter(Boolean);
+            } catch (e) {
+                console.warn('Error cargando clientes de Supabase:', e.message);
+            }
+        }
+
+        // Fallback: clientes de CONFIG si Supabase no tiene datos
+        if (clientes.length === 0) {
+            clientes = CONFIG?.CLIENTES || [
+                'PEPSICO ALIMENTOS', 'NESTLE VENEZUELA', 'EMPRESAS POLAR',
+                'KRAFT HEINZ', 'ALFONZO RIVAS', 'MONDELEZ', 'MARY',
+                'PLUMROSE', 'KELLOGG\'S', 'BIMBO'
+            ];
+        }
 
         // Agregar clientes de ordenes existentes (para no perder clientes nuevos)
         const clientesDeOrdenes = this.ordenes

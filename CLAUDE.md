@@ -3,8 +3,8 @@
 ## Descripcion del Proyecto
 Sistema integral de gestion y control de produccion para **Inversiones Axones 2008, C.A.** - empresa de empaques flexibles plasticos en Venezuela.
 
-**Version:** 1.3.0
-**Ultima actualizacion:** 2026-03-23
+**Version:** 1.4.0
+**Ultima actualizacion:** 2026-03-24
 
 ## URLs de Vercel
 - **Desarrollo:** https://proyecto-axones-git-claude-setup-axones-project-ja8zk-ova1.vercel.app/
@@ -65,7 +65,7 @@ public/
 │       ├── control-tiempo.js   # Control de tiempo Play/Pausa/Completar
 │       ├── demoData.js         # Datos de demo (DESACTIVADO - Supabase es fuente de verdad)
 │       ├── auth.js             # Autenticacion de usuarios
-│       ├── api.js              # Conexion con Google Sheets (legacy)
+│       ├── api.js              # API legacy (Google Sheets ELIMINADO - solo queda archivo vacio/stub)
 │       ├── supabase-client.js  # Cliente Supabase (fuente unica de verdad)
 │       ├── sync-realtime.js    # Sincronizacion localStorage <-> Supabase en tiempo real
 │       ├── cliente-memoria.js  # Memoria de clientes
@@ -79,7 +79,7 @@ supabase/
 - **158 materiales + 58 tintas + 7 adhesivos** en Supabase (seed SQL)
 - Backup en `inventario.js` funcion `getDatosEjemplo()` (158 productos desde Excel 26-02-2026)
 - Tipos de material: BOPP NORMAL, BOPP MATE, BOPP PASTA, CAST, METAL, PERLADO, PEBD, PEBD PIGMENT
-- **IMPORTANTE:** `demoData.js` auto-init DESACTIVADO - Supabase es fuente de verdad
+- **IMPORTANTE:** `demoData.js` ahora LIMPIA datos demo en vez de generarlos (commit 0ba947a)
 
 ### SKU y Codigos de Barras
 Cada producto tiene:
@@ -347,12 +347,10 @@ SUPABASE_URL = 'https://lzjuzfbzgyjazhzhfhzv.supabase.co'
 #### Seed SQL
 `supabase/seed-inventario.sql` contiene la carga inicial: 158 materiales, 58 tintas, 7 adhesivos.
 
-### Google Sheets (Legacy)
-```javascript
-CONFIG.API.BASE_URL = 'https://script.google.com/macros/s/AKfycbziy293l5ew920CUt9gy11EWmESGbMa7-HmX4SJCAEUW574s7fWMX2iKZqNhA8qJjJb/exec'
-CONFIG.API.SHEETS_ID = '1TOpqDc-X4kthwYNzduGYO6MpN1dOdvbjqIIoW_oYL88'
-```
-*Ya no es fuente de verdad. Supabase la reemplaza.*
+### Google Sheets (ELIMINADO)
+- **Todas las referencias a Google Sheets y Excel fueron eliminadas** (commit 457c174, 2026-03-23)
+- `CONFIG.API` ya no existe en main.js
+- Supabase es la unica fuente de datos
 
 ### Chatbot (Groq LLaMA)
 ```javascript
@@ -455,12 +453,15 @@ Usar `CONFIG.CACHE.PREFIJO` = `'axones_'`
 
 ## Comandos Git
 ```bash
-# Push a rama de desarrollo
-git push -u origin claude/setup-axones-project-Ja8zK
+# Push a rama de desarrollo actual
+git push -u origin claude/continue-axones-dev-DECnf
+
+# Rama anterior (referencia)
+# git push -u origin claude/setup-axones-project-Ja8zK
 
 # Para sincronizar con produccion (main)
 git checkout main
-git merge claude/setup-axones-project-Ja8zK
+git merge claude/continue-axones-dev-DECnf
 git push origin main
 ```
 
@@ -558,19 +559,41 @@ git push origin main
 | Tab Mezclas colorista (crear recetas con N componentes) | COMPLETADO |
 | Tablas Supabase: tintas_cementerio, tintas_mezclas, consumo_tintas | COMPLETADO |
 
+### Fase 7: Limpieza Google Sheets + Deploy GitHub Pages (2026-03-23)
+| Cambio | Estado |
+|--------|--------|
+| Eliminar TODAS las referencias a Google Sheets y Excel del codigo | COMPLETADO |
+| demoData.js ahora LIMPIA datos demo en vez de generarlos | COMPLETADO |
+| Eliminar CONFIG.API references en main.js | COMPLETADO |
+| GitHub Actions workflow para deploy a GitHub Pages | COMPLETADO |
+| Fix deploy desde ramas claude/* | COMPLETADO |
+
 ### Campos de Etiqueta de Bobina
 **Entrada** (9 campos): Proveedor, Referencia Bobina, Medida/Ancho, Micraje, Trat. Interno, Trat. Externo, Fecha, Maquina Origen, Pedido/Lote
 **Salida** (6 campos): Peso (auto), Fecha, Metraje, Hora, Empalmes, Operador
 
 ## Commits Recientes (Referencia)
 ```
+# 2026-03-23 - Limpieza Sheets + Deploy
+3dfb8a9 fix: Eliminar CONFIG.API references en main.js que causaban error
+457c174 feat: Eliminar TODAS las referencias a Google Sheets y Excel
+0ba947a fix: demoData.js ahora LIMPIA datos demo en vez de generarlos
+bde5f38 fix: Deploy GitHub Pages desde cualquier rama claude/*
+c3b496f fix: Deploy GitHub Pages desde rama default del repo
+8606e93 fix: GitHub Pages deploy solo desde main (no desde ramas claude/)
+dbdbf0b docs: Fase 3 - Actualizar CLAUDE.md con cambios Supabase y tintas
+
+# 2026-03-23 - Supabase + Tintas
 cf23240 feat: Supabase como fuente unica de verdad, eliminar demo data y Sheets
 b09f59a feat: Fase 2D - Tab Mezclas colorista + SQL seed inventario
 1a41435 feat: Fase 2C - tintas.js Tab Cementerio (archivar/restaurar via Supabase)
 17031c5 feat: Fase 2B - tintas.js Tab Inventario CRUD
 0456a2d feat: Fase 2A - tintas.js Tab Consumo por OT
+6bd6dc2 fix: Remove duplicate sync-realtime.js in tintas.html
 2260720 feat: Fase 1 - Agregar sync-realtime.js a las 20 paginas HTML
 c05680c feat: Sync real-time via Supabase + Rediseño tintas.html + Schema sync_store
+
+# Anteriores
 e3f9824 feat: Configurar Supabase con credenciales reales y agregar script a todas las paginas
 60952d8 feat: Infraestructura Supabase - schema, cliente, CRUD clientes/proveedores, migracion
 c51cac3 feat: Control de acceso por roles - filtrado de navbar y proteccion de paginas
@@ -580,3 +603,24 @@ b183241 feat: Fase 3 - Restante de bobinas usadas + Resumen de produccion
 43c1874 feat: Fase 2 - Flechitas de etiquetas en bobinas de entrada y salida
 cbd07ec feat: Fase 1 - Reorganizar modulos en capsulas claras + checklist integrado
 ```
+
+## Sistema de Notificaciones en UI (NO se necesita F12)
+El sistema tiene notificaciones visuales integradas, **no es necesario abrir la consola del navegador (F12)**:
+
+### Indicadores Visuales
+- **Punto verde pulsante** (esquina inferior izquierda): indica sync activo con Supabase
+- **Toast notifications** (esquina superior derecha): muestra cuando otro usuario actualiza datos
+- **showToast()** en main.js: notificaciones de exito/error/info en toda la app
+- **mostrarNotificacion()** en control-tiempo.js: notificaciones de pausas y despachos
+
+### Funciones de Toast Disponibles
+```javascript
+showToast(mensaje, tipo)              // main.js - global (danger, success, info)
+Auth.mostrarToast(mensaje, tipo)      // auth.js - autenticacion
+ControlTiempo.mostrarNotificacion()   // control-tiempo.js - produccion
+```
+
+### Para Desarrollo/Debug
+Si se necesita ver logs tecnicos, el sistema usa prefijos en consola:
+- `[AxonesSync]` - logs de sincronizacion
+- `AxonesDB:` - logs de operaciones Supabase

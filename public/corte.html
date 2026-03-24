@@ -170,45 +170,164 @@
             </div>
         </div>
 
-        <form id="formCorte">
-            <div class="row">
-                <!-- Columna Izquierda -->
-                <div class="col-lg-6">
-                    <!-- CAPSULA: Informacion de Orden -->
-                    <div class="form-section">
-                        <div class="form-section-title">
-                            <i class="bi bi-clipboard-check me-1"></i> Informacion de Orden
+        <!-- ============ SELECTOR DE OT ============ -->
+        <div class="form-section" id="selectorOT">
+            <div class="d-flex align-items-center gap-3">
+                <label class="form-label mb-0 fw-bold text-nowrap">
+                    <i class="bi bi-clipboard-check me-1 text-success"></i> Orden de Trabajo:
+                </label>
+                <select class="form-select form-select-sm" id="ordenTrabajo" style="max-width: 350px;" required>
+                    <option value="">Seleccionar OT...</option>
+                </select>
+                <span class="badge bg-secondary" id="estadoOT">Sin OT seleccionada</span>
+            </div>
+        </div>
+
+        <!-- ============ RESUMEN OT - SPREADSHEET (read-only) ============ -->
+        <div id="resumenOT">
+            <!-- ENCABEZADO -->
+            <div class="ot-section">
+                <div class="section-header text-center" style="font-size: 0.9rem; padding: 0.3rem;">
+                    <strong><i class="bi bi-file-earmark-text me-1"></i>RESUMEN DE ORDEN DE TRABAJO - <span id="otNumeroHeader">---</span></strong>
+                </div>
+            </div>
+
+            <!-- DATOS GENERALES -->
+            <div class="ot-section">
+                <div class="ot-two-col">
+                    <div>
+                        <div class="section-header">
+                            <i class="bi bi-receipt me-1"></i>DATOS DEL PEDIDO
                         </div>
-                        <div class="row g-2">
-                            <div class="col-12">
-                                <label for="ordenTrabajo" class="form-label small">Orden de Trabajo</label>
-                                <input type="text" class="form-control form-control-sm" id="ordenTrabajo" placeholder="Ej: OT-2026-0001" required>
+                        <div class="section-body">
+                            <div class="ot-grid" style="grid-template-columns: 1fr 1fr 1fr;">
+                                <div class="ot-field">
+                                    <span class="ot-label">Fecha</span>
+                                    <span class="ot-value" id="otFecha">-</span>
+                                </div>
+                                <div class="ot-field">
+                                    <span class="ot-label">Pedido Kg</span>
+                                    <span class="ot-value" id="otPedidoKg">-</span>
+                                </div>
+                                <div class="ot-field">
+                                    <span class="ot-label">Metros Est.</span>
+                                    <span class="ot-value" id="otMetrosEst" style="color: #0d6efd; font-weight: 700;">-</span>
+                                </div>
                             </div>
-                            <div class="col-12">
-                                <label for="cliente" class="form-label small">Cliente</label>
-                                <input type="text" class="form-control form-control-sm" id="clienteOrden" list="listaClientes" placeholder="Viene de la orden de trabajo...">
-                                <datalist id="listaClientes"></datalist>
-                            </div>
-                            <div class="col-12">
-                                <label for="producto" class="form-label small">Producto</label>
-                                <input type="text" class="form-control form-control-sm" id="producto" placeholder="Nombre del producto" required>
-                            </div>
-                            <div class="col-6">
-                                <label for="maquina" class="form-label small">Maquina Cortadora</label>
-                                <select class="form-select form-select-sm" id="maquina" required>
-                                    <option value="">Seleccionar...</option>
-                                    <option value="cortadora_china">China</option>
-                                    <option value="cortadora_permaco">Permaco</option>
-                                    <option value="cortadora_novograf">Novograf</option>
-                                </select>
-                            </div>
-                            <div class="col-6">
-                                <label for="fecha" class="form-label small">Fecha</label>
-                                <input type="date" class="form-control form-control-sm" id="fecha" required>
+                            <div class="ot-grid" style="grid-template-columns: 1fr 1fr;">
+                                <div class="ot-field">
+                                    <span class="ot-label">Maquina</span>
+                                    <span class="ot-value" id="otMaquina">-</span>
+                                </div>
+                                <div class="ot-field">
+                                    <span class="ot-label">Estructura</span>
+                                    <span class="ot-value" id="otEstructura">-</span>
+                                </div>
                             </div>
                         </div>
                     </div>
+                    <div>
+                        <div class="section-header">
+                            <i class="bi bi-box me-1"></i>DATOS DEL PRODUCTO
+                        </div>
+                        <div class="section-body">
+                            <div class="ot-grid" style="grid-template-columns: 2fr 1fr;">
+                                <div class="ot-field">
+                                    <span class="ot-label">Cliente</span>
+                                    <span class="ot-value" id="otCliente">-</span>
+                                </div>
+                                <div class="ot-field">
+                                    <span class="ot-label">RIF</span>
+                                    <span class="ot-value" id="otClienteRif">-</span>
+                                </div>
+                            </div>
+                            <div class="ot-grid" style="grid-template-columns: 2fr 1fr;">
+                                <div class="ot-field">
+                                    <span class="ot-label">Producto</span>
+                                    <span class="ot-value" id="otProducto">-</span>
+                                </div>
+                                <div class="ot-field">
+                                    <span class="ot-label">CPE</span>
+                                    <span class="ot-value" id="otCpe">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
+            <!-- AREA DE CORTE -->
+            <div class="ot-section">
+                <div class="section-header" style="background: #a8d08d;">
+                    <i class="bi bi-scissors me-1"></i>AREA DE CORTE
+                </div>
+                <div class="section-body" style="border-color: #a8d08d;">
+                    <div class="ot-grid" style="grid-template-columns: repeat(6, 1fr);">
+                        <div class="ot-field">
+                            <span class="ot-label">Ancho Corte</span>
+                            <span class="ot-value" id="otAnchoCorte">-</span>
+                        </div>
+                        <div class="ot-field">
+                            <span class="ot-label">Ancho Montaje</span>
+                            <span class="ot-value" id="otAnchoMontaje">-</span>
+                        </div>
+                        <div class="ot-field">
+                            <span class="ot-label">N° Bandas</span>
+                            <span class="ot-value" id="otNumBandas">-</span>
+                        </div>
+                        <div class="ot-field">
+                            <span class="ot-label">Frecuencia</span>
+                            <span class="ot-value" id="otFrecuencia">-</span>
+                        </div>
+                        <div class="ot-field">
+                            <span class="ot-label">Fig. Embob.</span>
+                            <span class="ot-value" id="otFiguraEmb">-</span>
+                        </div>
+                        <div class="ot-field">
+                            <span class="ot-label">Desarrollo</span>
+                            <span class="ot-value" id="otDesarrollo">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FICHA TECNICA - MATERIA PRIMA -->
+            <div class="ot-section">
+                <div class="section-header header-green">
+                    <i class="bi bi-file-earmark-text me-1"></i>FICHA TECNICA - MATERIA PRIMA
+                </div>
+                <div class="section-body" style="border-color: #a8d08d;">
+                    <div class="ot-grid" style="grid-template-columns: 2fr 1fr 1fr 1fr 1fr;">
+                        <div class="ot-field">
+                            <span class="ot-label">Tipo Material</span>
+                            <span class="ot-value" id="otTipoMat">-</span>
+                        </div>
+                        <div class="ot-field">
+                            <span class="ot-label">Micras</span>
+                            <span class="ot-value" id="otMicras">-</span>
+                        </div>
+                        <div class="ot-field">
+                            <span class="ot-label">Ancho</span>
+                            <span class="ot-value" id="otAncho">-</span>
+                        </div>
+                        <div class="ot-field">
+                            <span class="ot-label">Densidad</span>
+                            <span class="ot-value" id="otDensidad">-</span>
+                        </div>
+                        <div class="ot-field">
+                            <span class="ot-label">Kg Necesarios</span>
+                            <span class="ot-value" id="otKgNecesarios" style="background: #d4edda; font-weight: 700;">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ FORMULARIO DE PRODUCCION ============ -->
+        <form id="formCorte" style="display: none;">
+            <div class="row">
+                <!-- Columna Izquierda -->
+                <div class="col-lg-6">
                     <!-- CAPSULA: Informacion del Turno -->
                     <div class="form-section">
                         <div class="form-section-title">

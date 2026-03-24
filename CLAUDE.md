@@ -3,7 +3,7 @@
 ## Descripcion del Proyecto
 Sistema integral de gestion y control de produccion para **Inversiones Axones 2008, C.A.** - empresa de empaques flexibles plasticos en Venezuela.
 
-**Version:** 1.4.0
+**Version:** 1.5.0
 **Ultima actualizacion:** 2026-03-24
 
 ## URLs de Vercel
@@ -244,16 +244,14 @@ Gramaje = Ancho(m) × Micras × Densidad
 - **Estados**: pendiente, en_progreso, pausada, completada
 - **Almacenamiento**: localStorage key `axones_control_tiempo`
 
-### Panel de Comandas (Selector tipo restaurante)
-- Aparece al inicio de cada modulo de produccion (Impresion, Laminacion, Corte)
-- Muestra OTs pendientes como "comandas" de restaurante
-- Cards visuales con colores por prioridad:
-  - **Rojo (danger):** Urgente
-  - **Amarillo (warning):** Alta prioridad
-  - **Azul (primary):** Normal
-- Informacion mostrada: numero OT, cliente, producto, kg pedidos, tiempo acumulado
-- Al hacer click en una comanda se carga la OT y se muestra el panel de tiempo
-- Funcion: `ControlTiempo.renderPanelComandas(fase, contenedorId, callback)`
+### Selector de OT con Resumen Spreadsheet (REEMPLAZA Panel de Comandas)
+- **Panel de Comandas ELIMINADO** en los 3 modulos (Fase 8)
+- Reemplazado por **dropdown de OT** + **resumen spreadsheet read-only** (estilo ordenes.html)
+- Flujo: Operador selecciona OT del dropdown -> aparece resumen con datos del pedido -> aparece formulario de produccion
+- Resumen muestra: Datos del Pedido, Datos del Producto, Area especifica (Impresion/Laminacion/Corte), Ficha Tecnica
+- Formulario de produccion solo muestra campos que llena el operador (turno, bobinas, scrap, etc.)
+- Control de Tiempo (Play/Pausa/Completar) se muestra al seleccionar OT
+- Funciones: `poblarSelectorOT()`, `seleccionarOrden()`, `renderResumenOT()`, `ocultarResumenYForm()`
 
 ### Modal Obligatorio de Pausa
 - Al pausar una OT se muestra modal que OBLIGA a indicar motivo
@@ -289,7 +287,6 @@ ControlTiempo.completar(ordenId, fase, datos)    // Completar fase
 ControlTiempo.getTiempoActual(ordenId, fase)     // Obtener tiempo en ms
 ControlTiempo.formatearTiempo(ms)                // Formatear a HH:MM:SS
 ControlTiempo.renderControles(ordenId, fase, contenedorId)
-ControlTiempo.renderPanelComandas(fase, contenedorId, callback)
 ControlTiempo.getResumenOrden(ordenId)           // Resumen de todas las fases
 ```
 
@@ -365,7 +362,7 @@ CONFIG.CHATBOT.MODEL = 'llama-3.3-70b-versatile'
 - [x] Nombres de orden por correlativo automatico (sin elegir nombre) - IMPLEMENTADO
 - [x] Etapa MONTAJE agregada entre Pendiente e Impresion en Kanban - IMPLEMENTADO
 - [x] Selector de OT visible en TODOS los modulos de produccion - CORREGIDO
-- [x] Panel de Comandas (selector tipo restaurante) en todos los modulos - IMPLEMENTADO
+- [x] Panel de Comandas (selector tipo restaurante) en todos los modulos - IMPLEMENTADO -> REEMPLAZADO por Dropdown OT + Resumen Spreadsheet (Fase 8)
 - [x] Modal obligatorio de pausa con motivos predefinidos - IMPLEMENTADO
 - [ ] Paletas ilimitadas en corte (agregar dinamicamente)
 - [ ] Cantidad de rollos en corte
@@ -455,14 +452,15 @@ Usar `CONFIG.CACHE.PREFIJO` = `'axones_'`
 ## Comandos Git
 ```bash
 # Push a rama de desarrollo actual
-git push -u origin claude/continue-axones-dev-DECnf
+git push -u origin claude/setup-ot-001-guide-Qdepe
 
-# Rama anterior (referencia)
+# Ramas anteriores (referencia)
+# git push -u origin claude/continue-axones-dev-DECnf
 # git push -u origin claude/setup-axones-project-Ja8zK
 
 # Para sincronizar con produccion (main)
 git checkout main
-git merge claude/continue-axones-dev-DECnf
+git merge claude/setup-ot-001-guide-Qdepe
 git push origin main
 ```
 
@@ -595,6 +593,24 @@ git push origin main
 | Aplicado a impresion y laminacion | COMPLETADO |
 | Corte NO lleva tintas/solventes (proceso mecanico) | N/A |
 
+### Fase 10: Resumen OT Spreadsheet en modulos de produccion (2026-03-24)
+| Cambio | Estado |
+|--------|--------|
+| Ordenes.js: fix race condition sync Supabase antes de inicializar | COMPLETADO |
+| Auto-seed inventario cuando sistema esta completamente vacio | COMPLETADO |
+| Impresion.html: Selector OT dropdown + Resumen Spreadsheet read-only + Form produccion | COMPLETADO |
+| Impresion.js: poblarSelectorOT, seleccionarOrden, renderResumenOT, ocultarResumenYForm | COMPLETADO |
+| Impresion.js: eliminar panel de comandas duplicado, mantener control de tiempo | COMPLETADO |
+| Laminacion.html: Selector OT + Resumen Spreadsheet (Area Laminacion) + Form produccion | COMPLETADO |
+| Laminacion.js: poblarSelectorOT, seleccionarOrden, renderResumenOT, ocultarResumenYForm | COMPLETADO |
+| Laminacion.js: eliminar funciones legacy (precargarCamposOrden, agregarSelectorOrdenes, etc.) | COMPLETADO |
+| Corte.html: Selector OT + Resumen Spreadsheet (Area Corte) + Form produccion | COMPLETADO |
+| Corte.js: poblarSelectorOT, seleccionarOrden, renderResumenOT, ocultarResumenYForm | COMPLETADO |
+| Corte.js: preservar paletas dinamicas y producto terminado | COMPLETADO |
+| Validacion: solo requiere OT seleccionada + turno + operador (no fecha/maquina/cliente) | COMPLETADO |
+| recopilarDatos(): toma datos de ordenCargada, agrega otId como referencia | COMPLETADO |
+| Patron unificado en los 3 modulos: dropdown -> resumen -> formulario -> control tiempo | COMPLETADO |
+
 ### Campos de Etiqueta de Bobina
 **Entrada** (9 campos): Proveedor, Referencia Bobina, Medida/Ancho, Micraje, Trat. Interno, Trat. Externo, Fecha, Maquina Origen, Pedido/Lote
 **Salida** (6 campos): Peso (auto), Fecha, Metraje, Hora, Empalmes, Operador
@@ -604,6 +620,27 @@ git push origin main
 # 2026-03-24 - Devolucion + Tintas + Solventes
 feat: Consumo/devolucion tintas + solventes + devolucion material en impresion y laminacion
 98a51c5 feat: Reemplazar Restante de Bobinas por Resumen de Devolucion en impresion
+
+# 2026-03-24 - Fase 10: Resumen OT Spreadsheet
+98d02ab feat: Laminacion JS - Resumen OT spreadsheet + formulario solo producción
+91cb9aa wip: Laminacion HTML - spreadsheet OT summary structure (JS pending)
+d3defaa feat: Corte - Resumen OT spreadsheet + formulario solo producción
+2e70a9b fix: Remove panel de comandas duplicate in impresion + partial HTML for laminacion/corte
+cafe9a2 feat: Fase 1 Impresión - Resumen OT spreadsheet + formulario solo producción
+
+# 2026-03-24 - Fixes de sync y estabilidad
+d2e6df2 fix: Todos los módulos ahora esperan sync de Supabase antes de inicializar
+03789fe fix: Ordenes no se guardaban por race condition entre sync y modulos
+93884f5 fix: Dropdown productos siempre muestra material primero
+9d753e8 feat: Auto-seed inventario cuando sistema esta completamente vacio
+814a0e6 fix: DemoData ya no borra datos reales del localStorage
+9ce1e27 feat: Auto-seed sync_store cuando esta vacio + preservar datos locales
+93ecb52 fix: Actualizar anon key de Supabase con JWT real
+0899dca fix: Corregir error DemoData + mejorar diagnostico sync Supabase
+
+# 2026-03-24 - Ordenes reorganizadas
+0944eba feat: Fase 1C - Formulas automaticas y unificacion de materiales
+5b99515 feat: Fase 1B - Reorganizar campos OT para coincidir con Excel real
 
 # 2026-03-23 - Limpieza Sheets + Deploy
 3dfb8a9 fix: Eliminar CONFIG.API references en main.js que causaban error
@@ -634,6 +671,48 @@ b183241 feat: Fase 3 - Restante de bobinas usadas + Resumen de produccion
 43c1874 feat: Fase 2 - Flechitas de etiquetas en bobinas de entrada y salida
 cbd07ec feat: Fase 1 - Reorganizar modulos en capsulas claras + checklist integrado
 ```
+
+## Arquitectura de Modulos de Produccion (Fase 8)
+
+### Patron Unificado (impresion, laminacion, corte)
+Cada modulo de produccion sigue el mismo flujo visual:
+
+```
+1. Dropdown OT (#ordenTrabajo) + Badge estado (#estadoOT)
+2. Resumen OT (#resumenOT) - read-only spreadsheet, oculto por defecto
+   ├── Datos del Pedido (fecha, kg, metros, maquina, estructura)
+   ├── Datos del Producto (cliente, RIF, producto, CPE)
+   ├── Area Especifica (campos propios de impresion/laminacion/corte)
+   └── Ficha Tecnica (tipo material, micras, ancho, densidad, kg necesarios)
+3. Formulario de Produccion (#formXxx) - oculto hasta seleccionar OT
+   ├── Turno y Operador
+   ├── Control de Tiempo (Play/Pausa/Completar)
+   ├── Bobinas de Entrada + Etiquetas
+   ├── Bobinas de Salida + Etiquetas
+   ├── Restante de Bobinas
+   ├── Scrap
+   ├── Resumen de Produccion (calculado en tiempo real)
+   └── Observaciones
+```
+
+### Funciones Clave por Modulo
+```javascript
+poblarSelectorOT()           // Carga OTs pendientes en dropdown
+seleccionarOrden(orden)      // Muestra resumen + formulario + control tiempo
+renderResumenOT(orden)       // Llena campos read-only del resumen
+ocultarResumenYForm()        // Oculta todo cuando no hay OT seleccionada
+inicializarControlTiempo()   // Solo card de control tiempo (sin panel comandas)
+recopilarDatos()             // Toma datos de ordenCargada + formulario
+validarCamposRequeridos()    // Solo valida: OT + turno + operador
+```
+
+### Diferencias entre Modulos
+| Campo en Resumen | Impresion | Laminacion | Corte |
+|-----------------|-----------|------------|-------|
+| Area especifica | Tipo impresion, colores, pinon, figura emb, desarrollo, bandas | Tipo laminado, figura emb, gramaje adhesivo, relacion mezcla | Num pistas, ancho corte, metros/bobina |
+| Bobinas entrada | 26 bobinas | 14 impresas + 14 virgen | 14 bobinas |
+| Bobinas salida | 26 bobinas | 14 bobinas | Paletas dinamicas (ilimitadas) |
+| Scrap | Simple (kg) | 3 categorias (transparente, impreso, laminado) | Simple (kg) |
 
 ## Sistema de Notificaciones en UI (NO se necesita F12)
 El sistema tiene notificaciones visuales integradas, **no es necesario abrir la consola del navegador (F12)**:

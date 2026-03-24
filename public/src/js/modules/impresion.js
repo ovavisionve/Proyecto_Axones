@@ -74,14 +74,11 @@ const Impresion = {
      */
     inicializarControlTiempo: function() {
         const form = document.getElementById('formImpresion');
-        if (!form || document.getElementById('panelComandasImpresion')) return;
+        if (!form || document.getElementById('controlTiempoImpresion')) return;
 
-        // Insertar panel de comandas + control de tiempo al inicio
+        // Solo insertar panel de Control de Tiempo (Play/Pausa/Completar/Despacho)
+        // El selector de OT ahora es el dropdown principal, no el panel de comandas
         const panelHTML = `
-            <!-- Panel de Comandas (Selector de OT tipo restaurante) -->
-            <div id="panelComandasImpresion" class="mb-3"></div>
-
-            <!-- Panel de Control de Tiempo -->
             <div id="controlTiempoImpresion" class="card mb-3 border-primary" style="display: none;">
                 <div class="card-header bg-primary text-white py-2">
                     <div class="d-flex align-items-center justify-content-between">
@@ -99,20 +96,6 @@ const Impresion = {
         `;
 
         form.insertAdjacentHTML('afterbegin', panelHTML);
-
-        // Renderizar panel de comandas
-        if (typeof ControlTiempo !== 'undefined') {
-            ControlTiempo.renderPanelComandas('impresion', 'panelComandasImpresion', (orden) => {
-                // Seleccionar la OT en el dropdown y renderizar resumen
-                const select = document.getElementById('ordenTrabajo');
-                if (select) select.value = orden.numeroOrden || orden.ot;
-                this.seleccionarOrden(orden);
-
-                // Mostrar panel de control de tiempo
-                const panelTiempo = document.getElementById('controlTiempoImpresion');
-                if (panelTiempo) panelTiempo.style.display = 'block';
-            });
-        }
     },
 
     /**
@@ -245,7 +228,9 @@ const Impresion = {
             badge.className = 'badge bg-success';
         }
 
-        // Actualizar control de tiempo
+        // Mostrar y actualizar control de tiempo (Play/Pausa/Completar/Despacho)
+        const panelTiempo = document.getElementById('controlTiempoImpresion');
+        if (panelTiempo) panelTiempo.style.display = 'block';
         this.actualizarControlTiempo(orden.id || orden.ot, orden.numeroOrden || orden.ot);
 
         console.log('[Impresion] OT seleccionada:', orden.numeroOrden || orden.ot);

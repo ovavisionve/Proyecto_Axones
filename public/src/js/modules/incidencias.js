@@ -43,41 +43,20 @@ const Incidencias = {
     init: async function() {
         console.log('Inicializando modulo Incidencias');
 
-        await this._esperarSync();
-
-        this.loadIncidencias();
+        await this.loadIncidencias();
         this.setupEventListeners();
         this.poblarSelectores();
         this.renderIncidencias();
         this.updateContadores();
-
-        window.addEventListener('axones-sync', () => {
-            this.loadIncidencias();
-            this.renderIncidencias();
-            this.updateContadores();
-        });
-    },
-
-    _esperarSync: async function() {
-        if (typeof AxonesSync !== 'undefined' && AxonesSync._isReady && AxonesSync._isReady()) {
-            return;
-        }
-        return new Promise(resolve => {
-            let resuelto = false;
-            const handler = () => { if (!resuelto) { resuelto = true; resolve(); } };
-            window.addEventListener('axones-sync', handler, { once: true });
-            setTimeout(() => {
-                if (!resuelto) { resuelto = true; window.removeEventListener('axones-sync', handler); resolve(); }
-            }, 5000);
-        });
     },
 
     /**
-     * Carga incidencias desde localStorage
+     * Carga incidencias desde Supabase sync_store
      */
-    loadIncidencias: function() {
+    loadIncidencias: async function() {
         try {
-            this.incidencias = JSON.parse(localStorage.getItem(this.STORAGE_KEY) || '[]');
+            const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', this.STORAGE_KEY).single();
+            this.incidencias = (data && data.value) ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
         } catch (e) {
             this.incidencias = [];
         }
@@ -85,10 +64,14 @@ const Incidencias = {
     },
 
     /**
-     * Guarda incidencias en localStorage
+     * Guarda incidencias en Supabase sync_store
      */
-    saveIncidencias: function() {
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.incidencias));
+    saveIncidencias: async function() {
+        try {
+            await AxonesDB.client.from('sync_store').upsert({ key: this.STORAGE_KEY, value: this.incidencias, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+        } catch (e) {
+            console.warn('Incidencias: Error guardando en Supabase', e);
+        }
     },
 
     /**
@@ -316,7 +299,7 @@ const Incidencias = {
             this.incidencias.unshift(incidencia);
         }
 
-        this.saveIncidencias();
+        await this.saveIncidencias();
         this.filteredIncidencias = [...this.incidencias];
         this.renderIncidencias();
         this.updateContadores();
@@ -554,7 +537,7 @@ const Incidencias = {
     /**
      * Cambiar estado de incidencia
      */
-    cambiarEstado: function(id) {
+    cambiarEstado: async function(id) {
         const inc = this.incidencias.find(i => i.id === id);
         if (!inc) return;
 
@@ -571,7 +554,7 @@ const Incidencias = {
             usuario: 'Usuario'
         });
 
-        this.saveIncidencias();
+        await this.saveIncidencias();
         this.renderIncidencias();
         this.updateContadores();
 
@@ -583,12 +566,12 @@ const Incidencias = {
     /**
      * Eliminar incidencia
      */
-    eliminar: function(id) {
+    eliminar: async function(id) {
         if (!confirm('¿Eliminar esta incidencia?')) return;
 
         this.incidencias = this.incidencias.filter(i => i.id !== id);
         this.filteredIncidencias = this.filteredIncidencias.filter(i => i.id !== id);
-        this.saveIncidencias();
+        await this.saveIncidencias();
         this.renderIncidencias();
         this.updateContadores();
 

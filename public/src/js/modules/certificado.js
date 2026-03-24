@@ -11,34 +11,15 @@ const Certificado = {
      * Inicializa el modulo
      */
     init: async function() {
-        await this._esperarSync();
         console.log('Inicializando modulo Certificado');
-        this.setDefaultValues();
+        await this.setDefaultValues();
         this.setupEventListeners();
-
-        window.addEventListener('axones-sync', () => {
-            this.setDefaultValues();
-        });
-    },
-
-    _esperarSync: async function() {
-        if (typeof AxonesSync !== 'undefined' && AxonesSync._isReady && AxonesSync._isReady()) {
-            return;
-        }
-        return new Promise(resolve => {
-            let resuelto = false;
-            const handler = () => { if (!resuelto) { resuelto = true; resolve(); } };
-            window.addEventListener('axones-sync', handler, { once: true });
-            setTimeout(() => {
-                if (!resuelto) { resuelto = true; window.removeEventListener('axones-sync', handler); resolve(); }
-            }, 5000);
-        });
     },
 
     /**
      * Establece valores por defecto
      */
-    setDefaultValues: function() {
+    setDefaultValues: async function() {
         const fechaInput = document.getElementById('fecha');
         if (fechaInput) {
             fechaInput.value = new Date().toISOString().split('T')[0];
@@ -49,7 +30,12 @@ const Certificado = {
         if (numCert) {
             const fecha = new Date();
             const year = fecha.getFullYear();
-            const seq = (JSON.parse(localStorage.getItem(CONFIG.CACHE.PREFIJO + 'certificados') || '[]').length + 1).toString().padStart(4, '0');
+            let historial = [];
+            try {
+                const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_certificados').single();
+                historial = (data && data.value) ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+            } catch (e) { /* empty */ }
+            const seq = (historial.length + 1).toString().padStart(4, '0');
             numCert.value = `CC-${year}-${seq}`;
         }
     },
@@ -247,7 +233,7 @@ const Certificado = {
     /**
      * Imprime el certificado
      */
-    imprimir: function() {
+    imprimir: async function() {
         const form = document.getElementById('formCertificado');
         if (!form.checkValidity()) {
             form.reportValidity();
@@ -260,7 +246,7 @@ const Certificado = {
         const datos = this.recopilarDatos();
 
         // Guardar en historial
-        this.guardarHistorial(datos);
+        await this.guardarHistorial(datos);
 
         // Abrir ventana de impresion
         const printContent = document.getElementById('certificadoPreview').innerHTML;
@@ -355,7 +341,7 @@ const Certificado = {
     /**
      * Guarda en historial
      */
-    guardarHistorial: function(datos) {
+    guardarHistorial: async function(datos) {
         datos.timestamp = new Date().toISOString();
 
         // Calcular estado
@@ -364,19 +350,29 @@ const Certificado = {
         const visualOk = datos.inspeccionVisual.filter(i => i.ok).length;
         datos.aprobado = (especTotal === 0 || especOk === especTotal) && visualOk === datos.inspeccionVisual.length;
 
-        const historial = JSON.parse(localStorage.getItem(CONFIG.CACHE.PREFIJO + 'certificados') || '[]');
+        let historial = [];
+        try {
+            const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_certificados').single();
+            historial = (data && data.value) ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+        } catch (e) { /* empty */ }
         historial.unshift(datos);
-        localStorage.setItem(CONFIG.CACHE.PREFIJO + 'certificados', JSON.stringify(historial.slice(0, 200)));
+        try {
+            await AxonesDB.client.from('sync_store').upsert({ key: 'axones_certificados', value: historial.slice(0, 200), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+        } catch (e) { console.warn('Certificado: Error guardando en Supabase', e); }
 
         // Actualizar numero para siguiente certificado
-        this.setDefaultValues();
+        await this.setDefaultValues();
     },
 
     /**
      * Muestra historial
      */
-    verHistorial: function() {
-        const historial = JSON.parse(localStorage.getItem(CONFIG.CACHE.PREFIJO + 'certificados') || '[]');
+    verHistorial: async function() {
+        let historial = [];
+        try {
+            const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_certificados').single();
+            historial = (data && data.value) ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+        } catch (e) { /* empty */ }
 
         let html = '<div class="table-responsive"><table class="table table-sm table-striped">';
         html += '<thead><tr><th>N° Certificado</th><th>Fecha</th><th>Cliente</th><th>OT</th><th>Estado</th></tr></thead><tbody>';

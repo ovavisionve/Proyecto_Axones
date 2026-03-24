@@ -14,7 +14,7 @@ const InventarioService = {
         acetato: 10         // Lt
     },
 
-    // Claves de localStorage
+    // Claves de Supabase sync_store
     STORAGE_KEYS: {
         inventario: 'axones_inventario',
         tintas: 'axones_tintas_inventario',
@@ -26,58 +26,85 @@ const InventarioService = {
     /**
      * Obtiene el inventario de materiales
      */
+    // In-memory caches
+    _materialesCache: null,
+    _tintasCache: null,
+    _adhesivosCache: null,
+
     getMateriales: function() {
-        try {
-            return JSON.parse(localStorage.getItem(this.STORAGE_KEYS.inventario) || '[]');
-        } catch (e) {
-            console.error('Error cargando inventario:', e);
-            return [];
-        }
+        return this._materialesCache || [];
     },
 
     /**
      * Obtiene el inventario de tintas
      */
     getTintas: function() {
-        try {
-            return JSON.parse(localStorage.getItem(this.STORAGE_KEYS.tintas) || '[]');
-        } catch (e) {
-            console.error('Error cargando tintas:', e);
-            return [];
-        }
+        return this._tintasCache || [];
     },
 
     /**
      * Obtiene el inventario de adhesivos
      */
     getAdhesivos: function() {
-        try {
-            return JSON.parse(localStorage.getItem(this.STORAGE_KEYS.adhesivos) || '[]');
-        } catch (e) {
-            console.error('Error cargando adhesivos:', e);
-            return [];
-        }
+        return this._adhesivosCache || [];
+    },
+
+    /**
+     * Carga todos los inventarios desde Supabase (call once at init)
+     */
+    loadAll: async function() {
+        try { this._materialesCache = await AxonesDB.materiales.listar() || []; } catch (e) { this._materialesCache = []; }
+        try { this._tintasCache = await AxonesDB.tintas.listar({ soloActivos: true }) || []; } catch (e) { this._tintasCache = []; }
+        try { this._adhesivosCache = await AxonesDB.adhesivos.listar({ soloActivos: true }) || []; } catch (e) { this._adhesivosCache = []; }
     },
 
     /**
      * Guarda inventario de materiales
      */
-    saveMateriales: function(inventario) {
-        localStorage.setItem(this.STORAGE_KEYS.inventario, JSON.stringify(inventario));
+    saveMateriales: async function(inventario) {
+        this._materialesCache = inventario;
+        try {
+            await AxonesDB.client.from('sync_store').upsert({ key: this.STORAGE_KEYS.inventario, value: inventario, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+        } catch (e) { console.warn('InventarioService: Error guardando materiales', e); }
     },
 
     /**
      * Guarda inventario de tintas
      */
-    saveTintas: function(tintas) {
-        localStorage.setItem(this.STORAGE_KEYS.tintas, JSON.stringify(tintas));
+    saveTintas: async function(tintas) {
+        this._tintasCache = tintas;
+        try {
+            await AxonesDB.client.from('sync_store').upsert({ key: this.STORAGE_KEYS.tintas, value: tintas, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+        } catch (e) { console.warn('InventarioService: Error guardando tintas', e); }
     },
 
     /**
      * Guarda inventario de adhesivos
      */
-    saveAdhesivos: function(adhesivos) {
-        localStorage.setItem(this.STORAGE_KEYS.adhesivos, JSON.stringify(adhesivos));
+    saveAdhesivos: async function(adhesivos) {
+        this._adhesivosCache = adhesivos;
+        try {
+            await AxonesDB.client.from('sync_store').upsert({ key: this.STORAGE_KEYS.adhesivos, value: adhesivos, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+        } catch (e) { console.warn('InventarioService: Error guardando adhesivos', e); }
+    },
+
+    /**
+     * Helper: get alertas from Supabase
+     */
+    _getAlertas: async function() {
+        try {
+            const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', this.STORAGE_KEYS.alertas).single();
+            return (data && data.value) ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+        } catch (e) { return []; }
+    },
+
+    /**
+     * Helper: save alertas to Supabase
+     */
+    _saveAlertas: async function(alertas) {
+        try {
+            await AxonesDB.client.from('sync_store').upsert({ key: this.STORAGE_KEYS.alertas, value: alertas, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+        } catch (e) { console.warn('InventarioService: Error guardando alertas', e); }
     },
 
     /**
@@ -355,8 +382,8 @@ const InventarioService = {
      * Resuelve alertas pendientes cuando se repone material
      * @param {string} material - Nombre del material agregado
      */
-    resolverAlertasPorMaterial: function(material) {
-        const alertas = JSON.parse(localStorage.getItem(this.STORAGE_KEYS.alertas) || '[]');
+    resolverAlertasPorMaterial: async function(material) {
+        const alertas = await this._getAlertas();
         const inventario = this.getMateriales();
         let alertasResueltas = 0;
 
@@ -389,7 +416,7 @@ const InventarioService = {
         });
 
         if (alertasResueltas > 0) {
-            localStorage.setItem(this.STORAGE_KEYS.alertas, JSON.stringify(alertas));
+            await this._saveAlertas(alertas);
             console.log(`InventarioService: ${alertasResueltas} alerta(s) resuelta(s) por reposicion de ${material}`);
         }
 
@@ -400,8 +427,8 @@ const InventarioService = {
      * Resuelve alertas pendientes cuando se repone tinta
      * @param {string} nombreTinta - Nombre de la tinta agregada
      */
-    resolverAlertasPorTinta: function(nombreTinta) {
-        const alertas = JSON.parse(localStorage.getItem(this.STORAGE_KEYS.alertas) || '[]');
+    resolverAlertasPorTinta: async function(nombreTinta) {
+        const alertas = await this._getAlertas();
         const tintas = this.getTintas();
         let alertasResueltas = 0;
 
@@ -427,7 +454,7 @@ const InventarioService = {
         });
 
         if (alertasResueltas > 0) {
-            localStorage.setItem(this.STORAGE_KEYS.alertas, JSON.stringify(alertas));
+            await this._saveAlertas(alertas);
         }
 
         return alertasResueltas;
@@ -437,8 +464,8 @@ const InventarioService = {
      * Resuelve alertas pendientes cuando se repone adhesivo/catalizador/acetato
      * @param {string} tipo - Tipo de adhesivo (adhesivo, catalizador, acetato)
      */
-    resolverAlertasPorAdhesivo: function(tipo) {
-        const alertas = JSON.parse(localStorage.getItem(this.STORAGE_KEYS.alertas) || '[]');
+    resolverAlertasPorAdhesivo: async function(tipo) {
+        const alertas = await this._getAlertas();
         const adhesivos = this.getAdhesivos();
         let alertasResueltas = 0;
 
@@ -462,7 +489,7 @@ const InventarioService = {
         });
 
         if (alertasResueltas > 0) {
-            localStorage.setItem(this.STORAGE_KEYS.alertas, JSON.stringify(alertas));
+            await this._saveAlertas(alertas);
         }
 
         return alertasResueltas;
@@ -472,8 +499,8 @@ const InventarioService = {
      * Verifica todas las alertas pendientes contra el inventario actual
      * Util para ejecutar periodicamente o al iniciar la aplicacion
      */
-    verificarYResolverAlertasPendientes: function() {
-        const alertas = JSON.parse(localStorage.getItem(this.STORAGE_KEYS.alertas) || '[]');
+    verificarYResolverAlertasPendientes: async function() {
+        const alertas = await this._getAlertas();
         const inventario = this.getMateriales();
         const tintas = this.getTintas();
         const adhesivos = this.getAdhesivos();
@@ -533,7 +560,7 @@ const InventarioService = {
         });
 
         if (alertasResueltas > 0) {
-            localStorage.setItem(this.STORAGE_KEYS.alertas, JSON.stringify(alertas));
+            await this._saveAlertas(alertas);
             console.log(`InventarioService: ${alertasResueltas} alerta(s) resuelta(s) en verificacion global`);
         }
 
@@ -582,9 +609,14 @@ const InventarioService = {
     /**
      * Registra un movimiento de inventario
      */
-    registrarMovimiento: function(tipoInventario, tipoMovimiento, cantidad, proceso, detalles) {
+    registrarMovimiento: async function(tipoInventario, tipoMovimiento, cantidad, proceso, detalles) {
         try {
-            const movimientos = JSON.parse(localStorage.getItem(this.STORAGE_KEYS.movimientos) || '[]');
+            let movimientos = [];
+            try {
+                const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', this.STORAGE_KEYS.movimientos).single();
+                movimientos = (data && data.value) ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+            } catch (e) { /* empty */ }
+
             movimientos.unshift({
                 id: Date.now(),
                 fecha: new Date().toISOString(),
@@ -601,7 +633,7 @@ const InventarioService = {
                 movimientos.splice(500);
             }
 
-            localStorage.setItem(this.STORAGE_KEYS.movimientos, JSON.stringify(movimientos));
+            await AxonesDB.client.from('sync_store').upsert({ key: this.STORAGE_KEYS.movimientos, value: movimientos, updated_at: new Date().toISOString() }, { onConflict: 'key' });
         } catch (error) {
             console.warn('Error registrando movimiento:', error);
         }
@@ -665,19 +697,22 @@ const InventarioService = {
      * que necesitan material insuficiente. Ya no alerta por stock bajo general.
      * Envia email cuando detecta faltante relacionado con un pedido.
      */
-    escanearInventarioYGenerarAlertas: function() {
+    escanearInventarioYGenerarAlertas: async function() {
         console.log('InventarioService: Escaneando inventario vs ordenes pendientes...');
 
         const materiales = this.getMateriales();
 
         // Obtener ordenes pendientes/en proceso
-        const ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
+        let ordenes = [];
+        try {
+            ordenes = await AxonesDB.ordenesHelper.cargar() || [];
+        } catch (e) { /* empty */ }
         const ordenesPendientes = ordenes.filter(o =>
             o.estadoOrden === 'pendiente' || o.estadoOrden === 'en_proceso'
         );
 
         // Obtener alertas existentes y limpiar las de stock viejas
-        let alertas = JSON.parse(localStorage.getItem(this.STORAGE_KEYS.alertas) || '[]');
+        let alertas = await this._getAlertas();
         alertas = alertas.filter(a =>
             !['stock_bajo', 'stock_bajo_tinta', 'stock_bajo_adhesivo', 'stock_bajo_material', 'stock_insuficiente_pedido'].includes(a.tipo)
         );
@@ -719,7 +754,7 @@ const InventarioService = {
                     }
                 });
 
-                // Alerta de stock registrada en localStorage (sincronizada via Supabase)
+                // Alerta de stock registrada (sincronizada via Supabase)
             }
 
             // Tambien verificar ficha tecnica (materiales secundarios)
@@ -757,7 +792,7 @@ const InventarioService = {
 
         // Agregar nuevas alertas al inicio
         alertas = [...nuevasAlertas, ...alertas];
-        localStorage.setItem(this.STORAGE_KEYS.alertas, JSON.stringify(alertas));
+        await this._saveAlertas(alertas);
 
         console.log(`InventarioService: ${nuevasAlertas.length} alertas de stock vs pedidos (ya no alerta stock bajo general)`);
 

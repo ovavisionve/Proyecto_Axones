@@ -7,10 +7,10 @@ const Chatbot = {
     // Historial de conversacion
     conversationHistory: [],
 
-    // Datos de cuentas por cobrar (se cargan de Supabase/localStorage)
+    // Datos de cuentas por cobrar (se cargan de Supabase)
     cuentasPorCobrar: [],
 
-    // Datos de produccion (se cargan de localStorage)
+    // Datos de produccion (se cargan de Supabase)
     datosProduccion: [],
 
     /**
@@ -18,8 +18,6 @@ const Chatbot = {
      * Solo accesible para administradores
      */
     init: async function() {
-        await this._esperarSync();
-
         console.log('Inicializando modulo Chatbot');
 
         // Verificar que el usuario sea administrador
@@ -30,30 +28,9 @@ const Chatbot = {
 
         this.setupForm();
         this.setupQuickQueries();
-        this.loadCuentasPorCobrar();
-        this.loadDatosProduccion();
+        await this.loadCuentasPorCobrar();
+        await this.loadDatosProduccion();
         this.loadResumenCartera();
-
-        // Recargar datos cuando Supabase sincronice
-        window.addEventListener('axones-sync', () => {
-            this.loadCuentasPorCobrar();
-            this.loadDatosProduccion();
-            this.loadResumenCartera();
-        });
-    },
-
-    _esperarSync: async function() {
-        if (typeof AxonesSync !== 'undefined' && AxonesSync._isReady && AxonesSync._isReady()) {
-            return;
-        }
-        return new Promise(resolve => {
-            let resuelto = false;
-            const handler = () => { if (!resuelto) { resuelto = true; resolve(); } };
-            window.addEventListener('axones-sync', handler, { once: true });
-            setTimeout(() => {
-                if (!resuelto) { resuelto = true; window.removeEventListener('axones-sync', handler); resolve(); }
-            }, 5000);
-        });
     },
 
     /**
@@ -102,11 +79,15 @@ const Chatbot = {
     },
 
     /**
-     * Carga datos de produccion desde localStorage
+     * Carga datos de produccion desde Supabase
      */
-    loadDatosProduccion: function() {
-        // Cargar de localStorage (sincronizado con Supabase via sync-realtime.js)
-        this.datosProduccion = JSON.parse(localStorage.getItem('axones_produccion') || '[]');
+    loadDatosProduccion: async function() {
+        try {
+            const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_produccion').single();
+            this.datosProduccion = (data && data.value) ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+        } catch (e) {
+            this.datosProduccion = [];
+        }
         console.log('Chatbot: cargados', this.datosProduccion.length, 'registros de produccion');
     },
 
@@ -146,19 +127,18 @@ const Chatbot = {
     },
 
     /**
-     * Carga las cuentas por cobrar desde localStorage (sincronizado con Supabase)
+     * Carga las cuentas por cobrar desde Supabase
      */
-    loadCuentasPorCobrar: function() {
-        // Cargar desde localStorage (sincronizado con Supabase via sync-realtime.js)
-        const cached = localStorage.getItem('axones_cuentas_por_cobrar');
-        if (cached) {
-            try {
-                this.cuentasPorCobrar = JSON.parse(cached);
-                console.log('Chatbot: Cuentas por cobrar cargadas desde cache');
+    loadCuentasPorCobrar: async function() {
+        try {
+            const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_cuentas_por_cobrar').single();
+            if (data && data.value) {
+                this.cuentasPorCobrar = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+                console.log('Chatbot: Cuentas por cobrar cargadas desde Supabase');
                 return;
-            } catch (e) {
-                console.warn('Error parseando cache de cuentas por cobrar');
             }
+        } catch (e) {
+            console.warn('Chatbot: Error cargando cuentas por cobrar', e);
         }
 
         // Si no hay datos, mostrar array vacio con mensaje
@@ -207,8 +187,10 @@ const Chatbot = {
 
         const cuentas = Object.values(clientesMap);
 
-        // Guardar en cache
-        localStorage.setItem('axones_cuentas_por_cobrar', JSON.stringify(cuentas));
+        // Guardar en Supabase
+        try {
+            AxonesDB.client.from('sync_store').upsert({ key: 'axones_cuentas_por_cobrar', value: cuentas, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+        } catch (e) { console.warn('Chatbot: Error guardando cuentas', e); }
 
         return cuentas;
     },
@@ -635,9 +617,12 @@ const Chatbot = {
     /**
      * Responde sobre produccion de un cliente desde datos reales
      */
-    responderProduccionCliente: function(nombreCliente) {
+    responderProduccionCliente: async function(nombreCliente) {
         // Buscar ordenes del cliente
-        const ordenes = JSON.parse(localStorage.getItem('axones_ordenes') || '[]');
+        let ordenes = [];
+        try {
+            ordenes = await AxonesDB.ordenesHelper.cargar() || [];
+        } catch (e) { /* empty */ }
         const ordenesCliente = ordenes.filter(o =>
             o.cliente && o.cliente.toLowerCase().includes(nombreCliente.toLowerCase())
         );
@@ -665,9 +650,13 @@ const Chatbot = {
     /**
      * Responde sobre pagos recientes desde datos reales
      */
-    responderPagosRecientes: function() {
-        // Buscar pagos en localStorage o API
-        const pagos = JSON.parse(localStorage.getItem('axones_pagos') || '[]');
+    responderPagosRecientes: async function() {
+        // Buscar pagos en Supabase
+        let pagos = [];
+        try {
+            const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_pagos').single();
+            pagos = (data && data.value) ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+        } catch (e) { /* empty */ }
 
         if (pagos.length === 0) {
             return '**Pagos recientes:**\n\n' +

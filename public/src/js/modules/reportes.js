@@ -11,32 +11,35 @@ const ReportesModule = {
     // Instancias de charts
     charts: {},
 
+    // Cached data
+    _produccion: [],
+    _alertas: [],
+    _inventario: [],
+
     // Inicializar
     init: async function() {
-        await this._esperarSync();
         console.log('Inicializando modulo de Reportes...');
+        await this._loadData();
         this.setFechasDefault();
         this.cargarMaquinas();
         this.cargarFiltrosAvanzados();
         this.aplicarFiltros();
-
-        window.addEventListener('axones-sync', () => {
-            this.aplicarFiltros();
-        });
     },
 
-    _esperarSync: async function() {
-        if (typeof AxonesSync !== 'undefined' && AxonesSync._isReady && AxonesSync._isReady()) {
-            return;
-        }
-        return new Promise(resolve => {
-            let resuelto = false;
-            const handler = () => { if (!resuelto) { resuelto = true; resolve(); } };
-            window.addEventListener('axones-sync', handler, { once: true });
-            setTimeout(() => {
-                if (!resuelto) { resuelto = true; window.removeEventListener('axones-sync', handler); resolve(); }
-            }, 5000);
-        });
+    _loadData: async function() {
+        try {
+            const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_produccion').single();
+            this._produccion = (data && data.value) ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+        } catch (e) { this._produccion = []; }
+
+        try {
+            const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_alertas').single();
+            this._alertas = (data && data.value) ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+        } catch (e) { this._alertas = []; }
+
+        try {
+            this._inventario = await AxonesDB.materiales.listar() || [];
+        } catch (e) { this._inventario = []; }
     },
 
     // Establecer fechas por defecto (ultimo mes)
@@ -81,7 +84,7 @@ const ReportesModule = {
         const operador = document.getElementById('filtroOperador')?.value;
 
         // Obtener datos de produccion
-        const produccion = JSON.parse(localStorage.getItem('axones_produccion') || '[]');
+        const produccion = this._produccion;
 
         // Filtrar
         this.datosFiltrados = produccion.filter(item => {
@@ -104,7 +107,7 @@ const ReportesModule = {
 
     // Cargar filtros adicionales (clientes, operadores)
     cargarFiltrosAvanzados() {
-        const produccion = JSON.parse(localStorage.getItem('axones_produccion') || '[]');
+        const produccion = this._produccion;
 
         // Cargar clientes unicos
         const selectCliente = document.getElementById('filtroCliente');
@@ -155,7 +158,7 @@ const ReportesModule = {
         // Alertas del periodo
         const fechaInicio = document.getElementById('fechaInicio')?.value;
         const fechaFin = document.getElementById('fechaFin')?.value;
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
+        const alertas = this._alertas;
         const alertasPeriodo = alertas.filter(a => {
             const fecha = a.fecha?.split('T')[0];
             if (!fecha) return false;
@@ -466,8 +469,12 @@ const ReportesModule = {
     },
 
     // Exportar reporte de laminacion
-    exportarReporteLaminacion() {
-        const laminacion = JSON.parse(localStorage.getItem('axones_laminacion') || '[]');
+    async exportarReporteLaminacion() {
+        let laminacion = [];
+        try {
+            const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_laminacion').single();
+            laminacion = (data && data.value) ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+        } catch (e) { /* empty */ }
 
         const datos = laminacion.map(item => ({
             'Fecha': item.fecha,
@@ -542,7 +549,7 @@ const ReportesModule = {
 
     // Exportar reporte de inventario
     exportarReporteInventario() {
-        const inventario = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
+        const inventario = this._inventario;
 
         const datos = inventario.map(item => ({
             'Material': item.material,
@@ -559,8 +566,11 @@ const ReportesModule = {
     },
 
     // Exportar reporte de tintas
-    exportarReporteTintas() {
-        const tintas = JSON.parse(localStorage.getItem('axones_tintas') || '[]');
+    async exportarReporteTintas() {
+        let tintas = [];
+        try {
+            tintas = await AxonesDB.tintas.listar({ soloActivos: false }) || [];
+        } catch (e) { /* empty */ }
 
         const datos = tintas.map(item => ({
             'Fecha': item.fecha,

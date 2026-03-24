@@ -11,29 +11,9 @@ const Etiquetas = {
      * Inicializa el modulo
      */
     init: async function() {
-        await this._esperarSync();
         console.log('Inicializando modulo Etiquetas');
         this.setDefaultDate();
         this.setupEventListeners();
-
-        // Recargar datos cuando se sincronice con Supabase
-        window.addEventListener('axones-sync', () => {
-            this.mostrarEtiquetasGeneradas();
-        });
-    },
-
-    _esperarSync: async function() {
-        if (typeof AxonesSync !== 'undefined' && AxonesSync._isReady && AxonesSync._isReady()) {
-            return;
-        }
-        return new Promise(resolve => {
-            let resuelto = false;
-            const handler = () => { if (!resuelto) { resuelto = true; resolve(); } };
-            window.addEventListener('axones-sync', handler, { once: true });
-            setTimeout(() => {
-                if (!resuelto) { resuelto = true; window.removeEventListener('axones-sync', handler); resolve(); }
-            }, 5000);
-        });
     },
 
     /**
@@ -195,7 +175,7 @@ const Etiquetas = {
     /**
      * Imprime las etiquetas
      */
-    imprimir: function() {
+    imprimir: async function() {
         const form = document.getElementById('formEtiqueta');
         if (!form.checkValidity()) {
             form.reportValidity();
@@ -225,8 +205,8 @@ const Etiquetas = {
             });
         }
 
-        // Guardar en localStorage
-        this.guardarHistorial();
+        // Guardar en Supabase
+        await this.guardarHistorial();
 
         // Mostrar etiquetas generadas
         this.mostrarEtiquetasGeneradas();
@@ -297,13 +277,19 @@ const Etiquetas = {
     },
 
     /**
-     * Guarda el historial en localStorage
+     * Guarda el historial en Supabase sync_store
      */
-    guardarHistorial: function() {
-        const historial = JSON.parse(localStorage.getItem(CONFIG.CACHE.PREFIJO + 'etiquetas') || '[]');
+    guardarHistorial: async function() {
+        let historial = [];
+        try {
+            const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_etiquetas').single();
+            historial = (data && data.value) ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+        } catch (e) { /* empty */ }
         historial.unshift(...this.etiquetasGeneradas);
         // Mantener solo los ultimos 500 registros
-        localStorage.setItem(CONFIG.CACHE.PREFIJO + 'etiquetas', JSON.stringify(historial.slice(0, 500)));
+        try {
+            await AxonesDB.client.from('sync_store').upsert({ key: 'axones_etiquetas', value: historial.slice(0, 500), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+        } catch (e) { console.warn('Etiquetas: Error guardando en Supabase', e); }
     },
 
     /**
@@ -335,8 +321,12 @@ const Etiquetas = {
     /**
      * Muestra el historial de etiquetas
      */
-    verHistorial: function() {
-        const historial = JSON.parse(localStorage.getItem(CONFIG.CACHE.PREFIJO + 'etiquetas') || '[]');
+    verHistorial: async function() {
+        let historial = [];
+        try {
+            const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_etiquetas').single();
+            historial = (data && data.value) ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+        } catch (e) { /* empty */ }
 
         let html = '<div class="table-responsive"><table class="table table-sm table-striped">';
         html += '<thead><tr><th>Codigo</th><th>OT</th><th>Cliente</th><th>Bobina</th><th>Peso</th><th>Fecha</th></tr></thead><tbody>';
@@ -388,9 +378,11 @@ const Etiquetas = {
     /**
      * Limpia el historial
      */
-    limpiarHistorial: function() {
+    limpiarHistorial: async function() {
         if (!confirm('¿Eliminar todo el historial de etiquetas?')) return;
-        localStorage.removeItem(CONFIG.CACHE.PREFIJO + 'etiquetas');
+        try {
+            await AxonesDB.client.from('sync_store').upsert({ key: 'axones_etiquetas', value: [], updated_at: new Date().toISOString() }, { onConflict: 'key' });
+        } catch (e) { console.warn('Etiquetas: Error limpiando historial', e); }
         this.etiquetasGeneradas = [];
         bootstrap.Modal.getInstance(document.getElementById('modalHistorialEtiquetas')).hide();
         Axones.showSuccess('Historial eliminado');

@@ -140,8 +140,8 @@ const Ordenes = {
     init: async function() {
         console.log('Inicializando modulo Ordenes de Trabajo');
 
-        // Esperar a que AxonesSync termine de descargar datos del cloud
-        await this._esperarSync();
+        // Inicializar Supabase directamente
+        await AxonesDB.init();
 
         await this.loadOrdenes();
         await this.loadInventario();
@@ -164,13 +164,15 @@ const Ordenes = {
         // Verificar ordenes proximas y enviar alertas por email si es necesario
         this.verificarOrdenesProximas();
 
-        // Escuchar re-sync del cloud para recargar datos
-        window.addEventListener('axones-sync', () => {
-            this.loadOrdenes();
-            this.loadInventario();
-            this.generarNumeroOrden();
-            this.cargarProductosDelInventario();
-        });
+        // Escuchar cambios en tiempo real desde Supabase
+        if (AxonesDB.isReady()) {
+            AxonesDB.realtime.suscribir('ordenes_trabajo', () => {
+                this.loadOrdenes().then(() => {
+                    this.generarNumeroOrden();
+                    this.renderTablaOrdenes();
+                });
+            });
+        }
     },
 
     /**
@@ -412,27 +414,27 @@ const Ordenes = {
     },
 
     /**
-     * Carga ordenes desde localStorage (sincronizado con Supabase via AxonesSync)
+     * Carga ordenes desde Supabase (fuente unica de verdad)
      */
     loadOrdenes: async function() {
-        const stored = localStorage.getItem('axones_ordenes_trabajo');
-        this.ordenes = stored ? JSON.parse(stored) : [];
+        if (AxonesDB.isReady()) {
+            this.ordenes = await AxonesDB.ordenesHelper.cargar();
+        } else {
+            this.ordenes = [];
+            console.warn('[Ordenes] Supabase no disponible');
+        }
         this.filteredOrdenes = [...this.ordenes];
     },
 
     /**
-     * Guarda ordenes en localStorage (respaldo local)
-     */
-    saveOrdenes: function() {
-        localStorage.setItem('axones_ordenes_trabajo', JSON.stringify(this.ordenes));
-    },
-
-    /**
-     * Carga inventario desde localStorage
+     * Carga inventario desde Supabase
      */
     loadInventario: async function() {
-        const invStored = localStorage.getItem('axones_inventario');
-        this.inventario = invStored ? JSON.parse(invStored) : [];
+        if (AxonesDB.isReady()) {
+            this.inventario = await AxonesDB.materiales.listar({ ordenar: 'material', ascendente: true });
+        } else {
+            this.inventario = [];
+        }
     },
 
     /**
@@ -654,12 +656,12 @@ const Ordenes = {
         // Limpiar opciones excepto la primera
         select.innerHTML = '<option value="">Seleccionar del inventario...</option>';
 
-        // Cargar inventario
-        const inventario = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
+        // Usar inventario ya cargado desde Supabase
+        const inventario = this.inventario || [];
 
         // Filtrar solo sustratos y agregar al select
         inventario.forEach(item => {
-            if (item.tipo === 'sustrato' || item.categoria === 'sustratos') {
+            if (item.tipo === 'sustrato' || item.categoria === 'sustratos' || item.material) {
                 const option = document.createElement('option');
                 const ancho = item.ancho || item.anchoMm || '';
                 const micraje = item.micraje || item.micras || '';
@@ -1557,7 +1559,7 @@ const Ordenes = {
     /**
      * Guarda la orden de trabajo
      */
-    guardarOrden: function() {
+    guardarOrden: async function() {
         const form = document.getElementById('formOrdenTrabajo');
         if (!form.checkValidity()) {
             form.reportValidity();
@@ -1601,28 +1603,33 @@ const Ordenes = {
         // Verificar si es edicion o nueva orden
         const ordenId = document.getElementById('ordenId')?.value;
 
-        if (ordenId) {
-            // Editar orden existente
-            const index = this.ordenes.findIndex(o => o.id === ordenId);
-            if (index !== -1) {
+        try {
+            if (ordenId) {
+                // Editar orden existente en Supabase
                 ordenData.id = ordenId;
                 ordenData.fechaModificacion = new Date().toISOString();
-                this.ordenes[index] = ordenData;
+                await AxonesDB.ordenesHelper.actualizar(ordenId, ordenData);
+                // Actualizar en memoria
+                const index = this.ordenes.findIndex(o => o.id === ordenId);
+                if (index !== -1) this.ordenes[index] = ordenData;
+            } else {
+                // Nueva orden - guardar en Supabase
+                ordenData.fechaCreacion = new Date().toISOString();
+                const guardada = await AxonesDB.ordenesHelper.crear(ordenData);
+                ordenData.id = guardada.id;
+                this.ordenes.push(ordenData);
             }
-        } else {
-            // Nueva orden
-            ordenData.id = 'OT_' + Date.now();
-            ordenData.fechaCreacion = new Date().toISOString();
-            this.ordenes.push(ordenData);
+        } catch (error) {
+            console.error('Error guardando orden en Supabase:', error);
+            if (typeof Axones !== 'undefined') {
+                Axones.showError('Error guardando orden: ' + error.message);
+            } else {
+                alert('Error guardando orden: ' + error.message);
+            }
+            return;
         }
 
-        // Guardar localmente y forzar sync a Supabase
-        this.saveOrdenes();
-
-        // Forzar subida inmediata a Supabase (no depender del debounce)
-        if (typeof AxonesSync !== 'undefined' && AxonesSync._forceUpload) {
-            AxonesSync._forceUpload('axones_ordenes_trabajo');
-        }
+        this.filteredOrdenes = [...this.ordenes];
 
         // Aprender de esta orden para sugerencias futuras
         if (typeof ClienteMemoria !== 'undefined') {
@@ -1720,33 +1727,26 @@ const Ordenes = {
     /**
      * Crea alerta de stock insuficiente para un pedido y envia email
      */
-    crearAlertaStockInsuficiente: function(orden, disponible) {
+    crearAlertaStockInsuficiente: async function(orden, disponible) {
         const pedidoKg = parseFloat(orden.pedidoKg) || 0;
         const faltante = pedidoKg - disponible;
-        const nivel = disponible === 0 ? 'critical' : 'danger';
+        const nivel = disponible === 0 ? 'danger' : 'warning';
 
         const mensaje = `EPA! No hay suficiente ${orden.tipoMaterial} para ${orden.numeroOrden} (${orden.cliente}). Necesario: ${pedidoKg} Kg, Disponible: ${disponible.toFixed(1)} Kg. FALTAN ${faltante.toFixed(1)} Kg - COMPRAR!`;
 
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
-        alertas.unshift({
-            id: Date.now(),
-            tipo: 'stock_insuficiente_pedido',
-            nivel: nivel,
-            mensaje: mensaje,
-            fecha: new Date().toISOString(),
-            estado: 'pendiente',
-            ot: orden.numeroOrden,
-            datos: {
-                ordenId: orden.id,
-                numeroOrden: orden.numeroOrden,
-                cliente: orden.cliente,
-                material: orden.tipoMaterial,
-                requerido: pedidoKg,
-                disponible: disponible,
-                faltante: faltante
+        // Guardar alerta en Supabase
+        if (AxonesDB.isReady()) {
+            try {
+                await AxonesDB.client.from('alertas').insert({
+                    tipo: 'stock_bajo',
+                    nivel: nivel,
+                    titulo: `Stock insuficiente: ${orden.tipoMaterial} para ${orden.numeroOrden}`,
+                    mensaje: mensaje
+                });
+            } catch (e) {
+                console.warn('Error creando alerta:', e.message);
             }
-        });
-        localStorage.setItem('axones_alertas', JSON.stringify(alertas));
+        }
 
         // Mostrar aviso visual pero NO bloquear la creacion de la OT
         if (typeof Axones !== 'undefined') {
@@ -1927,18 +1927,22 @@ const Ordenes = {
     /**
      * Elimina una orden
      */
-    eliminarOrden: function(id) {
+    eliminarOrden: async function(id) {
         const orden = this.ordenes.find(o => o.id === id);
         if (!orden) return;
 
         if (confirm(`Eliminar orden ${orden.numeroOrden}?`)) {
-            this.ordenes = this.ordenes.filter(o => o.id !== id);
-            this.filteredOrdenes = this.filteredOrdenes.filter(o => o.id !== id);
-            this.saveOrdenes();
-            this.renderTablaOrdenes();
+            try {
+                await AxonesDB.ordenesHelper.eliminar(id);
+                this.ordenes = this.ordenes.filter(o => o.id !== id);
+                this.filteredOrdenes = this.filteredOrdenes.filter(o => o.id !== id);
+                this.renderTablaOrdenes();
 
-            if (typeof Axones !== 'undefined') {
-                Axones.showSuccess('Orden eliminada');
+                if (typeof Axones !== 'undefined') {
+                    Axones.showSuccess('Orden eliminada');
+                }
+            } catch (error) {
+                console.error('Error eliminando orden:', error);
             }
         }
     },
@@ -1988,24 +1992,21 @@ const Ordenes = {
      * Verifica si ya se envio alerta email hoy
      */
     verificarAlertaEmailEnviada: function(ordenId) {
-        const alertasEmail = JSON.parse(localStorage.getItem('axones_alertas_email') || '[]');
+        // Verificar en memoria (las alertas ya estan cargadas)
+        // Se busca si existe alerta de email para esta orden hoy
         const hoy = new Date().toISOString().split('T')[0];
-        return alertasEmail.some(a => a.ordenId === ordenId && a.fecha.startsWith(hoy));
+        return this._alertasEmailEnviadas?.some(a => a.ordenId === ordenId && a.fecha?.startsWith(hoy)) || false;
     },
 
     /**
      * Registra alerta email enviada
      */
     registrarAlertaEmailEnviada: function(ordenId) {
-        const alertasEmail = JSON.parse(localStorage.getItem('axones_alertas_email') || '[]');
-        alertasEmail.push({
+        if (!this._alertasEmailEnviadas) this._alertasEmailEnviadas = [];
+        this._alertasEmailEnviadas.push({
             ordenId: ordenId,
             fecha: new Date().toISOString()
         });
-        if (alertasEmail.length > 100) {
-            alertasEmail.splice(0, alertasEmail.length - 100);
-        }
-        localStorage.setItem('axones_alertas_email', JSON.stringify(alertasEmail));
     },
 
     /**
@@ -2040,35 +2041,19 @@ const Ordenes = {
     /**
      * Crea alerta con indicador de email
      */
-    crearAlertaConEmail: function(orden, diasRestantes, disponible) {
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
-        const alertaExistente = alertas.find(a =>
-            a.tipo === 'inventario_insuficiente_email' &&
-            a.datos?.ordenId === orden.id &&
-            new Date(a.fecha) > new Date(Date.now() - 24 * 60 * 60 * 1000)
-        );
+    crearAlertaConEmail: async function(orden, diasRestantes, disponible) {
+        if (!AxonesDB.isReady()) return;
 
-        if (alertaExistente) return;
-
-        alertas.unshift({
-            id: Date.now(),
-            tipo: 'inventario_insuficiente_email',
-            nivel: 'critical',
-            mensaje: `ALERTA: ${orden.numeroOrden} (${orden.cliente}) - Sin inventario de ${orden.tipoMaterial}. Fecha: ${orden.fechaEntrega} (${diasRestantes} dias). Disponible: ${disponible.toFixed(2)} Kg`,
-            fecha: new Date().toISOString(),
-            estado: 'pendiente',
-            emailEnviado: true,
-            datos: {
-                ordenId: orden.id,
-                numeroOrden: orden.numeroOrden,
-                cliente: orden.cliente,
-                material: orden.tipoMaterial,
-                fechaEntrega: orden.fechaEntrega,
-                diasRestantes: diasRestantes
-            }
-        });
-
-        localStorage.setItem('axones_alertas', JSON.stringify(alertas));
+        try {
+            await AxonesDB.client.from('alertas').insert({
+                tipo: 'stock_bajo',
+                nivel: 'danger',
+                titulo: `Inventario insuficiente: ${orden.tipoMaterial} para ${orden.numeroOrden}`,
+                mensaje: `ALERTA: ${orden.numeroOrden} (${orden.cliente}) - Sin inventario de ${orden.tipoMaterial}. Fecha: ${orden.fechaEntrega} (${diasRestantes} dias). Disponible: ${disponible.toFixed(2)} Kg`
+            });
+        } catch (e) {
+            console.warn('Error creando alerta con email:', e.message);
+        }
     },
 
     /**

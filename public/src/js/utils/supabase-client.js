@@ -257,6 +257,165 @@ const AxonesDB = {
     get ordenes() { return this._crud('ordenes_trabajo'); },
     get alertas() { return this._crud('alertas'); },
 
+    // ============================================================
+    // ORDENES HELPER - CRUD directo con campo JSONB 'datos'
+    // Almacena el objeto JS completo en 'datos' + campos clave en columnas
+    // ============================================================
+    ordenesHelper: {
+        /**
+         * Cargar todas las ordenes desde Supabase
+         * Retorna array de objetos camelCase (desde campo datos JSONB)
+         */
+        cargar: async function(filtros = {}) {
+            if (!AxonesDB.isReady()) return [];
+            try {
+                let query = AxonesDB.client.from('ordenes_trabajo').select('*');
+                if (filtros.estado) query = query.eq('estado', filtros.estado);
+                if (filtros.prioridad) query = query.eq('prioridad', filtros.prioridad);
+                query = query.order('created_at', { ascending: false });
+
+                const { data, error } = await query;
+                if (error) { console.error('Error cargando ordenes:', error); return []; }
+
+                // Reconstruir objetos camelCase desde datos JSONB
+                return (data || []).map(row => {
+                    const orden = row.datos && Object.keys(row.datos).length > 0
+                        ? { ...row.datos }
+                        : {};
+                    // Siempre usar los campos canonicos de Supabase
+                    orden.id = row.id;
+                    orden.numeroOrden = row.numero_ot || orden.numeroOrden;
+                    orden.estadoOrden = row.estado || orden.estadoOrden || 'pendiente';
+                    orden.cliente = row.cliente_nombre || orden.cliente;
+                    orden.producto = row.producto || orden.producto;
+                    orden.pedidoKg = row.pedido_kg || orden.pedidoKg;
+                    orden.prioridad = row.prioridad || orden.prioridad || 'normal';
+                    orden.fechaEntrega = row.fecha_entrega || orden.fechaEntrega;
+                    orden.fechaInicio = row.fecha_inicio || orden.fechaInicio;
+                    orden.created_at = row.created_at;
+                    orden.updated_at = row.updated_at;
+                    return orden;
+                });
+            } catch (e) {
+                console.error('Error cargando ordenes:', e);
+                return [];
+            }
+        },
+
+        /**
+         * Guardar una orden nueva en Supabase
+         * @param {object} ordenData - Objeto camelCase del formulario
+         * @returns {object} Orden guardada con UUID de Supabase
+         */
+        crear: async function(ordenData) {
+            if (!AxonesDB.isReady()) throw new Error('Supabase no disponible');
+
+            const row = {
+                numero_ot: ordenData.numeroOrden,
+                estado: ordenData.estadoOrden || 'pendiente',
+                cliente_nombre: ordenData.cliente,
+                producto: ordenData.producto,
+                pedido_kg: parseFloat(ordenData.pedidoKg) || null,
+                cpe: ordenData.cpe,
+                codigo_barra: ordenData.codigoBarra,
+                estructura_material: ordenData.estructuraMaterial,
+                prioridad: ordenData.prioridad || 'normal',
+                tipo_material: ordenData.tipoMaterial,
+                micras_material: parseFloat(ordenData.micrasMaterial) || null,
+                ancho_material: parseFloat(ordenData.anchoMaterial) || null,
+                fecha_inicio: ordenData.fechaInicio || null,
+                fecha_entrega: ordenData.fechaEntrega || null,
+                observaciones_generales: ordenData.observacionesGenerales,
+                datos: ordenData  // Objeto completo como JSONB
+            };
+
+            const { data, error } = await AxonesDB.client
+                .from('ordenes_trabajo')
+                .insert(row)
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            // Retornar objeto camelCase con UUID de Supabase
+            ordenData.id = data.id;
+            ordenData.created_at = data.created_at;
+            return ordenData;
+        },
+
+        /**
+         * Actualizar una orden existente
+         * @param {string} id - UUID de Supabase
+         * @param {object} ordenData - Objeto camelCase completo
+         */
+        actualizar: async function(id, ordenData) {
+            if (!AxonesDB.isReady()) throw new Error('Supabase no disponible');
+
+            const row = {
+                estado: ordenData.estadoOrden || 'pendiente',
+                cliente_nombre: ordenData.cliente,
+                producto: ordenData.producto,
+                pedido_kg: parseFloat(ordenData.pedidoKg) || null,
+                cpe: ordenData.cpe,
+                codigo_barra: ordenData.codigoBarra,
+                estructura_material: ordenData.estructuraMaterial,
+                prioridad: ordenData.prioridad || 'normal',
+                tipo_material: ordenData.tipoMaterial,
+                micras_material: parseFloat(ordenData.micrasMaterial) || null,
+                ancho_material: parseFloat(ordenData.anchoMaterial) || null,
+                fecha_inicio: ordenData.fechaInicio || null,
+                fecha_entrega: ordenData.fechaEntrega || null,
+                observaciones_generales: ordenData.observacionesGenerales,
+                datos: ordenData
+            };
+
+            const { data, error } = await AxonesDB.client
+                .from('ordenes_trabajo')
+                .update(row)
+                .eq('id', id)
+                .select()
+                .single();
+
+            if (error) throw error;
+            return ordenData;
+        },
+
+        /**
+         * Cambiar solo el estado de una orden
+         */
+        cambiarEstado: async function(id, nuevoEstado) {
+            if (!AxonesDB.isReady()) return false;
+
+            // Cargar datos actuales para actualizar el JSONB tambien
+            const { data: current } = await AxonesDB.client
+                .from('ordenes_trabajo')
+                .select('datos')
+                .eq('id', id)
+                .single();
+
+            const datosActualizados = current?.datos || {};
+            datosActualizados.estadoOrden = nuevoEstado;
+
+            const { error } = await AxonesDB.client
+                .from('ordenes_trabajo')
+                .update({
+                    estado: nuevoEstado,
+                    datos: datosActualizados
+                })
+                .eq('id', id);
+
+            if (error) { console.error('Error cambiando estado:', error); return false; }
+            return true;
+        },
+
+        /**
+         * Eliminar una orden (soft delete via estado 'cancelada')
+         */
+        eliminar: async function(id) {
+            return this.cambiarEstado(id, 'cancelada');
+        }
+    },
+
     // Produccion (sin campo 'activo', override soloActivos)
     get produccionImpresion() {
         const crud = this._crud('produccion_impresion');

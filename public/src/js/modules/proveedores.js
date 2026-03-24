@@ -43,6 +43,8 @@ const ProveedoresModule = {
                 ascendente: true,
                 soloActivos: false
             });
+            // Cache local para que otros modulos puedan leer
+            localStorage.setItem('axones_proveedores', JSON.stringify(this.proveedores));
         } else {
             this.proveedores = JSON.parse(localStorage.getItem('axones_proveedores') || '[]');
         }
@@ -159,8 +161,24 @@ const ProveedoresModule = {
 
         try {
             if (AxonesDB.isReady()) {
-                if (id) await AxonesDB.proveedores.actualizar(id, datos);
-                else await AxonesDB.proveedores.crear(datos);
+                if (id) {
+                    await AxonesDB.proveedores.actualizar(id, datos);
+                } else {
+                    const creado = await AxonesDB.proveedores.crear(datos);
+                    if (creado) {
+                        datos.id = creado.id;
+                        datos.activo = true;
+                        datos.created_at = creado.created_at;
+                    }
+                }
+                // Actualizar cache local inmediatamente
+                if (id) {
+                    const idx = this.proveedores.findIndex(p => p.id === id);
+                    if (idx >= 0) this.proveedores[idx] = { ...this.proveedores[idx], ...datos };
+                } else {
+                    this.proveedores.push(datos);
+                }
+                localStorage.setItem('axones_proveedores', JSON.stringify(this.proveedores));
             } else {
                 if (id) {
                     const idx = this.proveedores.findIndex(p => p.id === id);

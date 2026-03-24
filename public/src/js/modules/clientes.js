@@ -68,6 +68,8 @@ const ClientesModule = {
                 ascendente: true,
                 soloActivos: false
             });
+            // Cache local para que otros modulos (ordenes) puedan leer
+            localStorage.setItem('axones_clientes', JSON.stringify(this.clientes));
         } else {
             // Fallback localStorage
             this.clientes = JSON.parse(localStorage.getItem('axones_clientes') || '[]');
@@ -214,8 +216,21 @@ const ClientesModule = {
                 if (id) {
                     await AxonesDB.clientes.actualizar(id, datos);
                 } else {
-                    await AxonesDB.clientes.crear(datos);
+                    const creado = await AxonesDB.clientes.crear(datos);
+                    if (creado) {
+                        datos.id = creado.id;
+                        datos.activo = true;
+                        datos.created_at = creado.created_at;
+                    }
                 }
+                // Actualizar cache local inmediatamente
+                if (id) {
+                    const idx = this.clientes.findIndex(c => c.id === id);
+                    if (idx >= 0) this.clientes[idx] = { ...this.clientes[idx], ...datos };
+                } else {
+                    this.clientes.push(datos);
+                }
+                localStorage.setItem('axones_clientes', JSON.stringify(this.clientes));
             } else {
                 // Fallback localStorage
                 if (id) {

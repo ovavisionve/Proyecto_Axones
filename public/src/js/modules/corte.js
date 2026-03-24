@@ -34,7 +34,10 @@ const Corte = {
     /**
      * Inicializa el modulo
      */
-    init: function() {
+    init: async function() {
+        // Esperar a que AxonesSync termine de descargar datos del cloud
+        await this._esperarSync();
+
         console.log('Inicializando modulo Control de Corte');
 
         this.setDefaultDate();
@@ -57,6 +60,28 @@ const Corte = {
 
         // Flechitas de etiquetas en bobinas de entrada
         this.setupEtiquetasBobinas();
+
+        // Escuchar re-sync del cloud para recargar datos
+        window.addEventListener('axones-sync', () => {
+            this.cargarDesdeOrden();
+        });
+    },
+
+    /**
+     * Espera a que AxonesSync termine la descarga inicial (max 5 segundos)
+     */
+    _esperarSync: async function() {
+        if (typeof AxonesSync !== 'undefined' && AxonesSync._isReady && AxonesSync._isReady()) {
+            return;
+        }
+        return new Promise(resolve => {
+            let resuelto = false;
+            const handler = () => { if (!resuelto) { resuelto = true; resolve(); } };
+            window.addEventListener('axones-sync', handler, { once: true });
+            setTimeout(() => {
+                if (!resuelto) { resuelto = true; window.removeEventListener('axones-sync', handler); resolve(); }
+            }, 5000);
+        });
     },
 
     /**

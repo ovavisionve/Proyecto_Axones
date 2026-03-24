@@ -17,6 +17,80 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <link href="src/css/main.css" rel="stylesheet">
     <style>
+        /* === OT SPREADSHEET SUMMARY (read-only) === */
+        .section-header {
+            background: #f0c040;
+            color: #000;
+            padding: 0.25rem 0.5rem;
+            border: 1px solid #999;
+            border-bottom: none;
+            font-weight: 700;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .section-header.header-green { background: #a8d08d; }
+        .section-header.header-blue { background: #9dc3e6; }
+        .section-body {
+            border: 1px solid #999;
+            border-top: none;
+            padding: 0.3rem;
+            background: #fff;
+        }
+        .ot-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 0;
+            border-top: 1px solid #e0e0e0;
+        }
+        .ot-grid .ot-field {
+            border-right: 1px solid #e0e0e0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .ot-grid .ot-field:last-child { border-right: none; }
+        .ot-field {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.15rem 0.2rem;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .ot-field .ot-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #333;
+            text-transform: uppercase;
+            white-space: nowrap;
+            margin-bottom: 0;
+            min-width: fit-content;
+            flex-shrink: 0;
+        }
+        .ot-field .ot-value {
+            flex: 1;
+            min-width: 0;
+            font-size: 0.75rem;
+            padding: 0.15rem 0.3rem;
+            background: #e9ecef;
+            border: 1px solid #ccc;
+            border-radius: 0.15rem;
+            font-weight: 600;
+            min-height: 1.6rem;
+            display: flex;
+            align-items: center;
+        }
+        .ot-field.ot-full { grid-column: 1 / -1; }
+        .ot-two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+        }
+        .ot-two-col > div { border-right: 1px solid #999; }
+        .ot-two-col > div:last-child { border-right: none; }
+        .ot-section { margin-bottom: 0.3rem; }
+        #resumenOT { display: none; }
+        #resumenOT.visible { display: block; }
+
+        /* === PRODUCTION FORM === */
         .form-section {
             background: #fff;
             border-radius: 8px;
@@ -48,13 +122,8 @@
             background-color: #e7f3ff;
             font-weight: 600;
         }
-        .turno-btn {
-            min-width: 50px;
-        }
-        .turno-btn.active {
-            background-color: #0d6efd;
-            color: white;
-        }
+        .turno-btn { min-width: 50px; }
+        .turno-btn.active { background-color: #0d6efd; color: white; }
         .bobina-arrow {
             cursor: pointer;
             color: #0d6efd;
@@ -62,22 +131,29 @@
             margin-left: 2px;
             transition: transform 0.2s;
         }
-        .bobina-arrow:hover {
-            transform: scale(1.3);
-            color: #0a58ca;
-        }
-        .bobina-arrow.has-data {
-            color: #198754;
-        }
+        .bobina-arrow:hover { transform: scale(1.3); color: #0a58ca; }
+        .bobina-arrow.has-data { color: #198754; }
         .bobina-label-wrapper {
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 2px;
         }
+        .form-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 0.1rem;
+        }
+        .form-control, .form-select {
+            font-size: 0.8rem;
+        }
         @media print {
             .no-print { display: none !important; }
             .form-section { box-shadow: none; border: 1px solid #ddd; }
+        }
+        @media (max-width: 768px) {
+            .ot-grid { grid-template-columns: 1fr; }
+            .ot-two-col { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -195,44 +271,223 @@
             </div>
         </div>
 
-        <form id="formImpresion">
-            <div class="row">
-                <!-- Columna Izquierda -->
-                <div class="col-lg-6">
-                    <!-- CAPSULA: Informacion de Orden -->
-                    <div class="form-section">
-                        <div class="form-section-title">
-                            <i class="bi bi-clipboard-check me-1"></i> Informacion de Orden
+        <!-- ============ SELECTOR DE OT ============ -->
+        <div class="form-section" id="selectorOT">
+            <div class="d-flex align-items-center gap-3">
+                <label class="form-label mb-0 fw-bold text-nowrap">
+                    <i class="bi bi-clipboard-check me-1 text-primary"></i> Orden de Trabajo:
+                </label>
+                <select class="form-select form-select-sm" id="ordenTrabajo" style="max-width: 350px;" required>
+                    <option value="">Seleccionar OT...</option>
+                </select>
+                <span class="badge bg-secondary" id="estadoOT">Sin OT seleccionada</span>
+            </div>
+        </div>
+
+        <!-- ============ RESUMEN OT - SPREADSHEET (read-only) ============ -->
+        <div id="resumenOT">
+            <!-- ENCABEZADO -->
+            <div class="ot-section">
+                <div class="section-header text-center" style="font-size: 0.9rem; padding: 0.3rem;">
+                    <strong><i class="bi bi-file-earmark-text me-1"></i>RESUMEN DE ORDEN DE TRABAJO - <span id="otNumeroHeader">---</span></strong>
+                </div>
+            </div>
+
+            <!-- DATOS GENERALES -->
+            <div class="ot-section">
+                <div class="ot-two-col">
+                    <div>
+                        <div class="section-header">
+                            <i class="bi bi-receipt me-1"></i>DATOS DEL PEDIDO
                         </div>
-                        <div class="row g-2">
-                            <div class="col-12">
-                                <label for="ordenTrabajo" class="form-label small">Orden de Trabajo</label>
-                                <input type="text" class="form-control form-control-sm" id="ordenTrabajo" placeholder="Ej: OT-2026-0001" required>
+                        <div class="section-body">
+                            <div class="ot-grid" style="grid-template-columns: 1fr 1fr 1fr;">
+                                <div class="ot-field">
+                                    <span class="ot-label">Fecha</span>
+                                    <span class="ot-value" id="otFecha">-</span>
+                                </div>
+                                <div class="ot-field">
+                                    <span class="ot-label">Pedido Kg</span>
+                                    <span class="ot-value" id="otPedidoKg">-</span>
+                                </div>
+                                <div class="ot-field">
+                                    <span class="ot-label">Metros Est.</span>
+                                    <span class="ot-value" id="otMetrosEst" style="color: #0d6efd; font-weight: 700;">-</span>
+                                </div>
                             </div>
-                            <div class="col-12">
-                                <label for="cliente" class="form-label small">Cliente</label>
-                                <input type="text" class="form-control form-control-sm" id="cliente" list="listaClientes" required placeholder="Escriba o seleccione cliente...">
-                                <datalist id="listaClientes"></datalist>
-                            </div>
-                            <div class="col-12">
-                                <label for="producto" class="form-label small">Producto</label>
-                                <input type="text" class="form-control form-control-sm" id="producto" placeholder="Nombre del producto" required>
-                            </div>
-                            <div class="col-6">
-                                <label for="maquina" class="form-label small">Maquina Impresora</label>
-                                <select class="form-select form-select-sm" id="maquina" required>
-                                    <option value="">Seleccionar...</option>
-                                    <option value="comexi_1">COMEXI 1 (Planchas 067)</option>
-                                    <option value="comexi_3">COMEXI 3 (Planchas 045)</option>
-                                </select>
-                            </div>
-                            <div class="col-6">
-                                <label for="fecha" class="form-label small">Fecha de Montaje</label>
-                                <input type="date" class="form-control form-control-sm" id="fecha" required>
+                            <div class="ot-grid" style="grid-template-columns: 1fr 1fr;">
+                                <div class="ot-field">
+                                    <span class="ot-label">Maquina</span>
+                                    <span class="ot-value" id="otMaquina">-</span>
+                                </div>
+                                <div class="ot-field">
+                                    <span class="ot-label">Estructura</span>
+                                    <span class="ot-value" id="otEstructura">-</span>
+                                </div>
                             </div>
                         </div>
                     </div>
+                    <div>
+                        <div class="section-header">
+                            <i class="bi bi-box me-1"></i>DATOS DEL PRODUCTO
+                        </div>
+                        <div class="section-body">
+                            <div class="ot-grid" style="grid-template-columns: 2fr 1fr;">
+                                <div class="ot-field">
+                                    <span class="ot-label">Cliente</span>
+                                    <span class="ot-value" id="otCliente">-</span>
+                                </div>
+                                <div class="ot-field">
+                                    <span class="ot-label">RIF</span>
+                                    <span class="ot-value" id="otClienteRif">-</span>
+                                </div>
+                            </div>
+                            <div class="ot-grid" style="grid-template-columns: 2fr 1fr;">
+                                <div class="ot-field">
+                                    <span class="ot-label">Producto</span>
+                                    <span class="ot-value" id="otProducto">-</span>
+                                </div>
+                                <div class="ot-field">
+                                    <span class="ot-label">CPE</span>
+                                    <span class="ot-value" id="otCpe">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
+            <!-- AREA DE MONTAJE -->
+            <div class="ot-section">
+                <div class="section-header" style="background: #a8d08d;">
+                    <i class="bi bi-tools me-1"></i>AREA DE MONTAJE
+                </div>
+                <div class="section-body" style="border-color: #a8d08d;">
+                    <div class="ot-grid" style="grid-template-columns: repeat(5, 1fr);">
+                        <div class="ot-field">
+                            <span class="ot-label">Frecuencia</span>
+                            <span class="ot-value" id="otFrecuencia">-</span>
+                        </div>
+                        <div class="ot-field">
+                            <span class="ot-label">Ancho Corte</span>
+                            <span class="ot-value" id="otAnchoCorte">-</span>
+                        </div>
+                        <div class="ot-field">
+                            <span class="ot-label">N° Bandas</span>
+                            <span class="ot-value" id="otNumBandas">-</span>
+                        </div>
+                        <div class="ot-field">
+                            <span class="ot-label">Repeticiones</span>
+                            <span class="ot-value" id="otRepeticiones">-</span>
+                        </div>
+                        <div class="ot-field">
+                            <span class="ot-label">Desarrollo</span>
+                            <span class="ot-value" id="otDesarrollo">-</span>
+                        </div>
+                    </div>
+                    <div class="ot-grid" style="grid-template-columns: repeat(5, 1fr);">
+                        <div class="ot-field">
+                            <span class="ot-label">Fig. Embob.</span>
+                            <span class="ot-value" id="otFiguraEmb">-</span>
+                        </div>
+                        <div class="ot-field">
+                            <span class="ot-label">Tipo Impresion</span>
+                            <span class="ot-value" id="otTipoImpresion">-</span>
+                        </div>
+                        <div class="ot-field">
+                            <span class="ot-label">N° Colores</span>
+                            <span class="ot-value" id="otNumColores">-</span>
+                        </div>
+                        <div class="ot-field">
+                            <span class="ot-label">Ancho Montaje</span>
+                            <span class="ot-value" id="otAnchoMontaje">-</span>
+                        </div>
+                        <div class="ot-field">
+                            <span class="ot-label">Obs. Montaje</span>
+                            <span class="ot-value" id="otObsMontaje" style="font-size: 0.65rem;">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AREA DE IMPRESION -->
+            <div class="ot-section">
+                <div class="section-header" style="background: #9dc3e6;">
+                    <i class="bi bi-printer me-1"></i>AREA DE IMPRESION
+                </div>
+                <div class="section-body" style="border-color: #9dc3e6;">
+                    <div class="ot-grid" style="grid-template-columns: 1fr 1fr 2fr 1fr;">
+                        <div class="ot-field">
+                            <span class="ot-label">Pinon</span>
+                            <span class="ot-value" id="otPinon">-</span>
+                        </div>
+                        <div class="ot-field">
+                            <span class="ot-label">Linea Corte</span>
+                            <span class="ot-value" id="otLineaCorte">-</span>
+                        </div>
+                        <div class="ot-field">
+                            <span class="ot-label">Sustrato Virgen</span>
+                            <span class="ot-value" id="otSustrato">-</span>
+                        </div>
+                        <div class="ot-field">
+                            <span class="ot-label">Metros Est.</span>
+                            <span class="ot-value" id="otMetrosImp" style="color: #0d6efd; font-weight: 700;">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FICHA TECNICA - MATERIA PRIMA -->
+            <div class="ot-section">
+                <div class="section-header header-green">
+                    <i class="bi bi-file-earmark-text me-1"></i>FICHA TECNICA - MATERIA PRIMA
+                </div>
+                <div class="section-body" style="border-color: #a8d08d;">
+                    <div class="ot-grid" style="grid-template-columns: 2fr 1fr 1fr 1fr 1fr;">
+                        <div class="ot-field">
+                            <span class="ot-label">Tipo Material</span>
+                            <span class="ot-value" id="otTipoMat">-</span>
+                        </div>
+                        <div class="ot-field">
+                            <span class="ot-label">Micras</span>
+                            <span class="ot-value" id="otMicras">-</span>
+                        </div>
+                        <div class="ot-field">
+                            <span class="ot-label">Ancho</span>
+                            <span class="ot-value" id="otAncho">-</span>
+                        </div>
+                        <div class="ot-field">
+                            <span class="ot-label">Densidad</span>
+                            <span class="ot-value" id="otDensidad">-</span>
+                        </div>
+                        <div class="ot-field">
+                            <span class="ot-label">Kg Necesarios</span>
+                            <span class="ot-value" id="otKgNecesarios" style="background: #d4edda; font-weight: 700;">-</span>
+                        </div>
+                    </div>
+                    <!-- Tintas (si hay) -->
+                    <div id="otTintasContainer" style="display: none;">
+                        <div style="background: #fff3cd; padding: 0.15rem 0.3rem; font-size: 0.7rem; font-weight: 700; border-bottom: 1px solid #e0c36a;">
+                            <i class="bi bi-droplet me-1"></i>TINTAS
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered mb-0" style="font-size: 0.7rem;">
+                                <thead style="background: #fff3cd;">
+                                    <tr><th>Pos</th><th>Color</th><th>Anilox</th><th>Viscosidad</th><th>%</th></tr>
+                                </thead>
+                                <tbody id="otTintasBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ FORMULARIO DE PRODUCCION ============ -->
+        <form id="formImpresion" style="display: none;">
+            <div class="row">
+                <!-- Columna Izquierda -->
+                <div class="col-lg-6">
                     <!-- CAPSULA: Informacion del Turno -->
                     <div class="form-section">
                         <div class="form-section-title">
@@ -267,33 +522,6 @@
                         </div>
                     </div>
 
-                    <!-- CAPSULA: Informacion de Produccion -->
-                    <div class="form-section">
-                        <div class="form-section-title">
-                            <i class="bi bi-palette me-1"></i> Informacion de Produccion
-                        </div>
-                        <div class="row g-2">
-                            <div class="col-6">
-                                <label for="totalColores" class="form-label small">Total de Colores</label>
-                                <select class="form-select form-select-sm" id="totalColores">
-                                    <option value="">Seleccionar...</option>
-                                    <option value="1">1 Color</option>
-                                    <option value="2">2 Colores</option>
-                                    <option value="3">3 Colores</option>
-                                    <option value="4">4 Colores</option>
-                                    <option value="5">5 Colores</option>
-                                    <option value="6">6 Colores</option>
-                                    <option value="7">7 Colores</option>
-                                    <option value="8">8 Colores</option>
-                                </select>
-                            </div>
-                            <div class="col-6">
-                                <label for="numPistas" class="form-label small">N° de Pistas</label>
-                                <input type="number" class="form-control form-control-sm" id="numPistas" min="1" max="12" placeholder="Ej: 4">
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- CAPSULA: Tiempo -->
                     <div class="form-section">
                         <div class="form-section-title">
@@ -315,98 +543,6 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
-
-                    <!-- Especificaciones Técnicas -->
-                    <div class="form-section">
-                        <div class="form-section-title">
-                            <i class="bi bi-gear me-1"></i> Especificaciones Tecnicas
-                        </div>
-                        <div class="row g-2">
-                            <!-- Fila 1: Frecuencia, Repeticiones, Ancho Corte, N° Banda -->
-                            <div class="col-md-3">
-                                <label for="frecuencia" class="form-label small">Frecuencia</label>
-                                <input type="number" class="form-control form-control-sm" id="frecuencia" step="0.01" placeholder="mm">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="repeticiones" class="form-label small">Repeticiones</label>
-                                <input type="number" class="form-control form-control-sm" id="repeticiones" min="1" placeholder="Ej: 4">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="anchoCorte" class="form-label small">Ancho Corte (mm)</label>
-                                <input type="number" class="form-control form-control-sm" id="anchoCorte" step="0.01">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="numBanda" class="form-label small">N° Banda</label>
-                                <select class="form-select form-select-sm" id="numBanda">
-                                    <option value="">Seleccionar...</option>
-                                    <option value="1">1</option>
-                                    <option value="2">2</option>
-                                    <option value="3">3</option>
-                                    <option value="4">4</option>
-                                    <option value="5">5</option>
-                                    <option value="6">6</option>
-                                    <option value="7">7</option>
-                                    <option value="8">8</option>
-                                </select>
-                            </div>
-                            <!-- Fila 2: Figura Embobinado, Tipo Impresión, Desarrollo, Piñón -->
-                            <div class="col-md-3">
-                                <label for="figuraEmbobinado" class="form-label small">Figura Embobinado</label>
-                                <select class="form-select form-select-sm" id="figuraEmbobinado">
-                                    <option value="">Seleccionar...</option>
-                                    <option value="1">1</option>
-                                    <option value="2">2</option>
-                                    <option value="3">3</option>
-                                    <option value="4">4</option>
-                                    <option value="5">5</option>
-                                    <option value="6">6</option>
-                                    <option value="7">7</option>
-                                    <option value="8">8</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label for="tipoImpresion" class="form-label small">Tipo Impresion</label>
-                                <select class="form-select form-select-sm" id="tipoImpresion">
-                                    <option value="">Seleccionar...</option>
-                                    <option value="Superficie">Superficie</option>
-                                    <option value="Reverso">Reverso</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label for="desarrollo" class="form-label small">Desarrollo (mm)</label>
-                                <input type="number" class="form-control form-control-sm" id="desarrollo" step="0.01">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="pinon" class="form-label small">Pinon <small class="text-muted">(auto)</small></label>
-                                <input type="number" class="form-control form-control-sm" id="pinon" readonly style="background-color: #e9ecef;" title="Automatico: Desarrollo / 5">
-                            </div>
-                            <!-- Fila 3: Línea Corte, Material/SKU -->
-                            <div class="col-md-3">
-                                <label for="lineaCorte" class="form-label small">Linea de Corte</label>
-                                <select class="form-select form-select-sm" id="lineaCorte">
-                                    <option value="">Seleccionar...</option>
-                                    <option value="3mm">3mm</option>
-                                    <option value="5mm">5mm</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="sustratosVirgen" class="form-label small">Sustratos Virgen (SKU)</label>
-                                <select class="form-select form-select-sm" id="sustratosVirgen">
-                                    <option value="">Seleccionar del inventario...</option>
-                                </select>
-                                <small class="text-muted" id="sustratosVirgenInfo"></small>
-                            </div>
-                            <div class="col-md-3">
-                                <label for="metrosEstimados" class="form-label small">Metros Estimados</label>
-                                <input type="text" class="form-control form-control-sm" id="metrosEstimados" readonly style="background-color: #e9ecef;">
-                            </div>
-                        </div>
-                        <!-- Campos ocultos para cálculos -->
-                        <input type="hidden" id="sustratosVirgenAncho">
-                        <input type="hidden" id="sustratosVirgenMicraje">
-                        <input type="hidden" id="sustratosVirgenTipo">
-                        <input type="hidden" id="sustratosVirgenDensidad">
                     </div>
 
                     <!-- Ingreso de Material (Laminas) -->

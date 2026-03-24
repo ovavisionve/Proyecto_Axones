@@ -40,14 +40,36 @@ const Incidencias = {
     /**
      * Inicializa el modulo
      */
-    init: function() {
+    init: async function() {
         console.log('Inicializando modulo Incidencias');
+
+        await this._esperarSync();
 
         this.loadIncidencias();
         this.setupEventListeners();
         this.poblarSelectores();
         this.renderIncidencias();
         this.updateContadores();
+
+        window.addEventListener('axones-sync', () => {
+            this.loadIncidencias();
+            this.renderIncidencias();
+            this.updateContadores();
+        });
+    },
+
+    _esperarSync: async function() {
+        if (typeof AxonesSync !== 'undefined' && AxonesSync._isReady && AxonesSync._isReady()) {
+            return;
+        }
+        return new Promise(resolve => {
+            let resuelto = false;
+            const handler = () => { if (!resuelto) { resuelto = true; resolve(); } };
+            window.addEventListener('axones-sync', handler, { once: true });
+            setTimeout(() => {
+                if (!resuelto) { resuelto = true; window.removeEventListener('axones-sync', handler); resolve(); }
+            }, 5000);
+        });
     },
 
     /**

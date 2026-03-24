@@ -31,6 +31,13 @@ const Axones = {
         // Configurar eventos globales
         this.setupGlobalEvents();
 
+        // Recargar estadisticas cuando AxonesSync termine de descargar del cloud
+        window.addEventListener('axones-sync', () => {
+            if (Auth.isAuthenticated()) {
+                this.loadDashboardStats();
+            }
+        });
+
         this.state.initialized = true;
         console.log('Sistema Axones inicializado correctamente');
     },
@@ -104,7 +111,7 @@ const Axones = {
         const alertasPendientes = alertas.filter(a => a.estado === 'pendiente' || a.estado === 'activa').length;
 
         // Obtener ordenes
-        const ordenes = JSON.parse(localStorage.getItem('axones_ordenes') || '[]');
+        const ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
         const ordenesActivas = ordenes.filter(o => o.estado !== 'completado' && o.estado !== 'cancelado').length;
 
         // Calcular produccion del inventario

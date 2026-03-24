@@ -12,12 +12,31 @@ const ReportesModule = {
     charts: {},
 
     // Inicializar
-    init() {
+    init: async function() {
+        await this._esperarSync();
         console.log('Inicializando modulo de Reportes...');
         this.setFechasDefault();
         this.cargarMaquinas();
         this.cargarFiltrosAvanzados();
         this.aplicarFiltros();
+
+        window.addEventListener('axones-sync', () => {
+            this.aplicarFiltros();
+        });
+    },
+
+    _esperarSync: async function() {
+        if (typeof AxonesSync !== 'undefined' && AxonesSync._isReady && AxonesSync._isReady()) {
+            return;
+        }
+        return new Promise(resolve => {
+            let resuelto = false;
+            const handler = () => { if (!resuelto) { resuelto = true; resolve(); } };
+            window.addEventListener('axones-sync', handler, { once: true });
+            setTimeout(() => {
+                if (!resuelto) { resuelto = true; window.removeEventListener('axones-sync', handler); resolve(); }
+            }, 5000);
+        });
     },
 
     // Establecer fechas por defecto (ultimo mes)

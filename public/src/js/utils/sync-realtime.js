@@ -99,9 +99,82 @@ ALTER PUBLICATION supabase_realtime ADD TABLE sync_store;`);
             // Descargar datos iniciales del cloud
             await this._download();
 
+            // Si despues de descargar no hay inventario, cargar datos base
+            await this._seedIfEmpty();
+
             _ready = true;
             this._showIndicator();
             console.log('[AxonesSync] Sincronizacion en tiempo real ACTIVA');
+
+            // Siempre notificar que el sync termino (para que otros modulos recarguen)
+            window.dispatchEvent(new CustomEvent('axones-sync', {
+                detail: { type: 'init-complete' }
+            }));
+        },
+
+        /**
+         * Indica si el sync esta listo
+         */
+        _isReady() {
+            return _ready;
+        },
+
+        /**
+         * Fuerza la subida inmediata de un key a Supabase (sin debounce)
+         */
+        async _forceUpload(key) {
+            if (!_ready) return;
+            const val = localStorage.getItem(key);
+            if (val) {
+                clearTimeout(_timers[key]);
+                await this._upload(key, val);
+            }
+        },
+
+        /**
+         * Si tanto sync_store como localStorage estan vacios,
+         * carga los datos base del inventario (158 productos)
+         * para que el sistema funcione desde cualquier pagina.
+         */
+        async _seedIfEmpty() {
+            const inv = localStorage.getItem('axones_inventario');
+            const hasInventario = inv && inv !== '[]' && inv !== 'null';
+            if (hasInventario) return; // Ya hay datos, no hacer nada
+
+            // Intentar cargar datos base del inventario si el modulo esta disponible
+            if (typeof InventarioModule !== 'undefined' && typeof InventarioModule.getDatosEjemplo === 'function') {
+                const datos = InventarioModule.getDatosEjemplo();
+                if (datos && datos.length > 0) {
+                    localStorage.setItem('axones_inventario', JSON.stringify(datos));
+                    console.log(`[AxonesSync] Seed: ${datos.length} productos del inventario cargados`);
+                    return;
+                }
+            }
+
+            // Si no esta el modulo, cargar via script dinamico
+            try {
+                const script = document.querySelector('script[src*="inventario.js"]');
+                if (!script) {
+                    // Cargar inventario.js temporalmente
+                    await new Promise((resolve, reject) => {
+                        const s = document.createElement('script');
+                        s.src = 'src/js/modules/inventario.js';
+                        s.onload = resolve;
+                        s.onerror = reject;
+                        document.head.appendChild(s);
+                    });
+                }
+                // Reintentar despues de cargar
+                if (typeof InventarioModule !== 'undefined' && typeof InventarioModule.getDatosEjemplo === 'function') {
+                    const datos = InventarioModule.getDatosEjemplo();
+                    if (datos && datos.length > 0) {
+                        localStorage.setItem('axones_inventario', JSON.stringify(datos));
+                        console.log(`[AxonesSync] Seed dinamico: ${datos.length} productos cargados`);
+                    }
+                }
+            } catch (e) {
+                console.warn('[AxonesSync] No se pudo cargar inventario base:', e.message);
+            }
         },
 
         /**
@@ -509,11 +582,9 @@ function _showSyncToast(msg) {
     }
 })();
 
-// Auto-iniciar despues de que todo cargue
+// Auto-iniciar despues de que todo cargue (SIN delay para evitar race condition)
 document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-        AxonesSync.init().catch(e => console.warn('[AxonesSync] Init error:', e.message));
-    }, 2000);
+    AxonesSync.init().catch(e => console.warn('[AxonesSync] Init error:', e.message));
 });
 
 // Exportar

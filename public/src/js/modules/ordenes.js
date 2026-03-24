@@ -140,6 +140,9 @@ const Ordenes = {
     init: async function() {
         console.log('Inicializando modulo Ordenes de Trabajo');
 
+        // Esperar a que AxonesSync termine de descargar datos del cloud
+        await this._esperarSync();
+
         await this.loadOrdenes();
         await this.loadInventario();
         this.setupEventListeners();
@@ -160,6 +163,46 @@ const Ordenes = {
 
         // Verificar ordenes proximas y enviar alertas por email si es necesario
         this.verificarOrdenesProximas();
+
+        // Escuchar re-sync del cloud para recargar datos
+        window.addEventListener('axones-sync', () => {
+            this.loadOrdenes();
+            this.loadInventario();
+            this.generarNumeroOrden();
+            this.cargarProductosDelInventario();
+        });
+    },
+
+    /**
+     * Espera a que AxonesSync termine la descarga inicial (max 5 segundos)
+     */
+    _esperarSync: async function() {
+        if (typeof AxonesSync !== 'undefined' && AxonesSync._isReady && AxonesSync._isReady()) {
+            return; // Ya esta listo
+        }
+
+        return new Promise(resolve => {
+            let resuelto = false;
+
+            // Escuchar evento de sync completado
+            const handler = () => {
+                if (!resuelto) {
+                    resuelto = true;
+                    resolve();
+                }
+            };
+            window.addEventListener('axones-sync', handler, { once: true });
+
+            // Timeout de seguridad: no esperar mas de 5 segundos
+            setTimeout(() => {
+                if (!resuelto) {
+                    resuelto = true;
+                    window.removeEventListener('axones-sync', handler);
+                    console.log('[Ordenes] Timeout esperando sync - continuando con datos locales');
+                    resolve();
+                }
+            }, 5000);
+        });
     },
 
     /**
@@ -185,7 +228,7 @@ const Ordenes = {
         inventario.forEach(item => {
             const sku = item.sku || `${item.material}-${item.micras}-${item.ancho}`;
             const nombreDisplay = item.producto
-                ? `${item.producto} | ${sku}`
+                ? `${item.material} ${item.micras}µ x ${item.ancho}mm - ${item.producto} | ${sku}`
                 : `${item.material} ${item.micras}µ x ${item.ancho}mm | ${sku}`;
 
             todosProductos.set(nombreDisplay, {
@@ -1560,8 +1603,13 @@ const Ordenes = {
             this.ordenes.push(ordenData);
         }
 
-        // Guardar localmente como respaldo
+        // Guardar localmente y forzar sync a Supabase
         this.saveOrdenes();
+
+        // Forzar subida inmediata a Supabase (no depender del debounce)
+        if (typeof AxonesSync !== 'undefined' && AxonesSync._forceUpload) {
+            AxonesSync._forceUpload('axones_ordenes_trabajo');
+        }
 
         // Aprender de esta orden para sugerencias futuras
         if (typeof ClienteMemoria !== 'undefined') {

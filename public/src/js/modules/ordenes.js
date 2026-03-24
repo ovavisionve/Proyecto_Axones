@@ -283,13 +283,8 @@ const Ordenes = {
         const anchoMaterial = document.getElementById('anchoMaterial');
         if (anchoMaterial) anchoMaterial.value = data.ancho || '';
 
-        // Ancho de corte (igual al ancho del material por defecto)
-        const anchoCorte = document.getElementById('anchoCorte');
-        if (anchoCorte && !anchoCorte.value) anchoCorte.value = data.ancho || '';
-
-        // Ancho de montaje
-        const anchoMontaje = document.getElementById('anchoMontaje');
-        if (anchoMontaje && !anchoMontaje.value) anchoMontaje.value = data.ancho || '';
+        // anchoCorte y anchoMontaje NO se pre-llenan desde inventario
+        // anchoCorte es dato de diseño (manual), anchoMontaje = anchoCorte × numBandas (calculado)
 
         // Kg disponible
         const kgDisponible = document.getElementById('kgDisponible');
@@ -419,10 +414,30 @@ const Ordenes = {
             maquinaSelect.addEventListener('change', () => this.togglePlanchas());
         }
 
-        // Calcular pinon automaticamente cuando cambia desarrollo
-        const desarrolloInput = document.getElementById('desarrollo');
-        if (desarrolloInput) {
-            desarrolloInput.addEventListener('input', () => this.calcularPinon());
+        // Desarrollo = Frecuencia × N° Repeticion (automatico)
+        const frecuenciaInput = document.getElementById('frecuencia');
+        const numRepeticionInput = document.getElementById('numRepeticion');
+        if (frecuenciaInput) {
+            frecuenciaInput.addEventListener('input', () => this.calcularDesarrollo());
+        }
+        if (numRepeticionInput) {
+            numRepeticionInput.addEventListener('input', () => this.calcularDesarrollo());
+        }
+
+        // Ancho Montaje = Ancho Corte × N° Bandas (automatico)
+        const anchoCorteMontaje = document.getElementById('anchoCorte');
+        const numBandasSelect = document.getElementById('numBandas');
+        if (anchoCorteMontaje) {
+            anchoCorteMontaje.addEventListener('input', () => this.calcularAnchoMontaje());
+        }
+        if (numBandasSelect) {
+            numBandasSelect.addEventListener('change', () => this.calcularAnchoMontaje());
+        }
+
+        // Sincronizar Montaje → Impresion (Piñon y Fig. Embobinado)
+        const figEmbMontaje = document.getElementById('figuraEmbobinadoMontaje');
+        if (figEmbMontaje) {
+            figEmbMontaje.addEventListener('change', () => this.sincronizarMontajeImpresion());
         }
 
         // Cargar sustratos virgen del inventario
@@ -514,14 +529,76 @@ const Ordenes = {
     },
 
     /**
+     * Calcula Desarrollo = Frecuencia × N° Repeticion
+     * Luego recalcula Piñon en cascada y sincroniza con Impresion
+     */
+    calcularDesarrollo: function() {
+        const frecuenciaRaw = document.getElementById('frecuencia')?.value || '';
+        // Extraer solo el numero de frecuencia (puede tener ±2 al final)
+        const frecuencia = parseFloat(frecuenciaRaw.replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
+        const numRepeticion = parseFloat(document.getElementById('numRepeticion')?.value) || 0;
+        const desarrolloInput = document.getElementById('desarrollo');
+
+        if (desarrolloInput && frecuencia > 0 && numRepeticion > 0) {
+            const desarrollo = frecuencia * numRepeticion;
+            desarrolloInput.value = desarrollo;
+        } else if (desarrolloInput) {
+            desarrolloInput.value = '';
+        }
+
+        // Cascada: recalcular Piñon
+        this.calcularPinon();
+    },
+
+    /**
+     * Calcula Ancho Montaje = Ancho Corte × N° Bandas
+     */
+    calcularAnchoMontaje: function() {
+        const anchoCorteRaw = document.getElementById('anchoCorte')?.value || '';
+        // Extraer solo el numero (puede tener ±2 al final)
+        const anchoCorte = parseFloat(anchoCorteRaw.replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
+        const numBandas = parseFloat(document.getElementById('numBandas')?.value) || 0;
+        const anchoMontajeInput = document.getElementById('anchoMontaje');
+
+        if (anchoMontajeInput && anchoCorte > 0 && numBandas > 0) {
+            anchoMontajeInput.value = anchoCorte * numBandas;
+        } else if (anchoMontajeInput) {
+            anchoMontajeInput.value = '';
+        }
+    },
+
+    /**
+     * Sincroniza datos de Montaje hacia Area de Impresion
+     * - Piñon (Montaje) → Piñon Imp (display)
+     * - Figura Embobinado (Montaje) → Fig. Emb. Imp (display)
+     */
+    sincronizarMontajeImpresion: function() {
+        // Piñon
+        const pinon = document.getElementById('pinon')?.value || '';
+        const pinonImp = document.getElementById('pinonImpDisplay');
+        if (pinonImp) pinonImp.value = pinon;
+
+        // Figura Embobinado
+        const figEmb = document.getElementById('figuraEmbobinadoMontaje')?.value || '';
+        const figEmbImp = document.getElementById('figEmbImpDisplay');
+        if (figEmbImp) figEmbImp.value = figEmb;
+    },
+
+    /**
      * Calcula pinon automaticamente (desarrollo / 5)
+     * Luego sincroniza con Impresion
      */
     calcularPinon: function() {
         const desarrollo = parseFloat(document.getElementById('desarrollo')?.value) || 0;
         const pinonInput = document.getElementById('pinon');
         if (pinonInput && desarrollo > 0) {
             pinonInput.value = Math.round(desarrollo / 5);
+        } else if (pinonInput) {
+            pinonInput.value = '';
         }
+
+        // Sincronizar con Impresion
+        this.sincronizarMontajeImpresion();
     },
 
     /**
@@ -716,7 +793,7 @@ const Ordenes = {
 
         if (tipoMat2) {
             tipoMat2.addEventListener('change', () => {
-                const densidad = this.DENSIDADES[tipoMat2.value] || 0.93;
+                const densidad = this.DENSIDADES[tipoMat2.value] || 0.90;
                 const densidadInput = document.getElementById('fichaDensidad2');
                 if (densidadInput) densidadInput.value = densidad;
                 this.cargarSkusPorTipo('fichaSku2', tipoMat2.value);

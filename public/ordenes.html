@@ -443,7 +443,12 @@
                                 <option value="BOPP MATE">BOPP MATE</option>
                                 <option value="BOPP PASTA">BOPP PASTA</option>
                                 <option value="BOPP PERLADO">BOPP PERLADO</option>
+                                <option value="CAST">CAST</option>
+                                <option value="PEBD">PEBD</option>
+                                <option value="PEBD PIGMENT">PEBD PIGMENT</option>
                                 <option value="POLIETILENO">POLIETILENO (PB)</option>
+                                <option value="PERLADO">PERLADO</option>
+                                <option value="METAL">METAL</option>
                                 <option value="PET">PET</option>
                                 <option value="PA">PA (Nylon)</option>
                             </select>
@@ -524,12 +529,18 @@
                             <label class="form-label">Tipo</label>
                             <select class="form-select form-select-sm" id="fichaTipoMat2">
                                 <option value="">Sel...</option>
+                                <option value="BOPP NORMAL">BOPP NORMAL</option>
+                                <option value="BOPP MATE">BOPP MATE</option>
+                                <option value="BOPP PASTA">BOPP PASTA</option>
+                                <option value="BOPP PERLADO">BOPP PERLADO</option>
                                 <option value="CAST">CAST</option>
                                 <option value="PEBD">PEBD</option>
                                 <option value="PEBD PIGMENT">PEBD PIGMENT</option>
                                 <option value="POLIETILENO">POLIETILENO (PB)</option>
                                 <option value="PERLADO">PERLADO</option>
                                 <option value="METAL">METAL</option>
+                                <option value="PET">PET</option>
+                                <option value="PA">PA (Nylon)</option>
                             </select>
                         </div>
                         <div class="ot-field">
@@ -627,14 +638,14 @@
                         </div>
                         <div class="ot-field">
                             <label class="form-label">Desarrollo (mm)</label>
-                            <input type="number" class="form-control form-control-sm" id="desarrollo" step="0.01">
+                            <input type="number" class="form-control form-control-sm" id="desarrollo" step="0.01" readonly title="Frecuencia x Repeticion">
                         </div>
                     </div>
                     <!-- Fila 3: ANCHO MONTAJE | FIGURA EMBOBINADO IMPRESION | N° COLORES (como Excel fila 13) -->
                     <div class="ot-grid" style="grid-template-columns: 1fr 1fr 1fr;">
                         <div class="ot-field">
                             <label class="form-label">Ancho Montaje (mm)</label>
-                            <input type="number" class="form-control form-control-sm" id="anchoMontaje" step="0.01">
+                            <input type="number" class="form-control form-control-sm" id="anchoMontaje" step="0.01" readonly title="Ancho Corte x N° Bandas">
                         </div>
                         <div class="ot-field">
                             <label class="form-label">Figura Embobinado Impresion</label>

@@ -333,13 +333,64 @@ SUPABASE_URL = 'https://lzjuzfbzgyjazhzhfhzv.supabase.co'
 - `sync-realtime.js` esta incluido en las **20 paginas HTML**
 - Badge del sistema cambiado: "Conectado a Sheets" -> "Conectado a Supabase"
 
-#### Tablas Supabase
-| Tabla | Descripcion |
-|-------|-------------|
-| sync_store | Almacen clave-valor para sincronizar localStorage |
-| tintas_cementerio | Tintas archivadas (soft-delete) |
-| tintas_mezclas | Recetas de mezclas del colorista |
-| consumo_tintas | Registro de consumo de tintas por OT |
+#### Tablas Supabase (19 tablas - TODAS CREADAS Y ACTIVAS)
+| Tabla | Descripcion | Registros iniciales |
+|-------|-------------|---------------------|
+| usuarios | Cuentas de usuario con roles | 23 usuarios |
+| clientes | Datos maestros de clientes | Vacia (llenar desde UI) |
+| proveedores | Datos maestros de proveedores | Vacia (llenar desde UI) |
+| materiales | Inventario de sustratos | 158 materiales |
+| tintas | Inventario de tintas | 58 tintas |
+| adhesivos | Adhesivos, catalizadores, solventes | 7 items |
+| ordenes_trabajo | Ordenes de trabajo | Dinamica |
+| produccion_impresion | Registros de produccion impresion | Dinamica |
+| produccion_laminacion | Registros de produccion laminacion | Dinamica |
+| produccion_corte | Registros de produccion corte | Dinamica |
+| despachos | Despachos parciales/totales | Dinamica |
+| alertas | Alertas del sistema | Dinamica |
+| control_tiempo | Cronometros Play/Pausa por OT | Dinamica |
+| presencia | Usuarios conectados en tiempo real | Dinamica |
+| movimientos_inventario | Trazabilidad de movimientos de stock | Dinamica |
+| sync_store | Cache key-value para sync localStorage | Dinamica |
+| consumo_tintas | Registro de consumo de tintas por OT | Dinamica |
+| tintas_cementerio | Tintas archivadas (soft-delete) | Dinamica |
+| tintas_mezclas | Recetas de mezclas del colorista | Dinamica |
+
+#### Modulos de Datos Maestros (UI)
+| Modulo | Pagina | JS | Tabla Supabase | Acceso Navbar |
+|--------|--------|-----|----------------|---------------|
+| Clientes | clientes.html | clientes.js | clientes | Datos Maestros > Clientes |
+| Proveedores | proveedores.html | proveedores.js | proveedores | Datos Maestros > Proveedores |
+| Usuarios | admin.html | admin.js | usuarios | ... > Administracion |
+| Inventario | inventario.html | inventario.js | materiales + tintas + adhesivos | Inventario |
+| Tintas | tintas.html | tintas.js | tintas + consumo_tintas + tintas_cementerio + tintas_mezclas | Produccion > Tintas |
+
+#### SQL Ejecutados en Supabase (4 scripts en orden)
+
+**Script 1: Schema principal** (`supabase/schema.sql`)
+- Crea las 15 tablas core: usuarios, clientes, proveedores, materiales, tintas, adhesivos, ordenes_trabajo, produccion_impresion, produccion_laminacion, produccion_corte, despachos, alertas, control_tiempo, presencia, movimientos_inventario
+- Indices de rendimiento (16 indices)
+- Triggers: update_updated_at (auto-actualiza updated_at), generar_numero_ot (OT-YYYY-NNNN automatico)
+- RLS habilitado en todas las tablas con politica "Acceso total autenticados"
+- Realtime habilitado para: ordenes_trabajo, presencia, alertas, control_tiempo, materiales, produccion_impresion, produccion_laminacion, produccion_corte, despachos
+
+**Script 2: Tablas de tintas extendidas**
+- Agrega columnas a tintas: categoria (original/solventada/arreglada), color_hex, lote, tinta_base, proporcion, proveedor_nombre
+- Crea tabla tintas_cementerio (archivado de tintas con motivo)
+- Crea tabla tintas_mezclas (recetas del colorista con componentes JSONB)
+- Crea tabla consumo_tintas (registro de consumo por OT, no descuenta inventario)
+- Realtime habilitado para las 4 tablas de tintas
+
+**Script 3: Seed de inventario** (`supabase/seed-inventario.sql`)
+- 158 materiales (BOPP Normal, BOPP Mate, BOPP Pasta, Metal, Perlado, Cast, PEBD, PEBD Pigment)
+- 58 tintas (laminacion y superficie, con codigos reales)
+- 7 adhesivos/solventes (IPA, Acetato, Methoxy, Adhesivo, Catalizadores, Solvente Recuperado)
+- Usa ON CONFLICT para ser idempotente (seguro ejecutar multiples veces)
+
+**Script 4: Tabla sync_store**
+- Tabla key-value para sincronizar localStorage entre usuarios
+- RLS habilitado, Realtime habilitado
+- Usada por sync-realtime.js para mantener datos sincronizados
 
 #### Seed SQL
 `supabase/seed-inventario.sql` contiene la carga inicial: 158 materiales, 58 tintas, 7 adhesivos.

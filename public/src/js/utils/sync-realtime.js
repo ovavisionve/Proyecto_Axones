@@ -182,23 +182,40 @@ ALTER PUBLICATION supabase_realtime ADD TABLE sync_store;`);
          */
         async _download() {
             try {
+                // Guardar copia de datos locales ANTES de limpiar (para seed inicial)
+                const localBackup = {};
+                for (const key of SYNC_KEYS) {
+                    const val = localStorage.getItem(key);
+                    if (val && val !== '[]' && val !== '{}' && val !== 'null') {
+                        localBackup[key] = val;
+                    }
+                }
+
                 const { data, error } = await AxonesDB.client
                     .from('sync_store')
                     .select('key, value, updated_at');
 
                 if (error) throw error;
 
-                // Limpiar keys de Axones en localStorage antes de cargar del cloud
-                // Esto evita que datos demo o viejos persistan
+                if (!data || data.length === 0) {
+                    // sync_store vacio: si hay datos locales, subirlos como seed inicial
+                    const localKeys = Object.keys(localBackup);
+                    if (localKeys.length > 0) {
+                        console.log(`[AxonesSync] sync_store vacio - subiendo ${localKeys.length} keys locales como seed inicial`);
+                        for (const key of localKeys) {
+                            await this._upload(key, localBackup[key]);
+                        }
+                        console.log('[AxonesSync] Seed inicial completado');
+                    } else {
+                        console.log('[AxonesSync] sync_store vacio y localStorage vacio - sistema limpio');
+                    }
+                    return;
+                }
+
+                // Cloud tiene datos: limpiar localStorage y aplicar datos del cloud
                 _syncing = true;
                 for (const key of SYNC_KEYS) {
                     _origSetItem(key, '[]');
-                }
-
-                if (!data || data.length === 0) {
-                    console.log('[AxonesSync] sync_store vacio - localStorage limpio');
-                    _syncing = false;
-                    return;
                 }
 
                 // Aplicar datos del cloud al localStorage (cloud SIEMPRE gana)

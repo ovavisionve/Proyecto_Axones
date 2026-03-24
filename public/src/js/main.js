@@ -404,15 +404,10 @@ const Axones = {
 
 // Inicializar cuando el DOM este listo
 document.addEventListener('DOMContentLoaded', () => {
-    // DemoData se auto-inicializa al cargar el script (antes de DOMContentLoaded)
-    // Solo generar datos complementarios (produccion, alertas) si es primera vez
-    if (typeof DemoData !== 'undefined') {
-        if (!localStorage.getItem('axones_produccion')) {
-            DemoData.generarProduccion();
-        }
-        if (!localStorage.getItem('axones_maquinas_estado')) {
-            DemoData.generarEstadoMaquinas();
-        }
+    // DemoData fue desactivado (Supabase es fuente de verdad)
+    // Solo ejecutar limpieza si DemoData existe
+    if (typeof DemoData !== 'undefined' && typeof DemoData.limpiar === 'function') {
+        DemoData.limpiar();
     }
 
     // Asegurar que los 23 usuarios reales estan cargados

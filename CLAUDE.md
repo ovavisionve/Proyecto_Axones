@@ -569,10 +569,10 @@ git push origin main
 | GitHub Actions workflow para deploy a GitHub Pages | COMPLETADO |
 | Fix deploy desde ramas claude/* | COMPLETADO |
 
-### Fase 8: Resumen de Devolucion en Impresion (2026-03-24)
+### Fase 8: Resumen de Devolucion en Impresion y Laminacion (2026-03-24)
 | Cambio | Estado |
 |--------|--------|
-| Eliminar grilla de 26 campos "Restante de Bobinas Usadas" en impresion | COMPLETADO |
+| Eliminar grilla "Restante de Bobinas Usadas" en impresion y laminacion | COMPLETADO |
 | Nueva seccion "Resumen de Devolucion" con Devolucion Buena (Kg+Fecha+Hora) | COMPLETADO |
 | Tabla dinamica "Devolucion Rechazada" (Proveedor, Ref, Kg, Motivo, Fecha, Hora) | COMPLETADO |
 | Boton "Reporte por proveedor" que abre ventana de impresion | COMPLETADO |
@@ -580,7 +580,20 @@ git push origin main
 | Resumen de Produccion actualizado con filas Devolucion Buena/Rechazada | COMPLETADO |
 | descontarInventario() repone devolucion buena al material correspondiente | COMPLETADO |
 | Reportes de rechazo guardados en axones_reportes_rechazo (localStorage) | COMPLETADO |
-| **PENDIENTE:** Aplicar mismo cambio a laminacion y corte | PENDIENTE |
+| Aplicado a impresion y laminacion | COMPLETADO |
+| **PENDIENTE:** Aplicar mismo cambio a corte | PENDIENTE |
+
+### Fase 9: Consumo y Devolucion de Tintas + Solventes (2026-03-24)
+| Cambio | Estado |
+|--------|--------|
+| Seccion "Consumo de Tintas" con selector del inventario (axones_tintas_inventario) | COMPLETADO |
+| Selector muestra Tipo/Color y stock actual de cada tinta | COMPLETADO |
+| Seccion "Solventes" (Alcohol IPA, Metoxi, Acetato) con total automatico | COMPLETADO |
+| Seccion "Devolucion de Tintas" con selector del inventario + Kg devueltos | COMPLETADO |
+| descontarTintas() descuenta consumo y repone devolucion al inventario | COMPLETADO |
+| Datos de tintas y solventes incluidos en recopilarDatos() | COMPLETADO |
+| Aplicado a impresion y laminacion | COMPLETADO |
+| **PENDIENTE:** Aplicar mismo cambio a corte | PENDIENTE |
 
 ### Campos de Etiqueta de Bobina
 **Entrada** (9 campos): Proveedor, Referencia Bobina, Medida/Ancho, Micraje, Trat. Interno, Trat. Externo, Fecha, Maquina Origen, Pedido/Lote
@@ -588,7 +601,8 @@ git push origin main
 
 ## Commits Recientes (Referencia)
 ```
-# 2026-03-24 - Resumen de Devolucion
+# 2026-03-24 - Devolucion + Tintas + Solventes
+feat: Consumo/devolucion tintas + solventes + devolucion material en impresion y laminacion
 98a51c5 feat: Reemplazar Restante de Bobinas por Resumen de Devolucion en impresion
 
 # 2026-03-23 - Limpieza Sheets + Deploy

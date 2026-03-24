@@ -872,6 +872,91 @@
                         </div>
                     </div>
 
+                    <!-- Consumo de Tintas -->
+                    <div class="form-section" style="background: #fff8e1;">
+                        <div class="form-section-title">
+                            <i class="bi bi-droplet-fill me-1"></i> Consumo de Tintas (Kg)
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered mb-1" id="tablaConsumoTintas">
+                                <thead style="background: #fff3cd;">
+                                    <tr>
+                                        <th style="width:35%">Tipo / Color</th>
+                                        <th style="width:20%">Kg Usados</th>
+                                        <th style="width:20%">Stock Actual</th>
+                                        <th style="width:3%"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="bodyConsumoTintas"></tbody>
+                                <tfoot>
+                                    <tr style="background: #fff3cd;">
+                                        <td class="fw-bold text-end">Total Tintas:</td>
+                                        <td class="fw-bold" id="totalConsumoTintas">0.00</td>
+                                        <td colspan="2"></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-warning" id="btnAgregarTinta">
+                            <i class="bi bi-plus-circle me-1"></i>Agregar tinta del inventario
+                        </button>
+                    </div>
+
+                    <!-- Solventes -->
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="bi bi-moisture me-1"></i> Solventes (Lt)
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-4">
+                                <label class="form-label small">Alcohol IPA</label>
+                                <input type="number" class="form-control form-control-sm solvente-input" id="solAlcohol" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label small">Metoxi</label>
+                                <input type="number" class="form-control form-control-sm solvente-input" id="solMetoxi" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label small">Acetato</label>
+                                <input type="number" class="form-control form-control-sm solvente-input" id="solAcetato" step="0.01" min="0" value="0">
+                            </div>
+                        </div>
+                        <div class="row mt-1">
+                            <div class="col text-end">
+                                <span class="badge bg-secondary">Total Solventes: <span id="totalSolventes">0.00</span> Lt</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Devolucion de Tintas -->
+                    <div class="form-section" style="background: #e8f5e9;">
+                        <div class="form-section-title">
+                            <i class="bi bi-droplet me-1"></i> Devolucion de Tintas (Kg sobrante)
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered mb-1" id="tablaDevolucionTintas">
+                                <thead class="table-success">
+                                    <tr>
+                                        <th style="width:35%">Tipo / Color</th>
+                                        <th style="width:20%">Kg Devueltos</th>
+                                        <th style="width:3%"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="bodyDevolucionTintas"></tbody>
+                                <tfoot>
+                                    <tr class="table-success">
+                                        <td class="fw-bold text-end">Total Devuelto:</td>
+                                        <td class="fw-bold" id="totalDevolucionTintas">0.00</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-success" id="btnAgregarDevTinta">
+                            <i class="bi bi-plus-circle me-1"></i>Agregar devolucion de tinta
+                        </button>
+                    </div>
+
                     <!-- Resumen de Produccion -->
                     <div class="form-section" style="background: #f0f8ff;">
                         <div class="form-section-title">

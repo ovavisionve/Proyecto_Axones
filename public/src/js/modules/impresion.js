@@ -26,6 +26,8 @@ const Impresion = {
         this.setupEventListeners();
         this.setupCalculations();
         this.initDevolucionRechazada();
+        this.initConsumoTintas();
+        this.initSolventes();
 
         // Poblar selector de OTs y verificar si viene una por URL
         this.poblarSelectorOT();
@@ -928,6 +930,227 @@ const Impresion = {
     },
 
     /**
+     * Inicializa la seccion de consumo de tintas
+     */
+    initConsumoTintas: function() {
+        const btnAgregar = document.getElementById('btnAgregarTinta');
+        if (btnAgregar) {
+            btnAgregar.addEventListener('click', () => this.agregarFilaTinta('consumo'));
+        }
+        const btnDevTinta = document.getElementById('btnAgregarDevTinta');
+        if (btnDevTinta) {
+            btnDevTinta.addEventListener('click', () => this.agregarFilaTinta('devolucion'));
+        }
+    },
+
+    /**
+     * Obtiene tintas del inventario para el selector
+     */
+    obtenerTintasInventario: function() {
+        try {
+            return JSON.parse(localStorage.getItem('axones_tintas_inventario') || '[]');
+        } catch (e) {
+            return [];
+        }
+    },
+
+    /**
+     * Genera opciones HTML del selector de tintas desde el inventario
+     */
+    generarOpcionesTintas: function() {
+        const tintas = this.obtenerTintasInventario();
+        let opciones = '<option value="">-- Seleccionar tinta --</option>';
+        tintas.forEach((t, idx) => {
+            const nombre = t.nombre || t.color || t.tipo || 'Tinta ' + (idx + 1);
+            const stock = parseFloat(t.cantidad || t.kg || 0).toFixed(2);
+            opciones += `<option value="${idx}" data-stock="${stock}" data-nombre="${nombre}">${nombre} (${stock} Kg)</option>`;
+        });
+        return opciones;
+    },
+
+    /**
+     * Agrega fila a tabla de consumo o devolucion de tintas
+     */
+    agregarFilaTinta: function(tipo) {
+        const bodyId = tipo === 'consumo' ? 'bodyConsumoTintas' : 'bodyDevolucionTintas';
+        const tbody = document.getElementById(bodyId);
+        if (!tbody) return;
+
+        const opciones = this.generarOpcionesTintas();
+        const fila = document.createElement('tr');
+
+        if (tipo === 'consumo') {
+            fila.innerHTML = `
+                <td><select class="form-select form-select-sm tinta-selector">${opciones}</select></td>
+                <td><input type="number" class="form-control form-control-sm tinta-kg-consumo" step="0.01" min="0" value="0"></td>
+                <td class="text-center tinta-stock-cell">-</td>
+                <td><button type="button" class="btn btn-sm btn-outline-danger btn-quitar-tinta" title="Quitar"><i class="bi bi-x"></i></button></td>
+            `;
+        } else {
+            fila.innerHTML = `
+                <td><select class="form-select form-select-sm tinta-dev-selector">${opciones}</select></td>
+                <td><input type="number" class="form-control form-control-sm tinta-kg-devolucion" step="0.01" min="0" value="0"></td>
+                <td><button type="button" class="btn btn-sm btn-outline-danger btn-quitar-tinta" title="Quitar"><i class="bi bi-x"></i></button></td>
+            `;
+        }
+
+        // Evento para quitar fila
+        fila.querySelector('.btn-quitar-tinta').addEventListener('click', () => {
+            fila.remove();
+            this.calcularTotalTintas();
+        });
+
+        // Evento para actualizar stock al seleccionar tinta
+        const selector = fila.querySelector('.tinta-selector, .tinta-dev-selector');
+        if (selector) {
+            selector.addEventListener('change', () => {
+                const opt = selector.selectedOptions[0];
+                const stockCell = fila.querySelector('.tinta-stock-cell');
+                if (stockCell && opt && opt.dataset.stock) {
+                    stockCell.textContent = opt.dataset.stock + ' Kg';
+                } else if (stockCell) {
+                    stockCell.textContent = '-';
+                }
+            });
+        }
+
+        // Evento para recalcular totales
+        const kgInput = fila.querySelector('.tinta-kg-consumo, .tinta-kg-devolucion');
+        if (kgInput) {
+            kgInput.addEventListener('input', () => this.calcularTotalTintas());
+        }
+
+        tbody.appendChild(fila);
+    },
+
+    /**
+     * Calcula totales de consumo y devolucion de tintas
+     */
+    calcularTotalTintas: function() {
+        let totalConsumo = 0;
+        document.querySelectorAll('.tinta-kg-consumo').forEach(input => {
+            totalConsumo += parseFloat(input.value) || 0;
+        });
+        const totalConsumoEl = document.getElementById('totalConsumoTintas');
+        if (totalConsumoEl) totalConsumoEl.textContent = totalConsumo.toFixed(2);
+
+        let totalDevolucion = 0;
+        document.querySelectorAll('.tinta-kg-devolucion').forEach(input => {
+            totalDevolucion += parseFloat(input.value) || 0;
+        });
+        const totalDevEl = document.getElementById('totalDevolucionTintas');
+        if (totalDevEl) totalDevEl.textContent = totalDevolucion.toFixed(2);
+    },
+
+    /**
+     * Recopila datos de consumo de tintas
+     */
+    recopilarConsumoTintas: function() {
+        const filas = document.querySelectorAll('#bodyConsumoTintas tr');
+        const datos = [];
+        filas.forEach(fila => {
+            const selector = fila.querySelector('.tinta-selector');
+            const kgInput = fila.querySelector('.tinta-kg-consumo');
+            const kg = parseFloat(kgInput?.value) || 0;
+            if (kg > 0 && selector?.value) {
+                const opt = selector.selectedOptions[0];
+                datos.push({
+                    indice: parseInt(selector.value),
+                    nombre: opt?.dataset?.nombre || '',
+                    kg: kg
+                });
+            }
+        });
+        return datos;
+    },
+
+    /**
+     * Recopila datos de devolucion de tintas
+     */
+    recopilarDevolucionTintas: function() {
+        const filas = document.querySelectorAll('#bodyDevolucionTintas tr');
+        const datos = [];
+        filas.forEach(fila => {
+            const selector = fila.querySelector('.tinta-dev-selector');
+            const kgInput = fila.querySelector('.tinta-kg-devolucion');
+            const kg = parseFloat(kgInput?.value) || 0;
+            if (kg > 0 && selector?.value) {
+                const opt = selector.selectedOptions[0];
+                datos.push({
+                    indice: parseInt(selector.value),
+                    nombre: opt?.dataset?.nombre || '',
+                    kg: kg
+                });
+            }
+        });
+        return datos;
+    },
+
+    /**
+     * Descuenta consumo y repone devolucion de tintas en el inventario
+     */
+    descontarTintas: function(datos) {
+        try {
+            const tintas = this.obtenerTintasInventario();
+            let actualizado = false;
+
+            // Descontar consumo
+            if (datos.consumoTintas) {
+                datos.consumoTintas.forEach(item => {
+                    if (tintas[item.indice]) {
+                        const actual = parseFloat(tintas[item.indice].cantidad || tintas[item.indice].kg || 0);
+                        const campo = tintas[item.indice].cantidad !== undefined ? 'cantidad' : 'kg';
+                        tintas[item.indice][campo] = Math.max(0, actual - item.kg);
+                        actualizado = true;
+                        console.log(`Tintas: Descontados ${item.kg} Kg de ${item.nombre} (Quedan: ${tintas[item.indice][campo]} Kg)`);
+                    }
+                });
+            }
+
+            // Reponer devolucion
+            if (datos.devolucionTintas) {
+                datos.devolucionTintas.forEach(item => {
+                    if (tintas[item.indice]) {
+                        const actual = parseFloat(tintas[item.indice].cantidad || tintas[item.indice].kg || 0);
+                        const campo = tintas[item.indice].cantidad !== undefined ? 'cantidad' : 'kg';
+                        tintas[item.indice][campo] = actual + item.kg;
+                        actualizado = true;
+                        console.log(`Tintas: Repuestos ${item.kg} Kg de ${item.nombre} (Total: ${tintas[item.indice][campo]} Kg)`);
+                    }
+                });
+            }
+
+            if (actualizado) {
+                localStorage.setItem('axones_tintas_inventario', JSON.stringify(tintas));
+                console.log('Inventario de tintas actualizado despues de produccion');
+            }
+        } catch (error) {
+            console.warn('Error al actualizar inventario de tintas:', error);
+        }
+    },
+
+    /**
+     * Inicializa la seccion de solventes
+     */
+    initSolventes: function() {
+        document.querySelectorAll('.solvente-input').forEach(input => {
+            input.addEventListener('input', () => this.calcularTotalSolventes());
+        });
+    },
+
+    /**
+     * Calcula total de solventes
+     */
+    calcularTotalSolventes: function() {
+        let total = 0;
+        document.querySelectorAll('.solvente-input').forEach(input => {
+            total += parseFloat(input.value) || 0;
+        });
+        const el = document.getElementById('totalSolventes');
+        if (el) el.textContent = total.toFixed(2);
+    },
+
+    /**
      * Inicializa la seccion de devolucion rechazada
      */
     initDevolucionRechazada: function() {
@@ -1188,6 +1411,9 @@ const Impresion = {
             // Descontar material del inventario automaticamente
             this.descontarInventario(datos);
 
+            // Descontar tintas del inventario (consumo) y reponer (devolucion)
+            this.descontarTintas(datos);
+
             // Verificar alertas
             this.verificarAlertas(datos);
 
@@ -1325,6 +1551,18 @@ const Impresion = {
             // Tiempos
             horaInicio: document.getElementById('horaInicio')?.value || '',
             horaArranque: document.getElementById('horaArranque')?.value || '',
+
+            // Consumo y devolucion de tintas
+            consumoTintas: this.recopilarConsumoTintas(),
+            totalConsumoTintas: parseFloat(document.getElementById('totalConsumoTintas')?.textContent) || 0,
+            devolucionTintas: this.recopilarDevolucionTintas(),
+            totalDevolucionTintas: parseFloat(document.getElementById('totalDevolucionTintas')?.textContent) || 0,
+
+            // Solventes
+            solAlcohol: parseFloat(document.getElementById('solAlcohol')?.value) || 0,
+            solMetoxi: parseFloat(document.getElementById('solMetoxi')?.value) || 0,
+            solAcetato: parseFloat(document.getElementById('solAcetato')?.value) || 0,
+            totalSolventes: parseFloat(document.getElementById('totalSolventes')?.textContent) || 0,
 
             // Paradas y observaciones
             motivosParadas: document.getElementById('motivosParadas').value,

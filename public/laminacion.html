@@ -465,39 +465,74 @@
                         </div>
                     </div>
 
-                    <!-- Restante de Bobinas Usadas -->
+                    <!-- Resumen de Devolucion -->
                     <div class="form-section">
                         <div class="form-section-title">
-                            <i class="bi bi-arrow-return-left me-1"></i> Restante de Bobinas Usadas (Kg)
+                            <i class="bi bi-arrow-return-left me-1"></i> Resumen de Devolucion
                         </div>
-                        <div class="row g-1">
-                            <div class="col"><span class="bobina-label">1</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="restEnt1" step="0.01" min="0"></div>
-                            <div class="col"><span class="bobina-label">2</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="restEnt2" step="0.01" min="0"></div>
-                            <div class="col"><span class="bobina-label">3</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="restEnt3" step="0.01" min="0"></div>
-                            <div class="col"><span class="bobina-label">4</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="restEnt4" step="0.01" min="0"></div>
-                            <div class="col"><span class="bobina-label">5</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="restEnt5" step="0.01" min="0"></div>
-                            <div class="col"><span class="bobina-label">6</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="restEnt6" step="0.01" min="0"></div>
-                            <div class="col"><span class="bobina-label">7</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="restEnt7" step="0.01" min="0"></div>
-                        </div>
-                        <div class="row g-1 mt-1">
-                            <div class="col"><span class="bobina-label">8</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="restEnt8" step="0.01" min="0"></div>
-                            <div class="col"><span class="bobina-label">9</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="restEnt9" step="0.01" min="0"></div>
-                            <div class="col"><span class="bobina-label">10</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="restEnt10" step="0.01" min="0"></div>
-                            <div class="col"><span class="bobina-label">11</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="restEnt11" step="0.01" min="0"></div>
-                            <div class="col"><span class="bobina-label">12</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="restEnt12" step="0.01" min="0"></div>
-                            <div class="col"><span class="bobina-label">13</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="restEnt13" step="0.01" min="0"></div>
-                            <div class="col"><span class="bobina-label">14</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="restEnt14" step="0.01" min="0"></div>
-                        </div>
-                        <div class="row g-1 mt-2">
-                            <div class="col-8"></div>
-                            <div class="col-4">
-                                <span class="bobina-label fw-bold">TOTAL</span>
-                                <input type="text" class="form-control form-control-sm bobina-input total-highlight" id="totalRestante" readonly>
+
+                        <!-- Devolucion Buena -->
+                        <div class="mb-3 p-2" style="background: #d4edda; border-radius: 6px;">
+                            <label class="form-label small fw-bold text-success mb-1">
+                                <i class="bi bi-check-circle me-1"></i>Devolucion Buena (bobina sobrante que se repone al inventario)
+                            </label>
+                            <div class="row g-2">
+                                <div class="col-4">
+                                    <label class="form-label small">Kg Devueltos</label>
+                                    <input type="number" class="form-control form-control-sm" id="devolucionBuenaKg" step="0.01" min="0" value="0">
+                                </div>
+                                <div class="col-4">
+                                    <label class="form-label small">Fecha</label>
+                                    <input type="date" class="form-control form-control-sm" id="devolucionBuenaFecha">
+                                </div>
+                                <div class="col-4">
+                                    <label class="form-label small">Hora</label>
+                                    <input type="time" class="form-control form-control-sm" id="devolucionBuenaHora">
+                                </div>
                             </div>
                         </div>
+
+                        <!-- Devolucion Rechazada -->
+                        <div class="p-2" style="background: #f8d7da; border-radius: 6px;">
+                            <label class="form-label small fw-bold text-danger mb-1">
+                                <i class="bi bi-x-circle me-1"></i>Devolucion de Material Rechazado (para reclamo a proveedor)
+                            </label>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered mb-1" id="tablaDevolucionRechazada">
+                                    <thead class="table-danger">
+                                        <tr>
+                                            <th style="width:25%">Proveedor</th>
+                                            <th style="width:20%">Ref. Bobina</th>
+                                            <th style="width:12%">Kg</th>
+                                            <th style="width:18%">Motivo</th>
+                                            <th style="width:13%">Fecha</th>
+                                            <th style="width:10%">Hora</th>
+                                            <th style="width:2%"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="bodyDevolucionRechazada"></tbody>
+                                    <tfoot>
+                                        <tr class="table-danger">
+                                            <td colspan="2" class="fw-bold text-end">Total Rechazado:</td>
+                                            <td class="fw-bold" id="totalDevolucionRechazada">0.00</td>
+                                            <td colspan="4"></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-danger" id="btnAgregarRechazo">
+                                <i class="bi bi-plus-circle me-1"></i>Agregar bobina rechazada
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary ms-1" id="btnReporteRechazo">
+                                <i class="bi bi-printer me-1"></i>Reporte por proveedor
+                            </button>
+                        </div>
+
                         <div class="row mt-2">
                             <div class="col text-end">
-                                <span class="badge bg-info">Consumido: <span id="totalConsumido">0</span> Kg</span>
+                                <span class="badge bg-success">Devuelto (bueno): <span id="totalDevueltoBueno">0</span> Kg</span>
+                                <span class="badge bg-danger ms-1">Rechazado: <span id="totalDevueltoRechazado">0</span> Kg</span>
+                                <span class="badge bg-info ms-1">Consumido: <span id="totalConsumido">0</span> Kg</span>
                             </div>
                         </div>
                     </div>
@@ -724,6 +759,91 @@
                         </div>
                     </div>
 
+                    <!-- Consumo de Tintas -->
+                    <div class="form-section" style="background: #fff8e1;">
+                        <div class="form-section-title">
+                            <i class="bi bi-droplet-fill me-1"></i> Consumo de Tintas (Kg)
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered mb-1" id="tablaConsumoTintas">
+                                <thead style="background: #fff3cd;">
+                                    <tr>
+                                        <th style="width:35%">Tipo / Color</th>
+                                        <th style="width:20%">Kg Usados</th>
+                                        <th style="width:20%">Stock Actual</th>
+                                        <th style="width:3%"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="bodyConsumoTintas"></tbody>
+                                <tfoot>
+                                    <tr style="background: #fff3cd;">
+                                        <td class="fw-bold text-end">Total Tintas:</td>
+                                        <td class="fw-bold" id="totalConsumoTintas">0.00</td>
+                                        <td colspan="2"></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-warning" id="btnAgregarTinta">
+                            <i class="bi bi-plus-circle me-1"></i>Agregar tinta del inventario
+                        </button>
+                    </div>
+
+                    <!-- Solventes -->
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="bi bi-moisture me-1"></i> Solventes (Lt)
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-4">
+                                <label class="form-label small">Alcohol IPA</label>
+                                <input type="number" class="form-control form-control-sm solvente-input" id="solAlcohol" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label small">Metoxi</label>
+                                <input type="number" class="form-control form-control-sm solvente-input" id="solMetoxi" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label small">Acetato</label>
+                                <input type="number" class="form-control form-control-sm solvente-input" id="solAcetato" step="0.01" min="0" value="0">
+                            </div>
+                        </div>
+                        <div class="row mt-1">
+                            <div class="col text-end">
+                                <span class="badge bg-secondary">Total Solventes: <span id="totalSolventes">0.00</span> Lt</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Devolucion de Tintas -->
+                    <div class="form-section" style="background: #e8f5e9;">
+                        <div class="form-section-title">
+                            <i class="bi bi-droplet me-1"></i> Devolucion de Tintas (Kg sobrante)
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered mb-1" id="tablaDevolucionTintas">
+                                <thead class="table-success">
+                                    <tr>
+                                        <th style="width:35%">Tipo / Color</th>
+                                        <th style="width:20%">Kg Devueltos</th>
+                                        <th style="width:3%"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="bodyDevolucionTintas"></tbody>
+                                <tfoot>
+                                    <tr class="table-success">
+                                        <td class="fw-bold text-end">Total Devuelto:</td>
+                                        <td class="fw-bold" id="totalDevolucionTintas">0.00</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-success" id="btnAgregarDevTinta">
+                            <i class="bi bi-plus-circle me-1"></i>Agregar devolucion de tinta
+                        </button>
+                    </div>
+
                     <!-- Tiempos y Paradas -->
                     <div class="form-section">
                         <div class="form-section-title">
@@ -749,9 +869,13 @@
                                         <td class="fw-bold">Bobinas Impresas (entrada)</td>
                                         <td class="text-end" id="resumenEntrada">0.00 Kg</td>
                                     </tr>
-                                    <tr>
-                                        <td class="fw-bold">Restante Impresas</td>
-                                        <td class="text-end" id="resumenRestante">0.00 Kg</td>
+                                    <tr class="table-success">
+                                        <td class="fw-bold">Devolucion Buena (repuesto al inventario)</td>
+                                        <td class="text-end" id="resumenDevBuena">0.00 Kg</td>
+                                    </tr>
+                                    <tr class="table-danger">
+                                        <td class="fw-bold">Devolucion Rechazada (reclamo proveedor)</td>
+                                        <td class="text-end" id="resumenDevRechazada">0.00 Kg</td>
                                     </tr>
                                     <tr class="table-primary">
                                         <td class="fw-bold">Consumido Impresas</td>
@@ -786,14 +910,14 @@
                                         <td class="text-end fw-bold" id="resumenMermaCalc">0.00 Kg</td>
                                     </tr>
                                     <tr>
-                                        <td class="fw-bold">% Refil</td>
+                                        <td class="fw-bold">% Scrap</td>
                                         <td class="text-end" id="resumenRefilCalc">0.00%</td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
                         <div class="mt-2 text-end">
-                            <small class="text-muted"><i class="bi bi-info-circle me-1"></i>El material restante se devuelve al inventario al guardar</small>
+                            <small class="text-muted"><i class="bi bi-check-circle me-1"></i>La devolucion buena se repone al inventario al guardar</small>
                         </div>
                     </div>
 

@@ -92,14 +92,14 @@ const NotaEntrega = {
     /**
      * Carga datos de la OT seleccionada
      */
-    cargarDatosOT: function() {
+    cargarDatosOT: async function() {
         const otNumero = document.getElementById('selectOT').value;
         if (!otNumero) {
             alert('Seleccione una Orden de Trabajo');
             return;
         }
 
-        const ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
+        const ordenes = AxonesDB.isReady() ? await AxonesDB.ordenesHelper.cargar() : [];
         const orden = ordenes.find(o => o.numeroOrden === otNumero || o.id === otNumero);
 
         if (!orden) {
@@ -127,8 +127,14 @@ const NotaEntrega = {
         const numNota = document.getElementById('numeroNota').value;
         document.getElementById('printNumeroNota').textContent = numNota;
 
-        // Cargar paletas desde producto terminado
-        const productoTerminado = JSON.parse(localStorage.getItem('axones_producto_terminado') || '[]');
+        // Cargar paletas desde producto terminado (sync_store)
+        let productoTerminado = [];
+        if (AxonesDB.isReady()) {
+            try {
+                const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_producto_terminado').single();
+                productoTerminado = data?.value || [];
+            } catch (e) { productoTerminado = []; }
+        }
         const paletasOT = productoTerminado.filter(pt => pt.ordenTrabajo === orden.numeroOrden);
 
         this.paletas = [];

@@ -22,13 +22,12 @@ const Impresion = {
 
         console.log('Inicializando modulo Control de Impresion');
 
-        this.setDefaultDate();
         this.cargarDatosIniciales();
         this.setupEventListeners();
         this.setupCalculations();
-        this.setupClienteProductoConnection();
 
-        // Verificar si viene de una orden y cargar datos automaticamente
+        // Poblar selector de OTs y verificar si viene una por URL
+        this.poblarSelectorOT();
         this.cargarDesdeOrden();
 
         // Inicializar controles de tiempo
@@ -46,6 +45,7 @@ const Impresion = {
         // Escuchar re-sync del cloud para recargar datos
         window.addEventListener('axones-sync', () => {
             this.cargarDatosIniciales();
+            this.poblarSelectorOT();
         });
     },
 
@@ -100,9 +100,10 @@ const Impresion = {
         // Renderizar panel de comandas
         if (typeof ControlTiempo !== 'undefined') {
             ControlTiempo.renderPanelComandas('impresion', 'panelComandasImpresion', (orden) => {
-                this.ordenCargada = orden;
-                this.precargarCamposOrden(orden);
-                this.mostrarBannerOrdenCargada(orden);
+                // Seleccionar la OT en el dropdown y renderizar resumen
+                const select = document.getElementById('ordenTrabajo');
+                if (select) select.value = orden.numeroOrden || orden.ot;
+                this.seleccionarOrden(orden);
 
                 // Mostrar panel de control de tiempo
                 const panelTiempo = document.getElementById('controlTiempoImpresion');
@@ -138,335 +139,199 @@ const Impresion = {
     /**
      * Carga datos desde una orden si viene con parametros en la URL
      */
-    cargarDesdeOrden: function() {
-        const params = new URLSearchParams(window.location.search);
-        const ot = params.get('ot');
-
-        if (ot) {
-            console.log('Cargando datos desde orden:', ot);
-
-            // Intentar obtener la orden completa desde localStorage
-            let ordenes = [];
-            try {
-                ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
-            } catch (e) {
-                console.warn('Error parseando ordenes:', e);
-                ordenes = [];
-            }
-            const orden = ordenes.find(o => o.ot === ot);
-
-            if (orden) {
-                this.ordenCargada = orden;
-                this.precargarCamposOrden(orden);
-                this.mostrarBannerOrdenCargada(orden);
-            } else {
-                // Si no encuentra la orden completa, usar parametros de URL
-                this.precargarDesdeParametros(params);
-            }
-        }
-
-        // Tambien agregar selector de ordenes si hay ordenes pendientes
-        this.agregarSelectorOrdenes();
-    },
-
     /**
-     * Precarga campos del formulario desde una orden de trabajo
+     * Pobla el selector de OT con ordenes pendientes/en-proceso
      */
-    precargarCamposOrden: function(orden) {
-        console.log('Precargando datos de orden:', orden);
+    poblarSelectorOT: function() {
+        const select = document.getElementById('ordenTrabajo');
+        if (!select) return;
 
-        // Helper para precargar un campo
-        const precargar = (id, valor) => {
-            if (!valor && valor !== 0) return;
-            const el = document.getElementById(id);
-            if (!el) return;
-
-            if (el.tagName === 'SELECT') {
-                // Para selects, verificar que la opcion exista
-                const opciones = Array.from(el.options).map(o => o.value);
-                if (opciones.includes(String(valor))) {
-                    el.value = String(valor);
-                } else {
-                    return; // No precargar si la opcion no existe
-                }
-            } else {
-                el.value = valor;
-            }
-            el.classList.add('precargado-orden');
-            el.style.backgroundColor = '#e8f4e8';
-            el.style.borderColor = '#198754';
-        };
-
-        // === INFORMACION DE ORDEN ===
-        precargar('ordenTrabajo', orden.numeroOrden || orden.ot);
-        precargar('producto', orden.producto);
-        precargar('fecha', orden.fechaOrden);
-        precargar('totalColores', orden.numColores);
-        precargar('numPistas', orden.numBandas);
-
-        // Precargar campo de cliente
-        const clienteInput = document.getElementById('cliente');
-        if (clienteInput && orden.cliente) {
-            clienteInput.value = orden.cliente;
-            clienteInput.classList.add('precargado-orden');
-            clienteInput.style.backgroundColor = '#e8f4e8';
-            clienteInput.style.borderColor = '#198754';
-            this.onClienteChange(orden.cliente);
-        }
-
-        // Precargar select de maquina
-        const maquinaSelect = document.getElementById('maquina');
-        if (maquinaSelect && orden.maquina) {
-            const maquinaMap = {
-                'COMEXI 1': 'comexi1',
-                'COMEXI 2': 'comexi2',
-                'COMEXI 3': 'comexi3',
-                'COMEXI 067': 'comexi1',
-                'COMEXI 045': 'comexi2'
-            };
-            const maquinaValue = maquinaMap[orden.maquina] || orden.maquina.toLowerCase().replace(/\s+/g, '');
-            if (Array.from(maquinaSelect.options).some(opt => opt.value === maquinaValue)) {
-                maquinaSelect.value = maquinaValue;
-            } else if (Array.from(maquinaSelect.options).some(opt => opt.value === orden.maquina)) {
-                maquinaSelect.value = orden.maquina;
-            }
-            maquinaSelect.classList.add('precargado-orden');
-            maquinaSelect.style.backgroundColor = '#e8f4e8';
-        }
-
-        // === ESPECIFICACIONES TECNICAS (desde OT) ===
-        precargar('frecuencia', orden.frecuencia);
-        precargar('repeticiones', orden.numRepeticion);
-        precargar('anchoCorte', orden.anchoCorte);
-        precargar('figuraEmbobinado', orden.figuraEmbobinadoMontaje);
-        precargar('tipoImpresion', orden.tipoImpresion);
-        precargar('desarrollo', orden.desarrollo);
-        precargar('lineaCorte', orden.lineaCorte);
-
-        // Pinon (auto-calculado desde desarrollo)
-        if (orden.pinon || orden.desarrollo) {
-            const pinonVal = orden.pinon || (orden.desarrollo ? Math.round(orden.desarrollo / 5) : null);
-            precargar('pinon', pinonVal);
-        }
-
-        // Metros estimados
-        if (orden.metrosImp) {
-            precargar('metrosEstimados', orden.metrosImp);
-            precargar('metraje', orden.metrosImp);
-        }
-
-        // Sustratos virgen (select del inventario)
-        if (orden.sustratosVirgen) {
-            const sustratosSelect = document.getElementById('sustratosVirgen');
-            if (sustratosSelect) {
-                // Intentar match por valor exacto o parcial
-                const opciones = Array.from(sustratosSelect.options);
-                const match = opciones.find(o => o.value === orden.sustratosVirgen) ||
-                              opciones.find(o => o.value && o.value.includes(orden.sustratosVirgen)) ||
-                              opciones.find(o => o.textContent && o.textContent.includes(orden.sustratosVirgen));
-                if (match) {
-                    sustratosSelect.value = match.value;
-                    sustratosSelect.classList.add('precargado-orden');
-                    sustratosSelect.style.backgroundColor = '#e8f4e8';
-                    sustratosSelect.style.borderColor = '#198754';
-                    // Disparar change para que cargue datos del material
-                    sustratosSelect.dispatchEvent(new Event('change'));
-                }
-            }
-        }
-
-        // === TINTAS (8 posiciones) ===
-        if (orden.tintas && Array.isArray(orden.tintas)) {
-            orden.tintas.forEach(tinta => {
-                const i = tinta.posicion;
-                precargar(`tinta${i}Color`, tinta.color);
-                precargar(`tinta${i}Anilox`, tinta.anilox);
-                precargar(`tinta${i}Visc`, tinta.viscosidad);
-                precargar(`tinta${i}Pct`, tinta.porcentaje);
-                precargar(`tinta${i}Obs`, tinta.observaciones);
-            });
-        }
-
-        // Guardar referencia de la orden para calculos
-        this.ordenCargada = orden;
-        this.ordenCargada.pedidoKgOriginal = orden.pedidoKg;
-
-        // Actualizar control de tiempo
-        this.actualizarControlTiempo(orden.id || orden.ot, orden.numeroOrden || orden.ot);
-
-        console.log('Orden precargada exitosamente:', orden.numeroOrden);
-    },
-
-    /**
-     * Precarga desde parametros de URL cuando no se encuentra la orden completa
-     */
-    precargarDesdeParametros: function(params) {
-        const mapping = {
-            'ot': 'ordenTrabajo',
-            'cliente': 'cliente',
-            'producto': 'producto',
-            'material': 'material',
-            'cantidad': 'cantidad'
-        };
-
-        Object.entries(mapping).forEach(([param, campo]) => {
-            const valor = params.get(param);
-            if (valor) {
-                const input = document.getElementById(campo);
-                if (input) {
-                    input.value = valor;
-                    input.classList.add('precargado-orden');
-                    input.setAttribute('readonly', true);
-                    input.style.backgroundColor = '#e8f4e8';
-                }
-            }
-        });
-    },
-
-    /**
-     * Muestra banner indicando que se cargo una orden
-     */
-    mostrarBannerOrdenCargada: function(orden) {
-        const form = document.getElementById('formImpresion');
-        if (!form) return;
-
-        // Verificar si ya existe el banner
-        if (document.getElementById('bannerOrdenCargada')) return;
-
-        const banner = document.createElement('div');
-        banner.id = 'bannerOrdenCargada';
-        banner.className = 'alert alert-success py-2 mb-3';
-        banner.innerHTML = `
-            <div class="d-flex align-items-center justify-content-between">
-                <div>
-                    <i class="bi bi-clipboard-check me-2"></i>
-                    <strong>Orden cargada:</strong> ${orden.ot} - ${orden.cliente}
-                    <br><small class="text-muted">Los campos verdes estan precargados. Solo complete los campos restantes.</small>
-                </div>
-                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="Impresion.descargarOrden()">
-                    <i class="bi bi-x-circle me-1"></i>Descargar orden
-                </button>
-            </div>
-        `;
-
-        // Insertar al inicio del formulario
-        const firstSection = form.querySelector('.form-section');
-        if (firstSection) {
-            firstSection.parentNode.insertBefore(banner, firstSection);
-        }
-    },
-
-    /**
-     * Descarga la orden y limpia campos precargados
-     */
-    descargarOrden: function() {
-        this.ordenCargada = null;
-
-        // Limpiar campos precargados
-        document.querySelectorAll('.precargado-orden').forEach(input => {
-            input.value = '';
-            input.classList.remove('precargado-orden');
-            input.removeAttribute('readonly');
-            input.style.backgroundColor = '';
-        });
-
-        // Eliminar banner
-        const banner = document.getElementById('bannerOrdenCargada');
-        if (banner) banner.remove();
-
-        // Limpiar URL
-        window.history.replaceState({}, document.title, window.location.pathname);
-    },
-
-    /**
-     * Agrega selector de ordenes pendientes al formulario
-     */
-    agregarSelectorOrdenes: function() {
-        console.log('[Impresion] agregarSelectorOrdenes - INICIO');
-
-        const otInput = document.getElementById('ordenTrabajo');
-        if (!otInput) {
-            console.warn('[Impresion] No se encontro el campo ordenTrabajo');
-            return;
-        }
-
-        if (document.getElementById('selectorOrden')) {
-            console.log('[Impresion] selectorOrden ya existe');
-            return;
-        }
-
-        // Obtener ordenes pendientes desde localStorage primero
         let ordenes = [];
         try {
             ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
         } catch (e) {
-            console.warn('[Impresion] Error parseando ordenes:', e);
             ordenes = [];
         }
 
-        console.log('[Impresion] Ordenes en localStorage:', ordenes.length);
-
-        // Renderizar con datos locales
-        this._renderSelectorOrdenes(ordenes);
-    },
-
-    _renderSelectorOrdenes: function(ordenes) {
-        const otInput = document.getElementById('ordenTrabajo');
-        if (!otInput) return;
-
         // Filtrar ordenes no completadas
-        const ordenesDisponibles = ordenes.filter(o => o.estadoOrden !== 'completada');
-        console.log('[Impresion] Ordenes disponibles:', ordenesDisponibles.length);
+        const disponibles = ordenes.filter(o => o.estadoOrden !== 'completada');
 
-        // Crear el div del selector
-        const selectorDiv = document.createElement('div');
-        selectorDiv.id = 'selectorOrden';
-        selectorDiv.className = 'mt-2';
+        // Guardar valor actual
+        const valorActual = select.value;
 
-        if (ordenesDisponibles.length === 0) {
-            selectorDiv.innerHTML = `
-                <div class="alert alert-info py-1 small mb-0">
-                    <i class="bi bi-info-circle me-1"></i>No hay ordenes pendientes.
-                    <a href="ordenes.html" class="alert-link">Crear nueva OT</a>
-                </div>
-            `;
-        } else {
-            selectorDiv.innerHTML = `
-                <label class="form-label small fw-bold text-primary mb-1">
-                    <i class="bi bi-list-check me-1"></i>Ordenes Pendientes (${ordenesDisponibles.length})
-                </label>
-                <select class="form-select form-select-sm border-primary" id="selectOrdenPendiente">
-                    <option value="">-- Seleccionar orden de trabajo --</option>
-                    ${ordenesDisponibles.map(o => `
-                        <option value="${o.numeroOrden || o.ot}" data-orden='${JSON.stringify(o).replace(/'/g, "&#39;")}'>
-                            ${o.numeroOrden || o.ot} | ${o.cliente} | ${o.producto || 'Sin producto'} | ${(o.pedidoKg || 0).toLocaleString()}kg
-                        </option>
-                    `).join('')}
-                </select>
-            `;
-        }
+        // Limpiar y poblar
+        select.innerHTML = '<option value="">Seleccionar OT...</option>';
+        disponibles.forEach(o => {
+            const opt = document.createElement('option');
+            opt.value = o.numeroOrden || o.ot;
+            opt.textContent = `${o.numeroOrden || o.ot} | ${o.cliente || '---'} | ${o.producto || '---'} | ${(o.pedidoKg || 0).toLocaleString()} Kg`;
+            opt.dataset.ot = o.ot || o.numeroOrden;
+            select.appendChild(opt);
+        });
 
-        // Insertar directamente despues del input ordenTrabajo
-        otInput.insertAdjacentElement('afterend', selectorDiv);
-        console.log('[Impresion] Selector insertado correctamente');
+        // Restaurar valor si existia
+        if (valorActual) select.value = valorActual;
 
-        // Event listener para cargar orden seleccionada
-        const selectElement = document.getElementById('selectOrdenPendiente');
-        if (selectElement) {
-            selectElement.addEventListener('change', (e) => {
-                if (e.target.value) {
-                    const option = e.target.selectedOptions[0];
-                    try {
-                        const orden = JSON.parse(option.dataset.orden.replace(/&#39;/g, "'"));
-                        this.ordenCargada = orden;
-                        this.precargarCamposOrden(orden);
-                        this.mostrarBannerOrdenCargada(orden);
-                    } catch (err) {
-                        console.warn('[Impresion] Error parseando orden seleccionada:', err);
-                    }
+        // Event listener (solo una vez)
+        if (!select._listenerAdded) {
+            select._listenerAdded = true;
+            select.addEventListener('change', () => {
+                const otId = select.value;
+                if (!otId) {
+                    this.ocultarResumenYForm();
+                    return;
+                }
+                const orden = disponibles.find(o => (o.numeroOrden || o.ot) === otId) ||
+                              ordenes.find(o => (o.numeroOrden || o.ot) === otId);
+                if (orden) {
+                    this.seleccionarOrden(orden);
                 }
             });
         }
+
+        // Si no hay ordenes, mostrar mensaje
+        const badge = document.getElementById('estadoOT');
+        if (badge) {
+            badge.textContent = disponibles.length > 0
+                ? `${disponibles.length} OTs disponibles`
+                : 'No hay OTs pendientes';
+            badge.className = disponibles.length > 0 ? 'badge bg-primary' : 'badge bg-secondary';
+        }
+    },
+
+    /**
+     * Carga OT desde URL (?ot=OT-2026-0001) si viene con parametro
+     */
+    cargarDesdeOrden: function() {
+        const params = new URLSearchParams(window.location.search);
+        const ot = params.get('ot');
+        if (!ot) return;
+
+        let ordenes = [];
+        try {
+            ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
+        } catch (e) { ordenes = []; }
+
+        const orden = ordenes.find(o => o.ot === ot || o.numeroOrden === ot);
+        if (orden) {
+            // Seleccionar en el dropdown
+            const select = document.getElementById('ordenTrabajo');
+            if (select) select.value = orden.numeroOrden || orden.ot;
+            this.seleccionarOrden(orden);
+        }
+    },
+
+    /**
+     * Selecciona una OT: muestra resumen spreadsheet y habilita formulario
+     */
+    seleccionarOrden: function(orden) {
+        this.ordenCargada = orden;
+        this.ordenCargada.pedidoKgOriginal = orden.pedidoKg;
+
+        // Renderizar resumen read-only
+        this.renderResumenOT(orden);
+
+        // Mostrar formulario de produccion
+        const form = document.getElementById('formImpresion');
+        if (form) form.style.display = '';
+
+        // Actualizar badge
+        const badge = document.getElementById('estadoOT');
+        if (badge) {
+            badge.textContent = orden.numeroOrden || orden.ot;
+            badge.className = 'badge bg-success';
+        }
+
+        // Actualizar control de tiempo
+        this.actualizarControlTiempo(orden.id || orden.ot, orden.numeroOrden || orden.ot);
+
+        console.log('[Impresion] OT seleccionada:', orden.numeroOrden || orden.ot);
+    },
+
+    /**
+     * Oculta resumen y formulario cuando no hay OT seleccionada
+     */
+    ocultarResumenYForm: function() {
+        this.ordenCargada = null;
+        const resumen = document.getElementById('resumenOT');
+        const form = document.getElementById('formImpresion');
+        if (resumen) resumen.classList.remove('visible');
+        if (form) form.style.display = 'none';
+
+        const badge = document.getElementById('estadoOT');
+        if (badge) {
+            badge.textContent = 'Sin OT seleccionada';
+            badge.className = 'badge bg-secondary';
+        }
+    },
+
+    /**
+     * Renderiza el resumen read-only de la OT en formato spreadsheet
+     */
+    renderResumenOT: function(orden) {
+        const resumen = document.getElementById('resumenOT');
+        if (!resumen) return;
+
+        const v = (val) => (val !== undefined && val !== null && val !== '') ? val : '-';
+        const n = (val) => (val && !isNaN(val)) ? Number(val).toLocaleString() : '-';
+
+        // Header
+        const header = document.getElementById('otNumeroHeader');
+        if (header) header.textContent = v(orden.numeroOrden || orden.ot);
+
+        // Datos del Pedido
+        document.getElementById('otFecha').textContent = v(orden.fechaOrden);
+        document.getElementById('otPedidoKg').textContent = n(orden.pedidoKg) + ' Kg';
+        document.getElementById('otMetrosEst').textContent = n(orden.metrosImp || orden.metrosEstimados);
+        document.getElementById('otMaquina').textContent = v(orden.maquina);
+        document.getElementById('otEstructura').textContent = v(orden.estructuraMaterial);
+
+        // Datos del Producto
+        document.getElementById('otCliente').textContent = v(orden.cliente);
+        document.getElementById('otClienteRif').textContent = v(orden.clienteRif);
+        document.getElementById('otProducto').textContent = v(orden.producto);
+        document.getElementById('otCpe').textContent = v(orden.cpe);
+
+        // Area de Montaje
+        document.getElementById('otFrecuencia').textContent = v(orden.frecuencia);
+        document.getElementById('otAnchoCorte').textContent = v(orden.anchoCorte);
+        document.getElementById('otNumBandas').textContent = v(orden.numBandas);
+        document.getElementById('otRepeticiones').textContent = v(orden.numRepeticion);
+        document.getElementById('otDesarrollo').textContent = v(orden.desarrollo);
+        document.getElementById('otFiguraEmb').textContent = v(orden.figuraEmbobinadoMontaje);
+        document.getElementById('otTipoImpresion').textContent = v(orden.tipoImpresion);
+        document.getElementById('otNumColores').textContent = v(orden.numColores);
+        document.getElementById('otAnchoMontaje').textContent = v(orden.anchoMontaje);
+        document.getElementById('otObsMontaje').textContent = v(orden.obsMontaje);
+
+        // Area de Impresion
+        const pinon = orden.pinon || (orden.desarrollo ? Math.round(orden.desarrollo / 5) : '-');
+        document.getElementById('otPinon').textContent = v(pinon);
+        document.getElementById('otLineaCorte').textContent = v(orden.lineaCorte);
+        document.getElementById('otSustrato').textContent = v(orden.sustratosVirgen);
+        document.getElementById('otMetrosImp').textContent = n(orden.metrosImp);
+
+        // Ficha Tecnica
+        document.getElementById('otTipoMat').textContent = v(orden.fichaTipoMat1 || orden.tipoMaterial);
+        document.getElementById('otMicras').textContent = v(orden.fichaMicras1 || orden.micrasMaterial);
+        document.getElementById('otAncho').textContent = v(orden.fichaAncho1 || orden.anchoMaterial);
+        document.getElementById('otDensidad').textContent = v(orden.fichaDensidad1);
+        document.getElementById('otKgNecesarios').textContent = n(orden.fichaKg1);
+
+        // Tintas
+        const tintasContainer = document.getElementById('otTintasContainer');
+        const tintasBody = document.getElementById('otTintasBody');
+        if (tintasContainer && tintasBody && orden.tintas && orden.tintas.length > 0) {
+            tintasContainer.style.display = '';
+            tintasBody.innerHTML = orden.tintas.map(t =>
+                `<tr><td>${t.posicion}</td><td>${v(t.color)}</td><td>${v(t.anilox)}</td><td>${v(t.viscosidad)}</td><td>${v(t.porcentaje)}</td></tr>`
+            ).join('');
+        } else if (tintasContainer) {
+            tintasContainer.style.display = 'none';
+        }
+
+        // Mostrar el resumen
+        resumen.classList.add('visible');
     },
 
     /**
@@ -1058,20 +923,12 @@ const Impresion = {
      */
     validarCamposRequeridos: function() {
         const errores = [];
-        const fecha = document.getElementById('fecha')?.value;
         const turno = document.querySelector('input[name="turno"]:checked');
-        const maquina = document.getElementById('maquina')?.value;
-        const cliente = document.getElementById('cliente')?.value;
-        const producto = document.getElementById('producto')?.value;
-        const ordenTrabajo = document.getElementById('ordenTrabajo')?.value;
         const operador = document.getElementById('operador')?.value;
 
-        if (!fecha) errores.push('Fecha es requerida');
+        // La OT debe estar seleccionada
+        if (!this.ordenCargada) errores.push('Seleccione una Orden de Trabajo');
         if (!turno) errores.push('Seleccione un turno');
-        if (!maquina) errores.push('Seleccione una maquina');
-        if (!cliente) errores.push('Seleccione un cliente');
-        if (!producto || producto.trim().length < 2) errores.push('Ingrese el nombre del producto (minimo 2 caracteres)');
-        if (!ordenTrabajo || ordenTrabajo.trim().length < 3) errores.push('Ingrese la orden de trabajo (minimo 3 caracteres)');
         if (!operador || operador.trim().length < 3) errores.push('Ingrese el nombre del operador (minimo 3 caracteres)');
 
         // Validar que haya al menos una bobina de entrada
@@ -1203,21 +1060,27 @@ const Impresion = {
             }
         }
 
+        // Datos de la OT (referencia, no copia)
+        const ot = this.ordenCargada || {};
+
         return {
             // Metadatos
             id: 'IMP_' + Date.now(),
             timestamp: new Date().toISOString(),
             tipo: 'impresion',
 
-            // Datos generales
+            // Referencia a la OT (vinculo, no duplicacion)
+            ordenTrabajo: ot.numeroOrden || ot.ot || document.getElementById('ordenTrabajo')?.value || '',
+            otId: ot.id || ot.ot || '',
+
+            // Datos de la OT (read-only, para referencia rapida)
+            cliente: ot.cliente || '',
+            producto: ot.producto || '',
+            maquina: ot.maquina || '',
+            pedidoKg: ot.pedidoKg || 0,
+
+            // Datos de produccion (llenados por el operador)
             turno: turnoSeleccionado ? turnoSeleccionado.value : '',
-            cliente: document.getElementById('cliente')?.value || '',
-            producto: document.getElementById('producto').value,
-            maquina: document.getElementById('maquina').value,
-            fecha: document.getElementById('fecha').value,
-            ordenTrabajo: document.getElementById('ordenTrabajo').value,
-            totalColores: parseInt(document.getElementById('totalColores')?.value) || 0,
-            numPistas: parseInt(document.getElementById('numPistas')?.value) || 0,
             operador: document.getElementById('operador').value,
             ayudante: document.getElementById('ayudante').value,
             supervisor: document.getElementById('supervisor').value,
@@ -1750,15 +1613,13 @@ const Impresion = {
         const form = document.getElementById('formImpresion');
         if (form) {
             form.reset();
-            this.setDefaultDate();
 
             // Limpiar campos calculados
-            document.getElementById('totalMaterialEntrada').value = '';
-            document.getElementById('numBobinas').value = '';
-            document.getElementById('pesoTotal').value = '';
-            document.getElementById('merma').value = '';
-            document.getElementById('totalScrap').value = '';
-            document.getElementById('porcentajeRefil').value = '';
+            const campos = ['totalMaterialEntrada', 'numBobinas', 'pesoTotal', 'merma', 'totalScrap', 'porcentajeRefil', 'totalRestante', 'totalConsumido'];
+            campos.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.tagName === 'INPUT' ? el.value = '' : el.textContent = '0';
+            });
 
             // Resetear indicador
             const indicador = document.getElementById('indicadorRefil');
@@ -1768,17 +1629,28 @@ const Impresion = {
             }
 
             // Resetear footer
-            document.getElementById('footerEntrada').textContent = '0';
-            document.getElementById('footerSalida').textContent = '0';
-            document.getElementById('footerMerma').textContent = '0';
-            document.getElementById('footerRefil').textContent = '0';
+            ['footerEntrada', 'footerSalida', 'footerMerma', 'footerRefil'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = '0';
+            });
+
+            // Resetear resumen
+            ['resumenEntrada', 'resumenRestante', 'resumenConsumido', 'resumenSalida', 'resumenScrap', 'resumenMermaCalc', 'resumenRefilCalc'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = '0.00 Kg';
+            });
         }
+
+        // Resetear seleccion de OT
+        const select = document.getElementById('ordenTrabajo');
+        if (select) select.value = '';
+        this.ocultarResumenYForm();
     },
 };
 
 // Inicializar cuando el DOM este listo
 document.addEventListener('DOMContentLoaded', () => {
-    if (document.getElementById('formImpresion')) {
+    if (document.getElementById('selectorOT') || document.getElementById('formImpresion')) {
         Impresion.init();
     }
 });

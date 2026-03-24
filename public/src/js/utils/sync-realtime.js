@@ -63,16 +63,30 @@ const AxonesSync = (() => {
                     .select('key')
                     .limit(1);
 
-                if (error && error.code === '42P01') {
-                    console.warn('[AxonesSync] Tabla sync_store no existe. Creandola...');
-                    // Intentar crearla via RPC (si hay permisos)
-                    await this._crearTabla();
-                } else if (error) {
-                    console.warn('[AxonesSync] Error verificando sync_store:', error.message);
+                if (error) {
+                    const msg = error.message || '';
+                    if (msg.includes('sync_store') || error.code === '42P01' || error.code === 'PGRST204') {
+                        console.error('[AxonesSync] TABLA sync_store NO EXISTE en Supabase.');
+                        console.error('[AxonesSync] Ejecuta el SQL en Supabase Dashboard > SQL Editor:');
+                        console.error(`CREATE TABLE IF NOT EXISTS sync_store (
+    key TEXT PRIMARY KEY,
+    value JSONB NOT NULL DEFAULT '{}',
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_by TEXT DEFAULT 'sistema'
+);
+ALTER TABLE sync_store ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "sync_store_all" ON sync_store FOR ALL USING (true) WITH CHECK (true);
+ALTER PUBLICATION supabase_realtime ADD TABLE sync_store;`);
+                        this._showOfflineIndicator('sync_store no existe - ver consola');
+                        return;
+                    }
+                    console.warn('[AxonesSync] Error verificando sync_store:', msg);
+                    this._showOfflineIndicator('Error de conexion');
                     return;
                 }
             } catch (e) {
                 console.warn('[AxonesSync] Error:', e.message);
+                this._showOfflineIndicator('Sin conexion a Supabase');
                 return;
             }
 
@@ -329,6 +343,34 @@ const AxonesSync = (() => {
                     if (dot) dot.style.animation = 'syncPulse 2s infinite';
                 }, 3000);
             }
+        },
+
+        /**
+         * Muestra indicador visual de que sync NO esta activo
+         */
+        _showOfflineIndicator(motivo) {
+            let el = document.getElementById('axonesSyncIndicator');
+            if (el) el.remove();
+
+            el = document.createElement('div');
+            el.id = 'axonesSyncIndicator';
+            el.style.cssText = 'position:fixed;bottom:10px;left:10px;z-index:9999;' +
+                'padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;' +
+                'display:flex;align-items:center;gap:5px;cursor:pointer;' +
+                'background:rgba(255,255,255,0.95);border:1px solid #dc3545;box-shadow:0 2px 8px rgba(0,0,0,0.1);' +
+                'color:#dc3545;';
+            el.title = motivo || 'Sync desconectado';
+            el.innerHTML = '<span style="width:8px;height:8px;border-radius:50%;background:#dc3545;display:inline-block;"></span>' +
+                '<span>Solo Local</span>';
+
+            // Click para reintentar
+            el.addEventListener('click', () => {
+                el.remove();
+                _ready = false;
+                AxonesSync.init();
+            });
+
+            document.body.appendChild(el);
         },
 
         /**

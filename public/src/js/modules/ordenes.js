@@ -185,7 +185,7 @@ const Ordenes = {
         inventario.forEach(item => {
             const sku = item.sku || `${item.material}-${item.micras}-${item.ancho}`;
             const nombreDisplay = item.producto
-                ? `${item.producto} | ${sku}`
+                ? `${item.material} ${item.micras}µ x ${item.ancho}mm - ${item.producto} | ${sku}`
                 : `${item.material} ${item.micras}µ x ${item.ancho}mm | ${sku}`;
 
             todosProductos.set(nombreDisplay, {

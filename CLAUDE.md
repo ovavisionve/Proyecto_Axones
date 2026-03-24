@@ -581,7 +581,7 @@ git push origin main
 | descontarInventario() repone devolucion buena al material correspondiente | COMPLETADO |
 | Reportes de rechazo guardados en axones_reportes_rechazo (localStorage) | COMPLETADO |
 | Aplicado a impresion y laminacion | COMPLETADO |
-| **PENDIENTE:** Aplicar mismo cambio a corte | PENDIENTE |
+| Corte NO lleva estos cambios (proceso mecanico, sin devolucion de material) | N/A |
 
 ### Fase 9: Consumo y Devolucion de Tintas + Solventes (2026-03-24)
 | Cambio | Estado |
@@ -593,7 +593,7 @@ git push origin main
 | descontarTintas() descuenta consumo y repone devolucion al inventario | COMPLETADO |
 | Datos de tintas y solventes incluidos en recopilarDatos() | COMPLETADO |
 | Aplicado a impresion y laminacion | COMPLETADO |
-| **PENDIENTE:** Aplicar mismo cambio a corte | PENDIENTE |
+| Corte NO lleva tintas/solventes (proceso mecanico) | N/A |
 
 ### Campos de Etiqueta de Bobina
 **Entrada** (9 campos): Proveedor, Referencia Bobina, Medida/Ancho, Micraje, Trat. Interno, Trat. Externo, Fecha, Maquina Origen, Pedido/Lote

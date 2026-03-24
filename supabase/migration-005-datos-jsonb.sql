@@ -19,7 +19,19 @@ ALTER TABLE ordenes_trabajo ADD COLUMN IF NOT EXISTS num_pistas INTEGER;
 -- Indice para buscar dentro del JSONB
 CREATE INDEX IF NOT EXISTS idx_ordenes_datos ON ordenes_trabajo USING GIN (datos);
 
+-- Columna datos JSONB en control_tiempo para almacenar objeto completo
+ALTER TABLE control_tiempo ADD COLUMN IF NOT EXISTS datos JSONB DEFAULT '{}';
+
+-- Columna datos JSONB en produccion_impresion
+ALTER TABLE produccion_impresion ADD COLUMN IF NOT EXISTS datos JSONB DEFAULT '{}';
+
+-- Columna datos JSONB en produccion_laminacion
+ALTER TABLE produccion_laminacion ADD COLUMN IF NOT EXISTS datos JSONB DEFAULT '{}';
+
+-- Columna datos JSONB en produccion_corte
+ALTER TABLE produccion_corte ADD COLUMN IF NOT EXISTS datos JSONB DEFAULT '{}';
+
 -- Verificar
-SELECT column_name, data_type FROM information_schema.columns
-WHERE table_name = 'ordenes_trabajo' AND column_name IN ('datos', 'maquina', 'planchas')
-ORDER BY column_name;
+SELECT table_name, column_name, data_type FROM information_schema.columns
+WHERE column_name = 'datos' AND table_schema = 'public'
+ORDER BY table_name;

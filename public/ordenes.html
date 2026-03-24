@@ -348,7 +348,7 @@
                                     <input type="number" class="form-control form-control-sm" id="pedidoKg" required step="0.01" min="0">
                                 </div>
                             </div>
-                            <div class="ot-grid" style="grid-template-columns: 1fr 1fr 1fr;">
+                            <div class="ot-grid" style="grid-template-columns: 1fr 1fr;">
                                 <div class="ot-field">
                                     <label class="form-label required-field">Maquina</label>
                                     <select class="form-select form-select-sm" id="maquina" required>
@@ -367,14 +367,6 @@
                                             <option value="Cortadora Permaco">Cortadora Permaco</option>
                                             <option value="Cortadora Novograf">Cortadora Novograf</option>
                                         </optgroup>
-                                    </select>
-                                </div>
-                                <div class="ot-field" id="planchasContainer" style="display: none;">
-                                    <label class="form-label">Planchas</label>
-                                    <select class="form-select form-select-sm" id="planchas">
-                                        <option value="">Sel...</option>
-                                        <option value="067">067</option>
-                                        <option value="045">045</option>
                                     </select>
                                 </div>
                                 <div class="ot-field">
@@ -594,7 +586,8 @@
                     <i class="bi bi-wrench me-1"></i>AREA DE MONTAJE
                 </div>
                 <div class="section-body">
-                    <div class="ot-grid" style="grid-template-columns: repeat(6, 1fr);">
+                    <!-- Fila 1: FRECUENCIA | N° BANDAS | TIPO IMPRESION (como Excel fila 11) -->
+                    <div class="ot-grid" style="grid-template-columns: 1fr 1fr 1fr;">
                         <div class="ot-field">
                             <label class="form-label">Frecuencia (mm)</label>
                             <input type="text" class="form-control form-control-sm" id="frecuencia" placeholder="250±2">
@@ -621,30 +614,30 @@
                                 <option value="Reverso">Reverso</option>
                             </select>
                         </div>
+                    </div>
+                    <!-- Fila 2: ANCHO CORTE | N° REPETICION O FRECUENCIA | DESARROLLO (como Excel fila 12) -->
+                    <div class="ot-grid" style="grid-template-columns: 1fr 1fr 1fr;">
                         <div class="ot-field">
-                            <label class="form-label">N° Repeticion</label>
+                            <label class="form-label">Ancho Corte (mm)</label>
+                            <input type="text" class="form-control form-control-sm" id="anchoCorte" placeholder="330±2">
+                        </div>
+                        <div class="ot-field">
+                            <label class="form-label">N° Repeticion o Frecuencia</label>
                             <input type="number" class="form-control form-control-sm" id="numRepeticion" min="1">
                         </div>
                         <div class="ot-field">
                             <label class="form-label">Desarrollo (mm)</label>
                             <input type="number" class="form-control form-control-sm" id="desarrollo" step="0.01">
                         </div>
-                        <div class="ot-field">
-                            <label class="form-label">N° Colores</label>
-                            <input type="number" class="form-control form-control-sm" id="numColores" min="1" max="8">
-                        </div>
                     </div>
-                    <div class="ot-grid" style="grid-template-columns: repeat(6, 1fr);">
-                        <div class="ot-field">
-                            <label class="form-label">Ancho Corte (mm)</label>
-                            <input type="text" class="form-control form-control-sm" id="anchoCorte" placeholder="330±2">
-                        </div>
+                    <!-- Fila 3: ANCHO MONTAJE | FIGURA EMBOBINADO IMPRESION | N° COLORES (como Excel fila 13) -->
+                    <div class="ot-grid" style="grid-template-columns: 1fr 1fr 1fr;">
                         <div class="ot-field">
                             <label class="form-label">Ancho Montaje (mm)</label>
                             <input type="number" class="form-control form-control-sm" id="anchoMontaje" step="0.01">
                         </div>
                         <div class="ot-field">
-                            <label class="form-label">Fig. Embobinado</label>
+                            <label class="form-label">Figura Embobinado Impresion</label>
                             <select class="form-select form-select-sm" id="figuraEmbobinadoMontaje">
                                 <option value="">-</option>
                                 <option value="1">1</option>
@@ -658,11 +651,26 @@
                             </select>
                         </div>
                         <div class="ot-field">
-                            <label class="form-label">Pinon</label>
+                            <label class="form-label">N° Colores</label>
+                            <input type="number" class="form-control form-control-sm" id="numColores" min="1" max="8">
+                        </div>
+                    </div>
+                    <!-- Campos adicionales no en Excel pero existentes en el sistema -->
+                    <div class="ot-grid" style="grid-template-columns: 1fr 1fr 2fr;">
+                        <div class="ot-field">
+                            <label class="form-label">Pinon (auto)</label>
                             <input type="number" class="form-control form-control-sm" id="pinon" readonly title="Desarrollo / 5">
                         </div>
-                        <div class="ot-field ot-half">
-                            <label class="form-label">Observaciones</label>
+                        <div class="ot-field" id="planchasContainer" style="display: none;">
+                            <label class="form-label">Planchas</label>
+                            <select class="form-select form-select-sm" id="planchas">
+                                <option value="">Sel...</option>
+                                <option value="067">067</option>
+                                <option value="045">045</option>
+                            </select>
+                        </div>
+                        <div class="ot-field">
+                            <label class="form-label">Observaciones Montaje</label>
                             <input type="text" class="form-control form-control-sm" id="obsMontaje">
                         </div>
                     </div>
@@ -675,23 +683,20 @@
                     <i class="bi bi-printer me-1"></i>AREA DE IMPRESION
                 </div>
                 <div class="section-body">
-                    <div class="ot-grid" style="grid-template-columns: 1fr 1fr 2fr 1fr 1fr 1fr 1fr 1fr;">
+                    <!-- Fila 1: PIÑON (DIENTES) | LINEA DE CORTE | Kg INGRESADO | Kg SALIDA | FIGURA EMB (como Excel filas 15-16) -->
+                    <div class="ot-grid" style="grid-template-columns: 1fr 1fr 1fr 1fr 1fr;">
                         <div class="ot-field">
-                            <label class="form-label">Pinon</label>
-                            <input type="number" class="form-control form-control-sm" id="pinonImpDisplay" readonly title="Desde Montaje" style="background:#e9ecef;">
+                            <label class="form-label">Pinon (Dientes)</label>
+                            <input type="number" class="form-control form-control-sm" id="pinonImpDisplay" readonly title="Desde Montaje">
                         </div>
                         <div class="ot-field">
-                            <label class="form-label">Linea Corte</label>
+                            <label class="form-label">Linea de Corte</label>
                             <select class="form-select form-select-sm" id="lineaCorte">
                                 <option value="">-</option>
+                                <option value="SI">SI</option>
                                 <option value="3mm">3mm</option>
                                 <option value="5mm">5mm</option>
-                            </select>
-                        </div>
-                        <div class="ot-field">
-                            <label class="form-label">Sustratos Virgen</label>
-                            <select class="form-select form-select-sm" id="sustratosVirgen">
-                                <option value="">Inventario...</option>
+                                <option value="NO">NO</option>
                             </select>
                         </div>
                         <div class="ot-field">
@@ -703,12 +708,21 @@
                             <input type="number" class="form-control form-control-sm" id="kgSalidaImp" step="0.01">
                         </div>
                         <div class="ot-field">
-                            <label class="form-label">Merma</label>
-                            <input type="number" class="form-control form-control-sm" id="mermaImp" step="0.01" readonly>
+                            <label class="form-label">Figura Emb.</label>
+                            <input type="text" class="form-control form-control-sm" id="figEmbImpDisplay" readonly>
+                        </div>
+                    </div>
+                    <!-- Fila 2: SUSTRATOS VIRGEN | MERMA | METROS (como Excel filas 17-18) -->
+                    <div class="ot-grid" style="grid-template-columns: 2fr 1fr 1fr;">
+                        <div class="ot-field">
+                            <label class="form-label">Sustratos Virgen</label>
+                            <select class="form-select form-select-sm" id="sustratosVirgen">
+                                <option value="">Seleccionar del inventario...</option>
+                            </select>
                         </div>
                         <div class="ot-field">
-                            <label class="form-label">Fig. Emb.</label>
-                            <input type="text" class="form-control form-control-sm" id="figEmbImpDisplay" readonly style="background:#e9ecef;">
+                            <label class="form-label">Merma (%)</label>
+                            <input type="number" class="form-control form-control-sm" id="mermaImp" step="0.01" readonly>
                         </div>
                         <div class="ot-field">
                             <label class="form-label">Metros</label>
@@ -730,10 +744,10 @@
                             <table class="table table-bordered table-tintas mb-0">
                                 <thead>
                                     <tr>
-                                        <th style="width: 40px;">POS</th>
+                                        <th style="width: 40px;">POSICION</th>
                                         <th>COLOR</th>
                                         <th>ANILOX</th>
-                                        <th>VISC.</th>
+                                        <th>VISC (seg)</th>
                                         <th>%</th>
                                         <th>OBSERVACIONES</th>
                                     </tr>
@@ -810,87 +824,92 @@
                 </div>
             </div>
 
-            <!-- AREA DE LAMINACION -->
+            <!-- AREA DE LAMINACION (Excel filas 29-36: campos izq + tabla materiales der) -->
             <div class="ot-section">
                 <div class="section-header">
                     <i class="bi bi-layers me-1"></i>AREA DE LAMINACION
                 </div>
                 <div class="section-body">
-                    <div class="ot-grid" style="grid-template-columns: 1fr 1fr 1fr 2fr;">
-                        <div class="ot-field">
-                            <label class="form-label">Fig. Embobinado</label>
-                            <select class="form-select form-select-sm" id="figuraEmbobinadoLam">
-                                <option value="">-</option>
-                                <option value="1">1</option>
-                                <option value="2">2</option>
-                                <option value="3">3</option>
-                                <option value="4">4</option>
-                                <option value="5">5</option>
-                                <option value="6">6</option>
-                                <option value="7">7</option>
-                                <option value="8">8</option>
-                            </select>
+                    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 0;">
+                        <!-- Columna izquierda: parametros -->
+                        <div style="border-right: 1px solid #999;">
+                            <div class="ot-grid" style="grid-template-columns: 1fr 1fr;">
+                                <div class="ot-field">
+                                    <label class="form-label">Figura Embobinado</label>
+                                    <select class="form-select form-select-sm" id="figuraEmbobinadoLam">
+                                        <option value="">-</option>
+                                        <option value="1">1</option>
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                        <option value="4">4</option>
+                                        <option value="5">5</option>
+                                        <option value="6">6</option>
+                                        <option value="7">7</option>
+                                        <option value="8">8</option>
+                                    </select>
+                                </div>
+                                <div class="ot-field" style="grid-column: 1 / -1;">
+                                    <label class="form-label">Gramaje Adhesivo (g/m2)</label>
+                                    <input type="text" class="form-control form-control-sm" id="gramajeAdhesivo" placeholder="1,5 A 2,0">
+                                </div>
+                                <div class="ot-field" style="grid-column: 1 / -1;">
+                                    <label class="form-label">Relacion de Mezcla Adh.</label>
+                                    <input type="text" class="form-control form-control-sm" id="relacionMezcla" placeholder="100/80">
+                                </div>
+                                <div class="ot-field" style="grid-column: 1 / -1;">
+                                    <label class="form-label">Observaciones</label>
+                                    <input type="text" class="form-control form-control-sm" id="obsLaminacion">
+                                </div>
+                            </div>
                         </div>
-                        <div class="ot-field">
-                            <label class="form-label">Gramaje Adh. (g/m2)</label>
-                            <input type="text" class="form-control form-control-sm" id="gramajeAdhesivo" placeholder="1,5 A 2,0">
+                        <!-- Columna derecha: tabla de materiales -->
+                        <div>
+                            <table class="table table-bordered table-tintas mb-0">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 220px;">MATERIALES</th>
+                                        <th>KILOS (Kg)</th>
+                                        <th>METROS (m)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="text-start fw-bold">ADHESIVO PARA LAMINACION</td>
+                                        <td><input type="number" class="form-control form-control-sm" id="adhesivoKg" step="0.01"></td>
+                                        <td><input type="number" class="form-control form-control-sm" id="adhesivoMetros" step="0.01"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-start fw-bold">CATALIZADOR PARA LAMINACION</td>
+                                        <td><input type="number" class="form-control form-control-sm" id="catalizadorKg" step="0.01"></td>
+                                        <td><input type="number" class="form-control form-control-sm" id="catalizadorMetros" step="0.01"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-start fw-bold">LAMINA-IMPRESA</td>
+                                        <td><input type="number" class="form-control form-control-sm" id="boppKg" step="0.01"></td>
+                                        <td><input type="number" class="form-control form-control-sm" id="boppMetros" step="0.01"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-start fw-bold">LAMINA-VIRGEN</td>
+                                        <td><input type="number" class="form-control form-control-sm" id="castKg" step="0.01"></td>
+                                        <td><input type="number" class="form-control form-control-sm" id="castMetros" step="0.01"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
-                        <div class="ot-field">
-                            <label class="form-label">Rel. Mezcla</label>
-                            <input type="text" class="form-control form-control-sm" id="relacionMezcla" placeholder="100/80">
-                        </div>
-                        <div class="ot-field">
-                            <label class="form-label">Observaciones</label>
-                            <input type="text" class="form-control form-control-sm" id="obsLaminacion">
-                        </div>
-                    </div>
-
-                    <!-- Tabla de Materiales Laminacion -->
-                    <div class="table-responsive" style="margin-top: 0.2rem;">
-                        <table class="table table-bordered table-tintas mb-0">
-                            <thead>
-                                <tr>
-                                    <th style="width: 200px;">MATERIALES</th>
-                                    <th>KILOS (Kg)</th>
-                                    <th>METROS (m)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td class="text-start fw-bold">ADHESIVO PARA LAMINACION</td>
-                                    <td><input type="number" class="form-control form-control-sm" id="adhesivoKg" step="0.01"></td>
-                                    <td><input type="number" class="form-control form-control-sm" id="adhesivoMetros" step="0.01"></td>
-                                </tr>
-                                <tr>
-                                    <td class="text-start fw-bold">CATALIZADOR PARA LAMINACION</td>
-                                    <td><input type="number" class="form-control form-control-sm" id="catalizadorKg" step="0.01"></td>
-                                    <td><input type="number" class="form-control form-control-sm" id="catalizadorMetros" step="0.01"></td>
-                                </tr>
-                                <tr>
-                                    <td class="text-start fw-bold">LAMINA-IMPRESA</td>
-                                    <td><input type="number" class="form-control form-control-sm" id="boppKg" step="0.01"></td>
-                                    <td><input type="number" class="form-control form-control-sm" id="boppMetros" step="0.01"></td>
-                                </tr>
-                                <tr>
-                                    <td class="text-start fw-bold">LAMINA-VIRGEN</td>
-                                    <td><input type="number" class="form-control form-control-sm" id="castKg" step="0.01"></td>
-                                    <td><input type="number" class="form-control form-control-sm" id="castMetros" step="0.01"></td>
-                                </tr>
-                            </tbody>
-                        </table>
                     </div>
                 </div>
             </div>
 
-            <!-- DESCRIPCION MATERIA PRIMA VIRGEN -->
+            <!-- DESCRIPCION MATERIA PRIMA VIRGEN (Excel filas 35-36) -->
             <div class="ot-section">
                 <div class="section-header header-green">
                     <i class="bi bi-archive me-1"></i>DESCRIPCION MATERIA PRIMA VIRGEN
                 </div>
                 <div class="section-body">
-                    <div class="ot-grid" style="grid-template-columns: 2fr 1fr 1fr 1fr 2fr;">
+                    <!-- Fila 1: Tipo Material + Micras + Ancho = descripcion completa (como Excel: "CAST 680 x 25") -->
+                    <div class="ot-grid" style="grid-template-columns: 2fr 1fr 1fr 1fr;">
                         <div class="ot-field">
-                            <label class="form-label">Tipo Material</label>
+                            <label class="form-label">Descripcion Materia Prima Virgen</label>
                             <select class="form-select form-select-sm" id="tipoMaterial">
                                 <option value="">Sel...</option>
                                 <option value="BOPP NORMAL">BOPP NORMAL</option>
@@ -915,36 +934,41 @@
                             <input type="number" class="form-control form-control-sm" id="anchoMaterial" step="0.01">
                         </div>
                         <div class="ot-field">
-                            <label class="form-label">Kg Disp.</label>
+                            <label class="form-label">Kg Disponible</label>
                             <input type="number" class="form-control form-control-sm" id="kgDisponible" step="0.01" readonly>
                         </div>
+                    </div>
+                    <!-- Fila 2: ANCHO DE IMPRESION + Proveedor + Obs (Excel fila 36) -->
+                    <div class="ot-grid" style="grid-template-columns: 1fr 1fr 2fr;">
                         <div class="ot-field">
                             <label class="form-label">Proveedor</label>
                             <input type="text" class="form-control form-control-sm" id="proveedorMaterial">
                         </div>
-                    </div>
-                    <div class="ot-grid" style="grid-template-columns: 1fr;">
                         <div class="ot-field">
-                            <label class="form-label">Obs.</label>
-                            <input type="text" class="form-control form-control-sm" id="obsMateriaPrima">
+                            <label class="form-label">Ancho de Impresion (mm)</label>
+                            <input type="text" class="form-control form-control-sm" id="obsMateriaPrima" placeholder="ej: 660 mm">
+                        </div>
+                        <div class="ot-field" style="visibility: hidden;">
+                            <!-- Espacio reservado -->
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- AREA DE CORTE / EMBALAJE -->
+            <!-- AREA DE CORTE / EMBALAJE (Excel filas 37-38) -->
             <div class="ot-section">
                 <div class="section-header">
                     <i class="bi bi-scissors me-1"></i>AREA DE CORTE / EMBALAJE
                 </div>
                 <div class="section-body">
-                    <div class="ot-grid" style="grid-template-columns: repeat(6, 1fr);">
+                    <!-- Fila 1: ANCHO CORTE | PESO BOBINA CORTADA | METROS/BOBINA | FIGURA EMBOBINADO (como Excel fila 38) -->
+                    <div class="ot-grid" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
                         <div class="ot-field">
                             <label class="form-label">Ancho Corte (mm)</label>
                             <input type="text" class="form-control form-control-sm" id="anchoCorteFinal" placeholder="330±0">
                         </div>
                         <div class="ot-field">
-                            <label class="form-label">Peso Bobina (Kg)</label>
+                            <label class="form-label">Peso Bobina Cortada (Kg)</label>
                             <input type="number" class="form-control form-control-sm" id="pesoBobina" step="0.01">
                         </div>
                         <div class="ot-field">
@@ -952,27 +976,15 @@
                             <input type="number" class="form-control form-control-sm" id="metrosBobina" step="0.01" readonly style="background-color: #d4edda;">
                         </div>
                         <div class="ot-field">
-                            <label class="form-label">Fig. Embobinado</label>
+                            <label class="form-label">Figura Embobinado</label>
                             <select class="form-select form-select-sm" id="orientacionEmbalaje">
                                 <option value="">-</option>
                                 <option value="Vertical">Vertical</option>
                                 <option value="Horizontal">Horizontal</option>
                             </select>
                         </div>
-                        <div class="ot-field">
-                            <label class="form-label">Tipo Empalme</label>
-                            <select class="form-select form-select-sm" id="tipoEmpalme">
-                                <option value="">-</option>
-                                <option value="Bandera">Bandera</option>
-                                <option value="Inline">Inline</option>
-                                <option value="Ninguno">Ninguno</option>
-                            </select>
-                        </div>
-                        <div class="ot-field">
-                            <label class="form-label">Max. Empalmes</label>
-                            <input type="number" class="form-control form-control-sm" id="maxEmpalmes" min="0">
-                        </div>
                     </div>
+                    <!-- Fila 2: campos adicionales de embalaje -->
                     <div class="ot-grid" style="grid-template-columns: repeat(6, 1fr);">
                         <div class="ot-field">
                             <label class="form-label">Ubic. Fotocelda</label>
@@ -989,9 +1001,28 @@
                             <input type="number" class="form-control form-control-sm" id="distFotoceldaBorde" step="0.01">
                         </div>
                         <div class="ot-field">
+                            <label class="form-label">Tipo Empalme</label>
+                            <select class="form-select form-select-sm" id="tipoEmpalme">
+                                <option value="">-</option>
+                                <option value="Bandera">Bandera</option>
+                                <option value="Inline">Inline</option>
+                                <option value="Ninguno">Ninguno</option>
+                            </select>
+                        </div>
+                        <div class="ot-field">
+                            <label class="form-label">Max. Empalmes</label>
+                            <input type="number" class="form-control form-control-sm" id="maxEmpalmes" min="0">
+                        </div>
+                        <div class="ot-field">
                             <label class="form-label">Diam. Bobina (cm)</label>
                             <input type="number" class="form-control form-control-sm" id="diametroBobina" step="0.01">
                         </div>
+                        <div class="ot-field">
+                            <label class="form-label">Diam. Core (mm)</label>
+                            <input type="number" class="form-control form-control-sm" id="diametroCore" step="0.01">
+                        </div>
+                    </div>
+                    <div class="ot-grid" style="grid-template-columns: repeat(3, 1fr);">
                         <div class="ot-field">
                             <label class="form-label">Ancho Core (mm)</label>
                             <input type="number" class="form-control form-control-sm" id="anchoCore" step="0.01">
@@ -1000,9 +1031,8 @@
                             <label class="form-label">Cant. Cores</label>
                             <input type="number" class="form-control form-control-sm" id="cantidadCores" min="1">
                         </div>
-                        <div class="ot-field">
-                            <label class="form-label">Diam. Core (mm)</label>
-                            <input type="number" class="form-control form-control-sm" id="diametroCore" step="0.01">
+                        <div class="ot-field" style="visibility: hidden;">
+                            <!-- Espacio -->
                         </div>
                     </div>
                 </div>

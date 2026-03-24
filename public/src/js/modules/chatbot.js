@@ -17,7 +17,9 @@ const Chatbot = {
      * Inicializa el modulo de chatbot
      * Solo accesible para administradores
      */
-    init: function() {
+    init: async function() {
+        await this._esperarSync();
+
         console.log('Inicializando modulo Chatbot');
 
         // Verificar que el usuario sea administrador
@@ -31,6 +33,27 @@ const Chatbot = {
         this.loadCuentasPorCobrar();
         this.loadDatosProduccion();
         this.loadResumenCartera();
+
+        // Recargar datos cuando Supabase sincronice
+        window.addEventListener('axones-sync', () => {
+            this.loadCuentasPorCobrar();
+            this.loadDatosProduccion();
+            this.loadResumenCartera();
+        });
+    },
+
+    _esperarSync: async function() {
+        if (typeof AxonesSync !== 'undefined' && AxonesSync._isReady && AxonesSync._isReady()) {
+            return;
+        }
+        return new Promise(resolve => {
+            let resuelto = false;
+            const handler = () => { if (!resuelto) { resuelto = true; resolve(); } };
+            window.addEventListener('axones-sync', handler, { once: true });
+            setTimeout(() => {
+                if (!resuelto) { resuelto = true; window.removeEventListener('axones-sync', handler); resolve(); }
+            }, 5000);
+        });
     },
 
     /**

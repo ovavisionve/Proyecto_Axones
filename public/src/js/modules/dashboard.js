@@ -10,9 +10,30 @@ const Dashboard = {
     /**
      * Inicializa el modulo de dashboard
      */
-    init: function() {
+    init: async function() {
+        await this._esperarSync();
         console.log('Inicializando modulo Dashboard');
         // La inicializacion completa se hace cuando se carga la pagina de dashboard
+
+        // Recargar datos cuando Supabase sincronice
+        window.addEventListener('axones-sync', () => {
+            console.log('[Dashboard] Sync detectado, recargando datos...');
+            this.load();
+        });
+    },
+
+    _esperarSync: async function() {
+        if (typeof AxonesSync !== 'undefined' && AxonesSync._isReady && AxonesSync._isReady()) {
+            return;
+        }
+        return new Promise(resolve => {
+            let resuelto = false;
+            const handler = () => { if (!resuelto) { resuelto = true; resolve(); } };
+            window.addEventListener('axones-sync', handler, { once: true });
+            setTimeout(() => {
+                if (!resuelto) { resuelto = true; window.removeEventListener('axones-sync', handler); resolve(); }
+            }, 5000);
+        });
     },
 
     /**

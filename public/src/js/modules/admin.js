@@ -6,12 +6,36 @@
 
 const AdminModule = {
     // Inicializar
-    init() {
+    async init() {
+        await this._esperarSync();
         console.log('Inicializando modulo de Administracion...');
         this.cargarConfiguracion();
         this.cargarUsuarios();
         this.actualizarEstadisticas();
         this.actualizarStorage();
+
+        // Recargar datos cuando Supabase sincronice
+        window.addEventListener('axones-sync', () => {
+            this.cargarUsuarios();
+            this.cargarConfiguracion();
+            this.actualizarEstadisticas();
+            this.actualizarStorage();
+        });
+    },
+
+    // Esperar sincronizacion con Supabase
+    _esperarSync: async function() {
+        if (typeof AxonesSync !== 'undefined' && AxonesSync._isReady && AxonesSync._isReady()) {
+            return;
+        }
+        return new Promise(resolve => {
+            let resuelto = false;
+            const handler = () => { if (!resuelto) { resuelto = true; resolve(); } };
+            window.addEventListener('axones-sync', handler, { once: true });
+            setTimeout(() => {
+                if (!resuelto) { resuelto = true; window.removeEventListener('axones-sync', handler); resolve(); }
+            }, 5000);
+        });
     },
 
     // Cargar configuracion (solo lectura desde CONFIG)

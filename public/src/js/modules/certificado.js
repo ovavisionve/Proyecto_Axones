@@ -10,10 +10,29 @@ const Certificado = {
     /**
      * Inicializa el modulo
      */
-    init: function() {
+    init: async function() {
+        await this._esperarSync();
         console.log('Inicializando modulo Certificado');
         this.setDefaultValues();
         this.setupEventListeners();
+
+        window.addEventListener('axones-sync', () => {
+            this.setDefaultValues();
+        });
+    },
+
+    _esperarSync: async function() {
+        if (typeof AxonesSync !== 'undefined' && AxonesSync._isReady && AxonesSync._isReady()) {
+            return;
+        }
+        return new Promise(resolve => {
+            let resuelto = false;
+            const handler = () => { if (!resuelto) { resuelto = true; resolve(); } };
+            window.addEventListener('axones-sync', handler, { once: true });
+            setTimeout(() => {
+                if (!resuelto) { resuelto = true; window.removeEventListener('axones-sync', handler); resolve(); }
+            }, 5000);
+        });
     },
 
     /**

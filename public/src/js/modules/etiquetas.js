@@ -10,10 +10,30 @@ const Etiquetas = {
     /**
      * Inicializa el modulo
      */
-    init: function() {
+    init: async function() {
+        await this._esperarSync();
         console.log('Inicializando modulo Etiquetas');
         this.setDefaultDate();
         this.setupEventListeners();
+
+        // Recargar datos cuando se sincronice con Supabase
+        window.addEventListener('axones-sync', () => {
+            this.mostrarEtiquetasGeneradas();
+        });
+    },
+
+    _esperarSync: async function() {
+        if (typeof AxonesSync !== 'undefined' && AxonesSync._isReady && AxonesSync._isReady()) {
+            return;
+        }
+        return new Promise(resolve => {
+            let resuelto = false;
+            const handler = () => { if (!resuelto) { resuelto = true; resolve(); } };
+            window.addEventListener('axones-sync', handler, { once: true });
+            setTimeout(() => {
+                if (!resuelto) { resuelto = true; window.removeEventListener('axones-sync', handler); resolve(); }
+            }, 5000);
+        });
     },
 
     /**

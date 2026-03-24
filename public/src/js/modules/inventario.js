@@ -122,6 +122,9 @@ const Inventario = {
     init: async function() {
         console.log('Inicializando modulo Inventario General');
 
+        // Esperar a que AxonesSync termine de descargar datos del cloud
+        await this._esperarSync();
+
         // Verificar y migrar datos si hay nueva version
         this.verificarMigracionDatos();
 
@@ -158,6 +161,35 @@ const Inventario = {
                 }
             });
         }
+
+        // Escuchar re-sync del cloud para recargar datos
+        window.addEventListener('axones-sync', async () => {
+            await this.loadInventario();
+            await this.loadTintas();
+            await this.loadAdhesivos();
+            this.renderInventario();
+            this.renderTintas();
+            this.renderAdhesivos();
+            this.updateTotales();
+            this.updateCounts();
+        });
+    },
+
+    /**
+     * Espera a que AxonesSync termine la descarga inicial (max 5 segundos)
+     */
+    _esperarSync: async function() {
+        if (typeof AxonesSync !== 'undefined' && AxonesSync._isReady && AxonesSync._isReady()) {
+            return;
+        }
+        return new Promise(resolve => {
+            let resuelto = false;
+            const handler = () => { if (!resuelto) { resuelto = true; resolve(); } };
+            window.addEventListener('axones-sync', handler, { once: true });
+            setTimeout(() => {
+                if (!resuelto) { resuelto = true; window.removeEventListener('axones-sync', handler); resolve(); }
+            }, 5000);
+        });
     },
 
     /**

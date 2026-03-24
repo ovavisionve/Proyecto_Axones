@@ -20,7 +20,9 @@ const AlertasModule = {
     },
 
     // Inicializar modulo
-    init() {
+    async init() {
+        await this._esperarSync();
+
         console.log('Inicializando modulo de Alertas...');
 
         // Verificar si necesita regenerar alertas
@@ -30,6 +32,28 @@ const AlertasModule = {
         this.cargarAlertas();
         this.configurarEventos();
         this.generarAlertasDemo();
+
+        // Escuchar re-sync del cloud para recargar datos
+        window.addEventListener('axones-sync', () => {
+            this.cargarAlertas();
+        });
+    },
+
+    /**
+     * Espera a que AxonesSync termine la descarga inicial (max 5 segundos)
+     */
+    _esperarSync: async function() {
+        if (typeof AxonesSync !== 'undefined' && AxonesSync._isReady && AxonesSync._isReady()) {
+            return;
+        }
+        return new Promise(resolve => {
+            let resuelto = false;
+            const handler = () => { if (!resuelto) { resuelto = true; resolve(); } };
+            window.addEventListener('axones-sync', handler, { once: true });
+            setTimeout(() => {
+                if (!resuelto) { resuelto = true; window.removeEventListener('axones-sync', handler); resolve(); }
+            }, 5000);
+        });
     },
 
     // Verifica si hay una nueva version y limpia alertas viejas

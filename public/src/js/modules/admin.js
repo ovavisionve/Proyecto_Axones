@@ -40,7 +40,13 @@ const AdminModule = {
 
     // Cargar configuracion (solo lectura desde CONFIG)
     cargarConfiguracion() {
-        const config = JSON.parse(localStorage.getItem('axones_config') || '{}');
+        let config = {};
+        if (AxonesDB.isReady()) {
+            try {
+                const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_config').single();
+                config = data?.value || {};
+            } catch (e) { config = {}; }
+        }
 
         // Umbrales
         const umbralAdvertencia = document.getElementById('umbralAdvertencia');
@@ -77,12 +83,12 @@ const AdminModule = {
             return;
         }
 
-        const config = JSON.parse(localStorage.getItem('axones_config') || '{}');
-        config.umbralAdvertencia = umbralAdvertencia;
-        config.umbralMaximo = umbralMaximo;
-        config.ultimaActualizacion = new Date().toISOString();
-
-        localStorage.setItem('axones_config', JSON.stringify(config));
+        const config = { umbralAdvertencia, umbralMaximo, ultimaActualizacion: new Date().toISOString() };
+        if (AxonesDB.isReady()) {
+            await AxonesDB.client.from('sync_store').upsert({
+                key: 'axones_config', value: config, updated_at: new Date().toISOString()
+            }, { onConflict: 'key' });
+        }
 
         // Actualizar CONFIG global si existe
         if (typeof CONFIG !== 'undefined' && CONFIG.UMBRALES_REFIL) {

@@ -19,6 +19,11 @@ const Impresion = {
     init: async function() {
         console.log('Inicializando modulo Control de Impresion');
 
+        // Asegurar que AxonesDB esta inicializado
+        if (typeof AxonesDB !== 'undefined' && !AxonesDB.isReady()) {
+            await AxonesDB.init();
+        }
+
         await this.cargarDatosIniciales();
         this.setupEventListeners();
         this.setupCalculations();
@@ -315,9 +320,17 @@ const Impresion = {
         // Cargar clientes desde CONFIG
         this.clientesCache = CONFIG.CLIENTES || [];
 
-        // Cargar inventario desde Supabase
+        // Cargar inventario desde Supabase y normalizar campos
         try {
-            this.inventarioCache = AxonesDB.isReady() ? await AxonesDB.materiales.listar() : [];
+            const raw = AxonesDB.isReady() ? await AxonesDB.materiales.listar() : [];
+            this.inventarioCache = raw.map(m => ({
+                ...m,
+                kg: m.stock_kg || 0,
+                cantidad: m.stock_kg || 0,
+                stockKg: m.stock_kg || 0,
+                codigoBarra: m.codigo_barras || m.codigoBarra,
+                producto: m.notas || ''
+            }));
         } catch (e) {
             console.warn('Error cargando inventario:', e);
             this.inventarioCache = [];

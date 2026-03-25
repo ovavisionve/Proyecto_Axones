@@ -15,9 +15,13 @@ const HomeModule = {
     async init() {
         await this._esperarSync();
         console.log('Inicializando modulo Home...');
+        // Asegurar que AxonesDB esta inicializado
+        if (typeof AxonesDB !== 'undefined' && !AxonesDB.isReady()) {
+            await AxonesDB.init();
+        }
         this.actualizarFechaHora();
         this.verificarConexion();
-        this.cargarDatos();
+        await this.cargarDatos();
         this.iniciarActualizacionAutomatica();
 
         // Recargar datos cuando se sincronice con Supabase

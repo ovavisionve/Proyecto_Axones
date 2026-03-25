@@ -26,6 +26,11 @@ const AlertasModule = {
     async init() {
         console.log('Inicializando modulo de Alertas...');
 
+        // Asegurar que AxonesDB esta inicializado
+        if (typeof AxonesDB !== 'undefined' && !AxonesDB.isReady()) {
+            await AxonesDB.init();
+        }
+
         await this._cargarAlertas();
 
         // Verificar si necesita regenerar alertas

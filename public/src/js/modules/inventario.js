@@ -122,6 +122,11 @@ const Inventario = {
     init: async function() {
         console.log('Inicializando modulo Inventario General');
 
+        // Asegurar que AxonesDB esta inicializado
+        if (typeof AxonesDB !== 'undefined' && !AxonesDB.isReady()) {
+            await AxonesDB.init();
+        }
+
         // Esperar a que AxonesSync termine de descargar datos del cloud
         await this._esperarSync();
 

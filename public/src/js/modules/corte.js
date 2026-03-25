@@ -41,6 +41,11 @@ const Corte = {
     init: async function() {
         console.log('Inicializando modulo Control de Corte');
 
+        // Asegurar que AxonesDB esta inicializado
+        if (typeof AxonesDB !== 'undefined' && !AxonesDB.isReady()) {
+            await AxonesDB.init();
+        }
+
         this.inicializarPaletasDinamicas();
         this.setupEventListeners();
         this.setupCalculations();

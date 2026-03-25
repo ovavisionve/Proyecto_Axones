@@ -9,6 +9,12 @@ const Tintas = {
     // =========================================================
     init: async function() {
         console.log('Inicializando modulo Tintas y Solventes');
+
+        // Asegurar que AxonesDB esta inicializado
+        if (typeof AxonesDB !== 'undefined' && !AxonesDB.isReady()) {
+            await AxonesDB.init();
+        }
+
         await this.initConsumo();
         await this.initInventario();
         await this.initCementerio();

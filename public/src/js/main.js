@@ -411,15 +411,6 @@ const Axones = {
 
 // Inicializar cuando el DOM este listo
 document.addEventListener('DOMContentLoaded', () => {
-    // DemoData fue desactivado (Supabase es fuente de verdad)
-    // No limpiar localStorage aqui - AxonesSync se encarga de la sincronizacion
-
-    // Asegurar que los 23 usuarios reales estan cargados
-    const usuarios = JSON.parse(localStorage.getItem('axones_usuarios') || '[]');
-    if (usuarios.length < 10) {
-        localStorage.removeItem('axones_usuarios');
-    }
-
     Axones.init();
 });
 

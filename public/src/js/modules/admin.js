@@ -9,6 +9,12 @@ const AdminModule = {
     async init() {
         await this._esperarSync();
         console.log('Inicializando modulo de Administracion...');
+
+        // Asegurar que AxonesDB esta inicializado
+        if (typeof AxonesDB !== 'undefined' && !AxonesDB.isReady()) {
+            await AxonesDB.init();
+        }
+
         this.cargarConfiguracion();
         this.cargarUsuarios();
         this.actualizarEstadisticas();

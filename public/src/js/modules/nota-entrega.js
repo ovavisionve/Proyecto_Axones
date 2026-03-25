@@ -11,8 +11,13 @@ const NotaEntrega = {
 
     STORAGE_KEY: 'axones_notas_entrega',
 
-    init: function() {
-        this.loadNotas();
+    init: async function() {
+        // Asegurar que AxonesDB esta inicializado
+        if (typeof AxonesDB !== 'undefined' && !AxonesDB.isReady()) {
+            await AxonesDB.init();
+        }
+
+        await this.loadNotas();
         this.cargarOTsDisponibles();
         this.renderHistorial();
         this.generarNumeroNota();

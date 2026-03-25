@@ -14,22 +14,34 @@ const ReportesModule = {
 
     init: async function() {
         console.log('[Reportes] Inicializando...');
-        if (typeof AxonesDB !== 'undefined' && !AxonesDB.isReady()) {
-            await AxonesDB.init();
+        try {
+            if (typeof AxonesDB !== 'undefined') {
+                if (!AxonesDB.isReady()) await AxonesDB.init();
+                console.log('[Reportes] AxonesDB ready:', AxonesDB.isReady());
+            } else {
+                console.warn('[Reportes] AxonesDB no definido');
+            }
+        } catch (e) {
+            console.error('[Reportes] Error init AxonesDB:', e);
         }
         this.setFechasDefault();
         await this.cargarDatos();
         this.aplicarFiltros();
 
         window.addEventListener('axones-sync', async () => {
+            console.log('[Reportes] Re-sync detectado, recargando...');
             await this.cargarDatos();
             this.aplicarFiltros();
         });
     },
 
     cargarDatos: async function() {
-        if (typeof AxonesDB === 'undefined' || !AxonesDB.isReady()) return;
         try {
+            if (typeof AxonesDB === 'undefined' || !AxonesDB.isReady()) {
+                console.warn('[Reportes] AxonesDB no disponible, reintentando init...');
+                if (typeof AxonesDB !== 'undefined') await AxonesDB.init();
+                if (!AxonesDB.isReady()) { console.error('[Reportes] No se pudo conectar a Supabase'); return; }
+            }
             const [ordenes, imp, lam, cor, ct] = await Promise.all([
                 AxonesDB.ordenesHelper.cargar(),
                 AxonesDB.client.from('produccion_impresion').select('*').order('created_at', { ascending: false }),
@@ -87,10 +99,14 @@ const ReportesModule = {
 
     filtrarOrdenes: function() {
         const f = this.getFiltros();
+        console.log('[Reportes] Filtrando', this.ordenes.length, 'ordenes con filtros:', f);
         return this.ordenes.filter(o => {
-            const fecha = (o.fechaInicio || o.created_at || '').split('T')[0];
-            if (f.desde && fecha < f.desde) return false;
-            if (f.hasta && fecha > f.hasta) return false;
+            const fecha = (o.fechaInicio || o.fechaEntrega || o.created_at || '').split('T')[0];
+            // Si no hay fecha, no filtrar por fecha (mostrar siempre)
+            if (fecha) {
+                if (f.desde && fecha < f.desde) return false;
+                if (f.hasta && fecha > f.hasta) return false;
+            }
             if (f.estado && o.estadoOrden !== f.estado) return false;
             if (f.busqueda) {
                 const texto = [o.numeroOrden, o.cliente, o.producto].filter(Boolean).join(' ').toLowerCase();

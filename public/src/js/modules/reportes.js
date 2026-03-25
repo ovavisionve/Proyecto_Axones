@@ -100,12 +100,13 @@ const ReportesModule = {
     filtrarOrdenes: function() {
         const f = this.getFiltros();
         console.log('[Reportes] Filtrando', this.ordenes.length, 'ordenes con filtros:', f);
-        return this.ordenes.filter(o => {
+        const resultado = this.ordenes.filter(o => {
             const fecha = (o.fechaInicio || o.fechaEntrega || o.created_at || '').split('T')[0];
+            console.log('[Reportes] OT:', o.numeroOrden, 'fecha:', fecha, 'estado:', o.estadoOrden, 'fechaInicio:', o.fechaInicio, 'created_at:', o.created_at);
             // Si no hay fecha, no filtrar por fecha (mostrar siempre)
             if (fecha) {
-                if (f.desde && fecha < f.desde) return false;
-                if (f.hasta && fecha > f.hasta) return false;
+                if (f.desde && fecha < f.desde) { console.log('[Reportes] FILTRADA por desde'); return false; }
+                if (f.hasta && fecha > f.hasta) { console.log('[Reportes] FILTRADA por hasta'); return false; }
             }
             if (f.estado && o.estadoOrden !== f.estado) return false;
             if (f.busqueda) {
@@ -114,10 +115,13 @@ const ReportesModule = {
             }
             return true;
         });
+        console.log('[Reportes] Resultado filtro:', resultado.length, 'ordenes pasan');
+        return resultado;
     },
 
     actualizarKPIs: function() {
         const ots = this.filtrarOrdenes();
+        console.log('[Reportes] KPIs - OTs filtradas:', ots.length, ots.map(o => o.numeroOrden));
         const totalProd = this.prodImpresion.length + this.prodLaminacion.length + this.prodCorte.length;
         const kgTotal = ots.reduce((s, o) => s + (parseFloat(o.pedidoKg) || 0), 0);
 
@@ -145,6 +149,7 @@ const ReportesModule = {
     // ==================== TAB ORDENES ====================
     renderTabOrdenes: function(container) {
         const ots = this.filtrarOrdenes();
+        console.log('[Reportes] renderTabOrdenes - OTs a renderizar:', ots.length, JSON.stringify(ots.map(o => ({num: o.numeroOrden, cli: o.cliente, est: o.estadoOrden}))));
         if (ots.length === 0) {
             container.innerHTML = '<div class="text-center text-muted py-5">No hay ordenes en el rango seleccionado</div>';
             return;

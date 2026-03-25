@@ -397,10 +397,17 @@ const Corte = {
      * Configura los event listeners
      */
     setupEventListeners: function() {
-        // Boton guardar
+        // Boton guardar (arriba y abajo)
         const btnGuardar = document.getElementById('btnGuardar');
         if (btnGuardar) {
             btnGuardar.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.guardar();
+            });
+        }
+        const btnGuardarBottom = document.getElementById('btnGuardarBottom');
+        if (btnGuardarBottom) {
+            btnGuardarBottom.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.guardar();
             });

@@ -538,10 +538,14 @@ const Ordenes = {
      * Configura event listeners
      */
     setupEventListeners: function() {
-        // Guardar orden
+        // Guardar orden (arriba y abajo)
         const btnGuardar = document.getElementById('btnGuardarOrden');
         if (btnGuardar) {
             btnGuardar.addEventListener('click', () => this.guardarOrden());
+        }
+        const btnGuardarBottom = document.getElementById('btnGuardarOrdenBottom');
+        if (btnGuardarBottom) {
+            btnGuardarBottom.addEventListener('click', () => this.guardarOrden());
         }
 
         // Limpiar formulario

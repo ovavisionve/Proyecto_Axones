@@ -3,8 +3,8 @@
 ## Descripcion del Proyecto
 Sistema integral de gestion y control de produccion para **Inversiones Axones 2008, C.A.** - empresa de empaques flexibles plasticos en Venezuela.
 
-**Version:** 1.5.0
-**Ultima actualizacion:** 2026-03-24
+**Version:** 1.6.0
+**Ultima actualizacion:** 2026-03-25
 
 ## URLs de Vercel
 - **Desarrollo:** https://proyecto-axones-git-claude-setup-axones-project-ja8zk-ova1.vercel.app/
@@ -666,10 +666,80 @@ git push origin main
 **Entrada** (9 campos): Proveedor, Referencia Bobina, Medida/Ancho, Micraje, Trat. Interno, Trat. Externo, Fecha, Maquina Origen, Pedido/Lote
 **Salida** (6 campos): Peso (auto), Fecha, Metraje, Hora, Empalmes, Operador
 
+### Fase 11: Migracion localStorage -> Supabase directo (2026-03-25)
+**Objetivo:** Eliminar `sync-realtime.js` como intermediario. Todos los modulos ahora leen/escriben directamente a Supabase sin pasar por localStorage.
+
+| Cambio | Estado |
+|--------|--------|
+| Navbar con dropdown Datos Maestros (Clientes + Proveedores) en todas las paginas | COMPLETADO |
+| Documentar 19 tablas Supabase + 4 scripts SQL | COMPLETADO |
+| clientes.js y proveedores.js: eliminar localStorage, solo Supabase directo | COMPLETADO |
+| ordenes.js: migrar a AxonesDB.ordenesHelper (cargar/guardar/actualizar) | COMPLETADO |
+| programacion.js: migrar a AxonesDB.ordenesHelper (cargar/mover estado) | COMPLETADO |
+| control-tiempo.js: migrar a AxonesDB.client.from('control_tiempo') | COMPLETADO |
+| impresion.js: guardar en produccion_impresion, cargar sin localStorage | COMPLETADO |
+| laminacion.js: guardar en produccion_laminacion, cargar sin localStorage | COMPLETADO |
+| corte.js: guardar en produccion_corte, cargar sin localStorage | COMPLETADO |
+| dashboard.js, alertas.js, reportes.js, certificado.js: migrar a Supabase | COMPLETADO |
+| chatbot.js, checklist.js, incidencias.js, etiquetas.js: migrar a Supabase | COMPLETADO |
+| inventario.js: migrar a AxonesDB.materiales/tintas/adhesivos | COMPLETADO |
+| admin.js: migrar a AxonesDB.client.from('usuarios') | COMPLETADO |
+| home.js: migrar a Supabase (stats del dashboard) | COMPLETADO |
+| nota-entrega.js: migrar a Supabase | COMPLETADO |
+| Fix SyntaxError: await en callback no-async en inventario.js | COMPLETADO |
+| Fix CDN Supabase como script estatico en todos los HTML | COMPLETADO |
+| Fix race condition: AxonesDB.init() antes de isReady() en todos los modulos | COMPLETADO |
+
+### Fase 12: Fixes de OT y UX (2026-03-25)
+| Cambio | Estado |
+|--------|--------|
+| Precarga de proveedor en selector de OT | COMPLETADO |
+| RIF del cliente se auto-llena al seleccionar cliente | COMPLETADO |
+| Codigo de barras y SKU del producto se auto-llenan | COMPLETADO |
+| Colores de tintas se pre-cargan en OT | COMPLETADO |
+| Boton "Guardar" agregado al fondo de OT y modulos de produccion | COMPLETADO |
+
+### Fase 13: Etiquetas reescritas (2026-03-25)
+| Cambio | Estado |
+|--------|--------|
+| etiquetas.html reescrito: selector de OT, selector de despacho, formato real | COMPLETADO |
+| etiquetas.js reescrito: auto-llenado desde OT, vinculo con despachos parciales | COMPLETADO |
+| Formato etiqueta real Axones: Proceso, Paleta#, OT, Producto, Tara, P.Neto/Bruto, Fecha, Hora, Operador, Maquina, Mts, Material, Nota de Entrega | COMPLETADO |
+| Tara calculada automaticamente (Bruto - Neto) | COMPLETADO |
+| Proceso auto-detectado segun maquina (COMEXI=IMP, NEXUS=LAM, Cortadora=CORT) | COMPLETADO |
+| N° Paleta se incrementa al imprimir multiples etiquetas | COMPLETADO |
+| Fix init: esperar AxonesDB + escuchar axones-sync + fallback localStorage | COMPLETADO |
+
+### Fase 14: Reportes y Trazabilidad (2026-03-25) - EN PROGRESO
+| Cambio | Estado |
+|--------|--------|
+| reportes.html reescrito: 5 tabs, filtros, KPIs, modales detalle | COMPLETADO |
+| reportes.js: logica completa de tabs, carga de datos, modales, graficos, export | **PENDIENTE** |
+
 ## Commits Recientes (Referencia)
 ```
+# 2026-03-25 - Sesion: Etiquetas + Reportes + Migracion localStorage -> Supabase directo
+d51fc43 docs: Actualizar CLAUDE.md con estado de trabajo para continuar en otra sesion
+2431ce5 feat: Reescribir modulo etiquetas - vinculado a OT y despachos parciales
+1fe3e67 feat: Agregar boton Guardar al fondo de OT y modulos de produccion
+ae42508 fix: Precarga de proveedor, RIF cliente, codigo barras, SKU y colores tintas en OT
+11287a2 fix: Inventario vacio por SyntaxError - await en callback no-async
+268a930 fix: Agregar CDN Supabase como script estatico en todos los HTML
+c936dde fix: Race condition - AxonesDB.init() antes de isReady() en todos los modulos
+3fe5267 feat: Migrar nota-entrega.js a Supabase - 0 localStorage en modulos de negocio
+f15aab0 feat: Migrar admin.js y home.js a Supabase - eliminar localStorage
+e884b6b feat: Migrar inventario.js, nota-entrega.js y admin.js (parcial) a Supabase
+1a00abe feat: Fases 4-6 migracion - 11 modulos sin localStorage
+116f3e6 feat: Fase 3 migracion - impresion, laminacion y corte sin localStorage
+bc34c2f feat: Fase 2 migracion - control-tiempo.js sin localStorage
+8dd3649 feat: Fase 1 migracion - ordenes.js y programacion.js sin localStorage
+7bcfbc3 fix: Eliminar localStorage de clientes y proveedores - solo Supabase directo
+6192c7c fix: Clientes y proveedores no persistian - agregar cache localStorage + sync keys
+03cbfc5 docs: Documentar estado completo de Supabase - 19 tablas activas y 4 scripts SQL
+e152d22 feat: Agregar dropdown Datos Maestros (Clientes + Proveedores) al navbar de todas las paginas
+
 # 2026-03-24 - Devolucion + Tintas + Solventes
-feat: Consumo/devolucion tintas + solventes + devolucion material en impresion y laminacion
+20e8e22 feat: Consumo/devolucion tintas + solventes + devolucion material en impresion y laminacion
 98a51c5 feat: Reemplazar Restante de Bobinas por Resumen de Devolucion en impresion
 
 # 2026-03-24 - Fase 10: Resumen OT Spreadsheet
@@ -785,3 +855,108 @@ ControlTiempo.mostrarNotificacion()   // control-tiempo.js - produccion
 Si se necesita ver logs tecnicos, el sistema usa prefijos en consola:
 - `[AxonesSync]` - logs de sincronizacion
 - `AxonesDB:` - logs de operaciones Supabase
+
+## TRABAJO EN PROGRESO (2026-03-25) - Rama: claude/review-claude-printing-task-MQf2H
+
+### Fase 11: Etiquetas reescritas - COMPLETADO (commit 2431ce5)
+- `etiquetas.html` y `etiquetas.js` reescritos completamente
+- Selector de OT que auto-llena: cliente, producto, maquina, material, proceso
+- Selector de despacho parcial vinculado a nota de entrega
+- Formato de etiqueta real de Inversiones Axones: Proceso, Paleta#, OT, Producto, Tara, P.Neto, P.Bruto, Fecha, Bobinas, Hora, Operador, Maquina, Mts, Material, Nota de Entrega
+- Tara calculada automaticamente (Bruto - Neto)
+- Proceso auto-detectado segun maquina (COMEXI=IMP, NEXUS=LAM, Cortadora=CORT)
+- N° Paleta se incrementa al imprimir multiples etiquetas
+- Fix: `AxonesDB.init()` se espera correctamente antes de cargar OTs
+- Fix: Escucha evento `axones-sync` para recargar OTs cuando sync termina
+- Fix: Fallback a localStorage si Supabase no tiene ordenes
+
+### Fase 12: Reportes y Trazabilidad - EN PROGRESO
+**Estado:** `reportes.html` YA REESCRITO (commit pendiente). `reportes.js` PENDIENTE DE ESCRIBIR.
+
+**Lo que se hizo:**
+- `reportes.html` reescrito con nuevo layout:
+  - 5 tabs: Ordenes de Trabajo | Impresion | Laminacion | Corte | Graficos
+  - Filtros: fecha desde/hasta, estado, busqueda texto libre
+  - 6 KPIs: OTs, Kg Producidos, Registros, Scrap Prom, Incidencias, Alertas
+  - Modal detalle OT (modal-xl, scrollable) para ver OT completa
+  - Modal detalle produccion para registros individuales
+  - Botones imprimir en ambos modales
+  - Botones exportar CSV/Excel en header
+
+**Lo que FALTA escribir en `reportes.js`:**
+1. **Tab Ordenes**: Tabla listando TODAS las OTs desde Supabase (`AxonesDB.ordenesHelper.cargar()`). Cada fila clickeable abre modal detalle.
+2. **Modal Detalle OT**: Al hacer click en una OT, mostrar:
+   - Datos completos de la orden (cliente, producto, material, maquina, kg pedido, etc.)
+   - Registros de produccion de CADA fase (impresion, laminacion, corte) desde tablas `produccion_impresion`, `produccion_laminacion`, `produccion_corte` filtrados por `numero_ot`
+   - Control de tiempo: pausas con motivos, tiempos acumulados desde `control_tiempo` table
+   - Despachos parciales desde control_tiempo localStorage key `axones_control_tiempo`
+   - Incidencias relacionadas desde sync_store key `axones_incidencias`
+   - Alertas desde sync_store key `axones_alertas`
+3. **Tabs Impresion/Laminacion/Corte**: Tabla con todos los registros de produccion de esa area. Cada fila clickeable abre modal con detalle del registro (bobinas entrada/salida, scrap, tintas, solventes, devolucion, observaciones).
+4. **Tab Graficos**: Reutilizar charts existentes (Chart.js) - produccion por proceso, scrap por maquina, tendencia diaria, top clientes.
+5. **Exportar CSV/Excel**: Basado en tab activo y filtros aplicados.
+
+**Estructura de datos para el modal detalle OT:**
+```javascript
+// Ordenes: AxonesDB.ordenesHelper.cargar() -> array de objetos con todos los campos de la OT
+// Produccion impresion: AxonesDB.client.from('produccion_impresion').select('*').eq('numero_ot', ot)
+// Produccion laminacion: AxonesDB.client.from('produccion_laminacion').select('*').eq('numero_ot', ot)
+// Produccion corte: AxonesDB.client.from('produccion_corte').select('*').eq('numero_ot', ot)
+// Control tiempo: AxonesDB.client.from('control_tiempo').select('*').eq('numero_ot', ot)
+// Incidencias: sync_store key 'axones_incidencias' -> filtrar por ordenTrabajo
+// Alertas: sync_store key 'axones_alertas' -> filtrar por ot/ordenTrabajo
+```
+
+**Campos clave en registros de produccion (datos JSONB):**
+- Impresion: tipo='impresion', turno, operador, materialesEntrada[], bobinasSalida[], scrapTransparente, scrapImpreso, consumoTintas[], devolucionTintas[], solAlcohol/solMetoxi/solAcetato, devolucionBuenaKg, devolucionRechazada[], observaciones
+- Laminacion: tipo='laminacion', turno, operador, bobinasEntrada[], bobinasVirgen[], bobinasSalida[], scrapTransparente/scrapImpreso/scrapLaminado, adhesivoEntrada/consumoAdhesivo, consumoTintas[], devolucionBuenaKg, devolucionRechazada[], observaciones
+- Corte: tipo='corte', turno, operador, bobinasEntrada[], paletas[{bobinas[], pesoTotal}], scrapRefile, bobinasRestante[], observaciones
+
+**Control de tiempo estructura:**
+- Estado: pendiente/en_progreso/pausada/completada
+- Pausas: [{timestamp, motivo, duracion}] - motivos obligatorios
+- Despachos: [{fecha, kg, cliente, notaEntrega, observaciones}]
+- tiempoTotal en ms
+
+**Incidencias estructura:**
+- id, categoria, severidad, titulo, descripcion, ordenTrabajo, estado, historial[], reportadoPor
+
+### Patron de inicializacion correcto para modulos
+```javascript
+init: async function() {
+    // 1. Asegurar AxonesDB
+    if (typeof AxonesDB !== 'undefined' && !AxonesDB.isReady()) {
+        await AxonesDB.init();
+    }
+    // 2. Cargar datos
+    await this.cargarDatos();
+    // 3. Setup UI
+    this.setupUI();
+    // 4. Escuchar re-sync
+    window.addEventListener('axones-sync', async () => {
+        await this.cargarDatos();
+    });
+}
+```
+
+### Commits de esta sesion (2026-03-25)
+```
+d51fc43 docs: Actualizar CLAUDE.md con estado de trabajo
+2431ce5 feat: Reescribir modulo etiquetas - vinculado a OT y despachos parciales
+1fe3e67 feat: Agregar boton Guardar al fondo de OT y modulos de produccion
+ae42508 fix: Precarga de proveedor, RIF cliente, codigo barras, SKU y colores tintas en OT
+11287a2 fix: Inventario vacio por SyntaxError - await en callback no-async
+268a930 fix: Agregar CDN Supabase como script estatico en todos los HTML
+c936dde fix: Race condition - AxonesDB.init() antes de isReady() en todos los modulos
+3fe5267 feat: Migrar nota-entrega.js a Supabase - 0 localStorage en modulos de negocio
+f15aab0 feat: Migrar admin.js y home.js a Supabase - eliminar localStorage
+e884b6b feat: Migrar inventario.js, nota-entrega.js y admin.js (parcial) a Supabase
+1a00abe feat: Fases 4-6 migracion - 11 modulos sin localStorage
+116f3e6 feat: Fase 3 migracion - impresion, laminacion y corte sin localStorage
+bc34c2f feat: Fase 2 migracion - control-tiempo.js sin localStorage
+8dd3649 feat: Fase 1 migracion - ordenes.js y programacion.js sin localStorage
+7bcfbc3 fix: Eliminar localStorage de clientes y proveedores - solo Supabase directo
+6192c7c fix: Clientes y proveedores no persistian - agregar cache localStorage + sync keys
+03cbfc5 docs: Documentar estado completo de Supabase - 19 tablas activas y 4 scripts SQL
+e152d22 feat: Agregar dropdown Datos Maestros (Clientes + Proveedores) al navbar
+```

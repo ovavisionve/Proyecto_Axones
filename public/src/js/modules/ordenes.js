@@ -158,6 +158,9 @@ const Ordenes = {
         // Cargar productos del inventario en el selector
         this.cargarProductosDelInventario();
 
+        // Cargar colores de tintas del inventario en datalist
+        this.cargarTintasColor();
+
         // Verificar si estamos editando una orden existente
         this.checkEditMode();
 
@@ -242,7 +245,8 @@ const Ordenes = {
                 ancho: item.ancho,
                 kg: item.kg,
                 producto: item.producto || '',
-                densidad: item.densidad || this.obtenerDensidadMaterial(item.material)
+                densidad: item.densidad || this.obtenerDensidadMaterial(item.material),
+                proveedor: item.proveedor || ''
             });
         });
 
@@ -273,6 +277,51 @@ const Ordenes = {
         productoInput.addEventListener('blur', () => this.onProductoSeleccionado());
 
         console.log(`Productos cargados: ${todosProductos.size} items (inventario + ordenes anteriores)`);
+    },
+
+    /**
+     * Carga colores de tintas del inventario en datalist para las 8 posiciones
+     */
+    cargarTintasColor: async function() {
+        const datalist = document.getElementById('listaTintasColor');
+        if (!datalist) return;
+
+        let tintas = [];
+        if (AxonesDB.isReady()) {
+            try {
+                tintas = await AxonesDB.tintas.listar({ ordenar: 'material', ascendente: true });
+            } catch (e) {
+                console.warn('[Ordenes] Error cargando tintas:', e.message);
+            }
+        }
+
+        // Fallback: tintas de localStorage
+        if (tintas.length === 0) {
+            try {
+                const tintasLocal = JSON.parse(localStorage.getItem('axones_tintas_inventario') || '[]');
+                tintas = tintasLocal;
+            } catch (e) { /* ignorar */ }
+        }
+
+        datalist.innerHTML = '';
+        const coloresUnicos = new Set();
+
+        tintas.forEach(t => {
+            const color = t.material || t.color || t.nombre || '';
+            const tipo = t.tipo || '';
+            const stock = t.stock_kg || t.cantidad || 0;
+            const displayName = tipo ? `${color} (${tipo}) - ${stock}kg` : `${color} - ${stock}kg`;
+
+            if (color && !coloresUnicos.has(color.toUpperCase())) {
+                coloresUnicos.add(color.toUpperCase());
+                const option = document.createElement('option');
+                option.value = color;
+                option.textContent = displayName;
+                datalist.appendChild(option);
+            }
+        });
+
+        console.log(`[Ordenes] Tintas color cargadas: ${coloresUnicos.size} colores`);
     },
 
     /**
@@ -349,12 +398,18 @@ const Ordenes = {
             }
         }
 
+        // Proveedor del material
+        const proveedorMaterial = document.getElementById('proveedorMaterial');
+        if (proveedorMaterial && data.proveedor) {
+            proveedorMaterial.value = data.proveedor;
+        }
+
         // Guardar densidad para calculos
         const densidadHidden = document.getElementById('sustratosVirgenDensidad');
         if (densidadHidden) densidadHidden.value = data.densidad || '0.90';
 
         // Resaltar campos pre-llenados
-        ['cpe', 'codigoBarra', 'estructuraMaterial', 'tipoMaterial', 'micrasMaterial', 'anchoMaterial'].forEach(id => {
+        ['cpe', 'codigoBarra', 'estructuraMaterial', 'tipoMaterial', 'micrasMaterial', 'anchoMaterial', 'proveedorMaterial'].forEach(id => {
             const el = document.getElementById(id);
             if (el && el.value) {
                 el.classList.add('bg-light', 'border-success');
@@ -427,11 +482,53 @@ const Ordenes = {
     },
 
     /**
-     * Carga inventario desde Supabase
+     * Carga inventario desde Supabase y mapea campos a nombres locales
      */
     loadInventario: async function() {
         if (AxonesDB.isReady()) {
-            this.inventario = await AxonesDB.materiales.listar({ ordenar: 'material', ascendente: true });
+            const materialesDB = await AxonesDB.materiales.listar({ ordenar: 'material', ascendente: true });
+            // Mapear campos Supabase a nombres locales (igual que inventario.js)
+            this.inventario = materialesDB.map(m => ({
+                id: m.id,
+                material: m.material,
+                tipo: m.tipo,
+                micras: m.micras,
+                ancho: m.ancho,
+                kg: m.stock_kg || 0,
+                densidad: m.densidad,
+                sku: m.sku,
+                codigoBarra: m.codigo_barras || '',
+                producto: m.notas || '',
+                proveedor_id: m.proveedor_id || null
+            }));
+
+            // Cargar proveedores para resolver nombres
+            try {
+                const proveedoresDB = await AxonesDB.proveedores.listar({ ordenar: 'nombre', ascendente: true });
+                this.proveedoresMap = {};
+                proveedoresDB.forEach(p => {
+                    this.proveedoresMap[p.id] = p.nombre;
+                });
+                // Asignar nombre de proveedor a cada material
+                this.inventario.forEach(item => {
+                    if (item.proveedor_id && this.proveedoresMap[item.proveedor_id]) {
+                        item.proveedor = this.proveedoresMap[item.proveedor_id];
+                    }
+                });
+            } catch (e) {
+                console.warn('[Ordenes] Error cargando proveedores:', e.message);
+            }
+
+            // Cargar clientes completos para RIF lookup
+            try {
+                const clientesDB = await AxonesDB.clientes.listar({ ordenar: 'nombre', ascendente: true });
+                this.clientesMap = {};
+                clientesDB.forEach(c => {
+                    this.clientesMap[c.nombre] = c;
+                });
+            } catch (e) {
+                console.warn('[Ordenes] Error cargando clientes para RIF:', e.message);
+            }
         } else {
             this.inventario = [];
         }
@@ -441,10 +538,14 @@ const Ordenes = {
      * Configura event listeners
      */
     setupEventListeners: function() {
-        // Guardar orden
+        // Guardar orden (arriba y abajo)
         const btnGuardar = document.getElementById('btnGuardarOrden');
         if (btnGuardar) {
             btnGuardar.addEventListener('click', () => this.guardarOrden());
+        }
+        const btnGuardarBottom = document.getElementById('btnGuardarOrdenBottom');
+        if (btnGuardarBottom) {
+            btnGuardarBottom.addEventListener('click', () => this.guardarOrden());
         }
 
         // Limpiar formulario
@@ -1214,6 +1315,11 @@ const Ordenes = {
             try {
                 const clientesDB = await AxonesDB.clientes.listar({ ordenar: 'nombre', ascendente: true });
                 clientes = clientesDB.map(c => c.nombre).filter(Boolean);
+                // Guardar mapa completo de clientes para RIF lookup
+                if (!this.clientesMap) this.clientesMap = {};
+                clientesDB.forEach(c => {
+                    if (c.nombre) this.clientesMap[c.nombre] = c;
+                });
             } catch (e) {
                 console.warn('Error cargando clientes de Supabase:', e.message);
             }
@@ -1269,19 +1375,18 @@ const Ordenes = {
         const cliente = document.getElementById('cliente')?.value;
         const rifInput = document.getElementById('clienteRif');
 
-        // Datos de ejemplo - en produccion vendrian de la base de datos
-        const clientesRif = {
-            'PEPSICO ALIMENTOS': 'J-30123456-7',
-            'NESTLE VENEZUELA': 'J-00032456-0',
-            'EMPRESAS POLAR': 'J-00028679-8',
-            'KRAFT HEINZ': 'J-30287654-1',
-            'ALFONZO RIVAS': 'J-00112233-4',
-            'MONDELEZ': 'J-30998877-6',
-            'MARY': 'J-00445566-2'
-        };
-
         if (rifInput && cliente) {
-            rifInput.value = clientesRif[cliente] || '';
+            // Buscar RIF desde datos de Supabase (cargados en loadInventario)
+            if (this.clientesMap && this.clientesMap[cliente]) {
+                rifInput.value = this.clientesMap[cliente].rif || '';
+            } else {
+                // Busqueda parcial por nombre (case insensitive)
+                const clienteUpper = cliente.toUpperCase();
+                const match = this.clientesMap && Object.keys(this.clientesMap).find(
+                    k => k.toUpperCase() === clienteUpper
+                );
+                rifInput.value = match ? (this.clientesMap[match].rif || '') : '';
+            }
         }
 
         // Cargar sugerencias de memoria si esta disponible

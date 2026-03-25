@@ -408,6 +408,7 @@
                                     <label class="form-label required-field">Producto</label>
                                     <input type="text" class="form-control form-control-sm" id="producto" list="listaProductos" required placeholder="Producto...">
                                     <datalist id="listaProductos"></datalist>
+                                    <datalist id="listaTintasColor"></datalist>
                                 </div>
                                 <div class="ot-field">
                                     <label class="form-label required-field">Estr. Material</label>
@@ -775,7 +776,7 @@
                                 <tbody>
                                     <tr>
                                         <td class="fw-bold">1</td>
-                                        <td><input type="text" class="form-control form-control-sm" id="tinta1Color"></td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta1Color" list="listaTintasColor"></td>
                                         <td><input type="text" class="form-control form-control-sm" id="tinta1Anilox"></td>
                                         <td><input type="number" class="form-control form-control-sm" id="tinta1Visc" step="0.1"></td>
                                         <td><input type="number" class="form-control form-control-sm" id="tinta1Pct" step="0.1"></td>
@@ -783,7 +784,7 @@
                                     </tr>
                                     <tr>
                                         <td class="fw-bold">2</td>
-                                        <td><input type="text" class="form-control form-control-sm" id="tinta2Color"></td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta2Color" list="listaTintasColor"></td>
                                         <td><input type="text" class="form-control form-control-sm" id="tinta2Anilox"></td>
                                         <td><input type="number" class="form-control form-control-sm" id="tinta2Visc" step="0.1"></td>
                                         <td><input type="number" class="form-control form-control-sm" id="tinta2Pct" step="0.1"></td>
@@ -791,7 +792,7 @@
                                     </tr>
                                     <tr>
                                         <td class="fw-bold">3</td>
-                                        <td><input type="text" class="form-control form-control-sm" id="tinta3Color"></td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta3Color" list="listaTintasColor"></td>
                                         <td><input type="text" class="form-control form-control-sm" id="tinta3Anilox"></td>
                                         <td><input type="number" class="form-control form-control-sm" id="tinta3Visc" step="0.1"></td>
                                         <td><input type="number" class="form-control form-control-sm" id="tinta3Pct" step="0.1"></td>
@@ -799,7 +800,7 @@
                                     </tr>
                                     <tr>
                                         <td class="fw-bold">4</td>
-                                        <td><input type="text" class="form-control form-control-sm" id="tinta4Color"></td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta4Color" list="listaTintasColor"></td>
                                         <td><input type="text" class="form-control form-control-sm" id="tinta4Anilox"></td>
                                         <td><input type="number" class="form-control form-control-sm" id="tinta4Visc" step="0.1"></td>
                                         <td><input type="number" class="form-control form-control-sm" id="tinta4Pct" step="0.1"></td>
@@ -807,7 +808,7 @@
                                     </tr>
                                     <tr>
                                         <td class="fw-bold">5</td>
-                                        <td><input type="text" class="form-control form-control-sm" id="tinta5Color"></td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta5Color" list="listaTintasColor"></td>
                                         <td><input type="text" class="form-control form-control-sm" id="tinta5Anilox"></td>
                                         <td><input type="number" class="form-control form-control-sm" id="tinta5Visc" step="0.1"></td>
                                         <td><input type="number" class="form-control form-control-sm" id="tinta5Pct" step="0.1"></td>
@@ -815,7 +816,7 @@
                                     </tr>
                                     <tr>
                                         <td class="fw-bold">6</td>
-                                        <td><input type="text" class="form-control form-control-sm" id="tinta6Color"></td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta6Color" list="listaTintasColor"></td>
                                         <td><input type="text" class="form-control form-control-sm" id="tinta6Anilox"></td>
                                         <td><input type="number" class="form-control form-control-sm" id="tinta6Visc" step="0.1"></td>
                                         <td><input type="number" class="form-control form-control-sm" id="tinta6Pct" step="0.1"></td>
@@ -823,7 +824,7 @@
                                     </tr>
                                     <tr>
                                         <td class="fw-bold">7</td>
-                                        <td><input type="text" class="form-control form-control-sm" id="tinta7Color"></td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta7Color" list="listaTintasColor"></td>
                                         <td><input type="text" class="form-control form-control-sm" id="tinta7Anilox"></td>
                                         <td><input type="number" class="form-control form-control-sm" id="tinta7Visc" step="0.1"></td>
                                         <td><input type="number" class="form-control form-control-sm" id="tinta7Pct" step="0.1"></td>
@@ -831,7 +832,7 @@
                                     </tr>
                                     <tr>
                                         <td class="fw-bold">8</td>
-                                        <td><input type="text" class="form-control form-control-sm" id="tinta8Color"></td>
+                                        <td><input type="text" class="form-control form-control-sm" id="tinta8Color" list="listaTintasColor"></td>
                                         <td><input type="text" class="form-control form-control-sm" id="tinta8Anilox"></td>
                                         <td><input type="number" class="form-control form-control-sm" id="tinta8Visc" step="0.1"></td>
                                         <td><input type="number" class="form-control form-control-sm" id="tinta8Pct" step="0.1"></td>
@@ -1107,6 +1108,13 @@
 
             <!-- Hidden field for ID -->
             <input type="hidden" id="ordenId">
+
+            <!-- Boton Guardar al fondo del formulario -->
+            <div class="text-center my-3 no-print">
+                <button class="btn btn-primary" id="btnGuardarOrdenBottom">
+                    <i class="bi bi-save me-1"></i> Guardar Orden
+                </button>
+            </div>
         </form>
     </main>
 

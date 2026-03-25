@@ -120,46 +120,68 @@ const Inventario = {
      * Inicializa el modulo
      */
     init: async function() {
-        console.log('Inicializando modulo Inventario General');
+        console.log('[Inventario] Inicializando modulo Inventario General');
 
-        // Asegurar que AxonesDB esta inicializado
-        if (typeof AxonesDB !== 'undefined' && !AxonesDB.isReady()) {
-            await AxonesDB.init();
-        }
+        try {
+            // Asegurar que AxonesDB esta inicializado
+            if (typeof AxonesDB !== 'undefined') {
+                if (!AxonesDB.isReady()) {
+                    await AxonesDB.init();
+                }
+                console.log('[Inventario] AxonesDB.isReady():', AxonesDB.isReady());
+            } else {
+                console.error('[Inventario] AxonesDB no esta definido!');
+            }
 
-        // Esperar a que AxonesSync termine de descargar datos del cloud
-        await this._esperarSync();
+            // Cargar datos desde Supabase (o fallback a datos base)
+            await this.loadInventario();
+            await this.loadTintas();
+            await this.loadAdhesivos();
 
-        // Verificar y migrar datos si hay nueva version
-        this.verificarMigracionDatos();
+            console.log('[Inventario] Datos cargados - materiales:', this.items.length, 'tintas:', this.tintas.length, 'adhesivos:', this.adhesivos.length);
 
-        await this.loadInventario();
-        await this.loadTintas();
-        await this.loadAdhesivos();
-        this.setupEventListeners();
-        this.setupTabListeners();
-        this.renderInventario();
-        this.renderTintas();
-        this.renderAdhesivos();
-        this.updateTotales();
-        this.updateCounts();
-        this.setFechaActualizacion();
+            this.setupEventListeners();
+            this.setupTabListeners();
+            this.renderInventario();
+            this.renderTintas();
+            this.renderAdhesivos();
+            this.updateTotales();
+            this.updateCounts();
+            this.setFechaActualizacion();
 
-        // Verificar alertas pendientes y resolver las que ya tienen stock
-        this.verificarAlertasPendientes();
+            // Verificar alertas pendientes y resolver las que ya tienen stock
+            this.verificarAlertasPendientes();
 
-        // Escanear inventario y generar alertas basadas en stock real
-        this.generarAlertasDeInventarioReal();
+            // Escanear inventario y generar alertas basadas en stock real
+            this.generarAlertasDeInventarioReal();
 
-        // Escuchar cambios en tiempo real desde Supabase
-        if (AxonesDB.isReady()) {
-            AxonesDB.realtime.suscribir('materiales', () => {
-                this.loadInventario().then(() => {
-                    this.renderInventario();
-                    this.updateTotales();
-                    this.updateCounts();
+            // Escuchar cambios en tiempo real desde Supabase
+            if (AxonesDB.isReady()) {
+                AxonesDB.realtime.suscribir('materiales', () => {
+                    this.loadInventario().then(() => {
+                        this.renderInventario();
+                        this.updateTotales();
+                        this.updateCounts();
+                    });
                 });
-            });
+            }
+        } catch (error) {
+            console.error('[Inventario] Error critico en init():', error);
+            // Intentar cargar datos base como ultimo recurso
+            if (!this.items || this.items.length === 0) {
+                console.log('[Inventario] Cargando datos base como fallback...');
+                this.items = this.getDatosEjemplo();
+                this.filteredItems = [...this.items];
+                this.tintas = this.getDatosTintasEjemplo();
+                this.filteredTintas = [...this.tintas];
+                this.adhesivos = this.getDatosAdhesivosEjemplo();
+                this.filteredAdhesivos = [...this.adhesivos];
+                this.renderInventario();
+                this.renderTintas();
+                this.renderAdhesivos();
+                this.updateTotales();
+                this.updateCounts();
+            }
         }
     },
 
@@ -942,10 +964,11 @@ const Inventario = {
         // Actualizar
         const btnActualizar = document.getElementById('btnActualizar');
         if (btnActualizar) {
-            btnActualizar.addEventListener('click', () => {
-                this.loadInventario();
+            btnActualizar.addEventListener('click', async () => {
+                await this.loadInventario();
                 this.renderInventario();
                 this.updateTotales();
+                this.updateCounts();
                 Axones.showSuccess('Inventario actualizado');
             });
         }
@@ -959,10 +982,12 @@ const Inventario = {
         // Sincronizar a Supabase
         const btnSyncSupabase = document.getElementById('btnSyncSupabase');
         if (btnSyncSupabase) {
-            btnSyncSupabase.addEventListener('click', () => {
+            btnSyncSupabase.addEventListener('click', async () => {
                 // Recargar desde Supabase
                 await this.loadInventario();
                 this.renderInventario();
+                this.updateTotales();
+                this.updateCounts();
                 if (typeof Axones !== 'undefined') {
                     Axones.showSuccess('Inventario sincronizado con Supabase');
                 }

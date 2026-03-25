@@ -39,55 +39,72 @@
             padding: 15px;
             min-height: 200px;
         }
-        .etiqueta-bobina {
+
+        /* Estilos etiqueta real Axones */
+        .etiqueta-axones {
             width: 100%;
-            max-width: 400px;
+            max-width: 420px;
             border: 2px solid #000;
-            padding: 10px;
-            font-family: 'Courier New', monospace;
+            margin: 0 auto;
             background: white;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 12px;
         }
-        .etiqueta-header {
-            border-bottom: 2px solid #000;
-            padding-bottom: 8px;
-            margin-bottom: 8px;
+        .et-header {
+            background: #000;
+            color: #fff;
             text-align: center;
+            padding: 6px 10px;
+            border-bottom: 2px solid #000;
         }
-        .etiqueta-logo {
-            font-size: 1.5rem;
-            font-weight: bold;
-        }
-        .etiqueta-row {
+        .et-empresa { font-size: 16px; font-weight: bold; letter-spacing: 1px; }
+        .et-subtitulo { font-size: 10px; }
+        .et-body { padding: 4px 8px; }
+        .et-row {
             display: flex;
             justify-content: space-between;
-            border-bottom: 1px solid #ccc;
-            padding: 4px 0;
+            align-items: center;
+            border-bottom: 1px solid #999;
+            padding: 3px 0;
+            min-height: 22px;
         }
-        .etiqueta-row:last-child {
-            border-bottom: none;
+        .et-row-doble {
+            display: flex;
+            border-bottom: 1px solid #999;
         }
-        .etiqueta-label {
-            font-weight: bold;
-            font-size: 0.75rem;
+        .et-celda {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 4px;
+            min-height: 22px;
         }
-        .etiqueta-value {
-            font-size: 0.85rem;
+        .et-celda:first-child { border-right: 1px solid #999; }
+        .et-paleta {
+            flex: 0 0 100px;
+            justify-content: center;
+            flex-direction: column;
+            align-items: center;
+            background: #f0f0f0;
         }
-        .etiqueta-barcode {
+        .et-lbl { font-weight: bold; font-size: 10px; white-space: nowrap; }
+        .et-val { font-size: 12px; }
+        .et-val-grande { font-size: 20px; font-weight: bold; }
+        .et-peso-neto { font-weight: bold; font-size: 14px; }
+        .et-nota { background: #fffde7; }
+        .et-footer {
             text-align: center;
-            margin-top: 10px;
-            padding: 10px;
-            background: #f8f9fa;
-        }
-        .barcode-text {
-            font-size: 1.2rem;
-            letter-spacing: 3px;
+            padding: 4px;
+            border-top: 2px solid #000;
+            font-size: 11px;
+            letter-spacing: 2px;
             font-weight: bold;
         }
         @media print {
             .no-print { display: none !important; }
             body { background: white; }
-            .etiqueta-bobina { border: 2px solid #000 !important; }
+            .etiqueta-axones { border: 2px solid #000 !important; }
         }
     </style>
 </head>
@@ -201,97 +218,116 @@
             <!-- Formulario -->
             <div class="col-lg-6 no-print">
                 <form id="formEtiqueta">
-                    <!-- Informacion de OT -->
+                    <!-- 1. Seleccionar OT -->
                     <div class="form-section">
                         <div class="form-section-title">
-                            <i class="bi bi-file-text me-1"></i> Informacion de Orden
+                            <i class="bi bi-clipboard-check me-1"></i> Orden de Trabajo
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small fw-bold">Seleccionar OT</label>
+                            <select class="form-select form-select-sm" id="selectorOT">
+                                <option value="">-- Seleccionar OT --</option>
+                            </select>
                         </div>
                         <div class="row g-2">
-                            <div class="col-md-6">
-                                <label class="form-label small">N° Orden de Trabajo</label>
-                                <input type="text" class="form-control form-control-sm" id="ordenTrabajo" required placeholder="Ej: OT-2024-001">
+                            <div class="col-md-4">
+                                <label class="form-label small">N° OT</label>
+                                <input type="text" class="form-control form-control-sm bg-light" id="etOT" readonly>
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label small">Fecha</label>
-                                <input type="date" class="form-control form-control-sm" id="fecha" required>
-                            </div>
-                            <div class="col-12">
+                            <div class="col-md-8">
                                 <label class="form-label small">Cliente</label>
-                                <input type="text" class="form-control form-control-sm" id="cliente" required placeholder="Nombre del cliente">
+                                <input type="text" class="form-control form-control-sm bg-light" id="etCliente" readonly>
                             </div>
                             <div class="col-12">
                                 <label class="form-label small">Producto</label>
-                                <input type="text" class="form-control form-control-sm" id="producto" required placeholder="Descripcion del producto">
+                                <input type="text" class="form-control form-control-sm bg-light" id="etProducto" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Maquina</label>
+                                <input type="text" class="form-control form-control-sm bg-light" id="etMaquina" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Material</label>
+                                <input type="text" class="form-control form-control-sm bg-light" id="etMaterial" readonly>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Informacion de Bobina -->
+                    <!-- 2. Despacho / Nota de Entrega -->
                     <div class="form-section">
                         <div class="form-section-title">
-                            <i class="bi bi-circle me-1"></i> Informacion de Bobina
+                            <i class="bi bi-truck me-1"></i> Despacho / Nota de Entrega
                         </div>
-                        <div class="row g-2">
-                            <div class="col-md-4">
-                                <label class="form-label small">N° Bobina</label>
-                                <input type="number" class="form-control form-control-sm" id="numBobina" required min="1" value="1">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label small">Peso Bruto (Kg)</label>
-                                <input type="number" class="form-control form-control-sm" id="pesoBruto" required step="0.01" min="0">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label small">Peso Neto (Kg)</label>
-                                <input type="number" class="form-control form-control-sm" id="pesoNeto" required step="0.01" min="0">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label small">Ancho (mm)</label>
-                                <input type="number" class="form-control form-control-sm" id="ancho" step="0.1" min="0">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label small">Largo (m)</label>
-                                <input type="number" class="form-control form-control-sm" id="largo" step="0.1" min="0">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label small">Calibre (micras)</label>
-                                <input type="number" class="form-control form-control-sm" id="calibre" step="0.1" min="0">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Material -->
-                    <div class="form-section">
-                        <div class="form-section-title">
-                            <i class="bi bi-box me-1"></i> Material
+                        <div class="mb-2">
+                            <label class="form-label small">Vincular a despacho parcial</label>
+                            <select class="form-select form-select-sm" id="selectorDespacho">
+                                <option value="">Sin despacho (etiqueta general)</option>
+                            </select>
                         </div>
                         <div class="row g-2">
                             <div class="col-md-6">
-                                <label class="form-label small">Tipo de Material</label>
-                                <select class="form-select form-select-sm" id="material">
-                                    <option value="BOPP">BOPP</option>
-                                    <option value="CAST">CAST</option>
-                                    <option value="PEBD">PEBD</option>
-                                    <option value="METAL">Metalizado</option>
-                                    <option value="PET">PET</option>
-                                    <option value="LAMINADO">Laminado</option>
+                                <label class="form-label small">N° Nota de Entrega</label>
+                                <input type="text" class="form-control form-control-sm" id="etNotaEntrega" placeholder="Ej: NE-001">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Proceso</label>
+                                <select class="form-select form-select-sm" id="etProceso">
+                                    <option value="BOB IMP">BOB IMP (Impresion)</option>
+                                    <option value="BOB LAM">BOB LAM (Laminacion)</option>
+                                    <option value="BOB CORT">BOB CORT (Corte)</option>
+                                    <option value="BOB LAM X CORT" selected>BOB LAM X CORT</option>
+                                    <option value="PRODUCCION">PRODUCCION (General)</option>
                                 </select>
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label small">Color/Tratamiento</label>
-                                <input type="text" class="form-control form-control-sm" id="tratamiento" placeholder="Ej: Transparente, Blanco">
+                        </div>
+                    </div>
+
+                    <!-- 3. Datos de la Etiqueta -->
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="bi bi-tag me-1"></i> Datos de la Etiqueta
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-md-3">
+                                <label class="form-label small">Paleta N°</label>
+                                <input type="number" class="form-control form-control-sm" id="etPaleta" value="1" min="1">
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label small">Lote</label>
-                                <input type="text" class="form-control form-control-sm" id="lote" placeholder="Numero de lote">
+                            <div class="col-md-3">
+                                <label class="form-label small">Tara (Kg)</label>
+                                <input type="number" class="form-control form-control-sm bg-light" id="etTara" step="0.1" readonly placeholder="auto">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">P. Neto (Kg)</label>
+                                <input type="number" class="form-control form-control-sm" id="etPesoNeto" step="0.01" min="0" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">P. Bruto (Kg)</label>
+                                <input type="number" class="form-control form-control-sm" id="etPesoBruto" step="0.01" min="0">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">Bobinas</label>
+                                <input type="number" class="form-control form-control-sm" id="etBobinas" min="0" value="0">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">Metros</label>
+                                <input type="number" class="form-control form-control-sm" id="etMetros" step="0.1" min="0">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">Fecha</label>
+                                <input type="date" class="form-control form-control-sm" id="etFecha" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">Hora</label>
+                                <input type="time" class="form-control form-control-sm" id="etHora">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label small">Operador</label>
-                                <input type="text" class="form-control form-control-sm" id="operador" placeholder="Nombre del operador">
+                                <input type="text" class="form-control form-control-sm" id="etOperador" placeholder="Nombre del operador">
                             </div>
                         </div>
                     </div>
 
-                    <!-- Cantidad de Etiquetas -->
+                    <!-- 4. Impresion -->
                     <div class="form-section">
                         <div class="form-section-title">
                             <i class="bi bi-printer me-1"></i> Impresion
@@ -299,7 +335,8 @@
                         <div class="row g-2 align-items-end">
                             <div class="col-md-4">
                                 <label class="form-label small">Cantidad de Etiquetas</label>
-                                <input type="number" class="form-control form-control-sm" id="cantidad" value="1" min="1" max="100">
+                                <input type="number" class="form-control form-control-sm" id="etCantidad" value="1" min="1" max="50">
+                                <small class="text-muted">Paleta se incrementa en cada una</small>
                             </div>
                             <div class="col-md-4">
                                 <button type="button" class="btn w-100" style="background-color: #fd7e14; color: white;" onclick="Etiquetas.generarPreview()">
@@ -325,7 +362,7 @@
                     <div class="label-preview d-flex justify-content-center align-items-center" id="previewContainer">
                         <div class="text-center text-muted">
                             <i class="bi bi-tag fs-1"></i>
-                            <p class="mt-2">Complete los datos y haga clic en "Vista Previa"</p>
+                            <p class="mt-2">Seleccione una OT para generar la etiqueta</p>
                         </div>
                     </div>
                 </div>
@@ -345,9 +382,7 @@
         </div>
 
         <!-- Area de Impresion -->
-        <div id="printArea" style="display: none;">
-            <!-- Etiquetas para imprimir se generan aqui -->
-        </div>
+        <div id="printArea" style="display: none;"></div>
     </main>
 
     <!-- Scripts -->

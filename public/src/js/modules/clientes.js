@@ -20,10 +20,16 @@ const ClientesModule = {
         }
 
         // Inicializar Supabase
-        await AxonesDB.init();
+        try {
+            await AxonesDB.init();
+            console.log('[Clientes] AxonesDB.init() completado, isReady:', AxonesDB.isReady());
+        } catch (e) {
+            console.error('[Clientes] Error en AxonesDB.init():', e);
+        }
 
         if (!AxonesDB.isReady()) {
             this._toast('Error: No se pudo conectar a Supabase. Verifique su conexion.', 'danger');
+            console.error('[Clientes] AxonesDB NO esta ready despues de init');
             const statusDB = document.getElementById('statusDB');
             if (statusDB) {
                 statusDB.innerHTML = '<i class="bi bi-circle-fill me-1" style="font-size:0.5rem;"></i> Sin conexion';
@@ -64,14 +70,16 @@ const ClientesModule = {
      * Cargar clientes desde Supabase
      */
     cargar: async function() {
+        console.log('[Clientes] cargar() - AxonesDB.isReady():', AxonesDB.isReady());
         try {
             this.clientes = await AxonesDB.clientes.listar({
                 ordenar: 'nombre',
                 ascendente: true,
                 soloActivos: false
             });
+            console.log('[Clientes] Cargados desde Supabase:', this.clientes.length, 'clientes');
         } catch (error) {
-            console.error('Error cargando clientes:', error);
+            console.error('[Clientes] Error cargando:', error);
             this.clientes = [];
             this._toast('Error cargando clientes: ' + error.message, 'danger');
         }

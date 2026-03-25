@@ -33,19 +33,29 @@ const AxonesDB = {
         if (this._inicializado) return this.client;
 
         if (!SUPABASE_CONFIG.url || !SUPABASE_CONFIG.anonKey) {
-            console.warn('AxonesDB: Supabase no configurado. Usando modo localStorage.');
+            console.warn('AxonesDB: Supabase no configurado.');
             return null;
         }
 
         // Cargar la libreria de Supabase si no esta cargada
         if (typeof supabase === 'undefined') {
-            await this._cargarScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js');
+            try {
+                await this._cargarScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js');
+            } catch (e) {
+                console.error('AxonesDB: No se pudo cargar el CDN de Supabase:', e);
+                return null;
+            }
+        }
+
+        if (typeof supabase === 'undefined') {
+            console.error('AxonesDB: La libreria supabase no esta disponible despues de cargar CDN');
+            return null;
         }
 
         this.client = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
         this._inicializado = true;
 
-        console.log('AxonesDB: Cliente Supabase inicializado');
+        console.log('AxonesDB: Cliente Supabase inicializado correctamente');
         return this.client;
     },
 

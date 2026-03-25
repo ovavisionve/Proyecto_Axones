@@ -3,8 +3,8 @@
 ## Descripcion del Proyecto
 Sistema integral de gestion y control de produccion para **Inversiones Axones 2008, C.A.** - empresa de empaques flexibles plasticos en Venezuela.
 
-**Version:** 1.5.0
-**Ultima actualizacion:** 2026-03-24
+**Version:** 1.6.0
+**Ultima actualizacion:** 2026-03-25
 
 ## URLs de Vercel
 - **Desarrollo:** https://proyecto-axones-git-claude-setup-axones-project-ja8zk-ova1.vercel.app/
@@ -785,3 +785,91 @@ ControlTiempo.mostrarNotificacion()   // control-tiempo.js - produccion
 Si se necesita ver logs tecnicos, el sistema usa prefijos en consola:
 - `[AxonesSync]` - logs de sincronizacion
 - `AxonesDB:` - logs de operaciones Supabase
+
+## TRABAJO EN PROGRESO (2026-03-25) - Rama: claude/review-claude-printing-task-MQf2H
+
+### Fase 11: Etiquetas reescritas - COMPLETADO (commit 2431ce5)
+- `etiquetas.html` y `etiquetas.js` reescritos completamente
+- Selector de OT que auto-llena: cliente, producto, maquina, material, proceso
+- Selector de despacho parcial vinculado a nota de entrega
+- Formato de etiqueta real de Inversiones Axones: Proceso, Paleta#, OT, Producto, Tara, P.Neto, P.Bruto, Fecha, Bobinas, Hora, Operador, Maquina, Mts, Material, Nota de Entrega
+- Tara calculada automaticamente (Bruto - Neto)
+- Proceso auto-detectado segun maquina (COMEXI=IMP, NEXUS=LAM, Cortadora=CORT)
+- N° Paleta se incrementa al imprimir multiples etiquetas
+- Fix: `AxonesDB.init()` se espera correctamente antes de cargar OTs
+- Fix: Escucha evento `axones-sync` para recargar OTs cuando sync termina
+- Fix: Fallback a localStorage si Supabase no tiene ordenes
+
+### Fase 12: Reportes y Trazabilidad - EN PROGRESO
+**Estado:** `reportes.html` YA REESCRITO (commit pendiente). `reportes.js` PENDIENTE DE ESCRIBIR.
+
+**Lo que se hizo:**
+- `reportes.html` reescrito con nuevo layout:
+  - 5 tabs: Ordenes de Trabajo | Impresion | Laminacion | Corte | Graficos
+  - Filtros: fecha desde/hasta, estado, busqueda texto libre
+  - 6 KPIs: OTs, Kg Producidos, Registros, Scrap Prom, Incidencias, Alertas
+  - Modal detalle OT (modal-xl, scrollable) para ver OT completa
+  - Modal detalle produccion para registros individuales
+  - Botones imprimir en ambos modales
+  - Botones exportar CSV/Excel en header
+
+**Lo que FALTA escribir en `reportes.js`:**
+1. **Tab Ordenes**: Tabla listando TODAS las OTs desde Supabase (`AxonesDB.ordenesHelper.cargar()`). Cada fila clickeable abre modal detalle.
+2. **Modal Detalle OT**: Al hacer click en una OT, mostrar:
+   - Datos completos de la orden (cliente, producto, material, maquina, kg pedido, etc.)
+   - Registros de produccion de CADA fase (impresion, laminacion, corte) desde tablas `produccion_impresion`, `produccion_laminacion`, `produccion_corte` filtrados por `numero_ot`
+   - Control de tiempo: pausas con motivos, tiempos acumulados desde `control_tiempo` table
+   - Despachos parciales desde control_tiempo localStorage key `axones_control_tiempo`
+   - Incidencias relacionadas desde sync_store key `axones_incidencias`
+   - Alertas desde sync_store key `axones_alertas`
+3. **Tabs Impresion/Laminacion/Corte**: Tabla con todos los registros de produccion de esa area. Cada fila clickeable abre modal con detalle del registro (bobinas entrada/salida, scrap, tintas, solventes, devolucion, observaciones).
+4. **Tab Graficos**: Reutilizar charts existentes (Chart.js) - produccion por proceso, scrap por maquina, tendencia diaria, top clientes.
+5. **Exportar CSV/Excel**: Basado en tab activo y filtros aplicados.
+
+**Estructura de datos para el modal detalle OT:**
+```javascript
+// Ordenes: AxonesDB.ordenesHelper.cargar() -> array de objetos con todos los campos de la OT
+// Produccion impresion: AxonesDB.client.from('produccion_impresion').select('*').eq('numero_ot', ot)
+// Produccion laminacion: AxonesDB.client.from('produccion_laminacion').select('*').eq('numero_ot', ot)
+// Produccion corte: AxonesDB.client.from('produccion_corte').select('*').eq('numero_ot', ot)
+// Control tiempo: AxonesDB.client.from('control_tiempo').select('*').eq('numero_ot', ot)
+// Incidencias: sync_store key 'axones_incidencias' -> filtrar por ordenTrabajo
+// Alertas: sync_store key 'axones_alertas' -> filtrar por ot/ordenTrabajo
+```
+
+**Campos clave en registros de produccion (datos JSONB):**
+- Impresion: tipo='impresion', turno, operador, materialesEntrada[], bobinasSalida[], scrapTransparente, scrapImpreso, consumoTintas[], devolucionTintas[], solAlcohol/solMetoxi/solAcetato, devolucionBuenaKg, devolucionRechazada[], observaciones
+- Laminacion: tipo='laminacion', turno, operador, bobinasEntrada[], bobinasVirgen[], bobinasSalida[], scrapTransparente/scrapImpreso/scrapLaminado, adhesivoEntrada/consumoAdhesivo, consumoTintas[], devolucionBuenaKg, devolucionRechazada[], observaciones
+- Corte: tipo='corte', turno, operador, bobinasEntrada[], paletas[{bobinas[], pesoTotal}], scrapRefile, bobinasRestante[], observaciones
+
+**Control de tiempo estructura:**
+- Estado: pendiente/en_progreso/pausada/completada
+- Pausas: [{timestamp, motivo, duracion}] - motivos obligatorios
+- Despachos: [{fecha, kg, cliente, notaEntrega, observaciones}]
+- tiempoTotal en ms
+
+**Incidencias estructura:**
+- id, categoria, severidad, titulo, descripcion, ordenTrabajo, estado, historial[], reportadoPor
+
+### Patron de inicializacion correcto para modulos
+```javascript
+init: async function() {
+    // 1. Asegurar AxonesDB
+    if (typeof AxonesDB !== 'undefined' && !AxonesDB.isReady()) {
+        await AxonesDB.init();
+    }
+    // 2. Cargar datos
+    await this.cargarDatos();
+    // 3. Setup UI
+    this.setupUI();
+    // 4. Escuchar re-sync
+    window.addEventListener('axones-sync', async () => {
+        await this.cargarDatos();
+    });
+}
+```
+
+### Commits Recientes (2026-03-25)
+```
+2431ce5 feat: Reescribir modulo etiquetas - vinculado a OT y despachos parciales
+```

@@ -14,23 +14,42 @@ const Etiquetas = {
      */
     init: async function() {
         console.log('Inicializando modulo Etiquetas');
-        await AxonesDB.init();
+
+        // Asegurar que AxonesDB esta inicializado
+        if (typeof AxonesDB !== 'undefined' && !AxonesDB.isReady()) {
+            await AxonesDB.init();
+        }
+
         await this.cargarOrdenes();
         this.setupEventListeners();
         this.setDefaults();
+
+        // Escuchar re-sync del cloud para recargar OTs
+        window.addEventListener('axones-sync', async () => {
+            await this.cargarOrdenes();
+        });
     },
 
     /**
      * Carga ordenes desde Supabase
      */
     cargarOrdenes: async function() {
-        if (AxonesDB.isReady()) {
-            this.ordenes = await AxonesDB.ordenesHelper.cargar();
-        } else {
+        try {
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                this.ordenes = await AxonesDB.ordenesHelper.cargar();
+            }
+        } catch (e) {
+            console.warn('[Etiquetas] Error cargando desde Supabase:', e);
+        }
+
+        // Fallback a localStorage si no se cargaron ordenes
+        if (!this.ordenes || this.ordenes.length === 0) {
             try {
                 this.ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
             } catch (e) { this.ordenes = []; }
         }
+
+        console.log('[Etiquetas] Ordenes cargadas:', this.ordenes.length);
         this.poblarSelectorOT();
     },
 

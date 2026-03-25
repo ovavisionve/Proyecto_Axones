@@ -9,6 +9,12 @@ const AdminModule = {
     async init() {
         await this._esperarSync();
         console.log('Inicializando modulo de Administracion...');
+
+        // Asegurar que AxonesDB esta inicializado
+        if (typeof AxonesDB !== 'undefined' && !AxonesDB.isReady()) {
+            await AxonesDB.init();
+        }
+
         this.cargarConfiguracion();
         this.cargarUsuarios();
         this.actualizarEstadisticas();
@@ -40,7 +46,13 @@ const AdminModule = {
 
     // Cargar configuracion (solo lectura desde CONFIG)
     cargarConfiguracion() {
-        const config = JSON.parse(localStorage.getItem('axones_config') || '{}');
+        let config = {};
+        if (AxonesDB.isReady()) {
+            try {
+                const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_config').single();
+                config = data?.value || {};
+            } catch (e) { config = {}; }
+        }
 
         // Umbrales
         const umbralAdvertencia = document.getElementById('umbralAdvertencia');
@@ -77,12 +89,12 @@ const AdminModule = {
             return;
         }
 
-        const config = JSON.parse(localStorage.getItem('axones_config') || '{}');
-        config.umbralAdvertencia = umbralAdvertencia;
-        config.umbralMaximo = umbralMaximo;
-        config.ultimaActualizacion = new Date().toISOString();
-
-        localStorage.setItem('axones_config', JSON.stringify(config));
+        const config = { umbralAdvertencia, umbralMaximo, ultimaActualizacion: new Date().toISOString() };
+        if (AxonesDB.isReady()) {
+            await AxonesDB.client.from('sync_store').upsert({
+                key: 'axones_config', value: config, updated_at: new Date().toISOString()
+            }, { onConflict: 'key' });
+        }
 
         // Actualizar CONFIG global si existe
         if (typeof CONFIG !== 'undefined' && CONFIG.UMBRALES_REFIL) {
@@ -93,36 +105,36 @@ const AdminModule = {
         this.mostrarNotificacion('Umbrales guardados correctamente', 'success');
     },
 
-    // Cargar usuarios desde localStorage (sincronizado con Supabase via sync-realtime.js)
+    // Cargar usuarios desde Supabase
     async cargarUsuarios() {
         const tbody = document.getElementById('tablaUsuarios');
         if (!tbody) return;
 
-        let usuarios = JSON.parse(localStorage.getItem('axones_usuarios') || '[]');
+        let usuarios = [];
+        if (AxonesDB.isReady()) {
+            try {
+                const { data } = await AxonesDB.client.from('usuarios').select('*').order('id');
+                usuarios = data || [];
+            } catch (e) { usuarios = []; }
+        }
 
         if (usuarios.length === 0) {
-            // Cargar los 22 usuarios reales de Axones + admin del sistema
+            // Seed inicial de usuarios reales
             usuarios = [
-                // Gerencia
                 { id: 1, nombre: 'ROBERT PARRA', usuario: 'rparra', rol: 'jefe_operaciones', area: 'Gerencia', cargo: 'Gerente General', activo: true },
-                // Produccion
                 { id: 2, nombre: 'ALEXIS JAURE', usuario: 'ajaure', rol: 'jefe_operaciones', area: 'Produccion', cargo: 'Gerente de Operaciones', activo: true },
                 { id: 3, nombre: 'ANGEL ANARE', usuario: 'aanare', rol: 'planificador', area: 'Produccion', cargo: 'Planificador', activo: true },
                 { id: 4, nombre: 'ROXANA GUAPE', usuario: 'rguape', rol: 'supervisor', area: 'Produccion', cargo: 'Supervisora de Calidad', activo: true },
                 { id: 5, nombre: 'HENRY ARZOLA', usuario: 'harzola', rol: 'supervisor', area: 'Produccion', cargo: 'Supervisor de Produccion', activo: true },
-                // Almacen
                 { id: 6, nombre: 'LEONARDO GONZALEZ', usuario: 'lgonzalez', rol: 'jefe_almacen', area: 'Almacen', cargo: 'Almacenista', activo: true },
-                // Impresion
                 { id: 7, nombre: 'GONZALO MUJICA', usuario: 'gmujica', rol: 'operador', area: 'Impresion', cargo: 'Operador de Impresion', activo: true },
                 { id: 8, nombre: 'NELSON CAMACARO', usuario: 'ncamacaro', rol: 'operador', area: 'Impresion', cargo: 'Operador de Impresion', activo: true },
                 { id: 9, nombre: 'STIVEN COBOS', usuario: 'scobos', rol: 'operador', area: 'Impresion', cargo: 'Operador de Impresion', activo: true },
                 { id: 10, nombre: 'NESTOR NINO', usuario: 'nnino', rol: 'operador', area: 'Impresion', cargo: 'Operador de Impresion', activo: true },
                 { id: 11, nombre: 'MIGUEL NIEVES', usuario: 'mnieves', rol: 'operador', area: 'Impresion', cargo: 'Operador de Impresion', activo: true },
-                // Laminacion
                 { id: 12, nombre: 'JACSON COLMENARES', usuario: 'jcolmenares', rol: 'operador', area: 'Laminacion', cargo: 'Operador de Laminacion', activo: true },
                 { id: 13, nombre: 'ANGEL RODRIGUEZ', usuario: 'arodriguez', rol: 'operador', area: 'Laminacion', cargo: 'Operador de Laminacion', activo: true },
                 { id: 14, nombre: 'YSAIAS ARANGUREN', usuario: 'yaranguren', rol: 'operador', area: 'Laminacion', cargo: 'Operador de Laminacion', activo: true },
-                // Corte
                 { id: 15, nombre: 'JUAN GUZMAN', usuario: 'jguzman', rol: 'operador', area: 'Corte', cargo: 'Operador de Corte', activo: true },
                 { id: 16, nombre: 'ALIS PINERO', usuario: 'apinero', rol: 'operador', area: 'Corte', cargo: 'Operador de Corte', activo: true },
                 { id: 17, nombre: 'IAN MONROY', usuario: 'imonroy', rol: 'operador', area: 'Corte', cargo: 'Operador de Corte', activo: true },
@@ -130,12 +142,9 @@ const AdminModule = {
                 { id: 19, nombre: 'RAMIRO PENA', usuario: 'rpena', rol: 'operador', area: 'Corte', cargo: 'Operador de Corte', activo: true },
                 { id: 20, nombre: 'EFREN MARQUEZ', usuario: 'emarquez', rol: 'operador', area: 'Corte', cargo: 'Operador de Corte', activo: true },
                 { id: 21, nombre: 'JESUS MARTINEZ', usuario: 'jmartinez', rol: 'operador', area: 'Corte', cargo: 'Operador de Corte', activo: true },
-                // Colorista
                 { id: 22, nombre: 'ASDRUBAL LAYA', usuario: 'alaya', rol: 'colorista', area: 'Produccion', cargo: 'Colorista', activo: true },
-                // Admin del sistema
                 { id: 99, nombre: 'Administrador', usuario: 'admin', rol: 'administrador', area: 'Administracion', cargo: 'Administrador del Sistema', activo: true },
             ];
-            localStorage.setItem('axones_usuarios', JSON.stringify(usuarios));
         }
 
         // Contador de usuarios
@@ -201,7 +210,7 @@ const AdminModule = {
         modal.show();
     },
 
-    // Guardar usuario (API + localStorage)
+    // Guardar usuario en Supabase
     async guardarUsuario() {
         const nombre = document.getElementById('usuarioNombre')?.value?.trim();
         const usuario = document.getElementById('usuarioUsername')?.value?.trim();
@@ -224,16 +233,16 @@ const AdminModule = {
             return;
         }
 
-        const usuarios = JSON.parse(localStorage.getItem('axones_usuarios') || '[]');
-
-        // Verificar usuario duplicado
-        if (usuarios.some(u => u.usuario === usuario)) {
-            this.mostrarNotificacion('El nombre de usuario ya esta registrado', 'warning');
-            return;
+        // Verificar usuario duplicado en Supabase
+        if (AxonesDB.isReady()) {
+            const { data: existente } = await AxonesDB.client.from('usuarios').select('id').eq('usuario', usuario).maybeSingle();
+            if (existente) {
+                this.mostrarNotificacion('El nombre de usuario ya esta registrado', 'warning');
+                return;
+            }
         }
 
         const nuevoUsuario = {
-            id: Date.now(),
             nombre: nombre,
             usuario: usuario,
             password: password,
@@ -242,9 +251,10 @@ const AdminModule = {
             activo: true
         };
 
-        // Guardar en localStorage
-        usuarios.push(nuevoUsuario);
-        localStorage.setItem('axones_usuarios', JSON.stringify(usuarios));
+        // Guardar en Supabase
+        if (AxonesDB.isReady()) {
+            await AxonesDB.client.from('usuarios').insert(nuevoUsuario);
+        }
 
         bootstrap.Modal.getInstance(document.getElementById('modalUsuario')).hide();
         this.cargarUsuarios();
@@ -252,23 +262,33 @@ const AdminModule = {
     },
 
     // Toggle estado usuario
-    toggleUsuario(id) {
-        const usuarios = JSON.parse(localStorage.getItem('axones_usuarios') || '[]');
-        const index = usuarios.findIndex(u => u.id === id);
-
-        if (index !== -1) {
-            usuarios[index].activo = !usuarios[index].activo;
-            localStorage.setItem('axones_usuarios', JSON.stringify(usuarios));
-            this.cargarUsuarios();
+    async toggleUsuario(id) {
+        if (AxonesDB.isReady()) {
+            const { data: user } = await AxonesDB.client.from('usuarios').select('activo').eq('id', id).single();
+            if (user) {
+                await AxonesDB.client.from('usuarios').update({ activo: !user.activo }).eq('id', id);
+            }
         }
+        this.cargarUsuarios();
     },
 
-    // Actualizar estadisticas desde localStorage (sincronizado con Supabase via sync-realtime.js)
-    actualizarEstadisticas() {
-        const prodCount = JSON.parse(localStorage.getItem('axones_produccion') || '[]').length;
-        const invCount = JSON.parse(localStorage.getItem('axones_inventario') || '[]').length;
-        const alertCount = JSON.parse(localStorage.getItem('axones_alertas') || '[]').length;
-        const tintaCount = JSON.parse(localStorage.getItem('axones_tintas') || '[]').length;
+    // Actualizar estadisticas desde Supabase
+    async actualizarEstadisticas() {
+        let prodCount = 0, invCount = 0, alertCount = 0, tintaCount = 0;
+        if (AxonesDB.isReady()) {
+            try {
+                const [prod, inv, alertas, tintas] = await Promise.all([
+                    AxonesDB.client.from('ordenes_trabajo').select('id', { count: 'exact', head: true }),
+                    AxonesDB.client.from('materiales').select('id', { count: 'exact', head: true }),
+                    AxonesDB.client.from('alertas').select('id', { count: 'exact', head: true }),
+                    AxonesDB.client.from('tintas').select('id', { count: 'exact', head: true })
+                ]);
+                prodCount = prod.count || 0;
+                invCount = inv.count || 0;
+                alertCount = alertas.count || 0;
+                tintaCount = tintas.count || 0;
+            } catch (e) { console.warn('[Admin] Error cargando estadisticas:', e.message); }
+        }
 
         const statProduccion = document.getElementById('statProduccion');
         const statInventario = document.getElementById('statInventario');
@@ -281,27 +301,15 @@ const AdminModule = {
         if (statTintas) statTintas.textContent = tintaCount;
     },
 
-    // Actualizar uso de storage
-    actualizarStorage() {
-        let total = 0;
-        for (let key in localStorage) {
-            if (localStorage.hasOwnProperty(key) && key.startsWith('axones_')) {
-                total += localStorage.getItem(key).length * 2; // UTF-16
-            }
-        }
-
-        const usedKB = (total / 1024).toFixed(1);
-        const maxKB = 5120; // 5MB aproximado
-        const porcentaje = Math.min((total / 1024 / maxKB) * 100, 100);
-
+    // Actualizar uso de storage (Supabase - muestra conteo de registros)
+    async actualizarStorage() {
         const storageUsed = document.getElementById('storageUsed');
         const storageBar = document.getElementById('storageBar');
 
-        if (storageUsed) storageUsed.textContent = usedKB;
+        if (storageUsed) storageUsed.textContent = 'Supabase';
         if (storageBar) {
-            storageBar.style.width = porcentaje + '%';
-            storageBar.className = 'progress-bar ' +
-                (porcentaje > 80 ? 'bg-danger' : porcentaje > 50 ? 'bg-warning' : 'bg-success');
+            storageBar.style.width = '10%';
+            storageBar.className = 'progress-bar bg-success';
         }
     },
 
@@ -322,24 +330,23 @@ const AdminModule = {
     },
 
     // Limpiar datos
-    limpiarDatos() {
+    async limpiarDatos() {
         if (!confirm('¿Esta seguro de eliminar TODOS los datos? Esta accion no se puede deshacer.')) {
             return;
         }
 
-        if (!confirm('ULTIMA ADVERTENCIA: Se eliminaran todos los registros de produccion, inventario, alertas y tintas.')) {
+        if (!confirm('ULTIMA ADVERTENCIA: Se eliminaran todos los registros de produccion, alertas y control de tiempo.')) {
             return;
         }
 
-        if (typeof DemoData !== 'undefined') {
-            DemoData.limpiar();
-        } else {
-            localStorage.removeItem('axones_inventario');
-            localStorage.removeItem('axones_produccion');
-            localStorage.removeItem('axones_impresion');
-            localStorage.removeItem('axones_alertas');
-            localStorage.removeItem('axones_tintas');
-            localStorage.removeItem('axones_maquinas_estado');
+        if (AxonesDB.isReady()) {
+            await Promise.all([
+                AxonesDB.client.from('produccion_impresion').delete().neq('id', 0),
+                AxonesDB.client.from('produccion_laminacion').delete().neq('id', 0),
+                AxonesDB.client.from('produccion_corte').delete().neq('id', 0),
+                AxonesDB.client.from('alertas').delete().neq('id', 0),
+                AxonesDB.client.from('control_tiempo').delete().neq('id', 0),
+            ]);
         }
 
         this.actualizarEstadisticas();
@@ -347,26 +354,27 @@ const AdminModule = {
         this.mostrarNotificacion('Datos eliminados correctamente', 'success');
     },
 
-    // Exportar datos (backup)
-    exportarDatos() {
+    // Exportar datos (backup desde Supabase)
+    async exportarDatos() {
         const backup = {
             fecha: new Date().toISOString(),
-            version: '1.0',
+            version: '2.0',
+            fuente: 'supabase',
             datos: {}
         };
 
-        // Recopilar todos los datos
-        const keys = ['axones_config', 'axones_usuarios', 'axones_inventario', 'axones_produccion',
-                     'axones_impresion', 'axones_alertas', 'axones_tintas', 'axones_maquinas_estado'];
-
-        keys.forEach(key => {
-            const data = localStorage.getItem(key);
-            if (data) {
-                backup.datos[key] = JSON.parse(data);
+        if (AxonesDB.isReady()) {
+            const tablas = ['usuarios', 'materiales', 'tintas', 'adhesivos', 'ordenes_trabajo',
+                           'produccion_impresion', 'produccion_laminacion', 'produccion_corte',
+                           'alertas', 'control_tiempo', 'despachos', 'consumo_tintas'];
+            for (const tabla of tablas) {
+                try {
+                    const { data } = await AxonesDB.client.from(tabla).select('*');
+                    backup.datos[tabla] = data || [];
+                } catch (e) { backup.datos[tabla] = []; }
             }
-        });
+        }
 
-        // Descargar
         const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -378,13 +386,13 @@ const AdminModule = {
         this.mostrarNotificacion('Backup exportado correctamente', 'success');
     },
 
-    // Importar datos
+    // Importar datos (restaurar backup a Supabase)
     importarDatos(input) {
         const file = input.files[0];
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             try {
                 const backup = JSON.parse(e.target.result);
 
@@ -396,10 +404,13 @@ const AdminModule = {
                     return;
                 }
 
-                // Restaurar datos
-                Object.keys(backup.datos).forEach(key => {
-                    localStorage.setItem(key, JSON.stringify(backup.datos[key]));
-                });
+                if (AxonesDB.isReady() && backup.fuente === 'supabase') {
+                    for (const [tabla, registros] of Object.entries(backup.datos)) {
+                        if (registros.length > 0) {
+                            await AxonesDB.client.from(tabla).upsert(registros, { onConflict: 'id' });
+                        }
+                    }
+                }
 
                 this.cargarConfiguracion();
                 this.cargarUsuarios();
@@ -413,7 +424,6 @@ const AdminModule = {
         };
         reader.readAsText(file);
 
-        // Reset input
         input.value = '';
     },
 

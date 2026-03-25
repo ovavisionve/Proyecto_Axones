@@ -15,22 +15,95 @@ const ControlTiempo = {
     _lastSyncTimestamp: 0,
     _syncEnCurso: false,
 
+    // Cache en memoria de registros (evita lecturas constantes a Supabase)
+    _registrosCache: {},
+    _cacheValido: false,
+
     /**
-     * Obtiene todos los registros de tiempo
+     * Obtiene todos los registros de tiempo (desde cache o Supabase)
      */
     getRegistros: function() {
+        // Retorna cache en memoria (se actualiza via loadRegistros)
+        return this._registrosCache || {};
+    },
+
+    /**
+     * Carga registros desde Supabase al cache en memoria
+     */
+    loadRegistros: async function() {
+        if (!AxonesDB.isReady()) {
+            this._registrosCache = {};
+            return;
+        }
         try {
-            return JSON.parse(localStorage.getItem(this.STORAGE_KEY) || '{}');
+            const { data } = await AxonesDB.client
+                .from('control_tiempo')
+                .select('*');
+            // Convertir a formato key-value compatible
+            const registros = {};
+            (data || []).forEach(row => {
+                const key = `${row.orden_id || row.numero_ot}_${row.fase}`;
+                registros[key] = {
+                    _supabaseId: row.id,
+                    ordenId: row.orden_id || row.numero_ot,
+                    fase: row.fase,
+                    estado: row.estado || 'pendiente',
+                    tiempoTotal: row.tiempo_acumulado_ms || 0,
+                    operador: row.operador,
+                    pausas: row.pausas || [],
+                    inicios: [],
+                    ultimoInicio: row.ultimo_inicio ? new Date(row.ultimo_inicio).getTime() : null,
+                    despachos: [],
+                    ...(row.datos || {})
+                };
+            });
+            this._registrosCache = registros;
+            this._cacheValido = true;
         } catch (e) {
-            return {};
+            console.warn('[ControlTiempo] Error cargando registros:', e.message);
         }
     },
 
     /**
-     * Guarda registros
+     * Guarda un registro especifico en Supabase
      */
-    saveRegistros: function(registros) {
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(registros));
+    saveRegistros: async function(registros) {
+        this._registrosCache = registros;
+
+        if (!AxonesDB.isReady()) return;
+
+        // Guardar cada registro modificado en Supabase
+        for (const [key, reg] of Object.entries(registros)) {
+            try {
+                const row = {
+                    orden_id: reg.ordenId,
+                    numero_ot: reg.numeroOt || null,
+                    fase: reg.fase,
+                    estado: reg.estado,
+                    operador: reg.operador,
+                    tiempo_acumulado_ms: reg.tiempoTotal || 0,
+                    ultimo_inicio: reg.ultimoInicio ? new Date(reg.ultimoInicio).toISOString() : null,
+                    pausas: reg.pausas || [],
+                    datos: reg  // Objeto completo como JSONB
+                };
+
+                if (reg._supabaseId) {
+                    await AxonesDB.client
+                        .from('control_tiempo')
+                        .update(row)
+                        .eq('id', reg._supabaseId);
+                } else {
+                    const { data } = await AxonesDB.client
+                        .from('control_tiempo')
+                        .insert(row)
+                        .select('id')
+                        .single();
+                    if (data) reg._supabaseId = data.id;
+                }
+            } catch (e) {
+                console.warn('[ControlTiempo] Error guardando registro:', key, e.message);
+            }
+        }
     },
 
     /**
@@ -485,11 +558,11 @@ const ControlTiempo = {
     /**
      * Registrar despacho parcial
      */
-    registrarDespacho: function(ordenId, fase) {
+    registrarDespacho: async function(ordenId, fase) {
         // Obtener datos de la orden
         let ordenes = [];
         try {
-            ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
+            ordenes = AxonesDB.isReady() ? await AxonesDB.ordenesHelper.cargar() : [];
         } catch (e) {
             ordenes = [];
         }
@@ -761,15 +834,13 @@ const ControlTiempo = {
         const registros = this.getRegistros();
         const key = `${ordenId}_${fase}`;
 
-        // Guardar historial
+        // Guardar historial (en el mismo registro de Supabase via datos JSONB)
         if (registros[key]) {
-            const historialKey = 'axones_tiempo_historial';
-            const historial = JSON.parse(localStorage.getItem(historialKey) || '[]');
-            historial.push({
-                ...registros[key],
+            if (!registros[key].historialReinicios) registros[key].historialReinicios = [];
+            registros[key].historialReinicios.push({
+                tiempoTotal: registros[key].tiempoTotal,
                 fechaReinicio: new Date().toISOString()
             });
-            localStorage.setItem(historialKey, JSON.stringify(historial));
         }
 
         // Crear nuevo registro
@@ -783,14 +854,14 @@ const ControlTiempo = {
     /**
      * Renderiza panel de comandas (selector de OT tipo restaurante)
      */
-    renderPanelComandas: function(fase, contenedorId, onSeleccionarOrden) {
+    renderPanelComandas: async function(fase, contenedorId, onSeleccionarOrden) {
         const contenedor = document.getElementById(contenedorId);
         if (!contenedor) return;
 
-        // Obtener ordenes disponibles desde localStorage primero
+        // Obtener ordenes disponibles desde Supabase
         let ordenes = [];
         try {
-            ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
+            ordenes = AxonesDB.isReady() ? await AxonesDB.ordenesHelper.cargar() : [];
         } catch (e) {
             ordenes = [];
         }
@@ -882,11 +953,11 @@ const ControlTiempo = {
     /**
      * Maneja la seleccion de una comanda
      */
-    seleccionarComanda: function(ordenId, fase, contenedorId) {
+    seleccionarComanda: async function(ordenId, fase, contenedorId) {
         // Obtener la orden
         let ordenes = [];
         try {
-            ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
+            ordenes = AxonesDB.isReady() ? await AxonesDB.ordenesHelper.cargar() : [];
         } catch (e) {
             ordenes = [];
         }

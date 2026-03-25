@@ -360,7 +360,7 @@ const Checklist = {
     /**
      * Guarda el checklist
      */
-    guardar: function() {
+    guardar: async function() {
         const form = document.getElementById('formChecklist');
         if (!form.checkValidity()) {
             form.reportValidity();
@@ -401,10 +401,16 @@ const Checklist = {
             registradoPorNombre: Auth.getUser() ? Auth.getUser().nombre : 'Unknown'
         };
 
-        // Guardar en localStorage
-        const registros = JSON.parse(localStorage.getItem(CONFIG.CACHE.PREFIJO + 'checklist') || '[]');
+        // Guardar en Supabase sync_store
+        let registros = [];
+        try {
+            const { data: existing } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_checklist').single();
+            registros = (existing && existing.value) ? (typeof existing.value === 'string' ? JSON.parse(existing.value) : existing.value) : [];
+        } catch (e) { /* empty */ }
         registros.unshift(datos);
-        localStorage.setItem(CONFIG.CACHE.PREFIJO + 'checklist', JSON.stringify(registros));
+        try {
+            await AxonesDB.client.from('sync_store').upsert({ key: 'axones_checklist', value: registros, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+        } catch (e) { console.warn('Checklist: Error guardando en Supabase', e); }
 
         Axones.showSuccess('Checklist guardado correctamente');
 
@@ -417,7 +423,7 @@ const Checklist = {
     /**
      * Genera alerta por fallas en checklist
      */
-    generarAlerta: function(datos) {
+    generarAlerta: async function(datos) {
         const alerta = {
             id: 'ALT_' + Date.now(),
             timestamp: new Date().toISOString(),
@@ -430,9 +436,15 @@ const Checklist = {
             registro_id: datos.id
         };
 
-        const alertas = JSON.parse(localStorage.getItem(CONFIG.CACHE.PREFIJO + 'alertas') || '[]');
+        let alertas = [];
+        try {
+            const { data: existing } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_alertas').single();
+            alertas = (existing && existing.value) ? (typeof existing.value === 'string' ? JSON.parse(existing.value) : existing.value) : [];
+        } catch (e) { /* empty */ }
         alertas.unshift(alerta);
-        localStorage.setItem(CONFIG.CACHE.PREFIJO + 'alertas', JSON.stringify(alertas));
+        try {
+            await AxonesDB.client.from('sync_store').upsert({ key: 'axones_alertas', value: alertas, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+        } catch (e) { console.warn('Checklist: Error guardando alerta en Supabase', e); }
 
         Axones.showToast(`ALERTA: ${alerta.mensaje}`, alerta.nivel === 'critical' ? 'danger' : 'warning');
     },
@@ -456,8 +468,12 @@ const Checklist = {
     /**
      * Muestra historial de checklists
      */
-    verHistorial: function() {
-        const registros = JSON.parse(localStorage.getItem(CONFIG.CACHE.PREFIJO + 'checklist') || '[]');
+    verHistorial: async function() {
+        let registros = [];
+        try {
+            const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_checklist').single();
+            registros = (data && data.value) ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+        } catch (e) { /* empty */ }
 
         let html = '<div class="table-responsive"><table class="table table-sm table-striped">';
         html += '<thead><tr><th>Fecha</th><th>Area</th><th>Maquina</th><th>Operador</th><th>Estado</th></tr></thead><tbody>';

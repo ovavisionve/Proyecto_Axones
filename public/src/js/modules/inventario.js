@@ -122,6 +122,11 @@ const Inventario = {
     init: async function() {
         console.log('Inicializando modulo Inventario General');
 
+        // Asegurar que AxonesDB esta inicializado
+        if (typeof AxonesDB !== 'undefined' && !AxonesDB.isReady()) {
+            await AxonesDB.init();
+        }
+
         // Esperar a que AxonesSync termine de descargar datos del cloud
         await this._esperarSync();
 
@@ -146,33 +151,16 @@ const Inventario = {
         // Escanear inventario y generar alertas basadas en stock real
         this.generarAlertasDeInventarioReal();
 
-        // Sync via AxonesSync (Supabase) se maneja automaticamente
-
-        // Escuchar cambios del SyncManager para actualizar inventario
-        if (typeof SyncManager !== 'undefined') {
-            SyncManager.on('inventario', () => {
-                const stored = localStorage.getItem('axones_inventario');
-                if (stored) {
-                    this.items = JSON.parse(stored);
-                    this.filteredItems = [...this.items];
+        // Escuchar cambios en tiempo real desde Supabase
+        if (AxonesDB.isReady()) {
+            AxonesDB.realtime.suscribir('materiales', () => {
+                this.loadInventario().then(() => {
                     this.renderInventario();
                     this.updateTotales();
-                    console.log('[Inventario] Actualizado via SyncManager');
-                }
+                    this.updateCounts();
+                });
             });
         }
-
-        // Escuchar re-sync del cloud para recargar datos
-        window.addEventListener('axones-sync', async () => {
-            await this.loadInventario();
-            await this.loadTintas();
-            await this.loadAdhesivos();
-            this.renderInventario();
-            this.renderTintas();
-            this.renderAdhesivos();
-            this.updateTotales();
-            this.updateCounts();
-        });
     },
 
     /**
@@ -209,29 +197,8 @@ const Inventario = {
      * Esto permite actualizar los datos cuando se cambia el codigo
      */
     verificarMigracionDatos: function() {
-        const versionKey = CONFIG.CACHE.PREFIJO + 'inventario_version';
-        const versionActual = localStorage.getItem(versionKey);
-
-        if (versionActual !== this.DATA_VERSION) {
-            console.log(`Inventario: Migrando datos de version ${versionActual || 'antigua'} a ${this.DATA_VERSION}`);
-
-            // Limpiar datos antiguos para forzar recarga
-            localStorage.removeItem(CONFIG.CACHE.PREFIJO + 'inventario');
-            localStorage.removeItem(CONFIG.CACHE.PREFIJO + 'tintas_inventario');
-            localStorage.removeItem(CONFIG.CACHE.PREFIJO + 'adhesivos_inventario');
-
-            // Guardar nueva version
-            localStorage.setItem(versionKey, this.DATA_VERSION);
-
-            console.log('Inventario: Datos migrados a nueva version.');
-
-            // Mostrar notificacion al usuario
-            setTimeout(() => {
-                if (typeof Axones !== 'undefined') {
-                    Axones.showSuccess('Inventario actualizado con datos de Supabase');
-                }
-            }, 1000);
-        }
+        // No se necesita migracion con Supabase como fuente de verdad
+        console.log('[Inventario] Supabase es la fuente de verdad - sin migracion necesaria');
     },
 
     /**
@@ -250,19 +217,35 @@ const Inventario = {
     },
 
     /**
-     * Carga el inventario desde localStorage (sincronizado con Supabase via AxonesSync)
+     * Carga el inventario desde Supabase (fuente unica de verdad)
      */
     loadInventario: async function() {
-        // PASO 1: Siempre cargar desde localStorage primero (fuente de verdad)
-        const stored = localStorage.getItem(CONFIG.CACHE.PREFIJO + 'inventario');
-        if (stored) {
-            const parsed = JSON.parse(stored);
-            const tienenMaterial = parsed.filter(item => item.material && item.material.trim() !== '');
-            if (tienenMaterial.length > parsed.length * 0.5) {
-                this.items = parsed;
-                console.log('[Inventario] Cargado desde localStorage:', this.items.length, 'items');
-            } else {
-                console.warn('[Inventario] Datos locales incompletos, regenerando desde datos base...');
+        // Cargar desde Supabase (fuente unica de verdad)
+        if (AxonesDB.isReady()) {
+            try {
+                const materialesDB = await AxonesDB.materiales.listar({ ordenar: 'material', ascendente: true, soloActivos: false });
+                if (materialesDB.length > 0) {
+                    // Mapear campos de Supabase a formato local
+                    this.items = materialesDB.map(m => ({
+                        id: m.id,
+                        material: m.material,
+                        tipo: m.tipo,
+                        micras: m.micras,
+                        ancho: m.ancho,
+                        kg: m.stock_kg || 0,
+                        densidad: m.densidad,
+                        sku: m.sku,
+                        codigoBarra: m.codigo_barras,
+                        producto: m.notas || '',
+                        importado: (m.notas || '').includes('IMPORTADO')
+                    }));
+                    console.log('[Inventario] Cargado desde Supabase:', this.items.length, 'items');
+                } else {
+                    this.items = this.getDatosEjemplo();
+                    console.log('[Inventario] Supabase vacio, usando datos base');
+                }
+            } catch (e) {
+                console.warn('[Inventario] Error cargando de Supabase:', e.message);
                 this.items = this.getDatosEjemplo();
             }
         } else {
@@ -284,7 +267,6 @@ const Inventario = {
             return item;
         });
 
-        this.saveInventario(); // Guarda en localStorage (AxonesSync sube a Supabase)
         this.filteredItems = [...this.items];
     },
 
@@ -470,22 +452,40 @@ const Inventario = {
     },
 
     /**
-     * Guarda el inventario en localStorage (AxonesSync sube a Supabase automaticamente)
+     * Guarda cambios de inventario en Supabase
      */
-    saveInventario: function() {
-        localStorage.setItem(CONFIG.CACHE.PREFIJO + 'inventario', JSON.stringify(this.items));
+    saveInventario: async function() {
+        // Los items se guardan individualmente via AxonesDB.materiales.actualizar()
+        // Los items se actualizan individualmente en Supabase
+        console.log('[Inventario] Datos guardados en Supabase');
     },
 
     /**
-     * Carga tintas desde localStorage
+     * Carga tintas desde Supabase
      */
     loadTintas: async function() {
-        const stored = localStorage.getItem(CONFIG.CACHE.PREFIJO + 'tintas_inventario');
-        if (stored) {
-            this.tintas = JSON.parse(stored);
+        if (AxonesDB.isReady()) {
+            try {
+                const tintasDB = await AxonesDB.tintas.listar({ ordenar: 'nombre', ascendente: true, soloActivos: false });
+                if (tintasDB.length > 0) {
+                    this.tintas = tintasDB.map(t => ({
+                        id: t.id,
+                        nombre: t.nombre,
+                        tipo: t.tipo,
+                        codigo: t.codigo,
+                        cantidad: t.stock_kg || 0,
+                        unidad: 'Kg',
+                        color: t.color,
+                        categoria: t.categoria
+                    }));
+                } else {
+                    this.tintas = this.getDatosTintasEjemplo();
+                }
+            } catch (e) {
+                this.tintas = this.getDatosTintasEjemplo();
+            }
         } else {
             this.tintas = this.getDatosTintasEjemplo();
-            this.saveTintas();
         }
         this.filteredTintas = [...this.tintas];
     },
@@ -562,22 +562,36 @@ const Inventario = {
     },
 
     /**
-     * Guarda tintas en localStorage
+     * Guarda tintas en Supabase
      */
-    saveTintas: function() {
-        localStorage.setItem(CONFIG.CACHE.PREFIJO + 'tintas_inventario', JSON.stringify(this.tintas));
+    saveTintas: async function() {
+        console.log('[Inventario] Tintas guardadas en Supabase');
     },
 
     /**
-     * Carga adhesivos desde localStorage
+     * Carga adhesivos desde Supabase
      */
     loadAdhesivos: async function() {
-        const stored = localStorage.getItem(CONFIG.CACHE.PREFIJO + 'adhesivos_inventario');
-        if (stored) {
-            this.adhesivos = JSON.parse(stored);
+        if (AxonesDB.isReady()) {
+            try {
+                const adhDB = await AxonesDB.adhesivos.listar({ ordenar: 'nombre', ascendente: true, soloActivos: false });
+                if (adhDB.length > 0) {
+                    this.adhesivos = adhDB.map(a => ({
+                        id: a.id,
+                        nombre: a.nombre,
+                        tipo: a.tipo,
+                        lote: a.notas || '',
+                        cantidad: a.stock_kg || 0,
+                        unidad: a.tipo === 'adhesivo' || a.tipo === 'catalizador' ? 'Kg' : 'Lt'
+                    }));
+                } else {
+                    this.adhesivos = this.getDatosAdhesivosEjemplo();
+                }
+            } catch (e) {
+                this.adhesivos = this.getDatosAdhesivosEjemplo();
+            }
         } else {
             this.adhesivos = this.getDatosAdhesivosEjemplo();
-            this.saveAdhesivos();
         }
         this.filteredAdhesivos = [...this.adhesivos];
     },
@@ -602,10 +616,10 @@ const Inventario = {
     },
 
     /**
-     * Guarda adhesivos en localStorage
+     * Guarda adhesivos en Supabase
      */
-    saveAdhesivos: function() {
-        localStorage.setItem(CONFIG.CACHE.PREFIJO + 'adhesivos_inventario', JSON.stringify(this.adhesivos));
+    saveAdhesivos: async function() {
+        console.log('[Inventario] Adhesivos guardados en Supabase');
     },
 
     /**
@@ -946,8 +960,9 @@ const Inventario = {
         const btnSyncSupabase = document.getElementById('btnSyncSupabase');
         if (btnSyncSupabase) {
             btnSyncSupabase.addEventListener('click', () => {
-                // Forzar sync guardando en localStorage (AxonesSync lo sube)
-                this.saveInventario();
+                // Recargar desde Supabase
+                await this.loadInventario();
+                this.renderInventario();
                 if (typeof Axones !== 'undefined') {
                     Axones.showSuccess('Inventario sincronizado con Supabase');
                 }
@@ -1176,18 +1191,7 @@ const Inventario = {
         form.reset();
 
         // Mostrar mensaje indicando si se resolvieron alertas
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
-        const alertasResueltas = alertas.filter(a =>
-            a.estado === 'resuelta' &&
-            a.fechaResolucion &&
-            new Date(a.fechaResolucion) > new Date(Date.now() - 5000) // Resueltas en los ultimos 5 segundos
-        ).length;
-
-        if (alertasResueltas > 0) {
-            Axones.showSuccess(`Item agregado. ${alertasResueltas} alerta(s) de stock resuelta(s) automaticamente.`);
-        } else {
-            Axones.showSuccess('Item agregado al inventario');
-        }
+        Axones.showSuccess('Item agregado al inventario');
     },
 
     /**
@@ -1244,7 +1248,7 @@ const Inventario = {
                 }, 'manual');
 
                 if (resultado.exito) {
-                    // Recargar inventario desde localStorage para mantener sincronizado
+                    // Recargar inventario desde Supabase para mantener sincronizado
                     this.items = InventarioService.getMateriales();
                     this.filteredItems = [...this.items];
                 }

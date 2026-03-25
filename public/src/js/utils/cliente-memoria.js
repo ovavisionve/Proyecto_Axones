@@ -9,25 +9,41 @@ const ClienteMemoria = {
     /**
      * Obtiene la memoria guardada
      */
+    _memoriaCache: null,
+
     getMemoria: function() {
-        try {
-            return JSON.parse(localStorage.getItem(this.STORAGE_KEY) || '{}');
-        } catch (e) {
-            return {};
-        }
+        return this._memoriaCache || {};
     },
 
     /**
-     * Guarda la memoria
+     * Carga la memoria desde Supabase
      */
-    saveMemoria: function(memoria) {
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(memoria));
+    loadMemoria: async function() {
+        try {
+            const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', this.STORAGE_KEY).single();
+            this._memoriaCache = (data && data.value) ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : {};
+        } catch (e) {
+            this._memoriaCache = {};
+        }
+        return this._memoriaCache;
+    },
+
+    /**
+     * Guarda la memoria en Supabase
+     */
+    saveMemoria: async function(memoria) {
+        this._memoriaCache = memoria;
+        try {
+            await AxonesDB.client.from('sync_store').upsert({ key: this.STORAGE_KEY, value: memoria, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+        } catch (e) {
+            console.warn('ClienteMemoria: Error guardando en Supabase', e);
+        }
     },
 
     /**
      * Aprende de una orden guardada
      */
-    aprenderDeOrden: function(orden) {
+    aprenderDeOrden: async function(orden) {
         if (!orden.cliente) return;
 
         const memoria = this.getMemoria();
@@ -96,7 +112,7 @@ const ClienteMemoria = {
 
         memoria[cliente].ultimaOrden = new Date().toISOString();
 
-        this.saveMemoria(memoria);
+        await this.saveMemoria(memoria);
         console.log(`ClienteMemoria: Aprendido de orden para ${cliente}`);
     },
 
@@ -164,10 +180,12 @@ const ClienteMemoria = {
     /**
      * Reconstruye memoria desde ordenes existentes
      */
-    reconstruirDesdeOrdenes: function() {
+    reconstruirDesdeOrdenes: async function() {
         try {
-            const ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
-            ordenes.forEach(orden => this.aprenderDeOrden(orden));
+            const ordenes = await AxonesDB.ordenesHelper.cargar() || [];
+            for (const orden of ordenes) {
+                await this.aprenderDeOrden(orden);
+            }
             console.log(`ClienteMemoria: Reconstruida desde ${ordenes.length} ordenes`);
         } catch (e) {
             console.warn('Error reconstruyendo memoria:', e);
@@ -177,10 +195,10 @@ const ClienteMemoria = {
     /**
      * Limpia memoria de un cliente
      */
-    limpiarCliente: function(cliente) {
+    limpiarCliente: async function(cliente) {
         const memoria = this.getMemoria();
         delete memoria[cliente];
-        this.saveMemoria(memoria);
+        await this.saveMemoria(memoria);
     },
 
     /**

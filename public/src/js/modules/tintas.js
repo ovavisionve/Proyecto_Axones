@@ -8,48 +8,28 @@ const Tintas = {
     // INICIALIZACION
     // =========================================================
     init: async function() {
-        // Esperar a que AxonesSync termine de descargar datos del cloud
-        await this._esperarSync();
-
         console.log('Inicializando modulo Tintas y Solventes');
-        this.initConsumo();
-        this.initInventario();
-        this.initCementerio();
-        this.initMezclas();
 
-        // Escuchar re-sync del cloud para recargar datos
-        window.addEventListener('axones-sync', () => {
-            this.initConsumo();
-            this.initInventario();
-        });
-    },
-
-    /**
-     * Espera a que AxonesSync termine la descarga inicial (max 5 segundos)
-     */
-    _esperarSync: async function() {
-        if (typeof AxonesSync !== 'undefined' && AxonesSync._isReady && AxonesSync._isReady()) {
-            return;
+        // Asegurar que AxonesDB esta inicializado
+        if (typeof AxonesDB !== 'undefined' && !AxonesDB.isReady()) {
+            await AxonesDB.init();
         }
-        return new Promise(resolve => {
-            let resuelto = false;
-            const handler = () => { if (!resuelto) { resuelto = true; resolve(); } };
-            window.addEventListener('axones-sync', handler, { once: true });
-            setTimeout(() => {
-                if (!resuelto) { resuelto = true; window.removeEventListener('axones-sync', handler); resolve(); }
-            }, 5000);
-        });
+
+        await this.initConsumo();
+        await this.initInventario();
+        await this.initCementerio();
+        await this.initMezclas();
     },
 
     // =========================================================
     // TAB 1: CONSUMO POR OT
     // =========================================================
-    initConsumo: function() {
+    initConsumo: async function() {
         this.renderGridLaminacion();
         this.renderGridSuperficie();
         this.renderGridRestante();
         this.setDefaultDate();
-        this.cargarOTs();
+        await this.cargarOTs();
         this.setupConsumoEvents();
     },
 
@@ -58,12 +38,17 @@ const Tintas = {
         if (el) el.value = new Date().toISOString().split('T')[0];
     },
 
-    /** Carga OTs desde localStorage al select */
-    cargarOTs: function() {
+    /** Carga OTs desde Supabase al select */
+    cargarOTs: async function() {
         const select = document.getElementById('consumoOT');
         if (!select) return;
 
-        const ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
+        let ordenes = [];
+        try {
+            ordenes = await AxonesDB.ordenesHelper.cargar() || [];
+        } catch (e) {
+            console.warn('Tintas: Error cargando OTs desde Supabase', e);
+        }
         select.innerHTML = '<option value="">Seleccionar OT...</option>';
 
         ordenes.forEach(ot => {
@@ -340,7 +325,7 @@ const Tintas = {
     },
 
     /** Guarda el consumo (solo registro, no descuenta inventario) */
-    guardarConsumo: function() {
+    guardarConsumo: async function() {
         const datos = this.recopilarConsumo();
 
         if (!datos.fecha || !datos.ordenTrabajo) {
@@ -348,10 +333,15 @@ const Tintas = {
             return;
         }
 
-        // Guardar en localStorage
-        const registros = JSON.parse(localStorage.getItem('axones_consumo_tintas') || '[]');
-        registros.unshift(datos);
-        localStorage.setItem('axones_consumo_tintas', JSON.stringify(registros));
+        try {
+            // Save to Supabase sync_store
+            const { data: existing } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_consumo_tintas').single();
+            const registros = (existing && existing.value) ? (typeof existing.value === 'string' ? JSON.parse(existing.value) : existing.value) : [];
+            registros.unshift(datos);
+            await AxonesDB.client.from('sync_store').upsert({ key: 'axones_consumo_tintas', value: registros, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+        } catch (e) {
+            console.warn('Tintas: Error guardando consumo en Supabase', e);
+        }
 
         this.mostrarToast('Consumo registrado correctamente (solo registro, no descuenta inventario)', 'success');
         this.limpiarConsumo();
@@ -374,8 +364,14 @@ const Tintas = {
     },
 
     /** Muestra historial de consumos en modal */
-    mostrarHistorial: function() {
-        const registros = JSON.parse(localStorage.getItem('axones_consumo_tintas') || '[]');
+    mostrarHistorial: async function() {
+        let registros = [];
+        try {
+            const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_consumo_tintas').single();
+            registros = (data && data.value) ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+        } catch (e) {
+            console.warn('Tintas: Error cargando historial desde Supabase', e);
+        }
         const contenido = document.getElementById('historialContenido');
         if (!contenido) return;
 
@@ -409,19 +405,38 @@ const Tintas = {
     // =========================================================
     _filtroActivo: 'todas',
 
-    initInventario: function() {
+    initInventario: async function() {
+        await this._loadInventario();
         this.renderInventario();
         this.setupInventarioEvents();
     },
 
-    /** Obtiene inventario de tintas desde localStorage */
+    /** Obtiene inventario de tintas desde Supabase (cached) */
+    _inventarioCache: null,
     getInventario: function() {
-        return JSON.parse(localStorage.getItem('axones_tintas_inventario') || '[]');
+        return this._inventarioCache || [];
     },
 
-    /** Guarda inventario de tintas en localStorage */
-    saveInventario: function(data) {
-        localStorage.setItem('axones_tintas_inventario', JSON.stringify(data));
+    /** Carga inventario de tintas desde Supabase */
+    _loadInventario: async function() {
+        try {
+            const data = await AxonesDB.tintas.listar({ soloActivos: true });
+            this._inventarioCache = data || [];
+        } catch (e) {
+            console.warn('Tintas: Error cargando inventario desde Supabase', e);
+            this._inventarioCache = [];
+        }
+        return this._inventarioCache;
+    },
+
+    /** Guarda inventario de tintas en Supabase sync_store */
+    saveInventario: async function(data) {
+        this._inventarioCache = data;
+        try {
+            await AxonesDB.client.from('sync_store').upsert({ key: 'axones_tintas_inventario', value: data, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+        } catch (e) {
+            console.warn('Tintas: Error guardando inventario en Supabase', e);
+        }
     },
 
     /** Renderiza la tabla de inventario con filtros */
@@ -684,23 +699,29 @@ const Tintas = {
     /** Archive a tinta: move from tintas to tintas_cementerio */
     archivarTinta: async function(id, motivo) {
         if (!AxonesDB.isReady()) {
-            // Fallback localStorage
+            // Fallback sync_store
             const items = this.getInventario();
             const idx = items.findIndex(t => t.id === id);
             if (idx < 0) return;
 
             const tinta = items[idx];
             items.splice(idx, 1);
-            this.saveInventario(items);
+            await this.saveInventario(items);
 
-            const cementerio = JSON.parse(localStorage.getItem('axones_tintas_cementerio') || '[]');
+            let cementerio = [];
+            try {
+                const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_tintas_cementerio').single();
+                cementerio = (data && data.value) ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+            } catch (e) { /* empty */ }
             cementerio.unshift({
                 ...tinta,
                 motivo: motivo,
                 archivado_por: (typeof Auth !== 'undefined' && Auth.getUser()) ? Auth.getUser().nombre : 'Unknown',
                 archivado_en: new Date().toISOString(),
             });
-            localStorage.setItem('axones_tintas_cementerio', JSON.stringify(cementerio));
+            try {
+                await AxonesDB.client.from('sync_store').upsert({ key: 'axones_tintas_cementerio', value: cementerio, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+            } catch (e) { console.warn('Tintas: Error saving cementerio', e); }
 
             this.renderInventario();
             await this.renderCementerio();
@@ -757,12 +778,12 @@ const Tintas = {
                 console.error('Error desactivando tinta:', deleteError);
             }
 
-            // Also remove from localStorage inventory
+            // Also remove from local cache
             const items = this.getInventario();
             const localIdx = items.findIndex(t => t.id === id);
             if (localIdx >= 0) {
                 items.splice(localIdx, 1);
-                this.saveInventario(items);
+                this._inventarioCache = items;
             }
 
             this.renderInventario();
@@ -777,14 +798,20 @@ const Tintas = {
     /** Restore a tinta from cementerio back to inventory */
     restaurarTinta: async function(id) {
         if (!AxonesDB.isReady()) {
-            // Fallback localStorage
-            const cementerio = JSON.parse(localStorage.getItem('axones_tintas_cementerio') || '[]');
+            // Fallback sync_store
+            let cementerio = [];
+            try {
+                const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_tintas_cementerio').single();
+                cementerio = (data && data.value) ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+            } catch (e) { /* empty */ }
             const idx = cementerio.findIndex(t => t.id === id);
             if (idx < 0) return;
 
             const archived = cementerio[idx];
             cementerio.splice(idx, 1);
-            localStorage.setItem('axones_tintas_cementerio', JSON.stringify(cementerio));
+            try {
+                await AxonesDB.client.from('sync_store').upsert({ key: 'axones_tintas_cementerio', value: cementerio, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+            } catch (e) { console.warn('Tintas: Error saving cementerio', e); }
 
             // Remove cementerio-specific fields and restore
             const restored = { ...archived };
@@ -795,7 +822,7 @@ const Tintas = {
 
             const items = this.getInventario();
             items.unshift(restored);
-            this.saveInventario(items);
+            await this.saveInventario(items);
 
             this.renderInventario();
             await this.renderCementerio();
@@ -887,8 +914,11 @@ const Tintas = {
                 console.error('Error cargando cementerio:', err);
             }
         } else {
-            // Fallback localStorage
-            items = JSON.parse(localStorage.getItem('axones_tintas_cementerio') || '[]');
+            // Fallback sync_store
+            try {
+                const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_tintas_cementerio').single();
+                items = (data && data.value) ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+            } catch (e) { items = []; }
         }
 
         // Update badge count
@@ -1031,11 +1061,15 @@ const Tintas = {
             if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
                 await AxonesDB.client.from('tintas_mezclas').insert(mezcla);
             } else {
-                const mezclas = JSON.parse(localStorage.getItem('axones_tintas_mezclas') || '[]');
+                let mezclas = [];
+                try {
+                    const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_tintas_mezclas').single();
+                    mezclas = (data && data.value) ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+                } catch (e) { /* empty */ }
                 mezcla.id = 'MEZ_' + Date.now();
                 mezcla.created_at = new Date().toISOString();
                 mezclas.unshift(mezcla);
-                localStorage.setItem('axones_tintas_mezclas', JSON.stringify(mezclas));
+                await AxonesDB.client.from('sync_store').upsert({ key: 'axones_tintas_mezclas', value: mezclas, updated_at: new Date().toISOString() }, { onConflict: 'key' });
             }
 
             this.mostrarToast('Mezcla guardada correctamente', 'success');
@@ -1077,11 +1111,14 @@ const Tintas = {
                     .limit(50);
                 mezclas = data || [];
             } else {
-                mezclas = JSON.parse(localStorage.getItem('axones_tintas_mezclas') || '[]');
+                try {
+                    const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_tintas_mezclas').single();
+                    mezclas = (data && data.value) ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+                } catch (e) { mezclas = []; }
             }
         } catch (err) {
             console.error('Error cargando mezclas:', err);
-            mezclas = JSON.parse(localStorage.getItem('axones_tintas_mezclas') || '[]');
+            mezclas = [];
         }
 
         if (mezclas.length === 0) {
@@ -1129,9 +1166,13 @@ const Tintas = {
                     if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
                         await AxonesDB.client.from('tintas_mezclas').update({ activo: false }).eq('id', btn.dataset.id);
                     } else {
-                        let mezclas = JSON.parse(localStorage.getItem('axones_tintas_mezclas') || '[]');
+                        let mezclas = [];
+                        try {
+                            const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_tintas_mezclas').single();
+                            mezclas = (data && data.value) ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+                        } catch (e) { /* empty */ }
                         mezclas = mezclas.filter(m => m.id !== btn.dataset.id);
-                        localStorage.setItem('axones_tintas_mezclas', JSON.stringify(mezclas));
+                        await AxonesDB.client.from('sync_store').upsert({ key: 'axones_tintas_mezclas', value: mezclas, updated_at: new Date().toISOString() }, { onConflict: 'key' });
                     }
                     this.mostrarToast('Mezcla eliminada', 'success');
                     this.renderMezclas();

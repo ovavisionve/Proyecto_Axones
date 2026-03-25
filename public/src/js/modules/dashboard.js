@@ -7,33 +7,16 @@ const Dashboard = {
     // Configuracion de graficos
     charts: {},
 
+    // Cached data
+    _inventario: [],
+    _ordenes: [],
+    _alertas: [],
+
     /**
      * Inicializa el modulo de dashboard
      */
     init: async function() {
-        await this._esperarSync();
         console.log('Inicializando modulo Dashboard');
-        // La inicializacion completa se hace cuando se carga la pagina de dashboard
-
-        // Recargar datos cuando Supabase sincronice
-        window.addEventListener('axones-sync', () => {
-            console.log('[Dashboard] Sync detectado, recargando datos...');
-            this.load();
-        });
-    },
-
-    _esperarSync: async function() {
-        if (typeof AxonesSync !== 'undefined' && AxonesSync._isReady && AxonesSync._isReady()) {
-            return;
-        }
-        return new Promise(resolve => {
-            let resuelto = false;
-            const handler = () => { if (!resuelto) { resuelto = true; resolve(); } };
-            window.addEventListener('axones-sync', handler, { once: true });
-            setTimeout(() => {
-                if (!resuelto) { resuelto = true; window.removeEventListener('axones-sync', handler); resolve(); }
-            }, 5000);
-        });
     },
 
     /**
@@ -46,6 +29,9 @@ const Dashboard = {
         }
 
         try {
+            // Load data from Supabase
+            await this._loadData();
+
             await Promise.all([
                 this.loadKPIs(),
                 this.loadProduccionChart(),
@@ -58,10 +44,27 @@ const Dashboard = {
     },
 
     /**
+     * Loads data from Supabase
+     */
+    _loadData: async function() {
+        try {
+            this._inventario = await AxonesDB.materiales.listar() || [];
+        } catch (e) { this._inventario = []; }
+
+        try {
+            this._ordenes = await AxonesDB.ordenesHelper.cargar() || [];
+        } catch (e) { this._ordenes = []; }
+
+        try {
+            const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_alertas').single();
+            this._alertas = (data && data.value) ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+        } catch (e) { this._alertas = []; }
+    },
+
+    /**
      * Carga los KPIs principales desde datos reales
      */
     loadKPIs: async function() {
-        // Calcular KPIs desde datos reales en localStorage
         const kpis = this.calcularKPIsReales();
         this.renderKPIs(kpis);
     },
@@ -71,11 +74,11 @@ const Dashboard = {
      */
     calcularKPIsReales: function() {
         // Inventario
-        const inventario = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
-        const produccionTotal = inventario.reduce((sum, item) => sum + (parseFloat(item.kg) || 0), 0);
+        const inventario = this._inventario;
+        const produccionTotal = inventario.reduce((sum, item) => sum + (parseFloat(item.kg || item.stock_kg) || 0), 0);
 
         // Ordenes
-        const ordenes = JSON.parse(localStorage.getItem('axones_ordenes') || '[]');
+        const ordenes = this._ordenes;
         const ordenesCompletadas = ordenes.filter(o => o.estado === 'completado');
         const pedidosPendientes = ordenes.filter(o => o.estado !== 'completado' && o.estado !== 'cancelado').length;
 
@@ -87,8 +90,7 @@ const Dashboard = {
         }
 
         // Alertas pendientes
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
-        const alertasPendientes = alertas.filter(a => a.estado === 'pendiente' || a.estado === 'activa').length;
+        const alertasPendientes = this._alertas.filter(a => a.estado === 'pendiente' || a.estado === 'activa').length;
 
         // Clientes unicos de ordenes
         const clientesUnicos = new Set(ordenes.map(o => o.cliente).filter(c => c));
@@ -182,7 +184,7 @@ const Dashboard = {
      * Calcula produccion real por dia de los ultimos 7 dias
      */
     calcularProduccionPorDia: function() {
-        const ordenes = JSON.parse(localStorage.getItem('axones_ordenes') || '[]');
+        const ordenes = this._ordenes;
         const hoy = new Date();
         const produccionPorDia = [];
 
@@ -268,7 +270,7 @@ const Dashboard = {
      * Calcula desperdicio real por dia de los ultimos 7 dias
      */
     calcularDesperdicioPorDia: function() {
-        const ordenes = JSON.parse(localStorage.getItem('axones_ordenes') || '[]');
+        const ordenes = this._ordenes;
         const hoy = new Date();
         const desperdicioPorDia = [];
 
@@ -365,7 +367,7 @@ const Dashboard = {
      * Calcula ranking de operadores desde ordenes reales
      */
     calcularRankingOperadores: function() {
-        const ordenes = JSON.parse(localStorage.getItem('axones_ordenes') || '[]');
+        const ordenes = this._ordenes;
 
         // Agrupar por operador/registrador
         const operadoresMap = {};

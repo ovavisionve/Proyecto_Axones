@@ -49,6 +49,8 @@ const Auth = {
         'reportes.html':     'reportes.ver',
         'chatbot.html':      'chatbot.acceso',
         'admin.html':        'usuarios.gestionar',
+        'clientes.html':     'ordenes.ver',
+        'proveedores.html':  'inventario.ver',
     },
 
     /**

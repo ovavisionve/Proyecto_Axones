@@ -15,21 +15,22 @@ const Laminacion = {
      * Inicializa el modulo
      */
     init: async function() {
-        // Esperar a que AxonesSync termine de descargar datos del cloud
-        await this._esperarSync();
-
         console.log('Inicializando modulo Control de Laminacion');
 
-        this.setDefaultDate();
-        this.cargarClientes();
+        // Asegurar que AxonesDB esta inicializado
+        if (typeof AxonesDB !== 'undefined' && !AxonesDB.isReady()) {
+            await AxonesDB.init();
+        }
+
         this.setupEventListeners();
         this.setupCalculations();
         this.initDevolucionRechazada();
         this.initConsumoTintas();
         this.initSolventes();
 
-        // Verificar si viene de una orden y cargar datos automaticamente
-        this.cargarDesdeOrden();
+        // Poblar selector de OTs y verificar si viene una por URL
+        await this.poblarSelectorOT();
+        await this.cargarDesdeOrden();
 
         // Inicializar controles de tiempo
         this.inicializarControlTiempo();
@@ -45,24 +46,7 @@ const Laminacion = {
 
         // Escuchar re-sync del cloud para recargar datos
         window.addEventListener('axones-sync', () => {
-            this.cargarDesdeOrden();
-        });
-    },
-
-    /**
-     * Espera a que AxonesSync termine la descarga inicial (max 5 segundos)
-     */
-    _esperarSync: async function() {
-        if (typeof AxonesSync !== 'undefined' && AxonesSync._isReady && AxonesSync._isReady()) {
-            return;
-        }
-        return new Promise(resolve => {
-            let resuelto = false;
-            const handler = () => { if (!resuelto) { resuelto = true; resolve(); } };
-            window.addEventListener('axones-sync', handler, { once: true });
-            setTimeout(() => {
-                if (!resuelto) { resuelto = true; window.removeEventListener('axones-sync', handler); resolve(); }
-            }, 5000);
+            this.poblarSelectorOT();
         });
     },
 
@@ -71,18 +55,16 @@ const Laminacion = {
      */
     inicializarControlTiempo: function() {
         const form = document.getElementById('formLaminacion');
-        if (!form || document.getElementById('panelComandasLaminacion')) return;
+        if (!form || document.getElementById('controlTiempoLaminacion')) return;
 
+        // Solo insertar panel de Control de Tiempo (Play/Pausa/Completar/Despacho)
+        // El selector de OT ahora es el dropdown principal, no el panel de comandas
         const panelHTML = `
-            <!-- Panel de Comandas (Selector de OT tipo restaurante) -->
-            <div id="panelComandasLaminacion" class="mb-3"></div>
-
-            <!-- Panel de Control de Tiempo -->
-            <div id="controlTiempoLaminacion" class="card mb-3 border-warning" style="display: none;">
-                <div class="card-header bg-warning text-dark py-2">
+            <div id="controlTiempoLaminacion" class="card mb-3" style="display: none; border-color: #6f42c1;">
+                <div class="card-header py-2" style="background-color: #6f42c1; color: white;">
                     <div class="d-flex align-items-center justify-content-between">
                         <span><i class="bi bi-stopwatch me-2"></i>Control de Tiempo - Laminacion</span>
-                        <span id="ordenActivaLaminacion" class="badge bg-dark">Sin orden</span>
+                        <span id="ordenActivaLaminacion" class="badge bg-light" style="color: #6f42c1;">Sin orden</span>
                     </div>
                 </div>
                 <div class="card-body py-2" id="contenedorControlTiempoLam" data-orden-id="" data-fase="laminacion">
@@ -95,19 +77,6 @@ const Laminacion = {
         `;
 
         form.insertAdjacentHTML('afterbegin', panelHTML);
-
-        // Renderizar panel de comandas
-        if (typeof ControlTiempo !== 'undefined') {
-            ControlTiempo.renderPanelComandas('laminacion', 'panelComandasLaminacion', (orden) => {
-                this.ordenCargada = orden;
-                this.precargarCamposOrden(orden);
-                this.mostrarBannerOrdenCargada(orden);
-
-                // Mostrar panel de control de tiempo
-                const panelTiempo = document.getElementById('controlTiempoLaminacion');
-                if (panelTiempo) panelTiempo.style.display = 'block';
-            });
-        }
     },
 
     /**
@@ -135,342 +104,218 @@ const Laminacion = {
     },
 
     /**
-     * Carga datos desde una orden si viene con parametros en la URL
+     * Pobla el selector de OT con ordenes pendientes/en-proceso
      */
-    cargarDesdeOrden: function() {
-        const params = new URLSearchParams(window.location.search);
-        const ot = params.get('ot');
+    poblarSelectorOT: async function() {
+        const select = document.getElementById('ordenTrabajo');
+        if (!select) return;
 
-        if (ot) {
-            console.log('Cargando datos desde orden:', ot);
-
-            let ordenes = [];
-            try {
-                ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
-            } catch (e) {
-                console.warn('Error parseando ordenes:', e);
-                ordenes = [];
+        let ordenes = [];
+        try {
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                const rows = await AxonesDB.ordenesHelper.cargar();
+                ordenes = rows.map(r => r.datos ? { ...r.datos, _supaId: r.id } : r);
             }
-            const orden = ordenes.find(o => o.ot === ot);
-
-            if (orden) {
-                this.ordenCargada = orden;
-                this.precargarCamposOrden(orden);
-                this.mostrarBannerOrdenCargada(orden);
-            } else {
-                this.precargarDesdeParametros(params);
-            }
+        } catch (e) {
+            console.warn('[Laminacion] Error cargando ordenes desde Supabase:', e);
+            ordenes = [];
         }
 
-        this.agregarSelectorOrdenes();
+        // Cache local para uso en el change listener
+        this._ordenesCache = ordenes;
+
+        // Filtrar ordenes no completadas
+        const disponibles = ordenes.filter(o => o.estadoOrden !== 'completada');
+
+        // Guardar valor actual
+        const valorActual = select.value;
+
+        // Limpiar y poblar
+        select.innerHTML = '<option value="">Seleccionar OT...</option>';
+        disponibles.forEach(o => {
+            const opt = document.createElement('option');
+            opt.value = o.numeroOrden || o.ot;
+            opt.textContent = `${o.numeroOrden || o.ot} | ${o.cliente || '---'} | ${o.producto || '---'} | ${(o.pedidoKg || 0).toLocaleString()} Kg`;
+            opt.dataset.ot = o.ot || o.numeroOrden;
+            select.appendChild(opt);
+        });
+
+        // Restaurar valor si existia
+        if (valorActual) select.value = valorActual;
+
+        // Event listener (solo una vez)
+        if (!select._listenerAdded) {
+            select._listenerAdded = true;
+            select.addEventListener('change', () => {
+                const otId = select.value;
+                if (!otId) {
+                    this.ocultarResumenYForm();
+                    return;
+                }
+                const cachedOrdenes = this._ordenesCache || [];
+                const disponiblesNow = cachedOrdenes.filter(o => o.estadoOrden !== 'completada');
+                const orden = disponiblesNow.find(o => (o.numeroOrden || o.ot) === otId) ||
+                              cachedOrdenes.find(o => (o.numeroOrden || o.ot) === otId);
+                if (orden) {
+                    this.seleccionarOrden(orden);
+                }
+            });
+        }
+
+        // Si no hay ordenes, mostrar mensaje
+        const badge = document.getElementById('estadoOT');
+        if (badge) {
+            badge.textContent = disponibles.length > 0
+                ? `${disponibles.length} OTs disponibles`
+                : 'No hay OTs pendientes';
+            badge.className = disponibles.length > 0 ? 'badge bg-primary' : 'badge bg-secondary';
+        }
     },
 
     /**
-     * Precarga campos del formulario desde una orden
+     * Carga OT desde URL (?ot=OT-2026-0001) si viene con parametro
      */
-    precargarCamposOrden: function(orden) {
-        console.log('Precargando datos de orden en laminacion:', orden);
+    cargarDesdeOrden: async function() {
+        const params = new URLSearchParams(window.location.search);
+        const ot = params.get('ot');
+        if (!ot) return;
 
-        // Helper para precargar un campo
-        const precargar = (id, valor) => {
-            if (!valor && valor !== 0) return;
-            const el = document.getElementById(id);
-            if (!el) return;
-
-            if (el.tagName === 'SELECT') {
-                const opciones = Array.from(el.options).map(o => o.value);
-                if (opciones.includes(String(valor))) {
-                    el.value = String(valor);
-                } else {
-                    return;
-                }
-            } else {
-                el.value = valor;
+        let ordenes = [];
+        try {
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                const rows = await AxonesDB.ordenesHelper.cargar();
+                ordenes = rows.map(r => r.datos ? { ...r.datos, _supaId: r.id } : r);
             }
-            el.classList.add('precargado-orden');
-            el.style.backgroundColor = '#e8f4e8';
-            el.style.borderColor = '#198754';
-        };
+        } catch (e) { ordenes = []; }
 
-        // === INFORMACION DE ORDEN ===
-        precargar('ordenTrabajo', orden.ot || orden.numeroOrden);
-        precargar('producto', orden.producto);
+        const orden = ordenes.find(o => o.ot === ot || o.numeroOrden === ot);
+        if (orden) {
+            // Seleccionar en el dropdown
+            const select = document.getElementById('ordenTrabajo');
+            if (select) select.value = orden.numeroOrden || orden.ot;
+            this.seleccionarOrden(orden);
+        }
+    },
 
-        // Cliente (puede ser input o select)
-        const clienteEl = document.getElementById('cliente');
-        if (clienteEl && orden.cliente) {
-            clienteEl.value = orden.cliente;
-            clienteEl.classList.add('precargado-orden');
-            clienteEl.style.backgroundColor = '#e8f4e8';
-            clienteEl.style.borderColor = '#198754';
-            clienteEl.dispatchEvent(new Event('change'));
+    /**
+     * Selecciona una OT: muestra resumen spreadsheet y habilita formulario
+     */
+    seleccionarOrden: function(orden) {
+        this.ordenCargada = orden;
+        this.ordenCargada.pedidoKgOriginal = orden.pedidoKg;
+
+        // Renderizar resumen read-only
+        this.renderResumenOT(orden);
+
+        // Mostrar formulario de produccion
+        const form = document.getElementById('formLaminacion');
+        if (form) form.style.display = '';
+
+        // Actualizar badge
+        const badge = document.getElementById('estadoOT');
+        if (badge) {
+            badge.textContent = orden.numeroOrden || orden.ot;
+            badge.className = 'badge bg-success';
         }
 
-        // === ESPECIFICACIONES TECNICAS (desde OT) ===
-        precargar('figuraEmbobinado', orden.figuraEmbobinadoLam);
-        // Relacion mezcla: puede venir como texto "100/80" o numerico "1.25"
-        if (orden.relacionMezcla) {
-            precargar('relacionMezcla', orden.relacionMezcla);
-        } else if (orden.fichaRelacionCatalizador) {
-            // Convertir valor numerico a texto del select
+        // Mostrar y actualizar control de tiempo (Play/Pausa/Completar/Despacho)
+        const panelTiempo = document.getElementById('controlTiempoLaminacion');
+        if (panelTiempo) panelTiempo.style.display = 'block';
+        this.actualizarControlTiempo(orden.id || orden.ot, orden.numeroOrden || orden.ot);
+
+        console.log('[Laminacion] OT seleccionada:', orden.numeroOrden || orden.ot);
+    },
+
+    /**
+     * Oculta resumen y formulario cuando no hay OT seleccionada
+     */
+    ocultarResumenYForm: function() {
+        this.ordenCargada = null;
+        const resumen = document.getElementById('resumenOT');
+        const form = document.getElementById('formLaminacion');
+        if (resumen) resumen.classList.remove('visible');
+        if (form) form.style.display = 'none';
+
+        const badge = document.getElementById('estadoOT');
+        if (badge) {
+            badge.textContent = 'Sin OT seleccionada';
+            badge.className = 'badge bg-secondary';
+        }
+    },
+
+    /**
+     * Renderiza el resumen read-only de la OT en formato spreadsheet
+     */
+    renderResumenOT: function(orden) {
+        const resumen = document.getElementById('resumenOT');
+        if (!resumen) return;
+
+        const v = (val) => (val !== undefined && val !== null && val !== '') ? val : '-';
+        const n = (val) => (val && !isNaN(val)) ? Number(val).toLocaleString() : '-';
+
+        // Header
+        const header = document.getElementById('otNumeroHeader');
+        if (header) header.textContent = v(orden.numeroOrden || orden.ot);
+
+        // Datos del Pedido
+        document.getElementById('otFecha').textContent = v(orden.fechaOrden);
+        document.getElementById('otPedidoKg').textContent = n(orden.pedidoKg) + ' Kg';
+        document.getElementById('otMetrosEst').textContent = n(orden.metrosImp || orden.metrosEstimados || orden.metrosLam);
+        document.getElementById('otMaquina').textContent = v(orden.maquina);
+        document.getElementById('otEstructura').textContent = v(orden.estructuraMaterial);
+
+        // Datos del Producto
+        document.getElementById('otCliente').textContent = v(orden.cliente);
+        document.getElementById('otClienteRif').textContent = v(orden.clienteRif);
+        document.getElementById('otProducto').textContent = v(orden.producto);
+        document.getElementById('otCpe').textContent = v(orden.cpe);
+
+        // Area de Laminacion
+        // Tipo laminado: inferir de ficha tecnica si no viene directo
+        let tipoLaminado = orden.tipoLaminado || '';
+        if (!tipoLaminado) {
+            if (orden.fichaTipoMat2 && !orden.fichaTipoMat3) {
+                tipoLaminado = 'Bilaminado';
+            } else if (orden.fichaTipoMat3 || (orden.capasAdicionales && orden.capasAdicionales.length > 0)) {
+                tipoLaminado = 'Trilaminado';
+            }
+        }
+        document.getElementById('otTipoLaminado').textContent = v(tipoLaminado);
+        document.getElementById('otFiguraEmb').textContent = v(orden.figuraEmbobinadoMontaje || orden.figuraEmbobinadoLam);
+        document.getElementById('otGramajeAdhDesde').textContent = v(orden.fichaGramajeAdhesivo || orden.gramajeAdhesivo);
+        document.getElementById('otGramajeAdhHasta').textContent = v(orden.fichaGramajeAdhesivoHasta);
+
+        // Relacion mezcla
+        let relacionMezcla = orden.relacionMezcla || '';
+        if (!relacionMezcla && orden.fichaRelacionCatalizador) {
             const mapRelacion = { '1.25': '100/80', '10': '10:1', '5': '5:1', '3': '3:1' };
-            const textoRelacion = mapRelacion[String(orden.fichaRelacionCatalizador)] || orden.fichaRelacionCatalizador;
-            precargar('relacionMezcla', textoRelacion);
+            relacionMezcla = mapRelacion[String(orden.fichaRelacionCatalizador)] || orden.fichaRelacionCatalizador;
         }
+        document.getElementById('otRelacionMezcla').textContent = v(relacionMezcla);
+        document.getElementById('otMaterialVirgen').textContent = v(orden.sustratosVirgen || orden.materialVirgen);
 
-        // Tipo de laminado: inferir de ficha tecnica
-        if (orden.fichaTipoMat2 && !orden.fichaTipoMat3) {
-            precargar('tipoLaminado', 'bilaminado');
-        } else if (orden.fichaTipoMat3 || (orden.capasAdicionales && orden.capasAdicionales.length > 0)) {
-            precargar('tipoLaminado', 'trilaminado');
-        }
-
-        // Gramaje adhesivo (rango desde-hasta)
-        if (orden.fichaGramajeAdhesivo || orden.gramajeAdhesivo) {
-            precargar('gramajeAdhesivo', orden.fichaGramajeAdhesivo || orden.gramajeAdhesivo);
-        }
-        if (orden.fichaGramajeAdhesivoHasta) {
-            precargar('gramajeAdhesivoHasta', orden.fichaGramajeAdhesivoHasta);
-        }
-
-        // Tipo de adhesivo
-        precargar('tipoAdhesivo', orden.fichaTipoAdhesivo);
-
-        // Metros estimados
-        let metros = orden.metrosImp || orden.metrosEstimados || orden.metraje;
-        // Si no hay metros pero hay datos de ficha tecnica, calcular
-        if (!metros && orden.pedidoKg && orden.fichaMicras1 && orden.fichaAncho1) {
+        // Metros estimados para laminacion
+        let metrosLam = orden.metrosLam || orden.metrosImp || orden.metrosEstimados || '';
+        if (!metrosLam && orden.pedidoKg && orden.fichaMicras1 && orden.fichaAncho1) {
             const ancho = parseFloat(orden.fichaAncho1) / 1000;
             const micras = parseFloat(orden.fichaMicras1);
             const densidad = parseFloat(orden.fichaDensidad1) || 0.90;
             const gramaje = ancho * micras * densidad;
             if (gramaje > 0) {
-                metros = Math.round((parseFloat(orden.pedidoKg) * 1000) / gramaje);
+                metrosLam = Math.round((parseFloat(orden.pedidoKg) * 1000) / gramaje);
             }
         }
-        if (metros) {
-            precargar('metrosEstimados', metros);
-            precargar('metraje', metros);
-        }
+        document.getElementById('otMetrosLam').textContent = n(metrosLam);
 
-        // === CONTROL DE ADHESIVO (pre-carga desde OT) ===
-        // Kg planificados de adhesivo
-        if (orden.fichaKgAdhesivo || orden.adhesivoKg) {
-            precargar('adhesivoEntrada', orden.fichaKgAdhesivo || orden.adhesivoKg);
-        }
-        // Kg planificados de catalizador
-        if (orden.fichaKgCatalizador || orden.catalizadorKg) {
-            precargar('catalizadorEntrada', orden.fichaKgCatalizador || orden.catalizadorKg);
-        }
+        // Ficha Tecnica
+        document.getElementById('otTipoMat').textContent = v(orden.fichaTipoMat1 || orden.tipoMaterial);
+        document.getElementById('otMicras').textContent = v(orden.fichaMicras1 || orden.micrasMaterial);
+        document.getElementById('otAncho').textContent = v(orden.fichaAncho1 || orden.anchoMaterial);
+        document.getElementById('otDensidad').textContent = v(orden.fichaDensidad1);
+        document.getElementById('otKgNecesarios').textContent = n(orden.fichaKg1);
 
-        // Observaciones de laminacion
-        precargar('obsLaminacion', orden.obsLaminacion);
-
-        // Guardar referencia
-        this.ordenCargada = orden;
-
-        // Actualizar control de tiempo
-        this.actualizarControlTiempo(orden.id || orden.ot, orden.numeroOrden || orden.ot);
-
-        console.log('Orden precargada en laminacion:', orden.numeroOrden || orden.ot);
-    },
-
-    /**
-     * Precarga desde parametros de URL
-     */
-    precargarDesdeParametros: function(params) {
-        const mapping = {
-            'ot': 'ordenTrabajo',
-            'cliente': 'cliente',
-            'producto': 'producto'
-        };
-
-        Object.entries(mapping).forEach(([param, campo]) => {
-            const valor = params.get(param);
-            if (valor) {
-                const input = document.getElementById(campo);
-                if (input) {
-                    input.value = valor;
-                    input.classList.add('precargado-orden');
-                    input.setAttribute('readonly', true);
-                    input.style.backgroundColor = '#e8f4e8';
-                }
-            }
-        });
-    },
-
-    /**
-     * Muestra banner indicando que se cargo una orden
-     */
-    mostrarBannerOrdenCargada: function(orden) {
-        const form = document.getElementById('formLaminacion');
-        if (!form || document.getElementById('bannerOrdenCargada')) return;
-
-        const banner = document.createElement('div');
-        banner.id = 'bannerOrdenCargada';
-        banner.className = 'alert alert-success py-2 mb-3';
-        banner.innerHTML = `
-            <div class="d-flex align-items-center justify-content-between">
-                <div>
-                    <i class="bi bi-clipboard-check me-2"></i>
-                    <strong>Orden cargada:</strong> ${orden.ot} - ${orden.cliente}
-                    <br><small class="text-muted">Los campos verdes estan precargados. Solo complete los campos restantes.</small>
-                </div>
-                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="Laminacion.descargarOrden()">
-                    <i class="bi bi-x-circle me-1"></i>Descargar orden
-                </button>
-            </div>
-        `;
-
-        const firstSection = form.querySelector('.form-section');
-        if (firstSection) {
-            firstSection.parentNode.insertBefore(banner, firstSection);
-        }
-    },
-
-    /**
-     * Descarga la orden y limpia campos precargados
-     */
-    descargarOrden: function() {
-        this.ordenCargada = null;
-
-        document.querySelectorAll('.precargado-orden').forEach(input => {
-            input.value = '';
-            input.classList.remove('precargado-orden');
-            input.removeAttribute('readonly');
-            input.style.backgroundColor = '';
-        });
-
-        const banner = document.getElementById('bannerOrdenCargada');
-        if (banner) banner.remove();
-
-        window.history.replaceState({}, document.title, window.location.pathname);
-    },
-
-    /**
-     * Agrega selector de ordenes pendientes al formulario
-     */
-    agregarSelectorOrdenes: function() {
-        console.log('[Laminacion] agregarSelectorOrdenes - INICIO');
-
-        const otInput = document.getElementById('ordenTrabajo');
-        if (!otInput) {
-            console.warn('[Laminacion] No se encontro el campo ordenTrabajo');
-            return;
-        }
-
-        if (document.getElementById('selectorOrden')) {
-            console.log('[Laminacion] selectorOrden ya existe');
-            return;
-        }
-
-        // Obtener ordenes pendientes desde localStorage primero
-        let ordenes = [];
-        try {
-            ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
-        } catch (e) {
-            console.warn('[Laminacion] Error parseando ordenes:', e);
-            ordenes = [];
-        }
-
-        console.log('[Laminacion] Ordenes en localStorage:', ordenes.length);
-
-        // Renderizar con datos locales
-        this._renderSelectorOrdenes(ordenes);
-    },
-
-    _renderSelectorOrdenes: function(ordenes) {
-        const otInput = document.getElementById('ordenTrabajo');
-        if (!otInput) return;
-
-        // Filtrar ordenes no completadas
-        const ordenesDisponibles = ordenes.filter(o => o.estadoOrden !== 'completada');
-        console.log('[Laminacion] Ordenes disponibles:', ordenesDisponibles.length);
-
-        // Crear el div del selector
-        const selectorDiv = document.createElement('div');
-        selectorDiv.id = 'selectorOrden';
-        selectorDiv.className = 'mt-2';
-
-        if (ordenesDisponibles.length === 0) {
-            selectorDiv.innerHTML = `
-                <div class="alert alert-info py-1 small mb-0">
-                    <i class="bi bi-info-circle me-1"></i>No hay ordenes pendientes.
-                    <a href="ordenes.html" class="alert-link">Crear nueva OT</a>
-                </div>
-            `;
-        } else {
-            selectorDiv.innerHTML = `
-                <label class="form-label small fw-bold text-warning mb-1">
-                    <i class="bi bi-list-check me-1"></i>Ordenes Pendientes (${ordenesDisponibles.length})
-                </label>
-                <select class="form-select form-select-sm border-warning" id="selectOrdenPendiente">
-                    <option value="">-- Seleccionar orden de trabajo --</option>
-                    ${ordenesDisponibles.map(o => `
-                        <option value="${o.numeroOrden || o.ot}" data-orden='${JSON.stringify(o).replace(/'/g, "&#39;")}'>
-                            ${o.numeroOrden || o.ot} | ${o.cliente} | ${o.producto || 'Sin producto'} | ${(o.pedidoKg || 0).toLocaleString()}kg
-                        </option>
-                    `).join('')}
-                </select>
-            `;
-        }
-
-        // Insertar directamente despues del input ordenTrabajo
-        otInput.insertAdjacentElement('afterend', selectorDiv);
-        console.log('[Laminacion] Selector insertado correctamente');
-
-        // Event listener para cargar orden seleccionada
-        const selectElement = document.getElementById('selectOrdenPendiente');
-        if (selectElement) {
-            selectElement.addEventListener('change', (e) => {
-                if (e.target.value) {
-                    const option = e.target.selectedOptions[0];
-                    try {
-                        const orden = JSON.parse(option.dataset.orden.replace(/&#39;/g, "'"));
-                        this.ordenCargada = orden;
-                        this.precargarCamposOrden(orden);
-                        this.mostrarBannerOrdenCargada(orden);
-                    } catch (err) {
-                        console.warn('[Laminacion] Error parseando orden seleccionada:', err);
-                    }
-                }
-            });
-        }
-    },
-
-    /**
-     * Carga clientes en datalist (permite escribir nuevos o seleccionar existentes)
-     */
-    cargarClientes: function() {
-        const datalist = document.getElementById('listaClientes');
-        if (!datalist) return;
-
-        this.clientesCache = CONFIG.CLIENTES || [];
-
-        // Agregar clientes de registros anteriores de laminacion
-        const laminaciones = JSON.parse(localStorage.getItem('axones_laminacion') || '[]');
-        const clientesDeLaminacion = laminaciones
-            .map(l => l.cliente)
-            .filter(c => c && !this.clientesCache.includes(c));
-        this.clientesCache = [...new Set([...this.clientesCache, ...clientesDeLaminacion])].sort();
-
-        // Cargar en datalist
-        datalist.innerHTML = '';
-        this.clientesCache.forEach(cliente => {
-            const option = document.createElement('option');
-            option.value = cliente;
-            datalist.appendChild(option);
-        });
-    },
-
-    /**
-     * Establece la fecha actual por defecto
-     */
-    setDefaultDate: function() {
-        const fechaInput = document.getElementById('fecha');
-        if (fechaInput) {
-            fechaInput.value = new Date().toISOString().split('T')[0];
-        }
+        // Mostrar el resumen
+        resumen.classList.add('visible');
     },
 
     /**
@@ -499,39 +344,6 @@ const Laminacion = {
                 e.preventDefault();
                 this.guardar();
             });
-        }
-
-        // Buscar OT de impresion
-        const otImpresion = document.getElementById('otImpresion');
-        if (otImpresion) {
-            otImpresion.addEventListener('blur', (e) => {
-                this.buscarOTImpresion(e.target.value);
-            });
-        }
-    },
-
-    /**
-     * Busca datos de una OT de impresion para prellenar
-     */
-    buscarOTImpresion: function(ot) {
-        if (!ot) return;
-
-        const impresiones = JSON.parse(localStorage.getItem('axones_impresion') || '[]');
-        const registro = impresiones.find(i => i.ordenTrabajo === ot);
-
-        if (registro) {
-            // Prellenar datos
-            const clienteSelect = document.getElementById('cliente');
-            if (clienteSelect && registro.cliente) {
-                clienteSelect.value = registro.cliente;
-            }
-
-            const producto = document.getElementById('producto');
-            if (producto && registro.producto) {
-                producto.value = registro.producto;
-            }
-
-            this.mostrarNotificacion(`Datos cargados de OT ${ot}`, 'success');
         }
     },
 
@@ -574,111 +386,6 @@ const Laminacion = {
         document.querySelectorAll('.adhesivo-input').forEach(input => {
             input.addEventListener('input', () => this.calcularConsumoAdhesivo());
         });
-
-        // Material virgen - cargar del inventario
-        const materialSelect = document.getElementById('materialVirgen');
-        if (materialSelect) {
-            this.cargarMaterialVirgen();
-            materialSelect.addEventListener('change', (e) => this.onMaterialSeleccionado(e));
-        }
-    },
-
-    /**
-     * Carga el material virgen del inventario
-     */
-    cargarMaterialVirgen: function() {
-        const select = document.getElementById('materialVirgen');
-        if (!select) return;
-
-        let inventario = [];
-        const invData = localStorage.getItem('axones_inventario');
-        if (invData) {
-            try {
-                inventario = JSON.parse(invData);
-            } catch (e) {}
-        }
-
-        select.innerHTML = '<option value="">Seleccionar del inventario...</option>';
-
-        inventario.sort((a, b) => {
-            if (a.material !== b.material) return a.material.localeCompare(b.material);
-            return (a.ancho || 0) - (b.ancho || 0);
-        });
-
-        inventario.forEach(item => {
-            if (item.cantidad > 0 || item.stockKg > 0) {
-                const stock = item.cantidad || item.stockKg || 0;
-                const sku = item.sku || item.id || '';
-                const option = document.createElement('option');
-                option.value = item.id || sku;
-                option.dataset.material = item.material || '';
-                option.dataset.ancho = item.ancho || '';
-                option.dataset.micras = item.micras || '';
-                option.dataset.densidad = item.densidad || this.getDensidadMaterial(item.material);
-                option.dataset.stock = stock;
-                option.textContent = `${sku} - ${item.material} ${item.ancho}mm x ${item.micras}µ (${stock.toFixed(0)} Kg)`;
-                select.appendChild(option);
-            }
-        });
-    },
-
-    getDensidadMaterial: function(material) {
-        const densidades = {
-            'BOPP NORMAL': 0.90, 'BOPP MATE': 0.90, 'BOPP PASTA': 0.90,
-            'BOPP PERLADO': 0.80, 'PERLADO': 0.80,
-            'CAST': 0.92, 'METAL': 0.90,
-            'PEBD': 0.93, 'PEBD PIGMENT': 0.93,
-            'PET': 1.40, 'PA': 1.14, 'NYLON': 1.14
-        };
-        for (const [key, val] of Object.entries(densidades)) {
-            if (material && material.toUpperCase().includes(key)) return val;
-        }
-        return 0.90;
-    },
-
-    onMaterialSeleccionado: function(e) {
-        const option = e.target.selectedOptions[0];
-        if (!option || !option.value) {
-            document.getElementById('materialVirgenInfo').textContent = '';
-            return;
-        }
-
-        const material = option.dataset.material;
-        const ancho = parseFloat(option.dataset.ancho) || 0;
-        const micras = parseFloat(option.dataset.micras) || 0;
-        const densidad = parseFloat(option.dataset.densidad) || 0.90;
-        const stock = parseFloat(option.dataset.stock) || 0;
-
-        document.getElementById('materialVirgenAncho').value = ancho;
-        document.getElementById('materialVirgenMicraje').value = micras;
-        document.getElementById('materialVirgenTipo').value = material;
-        document.getElementById('materialVirgenDensidad').value = densidad;
-
-        const info = document.getElementById('materialVirgenInfo');
-        if (info) {
-            info.textContent = `${material} | ${ancho}mm x ${micras}µ | Densidad: ${densidad} | Stock: ${stock.toFixed(0)} Kg`;
-        }
-
-        this.calcularMetrosEstimados();
-    },
-
-    calcularMetrosEstimados: function() {
-        const totalEntradaEl = document.getElementById('totalEntrada');
-        const metrosEl = document.getElementById('metrosEstimados');
-        if (!totalEntradaEl || !metrosEl) return;
-
-        const kg = parseFloat(totalEntradaEl.value) || 0;
-        const ancho = parseFloat(document.getElementById('materialVirgenAncho')?.value) || 0;
-        const micras = parseFloat(document.getElementById('materialVirgenMicraje')?.value) || 0;
-        const densidad = parseFloat(document.getElementById('materialVirgenDensidad')?.value) || 0.90;
-
-        if (kg > 0 && ancho > 0 && micras > 0) {
-            const gramaje = (ancho / 1000) * micras * densidad;
-            const metros = (kg * 1000) / gramaje;
-            metrosEl.value = metros.toLocaleString('es-VE', { maximumFractionDigits: 0 }) + ' m';
-        } else {
-            metrosEl.value = '';
-        }
     },
 
     /**
@@ -924,7 +631,7 @@ const Laminacion = {
         return datos;
     },
 
-    generarReporteRechazo: function() {
+    generarReporteRechazo: async function() {
         const datos = this.recopilarDevolucionRechazada();
         if (datos.length === 0) {
             if (typeof showToast === 'function') showToast('No hay bobinas rechazadas para reportar', 'warning');
@@ -983,9 +690,15 @@ const Laminacion = {
         ventana.document.write('</body></html>');
         ventana.document.close();
         ventana.print();
-        const reportes = JSON.parse(localStorage.getItem('axones_reportes_rechazo') || '[]');
-        reportes.unshift({ id: 'RR_' + Date.now(), timestamp: new Date().toISOString(), ordenTrabajo: numOT, modulo: 'laminacion', datos: this.recopilarDevolucionRechazada(), totalKg: this.calcularTotalDevolucionRechazada() });
-        localStorage.setItem('axones_reportes_rechazo', JSON.stringify(reportes));
+        // Guardar reporte de rechazo en Supabase sync_store
+        try {
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                const { data: existing } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_reportes_rechazo').single();
+                const reportes = (existing && Array.isArray(existing.value)) ? existing.value : [];
+                reportes.unshift({ id: 'RR_' + Date.now(), timestamp: new Date().toISOString(), ordenTrabajo: numOT, modulo: 'laminacion', datos: this.recopilarDevolucionRechazada(), totalKg: this.calcularTotalDevolucionRechazada() });
+                await AxonesDB.client.from('sync_store').upsert({ key: 'axones_reportes_rechazo', value: reportes }, { onConflict: 'key' });
+            }
+        } catch (e) { console.warn('[Laminacion] Error guardando reporte rechazo:', e); }
     },
 
     // ==========================================
@@ -999,13 +712,20 @@ const Laminacion = {
         if (btnDevTinta) btnDevTinta.addEventListener('click', () => this.agregarFilaTinta('devolucion'));
     },
 
-    obtenerTintasInventario: function() {
-        try { return JSON.parse(localStorage.getItem('axones_tintas_inventario') || '[]'); }
-        catch (e) { return []; }
+    obtenerTintasInventario: async function() {
+        try {
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                return await AxonesDB.tintas.listar({ soloActivos: false });
+            }
+            return [];
+        } catch (e) {
+            console.warn('[Laminacion] Error obteniendo tintas:', e);
+            return [];
+        }
     },
 
-    generarOpcionesTintas: function() {
-        const tintas = this.obtenerTintasInventario();
+    generarOpcionesTintas: async function() {
+        const tintas = await this.obtenerTintasInventario();
         let opciones = '<option value="">-- Seleccionar tinta --</option>';
         tintas.forEach((t, idx) => {
             const nombre = t.nombre || t.color || t.tipo || 'Tinta ' + (idx + 1);
@@ -1015,11 +735,11 @@ const Laminacion = {
         return opciones;
     },
 
-    agregarFilaTinta: function(tipo) {
+    agregarFilaTinta: async function(tipo) {
         const bodyId = tipo === 'consumo' ? 'bodyConsumoTintas' : 'bodyDevolucionTintas';
         const tbody = document.getElementById(bodyId);
         if (!tbody) return;
-        const opciones = this.generarOpcionesTintas();
+        const opciones = await this.generarOpcionesTintas();
         const fila = document.createElement('tr');
         if (tipo === 'consumo') {
             fila.innerHTML = `
@@ -1087,35 +807,42 @@ const Laminacion = {
         return datos;
     },
 
-    descontarTintas: function(datos) {
+    descontarTintas: async function(datos) {
         try {
-            const tintas = this.obtenerTintasInventario();
+            const tintas = await this.obtenerTintasInventario();
             let actualizado = false;
             if (datos.consumoTintas) {
-                datos.consumoTintas.forEach(item => {
+                for (const item of datos.consumoTintas) {
                     if (tintas[item.indice]) {
-                        const campo = tintas[item.indice].cantidad !== undefined ? 'cantidad' : 'kg';
-                        const actual = parseFloat(tintas[item.indice][campo] || 0);
-                        tintas[item.indice][campo] = Math.max(0, actual - item.kg);
+                        const tinta = tintas[item.indice];
+                        const campo = tinta.cantidad !== undefined ? 'cantidad' : 'kg';
+                        const actual = parseFloat(tinta[campo] || 0);
+                        const nuevo = Math.max(0, actual - item.kg);
+                        if (tinta.id && AxonesDB.isReady()) {
+                            await AxonesDB.client.from('tintas').update({ stock_kg: nuevo }).eq('id', tinta.id);
+                        }
                         actualizado = true;
                         console.log(`Tintas: Descontados ${item.kg} Kg de ${item.nombre}`);
                     }
-                });
+                }
             }
             if (datos.devolucionTintas) {
-                datos.devolucionTintas.forEach(item => {
+                for (const item of datos.devolucionTintas) {
                     if (tintas[item.indice]) {
-                        const campo = tintas[item.indice].cantidad !== undefined ? 'cantidad' : 'kg';
-                        const actual = parseFloat(tintas[item.indice][campo] || 0);
-                        tintas[item.indice][campo] = actual + item.kg;
+                        const tinta = tintas[item.indice];
+                        const campo = tinta.cantidad !== undefined ? 'cantidad' : 'kg';
+                        const actual = parseFloat(tinta[campo] || 0);
+                        const nuevo = actual + item.kg;
+                        if (tinta.id && AxonesDB.isReady()) {
+                            await AxonesDB.client.from('tintas').update({ stock_kg: nuevo }).eq('id', tinta.id);
+                        }
                         actualizado = true;
                         console.log(`Tintas: Repuestos ${item.kg} Kg de ${item.nombre}`);
                     }
-                });
+                }
             }
             if (actualizado) {
-                localStorage.setItem('axones_tintas_inventario', JSON.stringify(tintas));
-                console.log('Inventario de tintas actualizado despues de laminacion');
+                console.log('Inventario de tintas actualizado en Supabase despues de laminacion');
             }
         } catch (error) { console.warn('Error al actualizar inventario de tintas:', error); }
     },
@@ -1139,20 +866,12 @@ const Laminacion = {
 
     validarCamposRequeridos: function() {
         const errores = [];
-        const fecha = document.getElementById('fecha')?.value;
         const turno = document.querySelector('input[name="turno"]:checked');
-        const maquina = document.getElementById('maquina')?.value;
-        const cliente = document.getElementById('cliente')?.value;
-        const producto = document.getElementById('producto')?.value;
-        const ordenTrabajo = document.getElementById('ordenTrabajo')?.value;
         const operador = document.getElementById('operador')?.value;
 
-        if (!fecha) errores.push('Fecha es requerida');
+        // La OT debe estar seleccionada
+        if (!this.ordenCargada) errores.push('Seleccione una Orden de Trabajo');
         if (!turno) errores.push('Seleccione un turno');
-        if (!maquina) errores.push('Seleccione una maquina');
-        if (!cliente) errores.push('Seleccione un cliente');
-        if (!producto || producto.trim().length < 2) errores.push('Ingrese el nombre del producto (minimo 2 caracteres)');
-        if (!ordenTrabajo || ordenTrabajo.trim().length < 3) errores.push('Ingrese la orden de trabajo (minimo 3 caracteres)');
         if (!operador || operador.trim().length < 3) errores.push('Ingrese el nombre del operador (minimo 3 caracteres)');
 
         // Validar que haya al menos una bobina de entrada
@@ -1198,22 +917,22 @@ const Laminacion = {
         }
 
         try {
-            this.guardarLocal(datos);
+            await this.guardarLocal(datos);
 
             // Descontar materiales del inventario (adhesivo, catalizador, acetato)
-            this.descontarInventarioLaminacion(datos);
+            await this.descontarInventarioLaminacion(datos);
 
             const porcentajeRefil = parseFloat(datos.porcentajeRefil) || 0;
             const umbral = CONFIG.UMBRALES_REFIL.default;
             if (porcentajeRefil > umbral.maximo) {
-                this.generarAlerta(datos);
+                await this.generarAlerta(datos);
             }
 
             this.mostrarToast('Registro de laminacion guardado', 'success');
             this.limpiar();
         } catch (error) {
             console.error('Error guardando registro:', error);
-            this.guardarLocal(datos);
+            await this.guardarLocal(datos);
             Axones.showWarning('Error al guardar: ' + error.message);
         } finally {
             if (btnGuardar) {
@@ -1268,19 +987,27 @@ const Laminacion = {
             }
         }
 
+        // Datos de la OT (referencia, no copia)
+        const ot = this.ordenCargada || {};
+
         return {
+            // Metadatos
             id: 'LAM_' + Date.now(),
             timestamp: new Date().toISOString(),
             tipo: 'laminacion',
 
+            // Referencia a la OT (vinculo, no duplicacion)
+            ordenTrabajo: ot.numeroOrden || ot.ot || document.getElementById('ordenTrabajo')?.value || '',
+            otId: ot.id || ot.ot || '',
+
+            // Datos de la OT (read-only, para referencia rapida)
+            cliente: ot.cliente || '',
+            producto: ot.producto || '',
+            maquina: ot.maquina || '',
+            pedidoKg: ot.pedidoKg || 0,
+
+            // Datos de produccion (llenados por el operador)
             turno: turnoSeleccionado ? turnoSeleccionado.value : '',
-            cliente: document.getElementById('cliente')?.value || '',
-            producto: document.getElementById('producto').value,
-            maquina: document.getElementById('maquina').value,
-            fecha: document.getElementById('fecha').value,
-            ordenTrabajo: document.getElementById('ordenTrabajo').value,
-            otImpresion: document.getElementById('otImpresion').value,
-            numPistas: parseInt(document.getElementById('numPistas')?.value) || 0,
             operador: document.getElementById('operador').value,
             ayudante: document.getElementById('ayudante').value,
             supervisor: document.getElementById('supervisor').value,
@@ -1384,71 +1111,59 @@ const Laminacion = {
     },
 
     /**
-     * Guarda en localStorage
+     * Guarda registro de produccion en Supabase
      */
-    guardarLocal: function(datos) {
-        // Guardar en produccion general
-        const produccion = JSON.parse(localStorage.getItem('axones_produccion') || '[]');
-        produccion.unshift(datos);
-        localStorage.setItem('axones_produccion', JSON.stringify(produccion));
-
-        // Guardar en key especifica de laminacion
-        const laminacion = JSON.parse(localStorage.getItem('axones_laminacion') || '[]');
-        laminacion.unshift(datos);
-        localStorage.setItem('axones_laminacion', JSON.stringify(laminacion));
+    guardarLocal: async function(datos) {
+        try {
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                await AxonesDB.client.from('produccion_laminacion').insert({
+                    orden_id: datos.otId || null,
+                    numero_ot: datos.ordenTrabajo || '',
+                    datos: datos
+                });
+                console.log('[Laminacion] Registro guardado en Supabase produccion_laminacion');
+            }
+        } catch (e) {
+            console.warn('[Laminacion] Error guardando en Supabase:', e);
+        }
     },
 
     /**
      * Descuenta adhesivo, catalizador, acetato y material del inventario
      */
-    descontarInventarioLaminacion: function(datos) {
+    descontarInventarioLaminacion: async function(datos) {
         try {
+            if (typeof AxonesDB === 'undefined' || !AxonesDB.isReady()) return;
+
             // 1. Descontar adhesivos/catalizador/acetato
-            const adhesivos = JSON.parse(localStorage.getItem('axones_adhesivos_inventario') || '[]');
+            const adhesivos = await AxonesDB.adhesivos.listar({ soloActivos: false });
+
+            const descuentosAdh = [
+                { tipo: 'adhesivo', consumo: datos.consumoAdhesivo || 0, label: 'adhesivo', unidad: 'Kg' },
+                { tipo: 'catalizador', consumo: datos.consumoCatalizador || 0, label: 'catalizador', unidad: 'Kg' },
+                { tipo: 'acetato', consumo: datos.consumoAcetato || 0, label: 'acetato', unidad: 'Lt' }
+            ];
+
             let adhesivosActualizados = false;
-
-            // Descontar adhesivo (usar consumoAdhesivo del formulario)
-            const consumoAdhesivo = datos.consumoAdhesivo || 0;
-            if (consumoAdhesivo > 0) {
-                const adhesivoItem = adhesivos.find(a => a.tipo === 'adhesivo');
-                if (adhesivoItem) {
-                    adhesivoItem.cantidad = Math.max(0, (adhesivoItem.cantidad || 0) - consumoAdhesivo);
-                    adhesivosActualizados = true;
-                    console.log(`Inventario: Descontados ${consumoAdhesivo} Kg de adhesivo (Quedan: ${adhesivoItem.cantidad} Kg)`);
-                }
-            }
-
-            // Descontar catalizador (usar consumoCatalizador del formulario)
-            const consumoCatalizador = datos.consumoCatalizador || 0;
-            if (consumoCatalizador > 0) {
-                const catalizadorItem = adhesivos.find(a => a.tipo === 'catalizador');
-                if (catalizadorItem) {
-                    catalizadorItem.cantidad = Math.max(0, (catalizadorItem.cantidad || 0) - consumoCatalizador);
-                    adhesivosActualizados = true;
-                    console.log(`Inventario: Descontados ${consumoCatalizador} Kg de catalizador (Quedan: ${catalizadorItem.cantidad} Kg)`);
-                }
-            }
-
-            // Descontar acetato (usar consumoAcetato del formulario)
-            const consumoAcetato = datos.consumoAcetato || 0;
-            if (consumoAcetato > 0) {
-                const acetatoItem = adhesivos.find(a => a.tipo === 'acetato');
-                if (acetatoItem) {
-                    acetatoItem.cantidad = Math.max(0, (acetatoItem.cantidad || 0) - consumoAcetato);
-                    adhesivosActualizados = true;
-                    console.log(`Inventario: Descontados ${consumoAcetato} Lt de acetato (Quedan: ${acetatoItem.cantidad} Lt)`);
+            for (const desc of descuentosAdh) {
+                if (desc.consumo > 0) {
+                    const item = adhesivos.find(a => a.tipo === desc.tipo);
+                    if (item && item.id) {
+                        const actual = parseFloat(item.cantidad || item.stock_kg || 0);
+                        const nuevo = Math.max(0, actual - desc.consumo);
+                        await AxonesDB.client.from('adhesivos').update({ stock_kg: nuevo }).eq('id', item.id);
+                        adhesivosActualizados = true;
+                        console.log(`Inventario: Descontados ${desc.consumo} ${desc.unidad} de ${desc.label} (Quedan: ${nuevo} ${desc.unidad})`);
+                    }
                 }
             }
 
             if (adhesivosActualizados) {
-                localStorage.setItem('axones_adhesivos_inventario', JSON.stringify(adhesivos));
-                console.log('Inventario de adhesivos actualizado despues de laminacion');
-
-                this.verificarStockBajoAdhesivos(adhesivos);
+                await this.verificarStockBajoAdhesivos(adhesivos);
             }
 
             // 2. Descontar material VIRGEN (materia prima) del inventario
-            const inventario = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
+            const inventario = await AxonesDB.materiales.listar();
             const cantidadUsada = parseFloat(datos.totalConsumidoVirgen) || parseFloat(datos.totalEntradaVirgen) || 0;
             let invActualizado = false;
 
@@ -1462,13 +1177,16 @@ const Laminacion = {
                          datos.producto?.toLowerCase().includes(item.producto.toLowerCase()));
 
                     if (coincideProducto || !item.producto) {
-                        const disponible = parseFloat(item.kg) || 0;
+                        const disponible = parseFloat(item.kg || item.stock_kg || 0);
                         if (disponible > 0) {
                             const aDescontar = Math.min(disponible, restante);
-                            item.kg = disponible - aDescontar;
+                            const nuevo = disponible - aDescontar;
+                            if (item.id) {
+                                await AxonesDB.client.from('materiales').update({ stock_kg: nuevo }).eq('id', item.id);
+                            }
                             restante -= aDescontar;
                             invActualizado = true;
-                            console.log(`Inventario: Descontados ${aDescontar} Kg de ${item.material} (Quedan: ${item.kg} Kg)`);
+                            console.log(`Inventario: Descontados ${aDescontar} Kg de ${item.material || item.nombre} (Quedan: ${nuevo} Kg)`);
                         }
                     }
                 }
@@ -1483,22 +1201,25 @@ const Laminacion = {
                         (item.producto.toLowerCase().includes(datos.producto?.toLowerCase() || '') ||
                          datos.producto?.toLowerCase().includes(item.producto.toLowerCase()));
                     if (coincideProducto) {
-                        item.kg = (parseFloat(item.kg) || 0) + devBuena;
+                        const actual = parseFloat(item.kg || item.stock_kg || 0);
+                        const nuevo = actual + devBuena;
+                        if (item.id) {
+                            await AxonesDB.client.from('materiales').update({ stock_kg: nuevo }).eq('id', item.id);
+                        }
                         invActualizado = true;
-                        console.log(`Inventario: Repuestos ${devBuena} Kg (devolucion buena) a ${item.material} (Total: ${item.kg} Kg)`);
+                        console.log(`Inventario: Repuestos ${devBuena} Kg (devolucion buena) a ${item.material || item.nombre} (Total: ${nuevo} Kg)`);
                         break;
                     }
                 }
             }
 
             if (invActualizado) {
-                localStorage.setItem('axones_inventario', JSON.stringify(inventario));
-                console.log('Inventario de materiales actualizado despues de laminacion');
-                this.verificarStockBajoMaterial(inventario);
+                console.log('Inventario de materiales actualizado en Supabase despues de laminacion');
+                await this.verificarStockBajoMaterial(inventario);
             }
 
             // 4. Descontar/reponer tintas
-            this.descontarTintas(datos);
+            await this.descontarTintas(datos);
         } catch (error) {
             console.warn('Error al descontar inventario de laminacion:', error);
         }
@@ -1507,100 +1228,97 @@ const Laminacion = {
     /**
      * Verifica si hay materiales con stock bajo
      */
-    verificarStockBajoMaterial: function(inventario) {
+    verificarStockBajoMaterial: async function(inventario) {
         const STOCK_MINIMO = 200; // Kg
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
+        if (typeof AxonesDB === 'undefined' || !AxonesDB.isReady()) return;
 
-        inventario.forEach(item => {
-            if ((item.kg || 0) < STOCK_MINIMO && (item.kg || 0) > 0) {
-                const alertaExistente = alertas.find(a =>
-                    a.tipo === 'stock_bajo' &&
-                    a.datos?.material === item.material &&
-                    new Date(a.fecha) > new Date(Date.now() - 24 * 60 * 60 * 1000)
-                );
+        for (const item of inventario) {
+            const kg = parseFloat(item.kg || item.stock_kg || 0);
+            if (kg < STOCK_MINIMO && kg > 0) {
+                // Verificar si ya existe alerta reciente (ultimas 24h)
+                const hace24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+                const { data: existentes } = await AxonesDB.client.from('alertas')
+                    .select('id')
+                    .eq('tipo', 'stock_bajo')
+                    .gte('created_at', hace24h)
+                    .limit(1);
 
-                if (!alertaExistente) {
-                    alertas.unshift({
-                        id: Date.now(),
+                if (!existentes || existentes.length === 0) {
+                    await AxonesDB.client.from('alertas').insert({
                         tipo: 'stock_bajo',
-                        nivel: item.kg < 50 ? 'danger' : 'warning',
-                        mensaje: `Stock bajo en laminacion: ${item.material} ${item.micras || ''}µ - Quedan ${(item.kg || 0).toFixed(1)} Kg`,
-                        fecha: new Date().toISOString(),
-                        estado: 'pendiente',
-                        datos: { material: item.material, cantidad: item.kg }
+                        nivel: kg < 50 ? 'danger' : 'warning',
+                        titulo: 'Stock bajo en laminacion',
+                        mensaje: `Stock bajo en laminacion: ${item.material || item.nombre} ${item.micras || ''}µ - Quedan ${kg.toFixed(1)} Kg`,
+                        datos: { material: item.material || item.nombre, cantidad: kg }
                     });
-                    console.log('Alerta de stock bajo generada para', item.material);
+                    console.log('Alerta de stock bajo generada para', item.material || item.nombre);
                 }
             }
-        });
-
-        localStorage.setItem('axones_alertas', JSON.stringify(alertas));
+        }
     },
 
     /**
      * Verifica si hay adhesivos con stock bajo
      */
-    verificarStockBajoAdhesivos: function(adhesivos) {
+    verificarStockBajoAdhesivos: async function(adhesivos) {
         const STOCK_MINIMO = 20; // Kg
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
+        if (typeof AxonesDB === 'undefined' || !AxonesDB.isReady()) return;
 
-        adhesivos.forEach(item => {
-            if ((item.cantidad || 0) < STOCK_MINIMO) {
-                const alertaExistente = alertas.find(a =>
-                    a.tipo === 'stock_bajo' &&
-                    a.datos?.nombre === item.nombre &&
-                    new Date(a.fecha) > new Date(Date.now() - 24 * 60 * 60 * 1000)
-                );
+        for (const item of adhesivos) {
+            const cantidad = parseFloat(item.cantidad || item.stock_kg || 0);
+            if (cantidad < STOCK_MINIMO) {
+                const hace24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+                const { data: existentes } = await AxonesDB.client.from('alertas')
+                    .select('id')
+                    .eq('tipo', 'stock_bajo')
+                    .gte('created_at', hace24h)
+                    .limit(1);
 
-                if (!alertaExistente) {
-                    alertas.unshift({
-                        id: Date.now(),
+                if (!existentes || existentes.length === 0) {
+                    await AxonesDB.client.from('alertas').insert({
                         tipo: 'stock_bajo',
-                        nivel: item.cantidad < 5 ? 'danger' : 'warning',
-                        mensaje: `Stock bajo: ${item.nombre} - Quedan ${(item.cantidad || 0).toFixed(1)} ${item.unidad}`,
-                        fecha: new Date().toISOString(),
-                        estado: 'pendiente',
-                        datos: { nombre: item.nombre, cantidad: item.cantidad }
+                        nivel: cantidad < 5 ? 'danger' : 'warning',
+                        titulo: 'Stock bajo adhesivo',
+                        mensaje: `Stock bajo: ${item.nombre} - Quedan ${cantidad.toFixed(1)} ${item.unidad || 'Kg'}`,
+                        datos: { nombre: item.nombre, cantidad: cantidad }
                     });
                 }
             }
-        });
-
-        localStorage.setItem('axones_alertas', JSON.stringify(alertas));
+        }
     },
 
     /**
      * Genera una alerta por refil excedido
      */
-    generarAlerta: function(datos) {
-        const alerta = {
-            id: 'ALT_' + Date.now(),
-            timestamp: new Date().toISOString(),
-            fecha: new Date().toISOString(),
-            tipo: CONFIG.ALERTAS.TIPOS.REFIL_ALTO,
-            nivel: datos.porcentajeRefil > CONFIG.UMBRALES_REFIL.default.maximo * 1.5
-                ? CONFIG.ALERTAS.NIVELES.CRITICAL
-                : CONFIG.ALERTAS.NIVELES.WARNING,
-            maquina: datos.maquina,
-            ot: datos.ordenTrabajo,
-            operador: datos.operador,
-            mensaje: `Refil ${datos.porcentajeRefil.toFixed(1)}% en Laminacion OT ${datos.ordenTrabajo}`,
-            estado: 'pendiente',
-            registro_id: datos.id,
-            datos: {
-                porcentajeRefil: datos.porcentajeRefil,
-                producto: datos.producto,
-                cliente: datos.cliente
-            }
-        };
+    generarAlerta: async function(datos) {
+        const nivel = datos.porcentajeRefil > CONFIG.UMBRALES_REFIL.default.maximo * 1.5
+            ? CONFIG.ALERTAS.NIVELES.CRITICAL
+            : CONFIG.ALERTAS.NIVELES.WARNING;
 
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
-        alertas.unshift(alerta);
-        localStorage.setItem('axones_alertas', JSON.stringify(alertas));
+        try {
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                await AxonesDB.client.from('alertas').insert({
+                    tipo: CONFIG.ALERTAS.TIPOS.REFIL_ALTO,
+                    nivel: nivel,
+                    titulo: `Refil excedido en Laminacion`,
+                    mensaje: `Refil ${datos.porcentajeRefil.toFixed(1)}% en Laminacion OT ${datos.ordenTrabajo}`,
+                    datos: {
+                        porcentajeRefil: datos.porcentajeRefil,
+                        producto: datos.producto,
+                        cliente: datos.cliente,
+                        maquina: datos.maquina,
+                        operador: datos.operador,
+                        registro_id: datos.id
+                    }
+                });
+            }
+        } catch (e) {
+            console.warn('[Laminacion] Error guardando alerta:', e);
+        }
 
         this.mostrarNotificacion(
             `ALERTA: Refil ${datos.porcentajeRefil.toFixed(1)}% excedido en laminacion`,
-            alerta.nivel === CONFIG.ALERTAS.NIVELES.CRITICAL ? 'danger' : 'warning'
+            nivel === CONFIG.ALERTAS.NIVELES.CRITICAL ? 'danger' : 'warning'
         );
     },
 
@@ -1661,7 +1379,7 @@ const Laminacion = {
         if (badge) badge.textContent = `${marcados}/${total} completados`;
     },
 
-    guardarChecklist: function() {
+    guardarChecklist: async function() {
         const items = [];
         document.querySelectorAll('.checklist-item').forEach(cb => {
             items.push({ item: cb.value, completado: cb.checked });
@@ -1681,9 +1399,16 @@ const Laminacion = {
             aprobadoPor: document.getElementById('checklistAprobadoPor')?.value || ''
         };
 
-        const checklists = JSON.parse(localStorage.getItem('axones_checklists') || '[]');
-        checklists.unshift(datos);
-        localStorage.setItem('axones_checklists', JSON.stringify(checklists));
+        try {
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                const { data: existing } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_checklists').single();
+                const checklists = (existing && Array.isArray(existing.value)) ? existing.value : [];
+                checklists.unshift(datos);
+                await AxonesDB.client.from('sync_store').upsert({ key: 'axones_checklists', value: checklists }, { onConflict: 'key' });
+            }
+        } catch (e) {
+            console.warn('[Laminacion] Error guardando checklist:', e);
+        }
 
         this.mostrarToast('Checklist guardado correctamente', 'success');
         const modal = bootstrap.Modal.getInstance(document.getElementById('modalChecklist'));
@@ -1853,44 +1578,51 @@ const Laminacion = {
         const form = document.getElementById('formLaminacion');
         if (form) {
             form.reset();
-            this.setDefaultDate();
 
             // Limpiar campos calculados
-            document.getElementById('totalEntrada').value = '';
-            document.getElementById('numBobinas').value = '';
-            document.getElementById('pesoTotal').value = '';
-            document.getElementById('merma').value = '';
-            document.getElementById('totalScrap').value = '';
-            document.getElementById('porcentajeRefil').value = '';
+            const campos = ['totalEntrada', 'numBobinas', 'pesoTotal', 'merma', 'totalScrap', 'porcentajeRefil', 'totalRestante', 'totalConsumido', 'totalEntradaVirgen', 'totalRestanteVirgen'];
+            campos.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.tagName === 'INPUT' ? el.value = '' : el.textContent = '0';
+            });
+
             document.getElementById('consumoAdhesivo').textContent = '0';
             document.getElementById('consumoCatalizador').textContent = '0';
             document.getElementById('consumoAcetato').textContent = '0';
 
-            // Limpiar campos calculados de bobinas virgen
-            const totalEntradaVirgen = document.getElementById('totalEntradaVirgen');
-            const totalRestanteVirgen = document.getElementById('totalRestanteVirgen');
             const totalConsumidoVirgen = document.getElementById('totalConsumidoVirgen');
-            if (totalEntradaVirgen) totalEntradaVirgen.value = '';
-            if (totalRestanteVirgen) totalRestanteVirgen.value = '';
             if (totalConsumidoVirgen) totalConsumidoVirgen.textContent = '0';
 
+            // Resetear indicador
             const indicador = document.getElementById('indicadorRefil');
             if (indicador) {
                 indicador.className = 'alert alert-secondary py-1 px-2 mb-0 small text-center';
                 indicador.innerHTML = '<i class="bi bi-dash-circle me-1"></i> Sin datos';
             }
 
-            document.getElementById('footerEntrada').textContent = '0';
-            document.getElementById('footerSalida').textContent = '0';
-            document.getElementById('footerMerma').textContent = '0';
-            document.getElementById('footerRefil').textContent = '0';
+            // Resetear footer
+            ['footerEntrada', 'footerSalida', 'footerMerma', 'footerRefil'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = '0';
+            });
+
+            // Resetear resumen
+            ['resumenEntrada', 'resumenRestante', 'resumenConsumido', 'resumenSalida', 'resumenScrap', 'resumenMermaCalc', 'resumenRefilCalc', 'resumenEntradaVirgen', 'resumenRestanteVirgen', 'resumenConsumidoVirgen', 'resumenAdhesivo'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = '0.00 Kg';
+            });
         }
+
+        // Resetear seleccion de OT
+        const select = document.getElementById('ordenTrabajo');
+        if (select) select.value = '';
+        this.ocultarResumenYForm();
     },
 };
 
 // Inicializar cuando el DOM este listo
 document.addEventListener('DOMContentLoaded', () => {
-    if (document.getElementById('formLaminacion')) {
+    if (document.getElementById('selectorOT') || document.getElementById('formLaminacion')) {
         Laminacion.init();
     }
 });

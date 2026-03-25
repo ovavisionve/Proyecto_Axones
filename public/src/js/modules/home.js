@@ -15,9 +15,13 @@ const HomeModule = {
     async init() {
         await this._esperarSync();
         console.log('Inicializando modulo Home...');
+        // Asegurar que AxonesDB esta inicializado
+        if (typeof AxonesDB !== 'undefined' && !AxonesDB.isReady()) {
+            await AxonesDB.init();
+        }
         this.actualizarFechaHora();
         this.verificarConexion();
-        this.cargarDatos();
+        await this.cargarDatos();
         this.iniciarActualizacionAutomatica();
 
         // Recargar datos cuando se sincronice con Supabase
@@ -93,12 +97,42 @@ const HomeModule = {
         }, 1000);
     },
 
-    // Cargar todos los datos del dashboard desde localStorage (sincronizado con Supabase)
+    // Cache interno de datos de Supabase
+    _cache: { produccion: [], alertas: [], inventario: [], tintas: [] },
+
+    // Cargar datos del dashboard desde Supabase
     async cargarDatos() {
+        await this._cargarCacheSupabase();
         this.cargarDatosDesdeLocal();
     },
 
-    // Cargar maquinas (placeholder - datos vienen de localStorage via Supabase)
+    // Carga cache desde Supabase una sola vez
+    async _cargarCacheSupabase() {
+        if (!AxonesDB.isReady()) return;
+        try {
+            const [prod, alertas, inv, tintas] = await Promise.all([
+                AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_produccion').maybeSingle(),
+                AxonesDB.client.from('alertas').select('*').order('created_at', { ascending: false }),
+                AxonesDB.client.from('materiales').select('*'),
+                AxonesDB.client.from('tintas').select('*'),
+            ]);
+            this._cache.produccion = prod?.data?.value || [];
+            this._cache.alertas = alertas?.data || [];
+            this._cache.inventario = (inv?.data || []).map(m => ({
+                material: m.material, micras: m.micras, ancho: m.ancho,
+                kg: m.stock_kg || 0, producto: m.notas || ''
+            }));
+            this._cache.tintas = tintas?.data || [];
+        } catch (e) { console.warn('[Home] Error cargando cache:', e.message); }
+    },
+
+    // Helpers para obtener datos del cache
+    _getProduccion() { return this._cache.produccion; },
+    _getAlertas() { return this._cache.alertas; },
+    _getInventario() { return this._cache.inventario; },
+    _getTintas() { return this._cache.tintas; },
+
+    // Cargar maquinas (placeholder)
     async cargarMaquinasDesdeAPI() {
         try {
             const response = { success: false };
@@ -125,7 +159,7 @@ const HomeModule = {
         }
     },
 
-    // Cargar inventario (placeholder - datos vienen de localStorage via Supabase)
+    // Cargar inventario (placeholder)
     async cargarInventarioDesdeAPI() {
         try {
             const response = { success: false };
@@ -311,7 +345,7 @@ const HomeModule = {
         }
     },
 
-    // Cargar datos desde localStorage (fallback)
+    // Cargar datos del dashboard
     cargarDatosDesdeLocal() {
         this.cargarKPIs();
         this.cargarAlertasRecientes();
@@ -341,7 +375,7 @@ const HomeModule = {
             this.charts.produccion.destroy();
         }
 
-        const produccion = JSON.parse(localStorage.getItem('axones_produccion') || '[]');
+        const produccion = this._getProduccion();
 
         // Obtener ultimos 7 dias
         const labels = [];
@@ -440,7 +474,7 @@ const HomeModule = {
             this.charts.refil.destroy();
         }
 
-        const produccion = JSON.parse(localStorage.getItem('axones_produccion') || '[]');
+        const produccion = this._getProduccion();
 
         // Agrupar por maquina
         const porMaquina = {};
@@ -503,8 +537,8 @@ const HomeModule = {
 
     // Cargar todos los graficos Power BI
     cargarGraficosPowerBI() {
-        const produccion = JSON.parse(localStorage.getItem('axones_produccion') || '[]');
-        const tintas = JSON.parse(localStorage.getItem('axones_tintas') || '[]');
+        const produccion = this._getProduccion();
+        const tintas = this._getTintas();
 
         this.renderChartPorCliente(produccion);
         this.renderChartRefilTendencia(produccion);
@@ -878,7 +912,7 @@ const HomeModule = {
     // Obtener produccion del dia
     obtenerProduccionHoy() {
         const hoy = new Date().toLocaleDateString('es-VE');
-        const registros = JSON.parse(localStorage.getItem('axones_produccion') || '[]');
+        const registros = this._getProduccion();
 
         const registrosHoy = registros.filter(r => {
             const fechaRegistro = new Date(r.fecha).toLocaleDateString('es-VE');
@@ -896,13 +930,13 @@ const HomeModule = {
 
     // Obtener alertas pendientes
     obtenerAlertasPendientes() {
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
+        const alertas = this._getAlertas();
         return alertas.filter(a => a.estado === 'pendiente' || a.estado === 'activa');
     },
 
     // Obtener total de inventario
     obtenerTotalInventario() {
-        const inventario = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
+        const inventario = this._getInventario();
         return inventario.reduce((sum, item) => sum + (parseFloat(item.kg) || 0), 0);
     },
 
@@ -1027,7 +1061,7 @@ const HomeModule = {
         const tbody = document.getElementById('inventarioBajo');
         if (!tbody) return;
 
-        const inventario = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
+        const inventario = this._getInventario();
         const stockBajo = inventario.filter(item => parseFloat(item.kg) < this.config.stockMinimo);
 
         if (stockBajo.length === 0) {
@@ -1065,28 +1099,18 @@ const HomeModule = {
         const container = document.getElementById('listaMaquinas');
         if (!container) return;
 
-        // Obtener estado de maquinas de localStorage o usar valores por defecto
-        const estadoMaquinas = JSON.parse(localStorage.getItem('axones_maquinas_estado') || 'null');
-
-        if (!estadoMaquinas) {
-            // Crear estado inicial basado en CONFIG
-            const maquinasInicial = [];
-
-            CONFIG.MAQUINAS.IMPRESORAS.forEach(m => {
-                maquinasInicial.push({ id: m.id, nombre: m.nombre, estado: 'active' });
-            });
-            CONFIG.MAQUINAS.LAMINADORAS.forEach(m => {
-                maquinasInicial.push({ id: m.id, nombre: m.nombre, estado: 'active' });
-            });
-            CONFIG.MAQUINAS.CORTADORAS.forEach(m => {
-                maquinasInicial.push({ id: m.id, nombre: m.nombre, estado: 'active' });
-            });
-
-            localStorage.setItem('axones_maquinas_estado', JSON.stringify(maquinasInicial));
-            this.renderizarMaquinas(maquinasInicial);
-        } else {
-            this.renderizarMaquinas(estadoMaquinas);
-        }
+        // Crear estado de maquinas desde CONFIG
+        const maquinas = [];
+        CONFIG.MAQUINAS.IMPRESORAS.forEach(m => {
+            maquinas.push({ id: m.id, nombre: m.nombre, estado: 'active' });
+        });
+        CONFIG.MAQUINAS.LAMINADORAS.forEach(m => {
+            maquinas.push({ id: m.id, nombre: m.nombre, estado: 'active' });
+        });
+        CONFIG.MAQUINAS.CORTADORAS.forEach(m => {
+            maquinas.push({ id: m.id, nombre: m.nombre, estado: 'active' });
+        });
+        this.renderizarMaquinas(maquinas);
     },
 
     // Renderizar lista de maquinas
@@ -1149,11 +1173,8 @@ const HomeModule = {
     },
 
     // Crear alerta (metodo utilitario para otros modulos)
-    crearAlerta(tipo, mensaje, datos = {}) {
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
-
+    async crearAlerta(tipo, mensaje, datos = {}) {
         const nuevaAlerta = {
-            id: Date.now(),
             tipo: tipo,
             mensaje: mensaje,
             fecha: new Date().toISOString(),
@@ -1164,8 +1185,9 @@ const HomeModule = {
             datos: datos
         };
 
-        alertas.unshift(nuevaAlerta);
-        localStorage.setItem('axones_alertas', JSON.stringify(alertas));
+        if (AxonesDB.isReady()) {
+            await AxonesDB.client.from('alertas').insert(nuevaAlerta);
+        }
 
         // Actualizar dashboard si esta visible
         this.cargarKPIs();
@@ -1232,8 +1254,8 @@ const HomeModule = {
         // Obtener datos de produccion
         let produccion = [];
 
-        // Datos desde localStorage (sincronizado con Supabase)
-        produccion = JSON.parse(localStorage.getItem('axones_produccion') || '[]');
+        // Datos desde Supabase
+        produccion = this._getProduccion();
 
         // Calcular totales generales
         let totalEntrada = 0;

@@ -24,60 +24,31 @@ const Programacion = {
     init: async function() {
         console.log('Inicializando modulo Programacion');
 
-        // Esperar a que AxonesSync termine de descargar datos del cloud
-        await this._esperarSync();
+        // Inicializar Supabase
+        await AxonesDB.init();
 
-        this.cargarOrdenes();
+        await this.cargarOrdenes();
         this.renderizarTablero();
         this.setupDragDrop();
         this.actualizarContadores();
 
-        // Escuchar cambios del SyncManager para actualizar Kanban
-        if (typeof SyncManager !== 'undefined') {
-            SyncManager.on('ordenes', () => {
-                const stored = localStorage.getItem('axones_ordenes_trabajo');
-                if (stored) {
-                    this.ordenes = JSON.parse(stored);
+        // Escuchar cambios en tiempo real
+        if (AxonesDB.isReady()) {
+            AxonesDB.realtime.suscribir('ordenes_trabajo', () => {
+                this.cargarOrdenes().then(() => {
                     this.renderizarTablero();
                     this.actualizarContadores();
-                    console.log('[Programacion] Kanban actualizado via SyncManager');
-                }
+                });
             });
         }
-
-        // Escuchar re-sync del cloud para recargar datos
-        window.addEventListener('axones-sync', () => {
-            this.cargarOrdenes();
-            this.renderizarTablero();
-            this.actualizarContadores();
-        });
     },
 
     /**
-     * Espera a que AxonesSync termine la descarga inicial (max 5 segundos)
+     * Carga ordenes desde Supabase
      */
-    _esperarSync: async function() {
-        if (typeof AxonesSync !== 'undefined' && AxonesSync._isReady && AxonesSync._isReady()) {
-            return;
-        }
-        return new Promise(resolve => {
-            let resuelto = false;
-            const handler = () => { if (!resuelto) { resuelto = true; resolve(); } };
-            window.addEventListener('axones-sync', handler, { once: true });
-            setTimeout(() => {
-                if (!resuelto) { resuelto = true; window.removeEventListener('axones-sync', handler); resolve(); }
-            }, 5000);
-        });
-    },
-
-    /**
-     * Carga ordenes desde localStorage (sincronizado con Supabase via SyncManager)
-     */
-    cargarOrdenes: function() {
-        // Cargar desde localStorage (sincronizado con Supabase)
-        const stored = localStorage.getItem('axones_ordenes_trabajo');
-        if (stored) {
-            this.ordenes = JSON.parse(stored);
+    cargarOrdenes: async function() {
+        if (AxonesDB.isReady()) {
+            this.ordenes = await AxonesDB.ordenesHelper.cargar();
         } else {
             this.ordenes = [];
         }
@@ -94,13 +65,6 @@ const Programacion = {
             const fechaB = new Date(b.fechaEntrega || '9999-12-31');
             return fechaA - fechaB;
         });
-    },
-
-    /**
-     * Guarda ordenes en localStorage (sincronizado con Supabase via SyncManager)
-     */
-    guardarOrdenes: function() {
-        localStorage.setItem('axones_ordenes_trabajo', JSON.stringify(this.ordenes));
     },
 
     /**
@@ -327,7 +291,7 @@ const Programacion = {
     /**
      * Mueve una orden a un nuevo estado/columna
      */
-    moverOrden: function(ordenId, nuevoEstado) {
+    moverOrden: async function(ordenId, nuevoEstado) {
         const orden = this.ordenes.find(o => o.id === ordenId);
         if (!orden) return;
 
@@ -343,11 +307,17 @@ const Programacion = {
             orden.estadoOrden = 'pendiente';
             orden.procesoActual = null;
         } else {
-            orden.estadoOrden = 'en-proceso';
+            orden.estadoOrden = nuevoEstado;
             orden.procesoActual = nuevoEstado;
         }
 
-        this.guardarOrdenes();
+        // Guardar cambio de estado en Supabase
+        try {
+            await AxonesDB.ordenesHelper.actualizar(ordenId, orden);
+        } catch (e) {
+            console.error('Error moviendo orden:', e);
+        }
+
         this.renderizarTablero();
 
         const nombreEstado = this.getNombreEstado(nuevoEstado);

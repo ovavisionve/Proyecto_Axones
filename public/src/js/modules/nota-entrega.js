@@ -11,8 +11,13 @@ const NotaEntrega = {
 
     STORAGE_KEY: 'axones_notas_entrega',
 
-    init: function() {
-        this.loadNotas();
+    init: async function() {
+        // Asegurar que AxonesDB esta inicializado
+        if (typeof AxonesDB !== 'undefined' && !AxonesDB.isReady()) {
+            await AxonesDB.init();
+        }
+
+        await this.loadNotas();
         this.cargarOTsDisponibles();
         this.renderHistorial();
         this.generarNumeroNota();
@@ -27,19 +32,24 @@ const NotaEntrega = {
     /**
      * Carga notas guardadas
      */
-    loadNotas: function() {
-        try {
-            this.notas = JSON.parse(localStorage.getItem(this.STORAGE_KEY) || '[]');
-        } catch (e) {
-            this.notas = [];
-        }
+    loadNotas: async function() {
+        if (AxonesDB.isReady()) {
+            try {
+                const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', this.STORAGE_KEY).single();
+                this.notas = data?.value || [];
+            } catch (e) { this.notas = []; }
+        } else { this.notas = []; }
     },
 
     /**
      * Guarda notas
      */
-    saveNotas: function() {
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.notas));
+    saveNotas: async function() {
+        if (AxonesDB.isReady()) {
+            await AxonesDB.client.from('sync_store').upsert({
+                key: this.STORAGE_KEY, value: this.notas, updated_at: new Date().toISOString()
+            }, { onConflict: 'key' });
+        }
     },
 
     /**
@@ -55,10 +65,16 @@ const NotaEntrega = {
     /**
      * Carga OTs disponibles (completadas o con producto terminado)
      */
-    cargarOTsDisponibles: function() {
+    cargarOTsDisponibles: async function() {
         const select = document.getElementById('selectOT');
-        const ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
-        const productoTerminado = JSON.parse(localStorage.getItem('axones_producto_terminado') || '[]');
+        const ordenes = AxonesDB.isReady() ? await AxonesDB.ordenesHelper.cargar() : [];
+        let productoTerminado = [];
+        if (AxonesDB.isReady()) {
+            try {
+                const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_producto_terminado').single();
+                productoTerminado = data?.value || [];
+            } catch (e) { productoTerminado = []; }
+        }
 
         // Obtener OTs que tienen producto terminado o estan completadas/en proceso
         const otsConPT = [...new Set(productoTerminado.map(pt => pt.ordenTrabajo))];
@@ -81,14 +97,14 @@ const NotaEntrega = {
     /**
      * Carga datos de la OT seleccionada
      */
-    cargarDatosOT: function() {
+    cargarDatosOT: async function() {
         const otNumero = document.getElementById('selectOT').value;
         if (!otNumero) {
             alert('Seleccione una Orden de Trabajo');
             return;
         }
 
-        const ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
+        const ordenes = AxonesDB.isReady() ? await AxonesDB.ordenesHelper.cargar() : [];
         const orden = ordenes.find(o => o.numeroOrden === otNumero || o.id === otNumero);
 
         if (!orden) {
@@ -116,8 +132,14 @@ const NotaEntrega = {
         const numNota = document.getElementById('numeroNota').value;
         document.getElementById('printNumeroNota').textContent = numNota;
 
-        // Cargar paletas desde producto terminado
-        const productoTerminado = JSON.parse(localStorage.getItem('axones_producto_terminado') || '[]');
+        // Cargar paletas desde producto terminado (sync_store)
+        let productoTerminado = [];
+        if (AxonesDB.isReady()) {
+            try {
+                const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_producto_terminado').single();
+                productoTerminado = data?.value || [];
+            } catch (e) { productoTerminado = []; }
+        }
         const paletasOT = productoTerminado.filter(pt => pt.ordenTrabajo === orden.numeroOrden);
 
         this.paletas = [];

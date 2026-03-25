@@ -1,6 +1,6 @@
 /**
  * MODULO PROVEEDORES - Sistema Axones
- * CRUD completo con soporte Supabase + localStorage fallback
+ * CRUD completo de proveedores - 100% Supabase (sin localStorage)
  */
 
 const ProveedoresModule = {
@@ -18,6 +18,12 @@ const ProveedoresModule = {
         }
 
         await AxonesDB.init();
+
+        if (!AxonesDB.isReady()) {
+            this._toast('Error: No se pudo conectar a Supabase. Verifique su conexion.', 'danger');
+            return;
+        }
+
         await this.cargar();
 
         // Busqueda
@@ -29,22 +35,22 @@ const ProveedoresModule = {
         if (filtroTipo) filtroTipo.addEventListener('change', () => this.aplicarFiltros());
 
         // Real-time
-        if (AxonesDB.isReady()) {
-            AxonesDB.realtime.suscribir('proveedores', () => this.cargar());
-            AxonesDB.presencia.conectar('proveedores');
-            AxonesDB.presenciaWidget.render();
-        }
+        AxonesDB.realtime.suscribir('proveedores', () => this.cargar());
+        AxonesDB.presencia.conectar('proveedores');
+        AxonesDB.presenciaWidget.render();
     },
 
     cargar: async function() {
-        if (AxonesDB.isReady()) {
+        try {
             this.proveedores = await AxonesDB.proveedores.listar({
                 ordenar: 'nombre',
                 ascendente: true,
                 soloActivos: false
             });
-        } else {
-            this.proveedores = JSON.parse(localStorage.getItem('axones_proveedores') || '[]');
+        } catch (error) {
+            console.error('Error cargando proveedores:', error);
+            this.proveedores = [];
+            this._toast('Error cargando proveedores: ' + error.message, 'danger');
         }
         this.renderTabla(this.proveedores);
     },
@@ -74,7 +80,7 @@ const ProveedoresModule = {
                 <td><span class="badge ${tipoBadge}">${(p.tipo || 'otros').charAt(0).toUpperCase() + (p.tipo || 'otros').slice(1)}</span></td>
                 <td>${p.telefono || '-'}</td>
                 <td>${p.email || '-'}</td>
-                <td>${p.contacto_nombre || p.contacto || '-'}</td>
+                <td>${p.contacto_nombre || '-'}</td>
                 <td class="text-center">
                     <span class="badge ${activo ? 'bg-success' : 'bg-secondary'}">${activo ? 'Activo' : 'Inactivo'}</span>
                 </td>
@@ -105,7 +111,7 @@ const ProveedoresModule = {
             filtrados = filtrados.filter(p =>
                 (p.nombre || '').toLowerCase().includes(texto) ||
                 (p.rif || '').toLowerCase().includes(texto) ||
-                (p.contacto_nombre || p.contacto || '').toLowerCase().includes(texto)
+                (p.contacto_nombre || '').toLowerCase().includes(texto)
             );
         }
 
@@ -123,7 +129,7 @@ const ProveedoresModule = {
             document.getElementById('proveedorDireccion').value = datos.direccion || '';
             document.getElementById('proveedorTelefono').value = datos.telefono || '';
             document.getElementById('proveedorEmail').value = datos.email || '';
-            document.getElementById('proveedorContacto').value = datos.contacto_nombre || datos.contacto || '';
+            document.getElementById('proveedorContacto').value = datos.contacto_nombre || '';
             document.getElementById('proveedorNotas').value = datos.notas || '';
         } else {
             titulo.innerHTML = '<i class="bi bi-truck me-2"></i>Nuevo Proveedor';
@@ -138,6 +144,9 @@ const ProveedoresModule = {
         if (prov) this.mostrarModal(prov);
     },
 
+    /**
+     * Guardar proveedor - directo a Supabase
+     */
     guardar: async function() {
         const nombre = document.getElementById('proveedorNombre').value.trim();
         const tipo = document.getElementById('proveedorTipo').value;
@@ -158,24 +167,15 @@ const ProveedoresModule = {
         const id = document.getElementById('proveedorId').value;
 
         try {
-            if (AxonesDB.isReady()) {
-                if (id) await AxonesDB.proveedores.actualizar(id, datos);
-                else await AxonesDB.proveedores.crear(datos);
+            if (id) {
+                await AxonesDB.proveedores.actualizar(id, datos);
             } else {
-                if (id) {
-                    const idx = this.proveedores.findIndex(p => p.id === id);
-                    if (idx >= 0) this.proveedores[idx] = { ...this.proveedores[idx], ...datos };
-                } else {
-                    datos.id = 'PROV_' + Date.now();
-                    datos.activo = true;
-                    this.proveedores.push(datos);
-                }
-                localStorage.setItem('axones_proveedores', JSON.stringify(this.proveedores));
+                await AxonesDB.proveedores.crear(datos);
             }
 
             bootstrap.Modal.getInstance(document.getElementById('modalProveedor')).hide();
             await this.cargar();
-            this._toast(id ? 'Proveedor actualizado' : 'Proveedor creado', 'success');
+            this._toast(id ? 'Proveedor actualizado' : 'Proveedor creado exitosamente', 'success');
         } catch (error) {
             this._toast('Error: ' + error.message, 'danger');
         }
@@ -183,16 +183,9 @@ const ProveedoresModule = {
 
     toggleActivo: async function(id, nuevoEstado) {
         try {
-            if (AxonesDB.isReady()) {
-                await AxonesDB.proveedores.actualizar(id, { activo: nuevoEstado });
-            } else {
-                const idx = this.proveedores.findIndex(p => p.id === id);
-                if (idx >= 0) {
-                    this.proveedores[idx].activo = nuevoEstado;
-                    localStorage.setItem('axones_proveedores', JSON.stringify(this.proveedores));
-                }
-            }
+            await AxonesDB.proveedores.actualizar(id, { activo: nuevoEstado });
             await this.cargar();
+            this._toast(`Proveedor ${nuevoEstado ? 'activado' : 'desactivado'}`, 'info');
         } catch (error) {
             this._toast('Error: ' + error.message, 'danger');
         }

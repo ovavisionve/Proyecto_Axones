@@ -16,6 +16,10 @@ const Corte = {
     tiempoAcumulado: 0,
     temporizadorActivo: false,
 
+    // Timer state (replaces localStorage corte_temporizador_*)
+    _timerInicio: null,
+    _timerAcumulado: 0,
+
     // Orden cargada desde el modulo de ordenes
     ordenCargada: null,
 
@@ -35,19 +39,21 @@ const Corte = {
      * Inicializa el modulo
      */
     init: async function() {
-        // Esperar a que AxonesSync termine de descargar datos del cloud
-        await this._esperarSync();
-
         console.log('Inicializando modulo Control de Corte');
 
-        this.setDefaultDate();
+        // Asegurar que AxonesDB esta inicializado
+        if (typeof AxonesDB !== 'undefined' && !AxonesDB.isReady()) {
+            await AxonesDB.init();
+        }
+
         this.inicializarPaletasDinamicas();
         this.setupEventListeners();
         this.setupCalculations();
         this.setupTemporizador();
 
-        // Verificar si viene de una orden y cargar datos automaticamente
-        this.cargarDesdeOrden();
+        // Poblar selector de OTs y verificar si viene una por URL
+        await this.poblarSelectorOT();
+        await this.cargarDesdeOrden();
 
         // Inicializar controles de tiempo
         this.inicializarControlTiempo();
@@ -62,25 +68,8 @@ const Corte = {
         this.setupEtiquetasBobinas();
 
         // Escuchar re-sync del cloud para recargar datos
-        window.addEventListener('axones-sync', () => {
-            this.cargarDesdeOrden();
-        });
-    },
-
-    /**
-     * Espera a que AxonesSync termine la descarga inicial (max 5 segundos)
-     */
-    _esperarSync: async function() {
-        if (typeof AxonesSync !== 'undefined' && AxonesSync._isReady && AxonesSync._isReady()) {
-            return;
-        }
-        return new Promise(resolve => {
-            let resuelto = false;
-            const handler = () => { if (!resuelto) { resuelto = true; resolve(); } };
-            window.addEventListener('axones-sync', handler, { once: true });
-            setTimeout(() => {
-                if (!resuelto) { resuelto = true; window.removeEventListener('axones-sync', handler); resolve(); }
-            }, 5000);
+        window.addEventListener('axones-sync', async () => {
+            await this.poblarSelectorOT();
         });
     },
 
@@ -301,9 +290,9 @@ const Corte = {
         this.temporizadorActivo = true;
         this.tiempoInicio = Date.now();
 
-        // Guardar estado
-        localStorage.setItem('corte_temporizador_inicio', this.tiempoInicio);
-        localStorage.setItem('corte_temporizador_acumulado', this.tiempoAcumulado);
+        // Guardar estado en module-level variables
+        this._timerInicio = this.tiempoInicio;
+        this._timerAcumulado = this.tiempoAcumulado;
 
         this.temporizador = setInterval(() => this.actualizarTemporizador(), 1000);
 
@@ -322,8 +311,8 @@ const Corte = {
         this.tiempoAcumulado += Date.now() - this.tiempoInicio;
         clearInterval(this.temporizador);
 
-        localStorage.setItem('corte_temporizador_acumulado', this.tiempoAcumulado);
-        localStorage.removeItem('corte_temporizador_inicio');
+        this._timerAcumulado = this.tiempoAcumulado;
+        this._timerInicio = null;
 
         document.getElementById('btnIniciarTemporizador').disabled = false;
         document.getElementById('btnPausarTemporizador').disabled = true;
@@ -340,8 +329,8 @@ const Corte = {
         this.tiempoInicio = null;
         clearInterval(this.temporizador);
 
-        localStorage.removeItem('corte_temporizador_inicio');
-        localStorage.removeItem('corte_temporizador_acumulado');
+        this._timerInicio = null;
+        this._timerAcumulado = 0;
 
         document.getElementById('temporizadorDisplay').textContent = '00:00:00';
         document.getElementById('kgPorHora').value = '0';
@@ -381,15 +370,15 @@ const Corte = {
      * Restaura el temporizador si habia uno activo
      */
     restaurarTemporizador: function() {
-        const inicio = localStorage.getItem('corte_temporizador_inicio');
-        const acumulado = localStorage.getItem('corte_temporizador_acumulado');
+        const inicio = this._timerInicio;
+        const acumulado = this._timerAcumulado;
 
         if (acumulado) {
-            this.tiempoAcumulado = parseInt(acumulado) || 0;
+            this.tiempoAcumulado = acumulado;
         }
 
         if (inicio) {
-            this.tiempoInicio = parseInt(inicio);
+            this.tiempoInicio = inicio;
             this.temporizadorActivo = true;
             this.temporizador = setInterval(() => this.actualizarTemporizador(), 1000);
 
@@ -468,36 +457,6 @@ const Corte = {
             anchoCortInput.addEventListener('input', () => this.calcularMetrosBobina());
         }
 
-        // Cargar clientes en datalist
-        this.cargarClientesDatalist();
-    },
-
-    /**
-     * Carga clientes en el datalist
-     */
-    cargarClientesDatalist: function() {
-        const datalist = document.getElementById('listaClientes');
-        if (!datalist) return;
-
-        let clientes = [];
-        const ordenesData = localStorage.getItem('axones_ordenes_trabajo');
-        if (ordenesData) {
-            try {
-                const ordenes = JSON.parse(ordenesData);
-                const clienteSet = new Set();
-                ordenes.forEach(o => {
-                    if (o.cliente) clienteSet.add(o.cliente);
-                });
-                clientes = Array.from(clienteSet);
-            } catch (e) {}
-        }
-
-        datalist.innerHTML = '';
-        clientes.forEach(c => {
-            const option = document.createElement('option');
-            option.value = c;
-            datalist.appendChild(option);
-        });
     },
 
     /**
@@ -714,13 +673,11 @@ const Corte = {
      */
     inicializarControlTiempo: function() {
         const form = document.getElementById('formCorte');
-        if (!form || document.getElementById('panelComandasCorte')) return;
+        if (!form || document.getElementById('controlTiempoCorte')) return;
 
+        // Solo insertar panel de Control de Tiempo (Play/Pausa/Completar/Despacho)
+        // El selector de OT ahora es el dropdown principal, no el panel de comandas
         const panelHTML = `
-            <!-- Panel de Comandas (Selector de OT tipo restaurante) -->
-            <div id="panelComandasCorte" class="mb-3"></div>
-
-            <!-- Panel de Control de Tiempo -->
             <div id="controlTiempoCorte" class="card mb-3 border-success" style="display: none;">
                 <div class="card-header bg-success text-white py-2">
                     <div class="d-flex align-items-center justify-content-between">
@@ -738,19 +695,6 @@ const Corte = {
         `;
 
         form.insertAdjacentHTML('afterbegin', panelHTML);
-
-        // Renderizar panel de comandas
-        if (typeof ControlTiempo !== 'undefined') {
-            ControlTiempo.renderPanelComandas('corte', 'panelComandasCorte', (orden) => {
-                this.ordenCargada = orden;
-                this.precargarCamposOrden(orden);
-                this.mostrarBannerOrdenCargada(orden);
-
-                // Mostrar panel de control de tiempo
-                const panelTiempo = document.getElementById('controlTiempoCorte');
-                if (panelTiempo) panelTiempo.style.display = 'block';
-            });
-        }
     },
 
     /**
@@ -778,132 +722,191 @@ const Corte = {
     },
 
     /**
-     * Carga datos desde una orden si viene con parametros en la URL
+     * Pobla el selector de OT con ordenes pendientes/en-proceso
      */
-    cargarDesdeOrden: function() {
-        const params = new URLSearchParams(window.location.search);
-        const ot = params.get('ot');
+    poblarSelectorOT: async function() {
+        const select = document.getElementById('ordenTrabajo');
+        if (!select) return;
 
-        if (ot) {
-            console.log('Cargando datos desde orden:', ot);
-
-            let ordenes = [];
-            try {
-                ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
-            } catch (e) {
-                console.warn('Error parseando ordenes:', e);
-                ordenes = [];
-            }
-            const orden = ordenes.find(o => o.ot === ot);
-
-            if (orden) {
-                this.ordenCargada = orden;
-                this.precargarCamposOrden(orden);
-                this.mostrarBannerOrdenCargada(orden);
-            } else {
-                this.precargarDesdeParametros(params);
-            }
+        let ordenes = [];
+        try {
+            ordenes = (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) ? await AxonesDB.ordenesHelper.cargar() : [];
+        } catch (e) {
+            ordenes = [];
         }
 
-        this.agregarSelectorOrdenes();
+        // Filtrar ordenes no completadas
+        const disponibles = ordenes.filter(o => o.estadoOrden !== 'completada');
+
+        // Guardar valor actual
+        const valorActual = select.value;
+
+        // Limpiar y poblar
+        select.innerHTML = '<option value="">Seleccionar OT...</option>';
+        disponibles.forEach(o => {
+            const opt = document.createElement('option');
+            opt.value = o.numeroOrden || o.ot;
+            opt.textContent = `${o.numeroOrden || o.ot} | ${o.cliente || '---'} | ${o.producto || '---'} | ${(o.pedidoKg || 0).toLocaleString()} Kg`;
+            opt.dataset.ot = o.ot || o.numeroOrden;
+            select.appendChild(opt);
+        });
+
+        // Restaurar valor si existia
+        if (valorActual) select.value = valorActual;
+
+        // Event listener (solo una vez)
+        if (!select._listenerAdded) {
+            select._listenerAdded = true;
+            select.addEventListener('change', () => {
+                const otId = select.value;
+                if (!otId) {
+                    this.ocultarResumenYForm();
+                    return;
+                }
+                const orden = disponibles.find(o => (o.numeroOrden || o.ot) === otId) ||
+                              ordenes.find(o => (o.numeroOrden || o.ot) === otId);
+                if (orden) {
+                    this.seleccionarOrden(orden);
+                }
+            });
+        }
+
+        // Si no hay ordenes, mostrar mensaje
+        const badge = document.getElementById('estadoOT');
+        if (badge) {
+            badge.textContent = disponibles.length > 0
+                ? `${disponibles.length} OTs disponibles`
+                : 'No hay OTs pendientes';
+            badge.className = disponibles.length > 0 ? 'badge bg-success' : 'badge bg-secondary';
+        }
     },
 
     /**
-     * Precarga campos del formulario desde una orden
+     * Carga OT desde URL (?ot=OT-2026-0001) si viene con parametro
      */
-    precargarCamposOrden: function(orden) {
-        console.log('Precargando datos de orden en corte:', orden);
+    cargarDesdeOrden: async function() {
+        const params = new URLSearchParams(window.location.search);
+        const ot = params.get('ot');
+        if (!ot) return;
 
-        // Helper para precargar un campo
-        const precargar = (id, valor) => {
-            if (!valor && valor !== 0) return;
-            const el = document.getElementById(id);
-            if (!el) return;
+        let ordenes = [];
+        try {
+            ordenes = (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) ? await AxonesDB.ordenesHelper.cargar() : [];
+        } catch (e) { ordenes = []; }
 
-            if (el.tagName === 'SELECT') {
-                const opciones = Array.from(el.options).map(o => o.value);
-                if (opciones.includes(String(valor))) {
-                    el.value = String(valor);
-                } else {
-                    return;
-                }
-            } else {
-                el.value = valor;
-            }
-            el.classList.add('precargado-orden');
-            el.style.backgroundColor = '#e8f4e8';
-            el.style.borderColor = '#198754';
-        };
+        const orden = ordenes.find(o => o.ot === ot || o.numeroOrden === ot);
+        if (orden) {
+            // Seleccionar en el dropdown
+            const select = document.getElementById('ordenTrabajo');
+            if (select) select.value = orden.numeroOrden || orden.ot;
+            this.seleccionarOrden(orden);
+        }
+    },
 
-        // === INFORMACION DE ORDEN ===
-        precargar('ordenTrabajo', orden.ot || orden.numeroOrden);
-        precargar('producto', orden.producto);
+    /**
+     * Selecciona una OT: muestra resumen spreadsheet y habilita formulario
+     */
+    seleccionarOrden: function(orden) {
+        this.ordenCargada = orden;
+        this.ordenCargada.pedidoKgOriginal = orden.pedidoKg;
 
-        // Cliente
-        const clienteEl = document.getElementById('clienteOrden') || document.getElementById('cliente');
-        if (clienteEl && orden.cliente) {
-            clienteEl.value = orden.cliente;
-            clienteEl.classList.add('precargado-orden');
-            clienteEl.style.backgroundColor = '#e8f4e8';
-            clienteEl.style.borderColor = '#198754';
+        // Renderizar resumen read-only
+        this.renderResumenOT(orden);
+
+        // Mostrar formulario de produccion
+        const form = document.getElementById('formCorte');
+        if (form) form.style.display = '';
+
+        // Actualizar badge
+        const badge = document.getElementById('estadoOT');
+        if (badge) {
+            badge.textContent = orden.numeroOrden || orden.ot;
+            badge.className = 'badge bg-success';
         }
 
-        // === ESPECIFICACIONES DE CORTE (desde OT) ===
-        precargar('anchoCorte', orden.anchoCorteFinal || orden.anchoCorte);
-        precargar('tipoEmpalme', orden.tipoEmpalme);
-        precargar('figuraEmbobinado', orden.figuraEmbobinadoMontaje || orden.orientacionEmbalaje);
-        precargar('pesoBobina', orden.pesoBobina);
-        precargar('diametroCore', orden.diametroCore);
-        precargar('numPistas', orden.numBandas);
+        // Mostrar y actualizar control de tiempo (Play/Pausa/Completar/Despacho)
+        const panelTiempo = document.getElementById('controlTiempoCorte');
+        if (panelTiempo) panelTiempo.style.display = 'block';
+        this.actualizarControlTiempo(orden.id || orden.ot, orden.numeroOrden || orden.ot);
 
-        // Fotocelda
-        if (orden.ubicFotoceldaCorte) {
-            precargar('fotocelda', orden.ubicFotoceldaCorte);
-        }
-
-        // Metros por bobina (calcular si no existe)
-        if (orden.metrosBobina) {
-            precargar('metrosBobina', orden.metrosBobina);
-        } else if (orden.pesoBobina) {
-            // Intentar calcular metros/bobina con datos de ficha tecnica
-            const ancho = parseFloat(orden.fichaAncho1 || orden.anchoMaterial || orden.anchoCorteFinal) || 0;
-            const micras = parseFloat(orden.fichaMicras1 || orden.micrasMaterial) || 0;
-            const densidad = parseFloat(orden.fichaDensidad1) || this.getDensidadMaterial(orden.fichaTipoMat1 || orden.tipoMaterial);
-            if (ancho > 0 && micras > 0) {
-                const gramaje = (ancho / 1000) * micras * densidad;
-                if (gramaje > 0) {
-                    const metros = Math.round((parseFloat(orden.pesoBobina) * 1000) / gramaje);
-                    precargar('metrosBobina', metros);
-                }
-            }
-        }
-
-        // Datos de material (hidden fields para calculo de metros/bobina)
+        // Set hidden material fields for metros/bobina calculation
         const materialAncho = document.getElementById('materialAncho');
         const materialMicraje = document.getElementById('materialMicraje');
         const materialDensidad = document.getElementById('materialDensidad');
-        if (materialAncho) {
-            materialAncho.value = orden.fichaAncho1 || orden.anchoMaterial || orden.anchoCorteFinal || '';
-        }
-        if (materialMicraje) {
-            materialMicraje.value = orden.fichaMicras1 || orden.micrasMaterial || '';
-        }
+        if (materialAncho) materialAncho.value = orden.fichaAncho1 || orden.anchoMaterial || orden.anchoCorteFinal || '';
+        if (materialMicraje) materialMicraje.value = orden.fichaMicras1 || orden.micrasMaterial || '';
         if (materialDensidad) {
             const densidad = orden.fichaDensidad1 || this.getDensidadMaterial(orden.fichaTipoMat1 || orden.tipoMaterial);
             materialDensidad.value = densidad || '';
         }
 
-        // Pedido Kg (si existe campo)
-        precargar('pedidoKg', orden.pedidoKg);
-
-        // Guardar referencia
-        this.ordenCargada = orden;
-
-        // Actualizar control de tiempo
-        this.actualizarControlTiempo(orden.id || orden.ot, orden.numeroOrden || orden.ot);
-
-        console.log('Orden precargada en corte:', orden.numeroOrden || orden.ot);
+        console.log('[Corte] OT seleccionada:', orden.numeroOrden || orden.ot);
     },
+
+    /**
+     * Oculta resumen y formulario cuando no hay OT seleccionada
+     */
+    ocultarResumenYForm: function() {
+        this.ordenCargada = null;
+        const resumen = document.getElementById('resumenOT');
+        const form = document.getElementById('formCorte');
+        if (resumen) resumen.classList.remove('visible');
+        if (form) form.style.display = 'none';
+
+        const badge = document.getElementById('estadoOT');
+        if (badge) {
+            badge.textContent = 'Sin OT seleccionada';
+            badge.className = 'badge bg-secondary';
+        }
+    },
+
+    /**
+     * Renderiza el resumen read-only de la OT en formato spreadsheet
+     */
+    renderResumenOT: function(orden) {
+        const resumen = document.getElementById('resumenOT');
+        if (!resumen) return;
+
+        const v = (val) => (val !== undefined && val !== null && val !== '') ? val : '-';
+        const n = (val) => (val && !isNaN(val)) ? Number(val).toLocaleString() : '-';
+
+        // Header
+        const header = document.getElementById('otNumeroHeader');
+        if (header) header.textContent = v(orden.numeroOrden || orden.ot);
+
+        // Datos del Pedido
+        document.getElementById('otFecha').textContent = v(orden.fechaOrden);
+        document.getElementById('otPedidoKg').textContent = n(orden.pedidoKg) + ' Kg';
+        document.getElementById('otMetrosEst').textContent = n(orden.metrosImp || orden.metrosEstimados);
+        document.getElementById('otMaquina').textContent = v(orden.maquina);
+        document.getElementById('otEstructura').textContent = v(orden.estructuraMaterial);
+
+        // Datos del Producto
+        document.getElementById('otCliente').textContent = v(orden.cliente);
+        document.getElementById('otClienteRif').textContent = v(orden.clienteRif);
+        document.getElementById('otProducto').textContent = v(orden.producto);
+        document.getElementById('otCpe').textContent = v(orden.cpe);
+
+        // Area de Corte
+        document.getElementById('otAnchoCorte').textContent = v(orden.anchoCorte);
+        document.getElementById('otAnchoMontaje').textContent = v(orden.anchoMontaje);
+        document.getElementById('otNumBandas').textContent = v(orden.numBandas);
+        document.getElementById('otFrecuencia').textContent = v(orden.frecuencia);
+        document.getElementById('otFiguraEmb').textContent = v(orden.figuraEmbobinadoMontaje);
+        document.getElementById('otDesarrollo').textContent = v(orden.desarrollo);
+
+        // Ficha Tecnica
+        document.getElementById('otTipoMat').textContent = v(orden.fichaTipoMat1 || orden.tipoMaterial);
+        document.getElementById('otMicras').textContent = v(orden.fichaMicras1 || orden.micrasMaterial);
+        document.getElementById('otAncho').textContent = v(orden.fichaAncho1 || orden.anchoMaterial);
+        document.getElementById('otDensidad').textContent = v(orden.fichaDensidad1);
+        document.getElementById('otKgNecesarios').textContent = n(orden.fichaKg1);
+
+        // Mostrar el resumen
+        resumen.classList.add('visible');
+    },
+
+    // precargarCamposOrden removed - data now comes from resumenOT spreadsheet
 
     /**
      * Devuelve la densidad segun el tipo de material
@@ -923,178 +926,9 @@ const Corte = {
         return 0.90;
     },
 
-    /**
-     * Precarga desde parametros de URL
-     */
-    precargarDesdeParametros: function(params) {
-        const mapping = {
-            'ot': 'ordenTrabajo',
-            'cliente': 'clienteOrden',
-            'producto': 'producto'
-        };
-
-        Object.entries(mapping).forEach(([param, campo]) => {
-            const valor = params.get(param);
-            if (valor) {
-                const input = document.getElementById(campo);
-                if (input) {
-                    input.value = valor;
-                    input.classList.add('precargado-orden');
-                    input.setAttribute('readonly', true);
-                    input.style.backgroundColor = '#e8f4e8';
-                }
-            }
-        });
-    },
-
-    /**
-     * Muestra banner indicando que se cargo una orden
-     */
-    mostrarBannerOrdenCargada: function(orden) {
-        const form = document.getElementById('formCorte');
-        if (!form || document.getElementById('bannerOrdenCargada')) return;
-
-        const banner = document.createElement('div');
-        banner.id = 'bannerOrdenCargada';
-        banner.className = 'alert alert-success py-2 mb-3';
-        banner.innerHTML = `
-            <div class="d-flex align-items-center justify-content-between">
-                <div>
-                    <i class="bi bi-clipboard-check me-2"></i>
-                    <strong>Orden cargada:</strong> ${orden.ot} - ${orden.cliente}
-                    <br><small class="text-muted">Los campos verdes estan precargados. Solo complete los campos restantes.</small>
-                </div>
-                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="Corte.descargarOrden()">
-                    <i class="bi bi-x-circle me-1"></i>Descargar orden
-                </button>
-            </div>
-        `;
-
-        const firstSection = form.querySelector('.form-section');
-        if (firstSection) {
-            firstSection.parentNode.insertBefore(banner, firstSection);
-        }
-    },
-
-    /**
-     * Descarga la orden y limpia campos precargados
-     */
-    descargarOrden: function() {
-        this.ordenCargada = null;
-
-        document.querySelectorAll('.precargado-orden').forEach(input => {
-            input.value = '';
-            input.classList.remove('precargado-orden');
-            input.removeAttribute('readonly');
-            input.style.backgroundColor = '';
-        });
-
-        const banner = document.getElementById('bannerOrdenCargada');
-        if (banner) banner.remove();
-
-        window.history.replaceState({}, document.title, window.location.pathname);
-    },
-
-    /**
-     * Agrega selector de ordenes pendientes al formulario
-     */
-    agregarSelectorOrdenes: function() {
-        console.log('[Corte] agregarSelectorOrdenes - INICIO');
-
-        const otInput = document.getElementById('ordenTrabajo');
-        if (!otInput) {
-            console.warn('[Corte] No se encontro el campo ordenTrabajo');
-            return;
-        }
-
-        if (document.getElementById('selectorOrden')) {
-            console.log('[Corte] selectorOrden ya existe');
-            return;
-        }
-
-        // Obtener ordenes pendientes desde localStorage primero
-        let ordenes = [];
-        try {
-            ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
-        } catch (e) {
-            console.warn('[Corte] Error parseando ordenes:', e);
-            ordenes = [];
-        }
-
-        console.log('[Corte] Ordenes en localStorage:', ordenes.length);
-
-        // Renderizar con datos locales
-        this._renderSelectorOrdenes(ordenes);
-    },
-
-    _renderSelectorOrdenes: function(ordenes) {
-        const otInput = document.getElementById('ordenTrabajo');
-        if (!otInput) return;
-
-        // Filtrar ordenes no completadas
-        const ordenesDisponibles = ordenes.filter(o => o.estadoOrden !== 'completada');
-        console.log('[Corte] Ordenes disponibles:', ordenesDisponibles.length);
-
-        // Crear el div del selector
-        const selectorDiv = document.createElement('div');
-        selectorDiv.id = 'selectorOrden';
-        selectorDiv.className = 'mt-2';
-
-        if (ordenesDisponibles.length === 0) {
-            selectorDiv.innerHTML = `
-                <div class="alert alert-info py-1 small mb-0">
-                    <i class="bi bi-info-circle me-1"></i>No hay ordenes pendientes.
-                    <a href="ordenes.html" class="alert-link">Crear nueva OT</a>
-                </div>
-            `;
-        } else {
-            selectorDiv.innerHTML = `
-                <label class="form-label small fw-bold text-success mb-1">
-                    <i class="bi bi-list-check me-1"></i>Ordenes Pendientes (${ordenesDisponibles.length})
-                </label>
-                <select class="form-select form-select-sm border-success" id="selectOrdenPendiente">
-                    <option value="">-- Seleccionar orden de trabajo --</option>
-                    ${ordenesDisponibles.map(o => `
-                        <option value="${o.numeroOrden || o.ot}" data-orden='${JSON.stringify(o).replace(/'/g, "&#39;")}'>
-                            ${o.numeroOrden || o.ot} | ${o.cliente} | ${o.producto || 'Sin producto'} | ${(o.pedidoKg || 0).toLocaleString()}kg
-                        </option>
-                    `).join('')}
-                </select>
-            `;
-        }
-
-        // Insertar directamente despues del input ordenTrabajo
-        otInput.insertAdjacentElement('afterend', selectorDiv);
-        console.log('[Corte] Selector insertado correctamente');
-
-        // Event listener para cargar orden seleccionada
-        const selectElement = document.getElementById('selectOrdenPendiente');
-        if (selectElement) {
-            selectElement.addEventListener('change', (e) => {
-                if (e.target.value) {
-                    const option = e.target.selectedOptions[0];
-                    try {
-                        const orden = JSON.parse(option.dataset.orden.replace(/&#39;/g, "'"));
-                        this.ordenCargada = orden;
-                        this.precargarCamposOrden(orden);
-                        this.mostrarBannerOrdenCargada(orden);
-                    } catch (err) {
-                        console.warn('[Corte] Error parseando orden seleccionada:', err);
-                    }
-                }
-            });
-        }
-    },
-
-    /**
-     * Establece la fecha actual por defecto
-     */
-    setDefaultDate: function() {
-        const fechaInput = document.getElementById('fecha');
-        if (fechaInput) {
-            fechaInput.value = new Date().toISOString().split('T')[0];
-        }
-    },
+    // precargarDesdeParametros, mostrarBannerOrdenCargada, descargarOrden,
+    // agregarSelectorOrdenes, _renderSelectorOrdenes, setDefaultDate removed
+    // - replaced by poblarSelectorOT, seleccionarOrden, renderResumenOT, ocultarResumenYForm
 
     /**
      * Actualiza el indicador visual de refil
@@ -1128,16 +962,12 @@ const Corte = {
      */
     validarCamposRequeridos: function() {
         const errores = [];
-        const fecha = document.getElementById('fecha')?.value;
         const turno = document.querySelector('input[name="turno"]:checked');
-        const maquina = document.getElementById('maquina')?.value;
-        const ordenTrabajo = document.getElementById('ordenTrabajo')?.value;
         const operador = document.getElementById('operador')?.value;
 
-        if (!fecha) errores.push('Fecha es requerida');
+        // La OT debe estar seleccionada
+        if (!this.ordenCargada) errores.push('Seleccione una Orden de Trabajo');
         if (!turno) errores.push('Seleccione un turno');
-        if (!maquina) errores.push('Seleccione una maquina');
-        if (!ordenTrabajo || ordenTrabajo.trim().length < 3) errores.push('Ingrese la orden de trabajo (minimo 3 caracteres)');
         if (!operador || operador.trim().length < 3) errores.push('Ingrese el nombre del operador (minimo 3 caracteres)');
 
         // Validar que haya al menos una bobina de entrada
@@ -1183,19 +1013,19 @@ const Corte = {
         }
 
         try {
-            this.guardarLocal(datos);
+            await this.guardarLocal(datos);
             this.mostrarToast('Registro de corte guardado', 'success');
 
             // Descontar material del inventario
-            this.descontarInventario(datos);
+            await this.descontarInventario(datos);
 
             // Registrar producto terminado en inventario
-            this.registrarProductoTerminado(datos);
+            await this.registrarProductoTerminado(datos);
 
             const porcentajeRefil = parseFloat(datos.porcentajeRefil) || 0;
             const umbral = CONFIG.UMBRALES_REFIL.default;
             if (porcentajeRefil > umbral.maximo) {
-                this.generarAlerta(datos);
+                await this.generarAlerta(datos);
             }
 
             // Ofrecer generar Nota de Entrega
@@ -1237,7 +1067,8 @@ const Corte = {
 
         // Obtener bobinas de salida por paleta
         const paletas = [];
-        for (let p = 1; p <= this.NUM_PALETAS; p++) {
+        this.paletas.forEach(pal => {
+            const p = pal.id;
             const bobinas = [];
             let totalPaleta = 0;
 
@@ -1250,31 +1081,45 @@ const Corte = {
                 }
             }
 
+            const rollos = parseInt(document.getElementById(`rollosPaleta${p}`)?.value) || 0;
+
             paletas.push({
                 numero: p,
                 bobinas: bobinas,
                 totalBobinas: bobinas.length,
                 pesoTotal: totalPaleta,
+                rollos: rollos,
             });
-        }
+        });
+
+        // Datos de la OT (referencia, no copia)
+        const ot = this.ordenCargada || {};
 
         return {
+            // Metadatos
             id: 'COR_' + Date.now(),
             timestamp: new Date().toISOString(),
             tipo: 'corte',
 
+            // Referencia a la OT (vinculo, no duplicacion)
+            ordenTrabajo: ot.numeroOrden || ot.ot || document.getElementById('ordenTrabajo')?.value || '',
+            otId: ot.id || ot.ot || '',
+
+            // Datos de la OT (read-only, para referencia rapida)
+            cliente: ot.cliente || '',
+            producto: ot.producto || '',
+            maquina: ot.maquina || '',
+            pedidoKg: ot.pedidoKg || 0,
+
+            // Datos de produccion (llenados por el operador)
             turno: turnoSeleccionado ? turnoSeleccionado.value : '',
-            cliente: (document.getElementById('clienteOrden') || document.getElementById('cliente'))?.value || '',
-            producto: document.getElementById('producto').value,
-            maquina: document.getElementById('maquina').value,
-            fecha: document.getElementById('fecha').value,
-            ordenTrabajo: document.getElementById('ordenTrabajo').value,
             operador: document.getElementById('operador').value,
             ayudante: document.getElementById('ayudante').value,
             supervisor: document.getElementById('supervisor').value,
             horaInicio: document.getElementById('horaInicio').value,
             horaArranque: document.getElementById('horaArranque').value,
             horaFinal: document.getElementById('horaFinal').value,
+            fecha: new Date().toISOString().split('T')[0],
 
             bobinasEntrada: bobinasEntrada,
             totalEntrada: parseFloat(document.getElementById('totalEntrada').value) || 0,
@@ -1337,20 +1182,35 @@ const Corte = {
     },
 
     /**
-     * Guarda en localStorage
+     * Guarda en Supabase (produccion_corte)
      */
-    guardarLocal: function(datos) {
-        const registros = JSON.parse(localStorage.getItem(CONFIG.CACHE.PREFIJO + 'corte') || '[]');
-        registros.unshift(datos);
-        localStorage.setItem(CONFIG.CACHE.PREFIJO + 'corte', JSON.stringify(registros));
+    guardarLocal: async function(datos) {
+        try {
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                await AxonesDB.client.from('produccion_corte').insert({
+                    orden_id: datos.otId || null,
+                    numero_ot: datos.ordenTrabajo || '',
+                    maquina: datos.maquina || '',
+                    turno: datos.turno || '',
+                    operador: datos.operador || '',
+                    fecha: datos.fecha || new Date().toISOString().split('T')[0],
+                    datos: datos
+                });
+            }
+        } catch (error) {
+            console.warn('[Corte] Error guardando en Supabase:', error);
+        }
     },
 
     /**
      * Descuenta material del inventario despues de corte
      */
-    descontarInventario: function(datos) {
+    descontarInventario: async function(datos) {
         try {
-            const inventario = JSON.parse(localStorage.getItem('axones_inventario') || '[]');
+            let inventario = [];
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                inventario = await AxonesDB.materiales.listar() || [];
+            }
             // Usar totalConsumido (entrada - restante) en vez de totalEntrada
             const cantidadUsada = parseFloat(datos.totalConsumido) || parseFloat(datos.totalEntrada) || 0;
 
@@ -1375,16 +1235,20 @@ const Corte = {
                         restante -= aDescontar;
                         descontado = true;
                         console.log(`Inventario (Corte): Descontados ${aDescontar} Kg de ${item.material} (Quedan: ${item.kg} Kg)`);
+
+                        // Update in Supabase
+                        if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady() && item.id) {
+                            await AxonesDB.client.from('materiales').update({ kg: item.kg }).eq('id', item.id);
+                        }
                     }
                 }
             }
 
             if (descontado) {
-                localStorage.setItem('axones_inventario', JSON.stringify(inventario));
                 console.log('Inventario actualizado despues de corte');
 
                 // Verificar stock bajo y generar alertas
-                this.verificarStockBajo(inventario);
+                await this.verificarStockBajo(inventario);
             }
         } catch (error) {
             console.warn('Error al descontar inventario en corte:', error);
@@ -1394,62 +1258,63 @@ const Corte = {
     /**
      * Verifica si hay materiales con stock bajo y genera alertas
      */
-    verificarStockBajo: function(inventario) {
+    verificarStockBajo: async function(inventario) {
         const STOCK_MINIMO = 200; // Kg
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
 
-        inventario.forEach(item => {
+        for (const item of inventario) {
             if ((item.kg || 0) < STOCK_MINIMO && (item.kg || 0) > 0) {
-                // Verificar si ya existe una alerta reciente para este material
-                const alertaExistente = alertas.find(a =>
-                    a.tipo === 'stock_bajo' &&
-                    a.datos?.material === item.material &&
-                    new Date(a.fecha) > new Date(Date.now() - 24 * 60 * 60 * 1000) // Ultimas 24 horas
-                );
+                try {
+                    if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                        // Check for recent alert for this material
+                        const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+                        const { data: existing } = await AxonesDB.client.from('alertas')
+                            .select('id')
+                            .eq('tipo', 'stock_bajo')
+                            .gte('created_at', cutoff)
+                            .like('mensaje', `%${item.material}%`)
+                            .limit(1);
 
-                if (!alertaExistente) {
-                    alertas.unshift({
-                        id: Date.now(),
-                        tipo: 'stock_bajo',
-                        nivel: item.kg < 50 ? 'danger' : 'warning',
-                        mensaje: `Stock bajo en corte: ${item.material} ${item.micras || ''}µ - Quedan ${(item.kg || 0).toFixed(1)} Kg`,
-                        fecha: new Date().toISOString(),
-                        estado: 'pendiente',
-                        datos: { material: item.material, cantidad: item.kg }
-                    });
-                    console.log('Alerta de stock bajo generada para', item.material);
+                        if (!existing || existing.length === 0) {
+                            await AxonesDB.client.from('alertas').insert({
+                                tipo: 'stock_bajo',
+                                nivel: item.kg < 50 ? 'danger' : 'warning',
+                                titulo: 'Stock bajo en corte',
+                                mensaje: `Stock bajo en corte: ${item.material} ${item.micras || ''}µ - Quedan ${(item.kg || 0).toFixed(1)} Kg`,
+                            });
+                            console.log('Alerta de stock bajo generada para', item.material);
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[Corte] Error generando alerta stock bajo:', e);
                 }
             }
-        });
-
-        localStorage.setItem('axones_alertas', JSON.stringify(alertas));
+        }
     },
 
     /**
      * Genera una alerta por refil excedido
      */
-    generarAlerta: function(datos) {
-        const alerta = {
-            id: 'ALT_' + Date.now(),
-            timestamp: new Date().toISOString(),
-            tipo: CONFIG.ALERTAS.TIPOS.REFIL_ALTO,
-            nivel: datos.porcentajeRefil > CONFIG.UMBRALES_REFIL.default.maximo * 1.5
-                ? CONFIG.ALERTAS.NIVELES.CRITICAL
-                : CONFIG.ALERTAS.NIVELES.WARNING,
-            maquina: datos.maquina,
-            operador: datos.operador,
-            mensaje: `Refil ${datos.porcentajeRefil.toFixed(1)}% en Corte OT ${datos.ordenTrabajo}`,
-            estado: 'pendiente',
-            registro_id: datos.id,
-        };
+    generarAlerta: async function(datos) {
+        const nivel = datos.porcentajeRefil > CONFIG.UMBRALES_REFIL.default.maximo * 1.5
+            ? CONFIG.ALERTAS.NIVELES.CRITICAL
+            : CONFIG.ALERTAS.NIVELES.WARNING;
 
-        const alertas = JSON.parse(localStorage.getItem(CONFIG.CACHE.PREFIJO + 'alertas') || '[]');
-        alertas.unshift(alerta);
-        localStorage.setItem(CONFIG.CACHE.PREFIJO + 'alertas', JSON.stringify(alertas));
+        try {
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                await AxonesDB.client.from('alertas').insert({
+                    tipo: CONFIG.ALERTAS.TIPOS.REFIL_ALTO,
+                    nivel: nivel,
+                    titulo: 'Refil excedido en corte',
+                    mensaje: `Refil ${datos.porcentajeRefil.toFixed(1)}% en Corte OT ${datos.ordenTrabajo}`,
+                });
+            }
+        } catch (e) {
+            console.warn('[Corte] Error generando alerta refil:', e);
+        }
 
         Axones.showToast(
             `ALERTA: Refil ${datos.porcentajeRefil.toFixed(1)}% excedido en corte`,
-            alerta.nivel === CONFIG.ALERTAS.NIVELES.CRITICAL ? 'danger' : 'warning'
+            nivel === CONFIG.ALERTAS.NIVELES.CRITICAL ? 'danger' : 'warning'
         );
     },
 
@@ -1493,12 +1358,19 @@ const Corte = {
     /**
      * Registra el producto terminado de corte en inventario de producto terminado
      */
-    registrarProductoTerminado: function(datos) {
+    registrarProductoTerminado: async function(datos) {
         try {
             const pesoSalida = parseFloat(datos.pesoTotalSalida) || 0;
             if (pesoSalida <= 0) return;
 
-            const productoTerminado = JSON.parse(localStorage.getItem('axones_producto_terminado') || '[]');
+            // Load existing producto terminado from sync_store
+            let productoTerminado = [];
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                try {
+                    const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_producto_terminado').single();
+                    if (data && data.value) productoTerminado = data.value;
+                } catch (e) { /* key may not exist yet */ }
+            }
 
             // Crear registro por cada paleta con datos
             const paletasConDatos = (datos.paletas || []).filter(p => p.pesoTotal > 0);
@@ -1525,7 +1397,13 @@ const Corte = {
                 });
             });
 
-            localStorage.setItem('axones_producto_terminado', JSON.stringify(productoTerminado));
+            // Save to sync_store
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                await AxonesDB.client.from('sync_store').upsert(
+                    { key: 'axones_producto_terminado', value: productoTerminado },
+                    { onConflict: 'key' }
+                );
+            }
 
             const totalPaletas = paletasConDatos.length;
             const totalBobinas = paletasConDatos.reduce((sum, p) => sum + p.totalBobinas, 0);
@@ -1566,7 +1444,7 @@ const Corte = {
         if (badge) badge.textContent = `${marcados}/${total} completados`;
     },
 
-    guardarChecklist: function() {
+    guardarChecklist: async function() {
         const items = [];
         document.querySelectorAll('.checklist-item').forEach(cb => {
             items.push({ item: cb.value, completado: cb.checked });
@@ -1586,9 +1464,23 @@ const Corte = {
             aprobadoPor: document.getElementById('checklistAprobadoPor')?.value || ''
         };
 
-        const checklists = JSON.parse(localStorage.getItem('axones_checklists') || '[]');
-        checklists.unshift(datos);
-        localStorage.setItem('axones_checklists', JSON.stringify(checklists));
+        // Save to sync_store
+        try {
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                let checklists = [];
+                try {
+                    const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_checklists').single();
+                    if (data && data.value) checklists = data.value;
+                } catch (e) { /* key may not exist yet */ }
+                checklists.unshift(datos);
+                await AxonesDB.client.from('sync_store').upsert(
+                    { key: 'axones_checklists', value: checklists },
+                    { onConflict: 'key' }
+                );
+            }
+        } catch (e) {
+            console.warn('[Corte] Error guardando checklist:', e);
+        }
 
         // Toast
         let toastContainer = document.querySelector('.toast-container');
@@ -1714,34 +1606,35 @@ const Corte = {
         const form = document.getElementById('formCorte');
         if (form) {
             form.reset();
-            this.setDefaultDate();
 
-            document.getElementById('totalEntrada').value = '';
-            document.getElementById('merma').value = '';
-            document.getElementById('totalScrap').value = '';
-            document.getElementById('porcentajeRefil').value = '';
-            document.getElementById('pesoTotalSalida').value = '';
-            document.getElementById('numBobinasSalida').value = '0';
-            document.getElementById('numPaletas').value = '0';
+            // Limpiar campos calculados
+            const campos = ['totalEntrada', 'merma', 'totalScrap', 'porcentajeRefil', 'pesoTotalSalida', 'totalRestante'];
+            campos.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+
+            const numCampos = ['numBobinasSalida', 'numPaletas', 'numRollosSalida'];
+            numCampos.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '0';
+            });
 
             // Limpiar totales de paletas
-            for (let p = 1; p <= this.NUM_PALETAS; p++) {
-                const totalInput = document.getElementById(`totalPaleta${p}`);
+            this.paletas.forEach(paleta => {
+                const totalInput = document.getElementById(`totalPaleta${paleta.id}`);
                 if (totalInput) totalInput.value = '0';
 
-                const countBadge = document.getElementById(`countPaleta${p}`);
+                const countBadge = document.getElementById(`countPaleta${paleta.id}`);
                 if (countBadge) countBadge.textContent = `0/${this.BOBINAS_POR_PALETA}`;
-
-                const resumenBob = document.getElementById(`resumenBob${p}`);
-                const resumenPeso = document.getElementById(`resumenPeso${p}`);
-                if (resumenBob) resumenBob.textContent = '0';
-                if (resumenPeso) resumenPeso.textContent = '0.00';
-            }
+            });
 
             // Limpiar resumen total
             const resumenBobTotal = document.getElementById('resumenBobTotal');
+            const resumenRollosTotal = document.getElementById('resumenRollosTotal');
             const resumenPesoTotal = document.getElementById('resumenPesoTotal');
             if (resumenBobTotal) resumenBobTotal.textContent = '0';
+            if (resumenRollosTotal) resumenRollosTotal.textContent = '0';
             if (resumenPesoTotal) resumenPesoTotal.textContent = '0.00';
 
             const indicador = document.getElementById('indicadorRefil');
@@ -1750,19 +1643,32 @@ const Corte = {
                 indicador.innerHTML = '<i class="bi bi-dash-circle me-1"></i> Sin datos';
             }
 
-            document.getElementById('footerEntrada').textContent = '0';
-            document.getElementById('footerSalida').textContent = '0';
-            document.getElementById('footerMerma').textContent = '0';
-            document.getElementById('footerRefil').textContent = '0';
-            document.getElementById('footerPaletas').textContent = '0';
-            document.getElementById('footerBobinas').textContent = '0';
+            // Resetear footer
+            ['footerEntrada', 'footerSalida', 'footerMerma', 'footerRefil', 'footerPaletas', 'footerBobinas'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = '0';
+            });
+
+            // Resetear resumen de produccion
+            ['resumenEntrada', 'resumenRestante', 'resumenConsumido', 'resumenSalida', 'resumenScrap', 'resumenMermaCalc', 'resumenRefilCalc'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = '0.00 Kg';
+            });
+
+            const totalConsumidoEl = document.getElementById('totalConsumido');
+            if (totalConsumidoEl) totalConsumidoEl.textContent = '0';
         }
+
+        // Resetear seleccion de OT
+        const select = document.getElementById('ordenTrabajo');
+        if (select) select.value = '';
+        this.ocultarResumenYForm();
     },
 };
 
 // Inicializar cuando el DOM este listo
 document.addEventListener('DOMContentLoaded', () => {
-    if (document.getElementById('formCorte')) {
+    if (document.getElementById('selectorOT') || document.getElementById('formCorte')) {
         Corte.init();
     }
 });

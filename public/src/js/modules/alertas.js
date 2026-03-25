@@ -19,54 +19,67 @@ const AlertasModule = {
         alertaSeleccionada: null,
     },
 
+    // Cache local de alertas
+    _alertasCache: [],
+
     // Inicializar modulo
     async init() {
-        await this._esperarSync();
-
         console.log('Inicializando modulo de Alertas...');
 
+        // Asegurar que AxonesDB esta inicializado
+        if (typeof AxonesDB !== 'undefined' && !AxonesDB.isReady()) {
+            await AxonesDB.init();
+        }
+
+        await this._cargarAlertas();
+
         // Verificar si necesita regenerar alertas
-        this.verificarVersionAlertas();
+        await this.verificarVersionAlertas();
 
         this.cargarMaquinas();
         this.cargarAlertas();
         this.configurarEventos();
-        this.generarAlertasDemo();
-
-        // Escuchar re-sync del cloud para recargar datos
-        window.addEventListener('axones-sync', () => {
-            this.cargarAlertas();
-        });
+        await this.generarAlertasDemo();
     },
 
     /**
-     * Espera a que AxonesSync termine la descarga inicial (max 5 segundos)
+     * Carga alertas desde Supabase sync_store
      */
-    _esperarSync: async function() {
-        if (typeof AxonesSync !== 'undefined' && AxonesSync._isReady && AxonesSync._isReady()) {
-            return;
+    async _cargarAlertas() {
+        try {
+            const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_alertas').single();
+            this._alertasCache = (data && data.value) ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+        } catch (e) {
+            this._alertasCache = [];
         }
-        return new Promise(resolve => {
-            let resuelto = false;
-            const handler = () => { if (!resuelto) { resuelto = true; resolve(); } };
-            window.addEventListener('axones-sync', handler, { once: true });
-            setTimeout(() => {
-                if (!resuelto) { resuelto = true; window.removeEventListener('axones-sync', handler); resolve(); }
-            }, 5000);
-        });
+    },
+
+    /**
+     * Guarda alertas en Supabase sync_store
+     */
+    async _guardarAlertas(alertas) {
+        this._alertasCache = alertas;
+        try {
+            await AxonesDB.client.from('sync_store').upsert({ key: 'axones_alertas', value: alertas, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+        } catch (e) {
+            console.warn('AlertasModule: Error guardando alertas en Supabase', e);
+        }
     },
 
     // Verifica si hay una nueva version y limpia alertas viejas
-    verificarVersionAlertas() {
-        const versionKey = 'axones_alertas_version';
-        const versionActual = localStorage.getItem(versionKey);
+    async verificarVersionAlertas() {
+        let versionActual = null;
+        try {
+            const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_alertas_version').single();
+            versionActual = (data && data.value) ? data.value : null;
+        } catch (e) { /* empty */ }
 
         if (versionActual !== this.ALERTAS_VERSION) {
             console.log(`AlertasModule: Migrando alertas de version ${versionActual || 'antigua'} a ${this.ALERTAS_VERSION}`);
 
             // Limpiar alertas viejas de demo para regenerar con datos reales
-            localStorage.removeItem('axones_alertas');
-            localStorage.setItem(versionKey, this.ALERTAS_VERSION);
+            await this._guardarAlertas([]);
+            await AxonesDB.client.from('sync_store').upsert({ key: 'axones_alertas_version', value: this.ALERTAS_VERSION, updated_at: new Date().toISOString() }, { onConflict: 'key' });
 
             console.log('AlertasModule: Alertas limpiadas. Se generaran alertas del inventario real.');
         }
@@ -155,7 +168,7 @@ const AlertasModule = {
         });
     },
 
-    // Cargar alertas desde localStorage (sincronizado con Supabase via sync-realtime.js)
+    // Cargar alertas desde Supabase
     async cargarAlertas() {
         const alertas = this.obtenerAlertasFiltradas();
         this.actualizarEstadisticas(alertas);
@@ -166,7 +179,7 @@ const AlertasModule = {
 
     // Obtener alertas filtradas
     obtenerAlertasFiltradas() {
-        let alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
+        let alertas = [...this._alertasCache];
 
         // Filtrar por estado
         if (this.config.filtroEstado !== 'todas') {
@@ -200,7 +213,7 @@ const AlertasModule = {
 
     // Actualizar estadisticas
     actualizarEstadisticas(alertasFiltradas) {
-        const todas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
+        const todas = [...this._alertasCache];
         const hoy = new Date().toLocaleDateString('es-VE');
 
         const criticas = todas.filter(a =>
@@ -319,8 +332,7 @@ const AlertasModule = {
         const badge = document.getElementById('alertasBadge');
         if (!badge) return;
 
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
-        const pendientes = alertas.filter(a => a.estado === 'pendiente' || a.estado === 'activa').length;
+        const pendientes = this._alertasCache.filter(a => a.estado === 'pendiente' || a.estado === 'activa').length;
 
         if (pendientes > 0) {
             badge.textContent = pendientes;
@@ -332,8 +344,7 @@ const AlertasModule = {
 
     // Ver detalle de alerta
     verDetalle(id) {
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
-        const alerta = alertas.find(a => a.id === id);
+        const alerta = this._alertasCache.find(a => a.id === id);
 
         if (!alerta) return;
 
@@ -411,16 +422,16 @@ const AlertasModule = {
     },
 
     // Resolver alerta
-    resolverAlerta() {
+    async resolverAlerta() {
         if (!this.config.alertaSeleccionada) return;
 
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
+        const alertas = [...this._alertasCache];
         const index = alertas.findIndex(a => a.id === this.config.alertaSeleccionada);
 
         if (index !== -1) {
             alertas[index].estado = 'resuelta';
             alertas[index].fechaResolucion = new Date().toISOString();
-            localStorage.setItem('axones_alertas', JSON.stringify(alertas));
+            await this._guardarAlertas(alertas);
 
             // Cerrar modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalDetalle'));
@@ -435,8 +446,8 @@ const AlertasModule = {
     },
 
     // Marcar todas como leidas
-    marcarTodasLeidas() {
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
+    async marcarTodasLeidas() {
+        const alertas = [...this._alertasCache];
 
         alertas.forEach(a => {
             if (a.estado === 'pendiente' || a.estado === 'activa') {
@@ -445,14 +456,15 @@ const AlertasModule = {
             }
         });
 
-        localStorage.setItem('axones_alertas', JSON.stringify(alertas));
+        await this._guardarAlertas(alertas);
         this.cargarAlertas();
         this.mostrarNotificacion('Todas las alertas marcadas como resueltas', 'success');
     },
 
     // Crear nueva alerta (metodo publico para otros modulos)
-    crearAlerta(tipo, mensaje, datos = {}) {
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
+    async crearAlerta(tipo, mensaje, datos = {}) {
+        await this._cargarAlertas();
+        const alertas = [...this._alertasCache];
 
         const nuevaAlerta = {
             id: Date.now(),
@@ -467,34 +479,32 @@ const AlertasModule = {
         };
 
         alertas.unshift(nuevaAlerta);
-        localStorage.setItem('axones_alertas', JSON.stringify(alertas));
+        await this._guardarAlertas(alertas);
 
         return nuevaAlerta;
     },
 
     // Generar alertas de demo (solo si no hay inventario real)
-    generarAlertasDemo() {
+    async generarAlertasDemo() {
         // Verificar si hay inventario real cargado
-        const tieneInventario = localStorage.getItem('axones_inventario');
-        const inventario = tieneInventario ? JSON.parse(tieneInventario) : [];
+        let inventario = [];
+        try {
+            inventario = await AxonesDB.materiales.listar() || [];
+        } catch (e) { /* empty */ }
 
         // Si hay inventario real con mas de 10 items, no generar demo
-        // El escaneo de inventario generara las alertas reales
         if (inventario.length > 10) {
             console.log('AlertasModule: Inventario real detectado, saltando alertas demo');
-            // Escanear inventario y generar alertas reales si no hay alertas
-            const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
-            if (alertas.length === 0 && typeof InventarioService !== 'undefined') {
+            if (this._alertasCache.length === 0 && typeof InventarioService !== 'undefined') {
                 InventarioService.escanearInventarioYGenerarAlertas();
+                await this._cargarAlertas();
                 this.cargarAlertas();
             }
             return;
         }
 
-        const alertas = JSON.parse(localStorage.getItem('axones_alertas') || '[]');
-
         // Solo generar si no hay alertas
-        if (alertas.length > 0) return;
+        if (this._alertasCache.length > 0) return;
 
         const alertasDemo = [
             {
@@ -544,7 +554,7 @@ const AlertasModule = {
             },
         ];
 
-        localStorage.setItem('axones_alertas', JSON.stringify(alertasDemo));
+        await this._guardarAlertas(alertasDemo);
     },
 
     // Utilidades

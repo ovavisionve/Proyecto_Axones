@@ -1,6 +1,6 @@
 /**
  * MODULO CLIENTES - Sistema Axones
- * CRUD completo de clientes con soporte Supabase + localStorage fallback
+ * CRUD completo de clientes - 100% Supabase (sin localStorage)
  */
 
 const ClientesModule = {
@@ -19,10 +19,26 @@ const ClientesModule = {
             }
         }
 
-        // Inicializar Supabase si esta configurado
-        await AxonesDB.init();
+        // Inicializar Supabase
+        try {
+            await AxonesDB.init();
+            console.log('[Clientes] AxonesDB.init() completado, isReady:', AxonesDB.isReady());
+        } catch (e) {
+            console.error('[Clientes] Error en AxonesDB.init():', e);
+        }
 
-        // Cargar clientes
+        if (!AxonesDB.isReady()) {
+            this._toast('Error: No se pudo conectar a Supabase. Verifique su conexion.', 'danger');
+            console.error('[Clientes] AxonesDB NO esta ready despues de init');
+            const statusDB = document.getElementById('statusDB');
+            if (statusDB) {
+                statusDB.innerHTML = '<i class="bi bi-circle-fill me-1" style="font-size:0.5rem;"></i> Sin conexion';
+                statusDB.className = 'badge bg-danger';
+            }
+            return;
+        }
+
+        // Cargar clientes desde Supabase
         await this.cargar();
 
         // Busqueda
@@ -32,45 +48,40 @@ const ClientesModule = {
         }
 
         // Suscribirse a cambios en tiempo real
-        if (AxonesDB.isReady()) {
-            this._realtimeChannel = AxonesDB.realtime.suscribir('clientes', (payload) => {
-                console.log('Clientes: cambio en tiempo real', payload.eventType);
-                this.cargar(); // Recargar tabla
-                this._mostrarNotificacion(payload);
-            });
+        this._realtimeChannel = AxonesDB.realtime.suscribir('clientes', (payload) => {
+            console.log('Clientes: cambio en tiempo real', payload.eventType);
+            this.cargar();
+            this._mostrarNotificacion(payload);
+        });
 
-            // Status DB
-            const statusDB = document.getElementById('statusDB');
-            if (statusDB) {
-                statusDB.innerHTML = '<i class="bi bi-circle-fill me-1" style="font-size:0.5rem;"></i> Supabase Conectado';
-                statusDB.className = 'badge bg-success';
-            }
-
-            // Presencia
-            AxonesDB.presencia.conectar('clientes');
-            AxonesDB.presenciaWidget.render();
-        } else {
-            const statusDB = document.getElementById('statusDB');
-            if (statusDB) {
-                statusDB.innerHTML = '<i class="bi bi-circle-fill me-1" style="font-size:0.5rem;"></i> localStorage';
-                statusDB.className = 'badge bg-warning text-dark';
-            }
+        // Status DB
+        const statusDB = document.getElementById('statusDB');
+        if (statusDB) {
+            statusDB.innerHTML = '<i class="bi bi-circle-fill me-1" style="font-size:0.5rem;"></i> Supabase Conectado';
+            statusDB.className = 'badge bg-success';
         }
+
+        // Presencia
+        AxonesDB.presencia.conectar('clientes');
+        AxonesDB.presenciaWidget.render();
     },
 
     /**
-     * Cargar clientes desde Supabase o localStorage
+     * Cargar clientes desde Supabase
      */
     cargar: async function() {
-        if (AxonesDB.isReady()) {
+        console.log('[Clientes] cargar() - AxonesDB.isReady():', AxonesDB.isReady());
+        try {
             this.clientes = await AxonesDB.clientes.listar({
                 ordenar: 'nombre',
                 ascendente: true,
                 soloActivos: false
             });
-        } else {
-            // Fallback localStorage
-            this.clientes = JSON.parse(localStorage.getItem('axones_clientes') || '[]');
+            console.log('[Clientes] Cargados desde Supabase:', this.clientes.length, 'clientes');
+        } catch (error) {
+            console.error('[Clientes] Error cargando:', error);
+            this.clientes = [];
+            this._toast('Error cargando clientes: ' + error.message, 'danger');
         }
 
         this.renderTabla(this.clientes);
@@ -109,8 +120,8 @@ const ClientesModule = {
                 <td>${c.telefono || '-'}</td>
                 <td>${c.email || '-'}</td>
                 <td>
-                    ${c.contacto_nombre || c.contactoNombre || '-'}
-                    ${(c.contacto_telefono || c.contactoTelefono) ? `<br><small class="text-muted">${c.contacto_telefono || c.contactoTelefono}</small>` : ''}
+                    ${c.contacto_nombre || '-'}
+                    ${c.contacto_telefono ? `<br><small class="text-muted">${c.contacto_telefono}</small>` : ''}
                 </td>
                 <td class="text-center">
                     <span class="badge ${activo ? 'bg-success' : 'bg-secondary'}">
@@ -147,7 +158,7 @@ const ClientesModule = {
             (c.rif || '').toLowerCase().includes(t) ||
             (c.email || '').toLowerCase().includes(t) ||
             (c.telefono || '').includes(t) ||
-            (c.contacto_nombre || c.contactoNombre || '').toLowerCase().includes(t)
+            (c.contacto_nombre || '').toLowerCase().includes(t)
         );
         this.renderTabla(filtrados);
     },
@@ -165,8 +176,8 @@ const ClientesModule = {
             document.getElementById('clienteDireccion').value = datos.direccion || '';
             document.getElementById('clienteTelefono').value = datos.telefono || '';
             document.getElementById('clienteEmail').value = datos.email || '';
-            document.getElementById('clienteContactoNombre').value = datos.contacto_nombre || datos.contactoNombre || '';
-            document.getElementById('clienteContactoTelefono').value = datos.contacto_telefono || datos.contactoTelefono || '';
+            document.getElementById('clienteContactoNombre').value = datos.contacto_nombre || '';
+            document.getElementById('clienteContactoTelefono').value = datos.contacto_telefono || '';
             document.getElementById('clienteNotas').value = datos.notas || '';
         } else {
             titulo.innerHTML = '<i class="bi bi-person-plus me-2"></i>Nuevo Cliente';
@@ -187,7 +198,7 @@ const ClientesModule = {
     },
 
     /**
-     * Guardar cliente (crear o actualizar)
+     * Guardar cliente (crear o actualizar) - directo a Supabase
      */
     guardar: async function() {
         const nombre = document.getElementById('clienteNombre').value.trim();
@@ -210,31 +221,17 @@ const ClientesModule = {
         const id = document.getElementById('clienteId').value;
 
         try {
-            if (AxonesDB.isReady()) {
-                if (id) {
-                    await AxonesDB.clientes.actualizar(id, datos);
-                } else {
-                    await AxonesDB.clientes.crear(datos);
-                }
+            if (id) {
+                await AxonesDB.clientes.actualizar(id, datos);
             } else {
-                // Fallback localStorage
-                if (id) {
-                    const idx = this.clientes.findIndex(c => c.id === id);
-                    if (idx >= 0) this.clientes[idx] = { ...this.clientes[idx], ...datos };
-                } else {
-                    datos.id = 'CLI_' + Date.now();
-                    datos.activo = true;
-                    datos.created_at = new Date().toISOString();
-                    this.clientes.push(datos);
-                }
-                localStorage.setItem('axones_clientes', JSON.stringify(this.clientes));
+                await AxonesDB.clientes.crear(datos);
             }
 
-            // Cerrar modal y recargar
+            // Cerrar modal y recargar desde Supabase
             bootstrap.Modal.getInstance(document.getElementById('modalCliente')).hide();
             await this.cargar();
 
-            this._toast(id ? 'Cliente actualizado' : 'Cliente creado', 'success');
+            this._toast(id ? 'Cliente actualizado' : 'Cliente creado exitosamente', 'success');
         } catch (error) {
             console.error('Error guardando cliente:', error);
             this._toast('Error al guardar: ' + error.message, 'danger');
@@ -246,15 +243,7 @@ const ClientesModule = {
      */
     toggleActivo: async function(id, nuevoEstado) {
         try {
-            if (AxonesDB.isReady()) {
-                await AxonesDB.clientes.actualizar(id, { activo: nuevoEstado });
-            } else {
-                const idx = this.clientes.findIndex(c => c.id === id);
-                if (idx >= 0) {
-                    this.clientes[idx].activo = nuevoEstado;
-                    localStorage.setItem('axones_clientes', JSON.stringify(this.clientes));
-                }
-            }
+            await AxonesDB.clientes.actualizar(id, { activo: nuevoEstado });
             await this.cargar();
             this._toast(`Cliente ${nuevoEstado ? 'activado' : 'desactivado'}`, 'info');
         } catch (error) {
@@ -273,12 +262,6 @@ const ClientesModule = {
         const el2 = document.getElementById('clientesActivos');
         if (el1) el1.textContent = total;
         if (el2) el2.textContent = activos;
-
-        // Contar clientes con ordenes
-        const ordenes = JSON.parse(localStorage.getItem('axones_ordenes_trabajo') || '[]');
-        const clientesConOrdenes = new Set(ordenes.map(o => o.cliente)).size;
-        const el3 = document.getElementById('clientesConOrdenes');
-        if (el3) el3.textContent = clientesConOrdenes;
     },
 
     /**

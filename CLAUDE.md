@@ -666,10 +666,80 @@ git push origin main
 **Entrada** (9 campos): Proveedor, Referencia Bobina, Medida/Ancho, Micraje, Trat. Interno, Trat. Externo, Fecha, Maquina Origen, Pedido/Lote
 **Salida** (6 campos): Peso (auto), Fecha, Metraje, Hora, Empalmes, Operador
 
+### Fase 11: Migracion localStorage -> Supabase directo (2026-03-25)
+**Objetivo:** Eliminar `sync-realtime.js` como intermediario. Todos los modulos ahora leen/escriben directamente a Supabase sin pasar por localStorage.
+
+| Cambio | Estado |
+|--------|--------|
+| Navbar con dropdown Datos Maestros (Clientes + Proveedores) en todas las paginas | COMPLETADO |
+| Documentar 19 tablas Supabase + 4 scripts SQL | COMPLETADO |
+| clientes.js y proveedores.js: eliminar localStorage, solo Supabase directo | COMPLETADO |
+| ordenes.js: migrar a AxonesDB.ordenesHelper (cargar/guardar/actualizar) | COMPLETADO |
+| programacion.js: migrar a AxonesDB.ordenesHelper (cargar/mover estado) | COMPLETADO |
+| control-tiempo.js: migrar a AxonesDB.client.from('control_tiempo') | COMPLETADO |
+| impresion.js: guardar en produccion_impresion, cargar sin localStorage | COMPLETADO |
+| laminacion.js: guardar en produccion_laminacion, cargar sin localStorage | COMPLETADO |
+| corte.js: guardar en produccion_corte, cargar sin localStorage | COMPLETADO |
+| dashboard.js, alertas.js, reportes.js, certificado.js: migrar a Supabase | COMPLETADO |
+| chatbot.js, checklist.js, incidencias.js, etiquetas.js: migrar a Supabase | COMPLETADO |
+| inventario.js: migrar a AxonesDB.materiales/tintas/adhesivos | COMPLETADO |
+| admin.js: migrar a AxonesDB.client.from('usuarios') | COMPLETADO |
+| home.js: migrar a Supabase (stats del dashboard) | COMPLETADO |
+| nota-entrega.js: migrar a Supabase | COMPLETADO |
+| Fix SyntaxError: await en callback no-async en inventario.js | COMPLETADO |
+| Fix CDN Supabase como script estatico en todos los HTML | COMPLETADO |
+| Fix race condition: AxonesDB.init() antes de isReady() en todos los modulos | COMPLETADO |
+
+### Fase 12: Fixes de OT y UX (2026-03-25)
+| Cambio | Estado |
+|--------|--------|
+| Precarga de proveedor en selector de OT | COMPLETADO |
+| RIF del cliente se auto-llena al seleccionar cliente | COMPLETADO |
+| Codigo de barras y SKU del producto se auto-llenan | COMPLETADO |
+| Colores de tintas se pre-cargan en OT | COMPLETADO |
+| Boton "Guardar" agregado al fondo de OT y modulos de produccion | COMPLETADO |
+
+### Fase 13: Etiquetas reescritas (2026-03-25)
+| Cambio | Estado |
+|--------|--------|
+| etiquetas.html reescrito: selector de OT, selector de despacho, formato real | COMPLETADO |
+| etiquetas.js reescrito: auto-llenado desde OT, vinculo con despachos parciales | COMPLETADO |
+| Formato etiqueta real Axones: Proceso, Paleta#, OT, Producto, Tara, P.Neto/Bruto, Fecha, Hora, Operador, Maquina, Mts, Material, Nota de Entrega | COMPLETADO |
+| Tara calculada automaticamente (Bruto - Neto) | COMPLETADO |
+| Proceso auto-detectado segun maquina (COMEXI=IMP, NEXUS=LAM, Cortadora=CORT) | COMPLETADO |
+| N° Paleta se incrementa al imprimir multiples etiquetas | COMPLETADO |
+| Fix init: esperar AxonesDB + escuchar axones-sync + fallback localStorage | COMPLETADO |
+
+### Fase 14: Reportes y Trazabilidad (2026-03-25) - EN PROGRESO
+| Cambio | Estado |
+|--------|--------|
+| reportes.html reescrito: 5 tabs, filtros, KPIs, modales detalle | COMPLETADO |
+| reportes.js: logica completa de tabs, carga de datos, modales, graficos, export | **PENDIENTE** |
+
 ## Commits Recientes (Referencia)
 ```
+# 2026-03-25 - Sesion: Etiquetas + Reportes + Migracion localStorage -> Supabase directo
+d51fc43 docs: Actualizar CLAUDE.md con estado de trabajo para continuar en otra sesion
+2431ce5 feat: Reescribir modulo etiquetas - vinculado a OT y despachos parciales
+1fe3e67 feat: Agregar boton Guardar al fondo de OT y modulos de produccion
+ae42508 fix: Precarga de proveedor, RIF cliente, codigo barras, SKU y colores tintas en OT
+11287a2 fix: Inventario vacio por SyntaxError - await en callback no-async
+268a930 fix: Agregar CDN Supabase como script estatico en todos los HTML
+c936dde fix: Race condition - AxonesDB.init() antes de isReady() en todos los modulos
+3fe5267 feat: Migrar nota-entrega.js a Supabase - 0 localStorage en modulos de negocio
+f15aab0 feat: Migrar admin.js y home.js a Supabase - eliminar localStorage
+e884b6b feat: Migrar inventario.js, nota-entrega.js y admin.js (parcial) a Supabase
+1a00abe feat: Fases 4-6 migracion - 11 modulos sin localStorage
+116f3e6 feat: Fase 3 migracion - impresion, laminacion y corte sin localStorage
+bc34c2f feat: Fase 2 migracion - control-tiempo.js sin localStorage
+8dd3649 feat: Fase 1 migracion - ordenes.js y programacion.js sin localStorage
+7bcfbc3 fix: Eliminar localStorage de clientes y proveedores - solo Supabase directo
+6192c7c fix: Clientes y proveedores no persistian - agregar cache localStorage + sync keys
+03cbfc5 docs: Documentar estado completo de Supabase - 19 tablas activas y 4 scripts SQL
+e152d22 feat: Agregar dropdown Datos Maestros (Clientes + Proveedores) al navbar de todas las paginas
+
 # 2026-03-24 - Devolucion + Tintas + Solventes
-feat: Consumo/devolucion tintas + solventes + devolucion material en impresion y laminacion
+20e8e22 feat: Consumo/devolucion tintas + solventes + devolucion material en impresion y laminacion
 98a51c5 feat: Reemplazar Restante de Bobinas por Resumen de Devolucion en impresion
 
 # 2026-03-24 - Fase 10: Resumen OT Spreadsheet
@@ -869,7 +939,24 @@ init: async function() {
 }
 ```
 
-### Commits Recientes (2026-03-25)
+### Commits de esta sesion (2026-03-25)
 ```
+d51fc43 docs: Actualizar CLAUDE.md con estado de trabajo
 2431ce5 feat: Reescribir modulo etiquetas - vinculado a OT y despachos parciales
+1fe3e67 feat: Agregar boton Guardar al fondo de OT y modulos de produccion
+ae42508 fix: Precarga de proveedor, RIF cliente, codigo barras, SKU y colores tintas en OT
+11287a2 fix: Inventario vacio por SyntaxError - await en callback no-async
+268a930 fix: Agregar CDN Supabase como script estatico en todos los HTML
+c936dde fix: Race condition - AxonesDB.init() antes de isReady() en todos los modulos
+3fe5267 feat: Migrar nota-entrega.js a Supabase - 0 localStorage en modulos de negocio
+f15aab0 feat: Migrar admin.js y home.js a Supabase - eliminar localStorage
+e884b6b feat: Migrar inventario.js, nota-entrega.js y admin.js (parcial) a Supabase
+1a00abe feat: Fases 4-6 migracion - 11 modulos sin localStorage
+116f3e6 feat: Fase 3 migracion - impresion, laminacion y corte sin localStorage
+bc34c2f feat: Fase 2 migracion - control-tiempo.js sin localStorage
+8dd3649 feat: Fase 1 migracion - ordenes.js y programacion.js sin localStorage
+7bcfbc3 fix: Eliminar localStorage de clientes y proveedores - solo Supabase directo
+6192c7c fix: Clientes y proveedores no persistian - agregar cache localStorage + sync keys
+03cbfc5 docs: Documentar estado completo de Supabase - 19 tablas activas y 4 scripts SQL
+e152d22 feat: Agregar dropdown Datos Maestros (Clientes + Proveedores) al navbar
 ```

@@ -80,6 +80,8 @@ const Ordenes = {
         anchoCorteFinal: 'anchoCorteFinal',
         ubicFotoceldaCorte: 'ubicFotoceldaCorte',
         distFotoceldaBorde: 'distFotoceldaBorde',
+        distFiguraContrario: 'distFiguraContrario',
+        distFiguraFotocelda: 'distFiguraFotocelda',
         tipoEmpalme: 'tipoEmpalme',
         maxEmpalmes: 'maxEmpalmes',
         pesoBobina: 'pesoBobina',
@@ -89,6 +91,10 @@ const Ordenes = {
         cantidadCores: 'cantidadCores',
         diametroCore: 'diametroCore',
         orientacionEmbalaje: 'orientacionEmbalaje',
+        kgIngresadosCorte: 'kgIngresadosCorte',
+        kgSalidaCorte: 'kgSalidaCorte',
+        kgMermaCorte: 'kgMermaCorte',
+        metrajeCorte: 'metrajeCorte',
 
         // OBSERVACIONES Y PROGRAMACION
         observacionesGenerales: 'observacionesGenerales',
@@ -628,6 +634,55 @@ const Ordenes = {
         const pesoBobinaInput = document.getElementById('pesoBobina');
         if (pesoBobinaInput) {
             pesoBobinaInput.addEventListener('input', () => this.calcularMetrosBobina());
+        }
+
+        // Ancho Corte Final -> Ancho Core auto-sync
+        const anchoCorteFinalInput = document.getElementById('anchoCorteFinal');
+        if (anchoCorteFinalInput) {
+            anchoCorteFinalInput.addEventListener('input', () => {
+                const anchoCorteVal = anchoCorteFinalInput.value;
+                const anchoCoreInput = document.getElementById('anchoCore');
+                if (anchoCoreInput && !anchoCoreInput.dataset.manual) {
+                    // Extraer solo el numero (puede tener ±0)
+                    const num = parseFloat(anchoCorteVal.replace(/[^\d.,]/g, '').replace(',', '.')) || '';
+                    anchoCoreInput.value = num;
+                }
+            });
+        }
+        // Marcar anchoCore como manual si el usuario lo edita directamente
+        const anchoCoreInput = document.getElementById('anchoCore');
+        if (anchoCoreInput) {
+            anchoCoreInput.addEventListener('focus', () => { anchoCoreInput.dataset.manual = '1'; });
+        }
+
+        // Figura Embobinado visual preview (Area Corte)
+        const figEmbCorte = document.getElementById('orientacionEmbalaje');
+        if (figEmbCorte) {
+            figEmbCorte.addEventListener('change', () => this.renderFiguraEmbobinadoPreview());
+        }
+
+        // Kg Ingresados Corte auto-fill from pedidoKg
+        const pedidoKgForCorte = document.getElementById('pedidoKg');
+        if (pedidoKgForCorte) {
+            pedidoKgForCorte.addEventListener('input', () => {
+                const kgIng = document.getElementById('kgIngresadosCorte');
+                if (kgIng) kgIng.value = pedidoKgForCorte.value;
+            });
+        }
+
+        // Kg Merma Corte = Ingresados - Salida
+        const kgSalidaCorteInput = document.getElementById('kgSalidaCorte');
+        if (kgSalidaCorteInput) {
+            kgSalidaCorteInput.addEventListener('input', () => {
+                const ingresados = parseFloat(document.getElementById('kgIngresadosCorte')?.value) || 0;
+                const salida = parseFloat(kgSalidaCorteInput.value) || 0;
+                const mermaEl = document.getElementById('kgMermaCorte');
+                if (mermaEl && ingresados > 0) {
+                    const merma = ingresados - salida;
+                    const pct = ((merma / ingresados) * 100).toFixed(1);
+                    mermaEl.value = merma.toFixed(1) + ' / ' + pct + '%';
+                }
+            });
         }
 
         // Cliente RIF auto-fill (ahora es input editable, usar blur para detectar cambio)
@@ -1303,6 +1358,27 @@ const Ordenes = {
         const metros = (pesoBobina * 1000) / gramaje;
 
         metrosBobinaInput.value = metros.toFixed(2);
+    },
+
+    /**
+     * Renderiza la vista previa visual de la figura de embobinado (1-8)
+     * Muestra un SVG con el numero dentro de un dibujo de bobina
+     */
+    renderFiguraEmbobinadoPreview: function() {
+        const container = document.getElementById('figuraEmbobinadoPreview');
+        const val = document.getElementById('orientacionEmbalaje')?.value;
+        if (!container) return;
+        if (!val) {
+            container.innerHTML = '';
+            return;
+        }
+        // SVG bobina con numero - simula la vista del Excel
+        container.innerHTML = `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+            <rect x="2" y="4" width="36" height="32" rx="4" fill="#f8f9fa" stroke="#333" stroke-width="1.5"/>
+            <circle cx="20" cy="20" r="10" fill="none" stroke="#666" stroke-width="1"/>
+            <circle cx="20" cy="20" r="3" fill="#666"/>
+            <text x="20" y="24" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">${val}</text>
+        </svg>`;
     },
 
     /**

@@ -1984,53 +1984,263 @@ const Ordenes = {
     /**
      * Verifica inventario al crear/editar OT.
      * Permite crear la OT aunque no haya material, pero emite alerta + email.
+     * Ahora revisa TODOS los materiales de la ficha tecnica (capas, adhesivo, tintas).
      */
-    verificarYCrearAlertas: function(orden) {
-        const tipoMaterial = orden.tipoMaterial;
+    verificarYCrearAlertas: async function(orden) {
         const pedidoKg = parseFloat(orden.pedidoKg) || 0;
+        if (!pedidoKg) return;
 
-        if (!tipoMaterial || !pedidoKg) return;
+        const faltantes = [];
 
-        const disponible = this.inventario.filter(item =>
-            item.material?.toUpperCase().includes(tipoMaterial.toUpperCase())
-        ).reduce((sum, item) => sum + (parseFloat(item.kg) || 0), 0);
+        // 1. Material principal (Capa 1 / tipo de material)
+        const tipoMaterial = orden.tipoMaterial;
+        if (tipoMaterial) {
+            const disponible = this.inventario.filter(item =>
+                item.material?.toUpperCase().includes(tipoMaterial.toUpperCase())
+            ).reduce((sum, item) => sum + (parseFloat(item.kg) || 0), 0);
 
-        if (disponible < pedidoKg) {
-            this.crearAlertaStockInsuficiente(orden, disponible);
+            const kgNecesarios = parseFloat(orden.fichaKg1) || pedidoKg;
+            if (disponible < kgNecesarios) {
+                faltantes.push({
+                    material: tipoMaterial,
+                    necesario: kgNecesarios,
+                    disponible: disponible,
+                    faltante: kgNecesarios - disponible,
+                    tipo: 'sustrato'
+                });
+            }
+        }
+
+        // 2. Capa 2 (si es laminado)
+        const tipoMat2 = orden.fichaTipoMat2;
+        if (tipoMat2) {
+            const disponible2 = this.inventario.filter(item =>
+                item.material?.toUpperCase().includes(tipoMat2.toUpperCase())
+            ).reduce((sum, item) => sum + (parseFloat(item.kg) || 0), 0);
+
+            const kgNecesarios2 = parseFloat(orden.fichaKg2) || 0;
+            if (kgNecesarios2 > 0 && disponible2 < kgNecesarios2) {
+                faltantes.push({
+                    material: tipoMat2,
+                    necesario: kgNecesarios2,
+                    disponible: disponible2,
+                    faltante: kgNecesarios2 - disponible2,
+                    tipo: 'sustrato'
+                });
+            }
+        }
+
+        // 3. Capas adicionales (3+)
+        if (orden.capasAdicionales) {
+            orden.capasAdicionales.forEach(capa => {
+                if (capa.tipoMaterial && capa.kg > 0) {
+                    const disp = this.inventario.filter(item =>
+                        item.material?.toUpperCase().includes(capa.tipoMaterial.toUpperCase())
+                    ).reduce((sum, item) => sum + (parseFloat(item.kg) || 0), 0);
+
+                    if (disp < capa.kg) {
+                        faltantes.push({
+                            material: capa.tipoMaterial,
+                            necesario: capa.kg,
+                            disponible: disp,
+                            faltante: capa.kg - disp,
+                            tipo: 'sustrato'
+                        });
+                    }
+                }
+            });
+        }
+
+        // 4. Adhesivo
+        const kgAdhesivo = parseFloat(orden.fichaKgAdhesivo) || 0;
+        if (kgAdhesivo > 0) {
+            let adhesivos = [];
+            if (AxonesDB.isReady()) {
+                try {
+                    adhesivos = await AxonesDB.client.from('adhesivos').select('*');
+                    adhesivos = adhesivos.data || [];
+                } catch(e) {}
+            }
+            const dispAdh = adhesivos.reduce((sum, a) => sum + (parseFloat(a.kg) || 0), 0);
+            if (dispAdh < kgAdhesivo) {
+                faltantes.push({
+                    material: orden.fichaTipoAdhesivo || 'Adhesivo',
+                    necesario: kgAdhesivo,
+                    disponible: dispAdh,
+                    faltante: kgAdhesivo - dispAdh,
+                    tipo: 'adhesivo'
+                });
+            }
+        }
+
+        // Si hay faltantes, crear alerta y enviar email
+        if (faltantes.length > 0) {
+            await this.crearAlertaSolicitudMaterial(orden, faltantes);
         }
     },
 
     /**
-     * Crea alerta de stock insuficiente para un pedido y envia email
+     * Crea alerta detallada de solicitud de material y envia email al encargado de inventario
      */
-    crearAlertaStockInsuficiente: async function(orden, disponible) {
-        const pedidoKg = parseFloat(orden.pedidoKg) || 0;
-        const faltante = pedidoKg - disponible;
-        const nivel = disponible === 0 ? 'danger' : 'warning';
+    crearAlertaSolicitudMaterial: async function(orden, faltantes) {
+        const nivel = faltantes.some(f => f.disponible === 0) ? 'danger' : 'warning';
 
-        const mensaje = `EPA! No hay suficiente ${orden.tipoMaterial} para ${orden.numeroOrden} (${orden.cliente}). Necesario: ${pedidoKg} Kg, Disponible: ${disponible.toFixed(1)} Kg. FALTAN ${faltante.toFixed(1)} Kg - COMPRAR!`;
+        // Construir tabla de materiales faltantes
+        let tablaFaltantes = '';
+        let tablaTexto = '';
+        faltantes.forEach(f => {
+            tablaFaltantes += `<tr><td>${f.material}</td><td>${f.necesario.toFixed(1)} Kg</td><td>${f.disponible.toFixed(1)} Kg</td><td style="color:red;font-weight:bold;">${f.faltante.toFixed(1)} Kg</td></tr>`;
+            tablaTexto += `  - ${f.material}: Necesario ${f.necesario.toFixed(1)} Kg, Disponible ${f.disponible.toFixed(1)} Kg, FALTANTE: ${f.faltante.toFixed(1)} Kg\n`;
+        });
 
-        // Guardar alerta en Supabase
+        const fechaEntrega = orden.fechaEntrega ? new Date(orden.fechaEntrega) : null;
+        const diasRestantes = fechaEntrega ? Math.ceil((fechaEntrega - new Date()) / (1000 * 60 * 60 * 24)) : '?';
+
+        // Mensaje para Supabase (texto plano)
+        const mensajeTexto = `SOLICITUD DE MATERIAL - ${orden.numeroOrden}\n` +
+            `Cliente: ${orden.cliente || 'N/A'}\n` +
+            `Producto: ${orden.producto || 'N/A'}\n` +
+            `Maquina: ${orden.maquina || 'N/A'}\n` +
+            `Pedido: ${orden.pedidoKg} Kg\n` +
+            `Fecha Entrega: ${orden.fechaEntrega || 'N/A'} (${diasRestantes} dias)\n` +
+            `Estructura: ${orden.estructuraMaterial || 'N/A'}\n\n` +
+            `MATERIALES FALTANTES:\n${tablaTexto}` +
+            `\nPor favor gestionar la compra o despacho desde almacen.`;
+
+        // 1. Guardar alerta en Supabase (tabla alertas)
         if (AxonesDB.isReady()) {
             try {
                 await AxonesDB.client.from('alertas').insert({
                     tipo: 'stock_bajo',
                     nivel: nivel,
-                    titulo: `Stock insuficiente: ${orden.tipoMaterial} para ${orden.numeroOrden}`,
-                    mensaje: mensaje
+                    titulo: `Solicitud Material: ${orden.numeroOrden} - ${orden.cliente}`,
+                    mensaje: mensajeTexto
                 });
             } catch (e) {
                 console.warn('Error creando alerta:', e.message);
             }
         }
 
-        // Mostrar aviso visual pero NO bloquear la creacion de la OT
-        if (typeof Axones !== 'undefined') {
-            Axones.showWarning(
-                `Orden ${orden.numeroOrden} creada exitosamente.\n` +
-                `ATENCION: No hay suficiente ${orden.tipoMaterial}. ` +
-                `Faltan ${faltante.toFixed(1)} Kg. Se ha enviado alerta por email.`
-            );
+        // 2. Construir email HTML bonito
+        const emailHTML = this.construirEmailSolicitudMaterial(orden, faltantes, diasRestantes);
+
+        // 3. Intentar enviar email via EmailJS (si está configurado)
+        const emailEnviado = await this.enviarEmailSolicitudMaterial(orden, emailHTML, mensajeTexto);
+
+        // 4. Mostrar aviso visual al usuario
+        const faltantesResumen = faltantes.map(f => `${f.material}: ${f.faltante.toFixed(0)} Kg`).join(', ');
+        const msgBase = `Orden ${orden.numeroOrden} creada.\nMATERIAL FALTANTE: ${faltantesResumen}`;
+        const msgEmail = emailEnviado
+            ? '\nSe envio alerta por email al encargado de inventario.'
+            : '\nAlerta guardada en el sistema. Configure EmailJS para envio automatico por correo.';
+
+        if (typeof showToast === 'function') {
+            showToast(msgBase + msgEmail, nivel === 'danger' ? 'danger' : 'warning');
+        }
+    },
+
+    /**
+     * Construye el HTML del email de solicitud de material
+     */
+    construirEmailSolicitudMaterial: function(orden, faltantes, diasRestantes) {
+        let filasTabla = '';
+        faltantes.forEach(f => {
+            const color = f.disponible === 0 ? '#dc3545' : '#ffc107';
+            filasTabla += `<tr>
+                <td style="padding:6px;border:1px solid #ddd;">${f.material}</td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:right;">${f.necesario.toFixed(1)} Kg</td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:right;">${f.disponible.toFixed(1)} Kg</td>
+                <td style="padding:6px;border:1px solid #ddd;text-align:right;color:${color};font-weight:bold;">${f.faltante.toFixed(1)} Kg</td>
+            </tr>`;
+        });
+
+        return `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+            <div style="background:#0d6efd;color:white;padding:15px;text-align:center;">
+                <h2 style="margin:0;">SOLICITUD DE MATERIAL</h2>
+                <p style="margin:5px 0 0;">${orden.numeroOrden}</p>
+            </div>
+            <div style="padding:15px;background:#f8f9fa;">
+                <table style="width:100%;border-collapse:collapse;margin-bottom:15px;">
+                    <tr><td style="padding:4px;font-weight:bold;width:140px;">Cliente:</td><td>${orden.cliente || 'N/A'}</td></tr>
+                    <tr><td style="padding:4px;font-weight:bold;">Producto:</td><td>${orden.producto || 'N/A'}</td></tr>
+                    <tr><td style="padding:4px;font-weight:bold;">Maquina:</td><td>${orden.maquina || 'N/A'}</td></tr>
+                    <tr><td style="padding:4px;font-weight:bold;">Pedido:</td><td>${orden.pedidoKg} Kg</td></tr>
+                    <tr><td style="padding:4px;font-weight:bold;">Estructura:</td><td>${orden.estructuraMaterial || 'N/A'}</td></tr>
+                    <tr><td style="padding:4px;font-weight:bold;">Fecha Entrega:</td><td>${orden.fechaEntrega || 'N/A'} <strong>(${diasRestantes} dias)</strong></td></tr>
+                </table>
+                <h3 style="color:#dc3545;margin:10px 0 5px;">Materiales Faltantes</h3>
+                <table style="width:100%;border-collapse:collapse;background:white;">
+                    <thead>
+                        <tr style="background:#f0c040;">
+                            <th style="padding:6px;border:1px solid #ddd;text-align:left;">Material</th>
+                            <th style="padding:6px;border:1px solid #ddd;">Necesario</th>
+                            <th style="padding:6px;border:1px solid #ddd;">Disponible</th>
+                            <th style="padding:6px;border:1px solid #ddd;">Faltante</th>
+                        </tr>
+                    </thead>
+                    <tbody>${filasTabla}</tbody>
+                </table>
+                <p style="margin-top:15px;padding:10px;background:#fff3cd;border-radius:4px;">
+                    <strong>Accion requerida:</strong> Por favor gestionar la compra o despacho desde almacen para cumplir con esta orden de trabajo.
+                </p>
+            </div>
+            <div style="background:#333;color:#ccc;padding:10px;text-align:center;font-size:12px;">
+                Sistema Axones - Inversiones Axones 2008, C.A.<br>
+                Generado automaticamente el ${new Date().toLocaleString('es-VE')}
+            </div>
+        </div>`;
+    },
+
+    /**
+     * Envia email de solicitud de material
+     * Usa EmailJS si esta configurado, sino retorna false
+     * Para configurar: agregar en config.js EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, EMAILJS_PUBLIC_KEY
+     */
+    enviarEmailSolicitudMaterial: async function(orden, htmlContent, textoPlano) {
+        // Obtener destinatarios
+        const destinatarios = (typeof CONFIG !== 'undefined' && CONFIG.NOTIFICACIONES_EMAILS?.stock_bajo)
+            ? CONFIG.NOTIFICACIONES_EMAILS.stock_bajo
+            : ['gerenciaaxones@gmail.com', 'anl.almacenaxones@gmail.com'];
+
+        // Intentar EmailJS
+        if (typeof emailjs !== 'undefined' && CONFIG.EMAILJS_SERVICE_ID) {
+            try {
+                for (const email of destinatarios) {
+                    await emailjs.send(CONFIG.EMAILJS_SERVICE_ID, CONFIG.EMAILJS_TEMPLATE_ID, {
+                        to_email: email,
+                        subject: `[SOLICITUD MATERIAL] ${orden.numeroOrden} - ${orden.cliente}`,
+                        message_html: htmlContent,
+                        message: textoPlano,
+                        from_name: 'Sistema Axones'
+                    });
+                }
+                console.log(`Email enviado a ${destinatarios.length} destinatarios`);
+                return true;
+            } catch (e) {
+                console.warn('Error enviando email via EmailJS:', e);
+                return false;
+            }
+        }
+
+        // Fallback: mailto link (abre cliente de correo del usuario)
+        try {
+            const asunto = encodeURIComponent(`[SOLICITUD MATERIAL] ${orden.numeroOrden} - ${orden.cliente}`);
+            const cuerpo = encodeURIComponent(textoPlano);
+            const mailto = `mailto:${destinatarios.join(',')}?subject=${asunto}&body=${cuerpo}`;
+
+            // Crear link invisible y hacer click
+            const link = document.createElement('a');
+            link.href = mailto;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            console.log('Abriendo cliente de correo con solicitud de material');
+            return true;
+        } catch (e) {
+            console.warn('No se pudo abrir cliente de correo:', e);
+            return false;
         }
     },
 
@@ -2225,10 +2435,9 @@ const Ordenes = {
 
     /**
      * Verifica ordenes proximas a su fecha de inicio
+     * Reutiliza verificarYCrearAlertas para cada orden proxima
      */
     verificarOrdenesProximas: async function() {
-        console.log('Verificando ordenes proximas a fecha de inicio...');
-
         const hoy = new Date();
         hoy.setHours(0, 0, 0, 0);
 
@@ -2243,92 +2452,11 @@ const Ordenes = {
             return diasRestantes <= this.DIAS_ALERTA_ANTICIPADA && diasRestantes >= 0;
         });
 
-        if (ordenesProximas.length === 0) {
-            console.log('No hay ordenes proximas que requieran verificacion');
-            return;
-        }
+        if (ordenesProximas.length === 0) return;
 
-        console.log(`Encontradas ${ordenesProximas.length} ordenes proximas a verificar`);
-
+        console.log(`Verificando ${ordenesProximas.length} ordenes proximas a fecha de inicio`);
         for (const orden of ordenesProximas) {
-            const disponible = this.inventario.filter(item =>
-                item.material?.includes(orden.tipoMaterial)
-            ).reduce((sum, item) => sum + (item.kg || 0), 0);
-
-            if (disponible < (orden.pedidoKg || 0)) {
-                const alertaEnviada = this.verificarAlertaEmailEnviada(orden.id);
-                if (!alertaEnviada) {
-                    await this.enviarAlertaEmailInventario(orden, disponible);
-                }
-            }
-        }
-    },
-
-    /**
-     * Verifica si ya se envio alerta email hoy
-     */
-    verificarAlertaEmailEnviada: function(ordenId) {
-        // Verificar en memoria (las alertas ya estan cargadas)
-        // Se busca si existe alerta de email para esta orden hoy
-        const hoy = new Date().toISOString().split('T')[0];
-        return this._alertasEmailEnviadas?.some(a => a.ordenId === ordenId && a.fecha?.startsWith(hoy)) || false;
-    },
-
-    /**
-     * Registra alerta email enviada
-     */
-    registrarAlertaEmailEnviada: function(ordenId) {
-        if (!this._alertasEmailEnviadas) this._alertasEmailEnviadas = [];
-        this._alertasEmailEnviadas.push({
-            ordenId: ordenId,
-            fecha: new Date().toISOString()
-        });
-    },
-
-    /**
-     * Envia alerta por email
-     */
-    enviarAlertaEmailInventario: async function(orden, disponible) {
-        console.log(`Enviando alerta por email para orden ${orden.numeroOrden}...`);
-
-        const fechaOrden = new Date(orden.fechaInicio || orden.fechaEntrega);
-        const hoy = new Date();
-        const diasRestantes = Math.ceil((fechaOrden - hoy) / (1000 * 60 * 60 * 24));
-
-        const datosAlerta = {
-            tipo: 'inventario_insuficiente_email',
-            nivel: 'critical',
-            numeroOrden: orden.numeroOrden,
-            cliente: orden.cliente,
-            producto: orden.producto,
-            material: orden.tipoMaterial,
-            cantidadRequerida: orden.pedidoKg,
-            cantidadDisponible: disponible,
-            fechaEntrega: orden.fechaEntrega,
-            diasRestantes: diasRestantes,
-            mensaje: `URGENTE: La orden ${orden.numeroOrden} para ${orden.cliente} tiene fecha en ${diasRestantes} dias y NO hay suficiente inventario de ${orden.tipoMaterial}. Requerido: ${orden.pedidoKg} Kg, Disponible: ${disponible.toFixed(2)} Kg.`,
-            enviarEmail: true
-        };
-
-        // Crear alerta local
-        this.crearAlertaConEmail(orden, diasRestantes, disponible);
-    },
-
-    /**
-     * Crea alerta con indicador de email
-     */
-    crearAlertaConEmail: async function(orden, diasRestantes, disponible) {
-        if (!AxonesDB.isReady()) return;
-
-        try {
-            await AxonesDB.client.from('alertas').insert({
-                tipo: 'stock_bajo',
-                nivel: 'danger',
-                titulo: `Inventario insuficiente: ${orden.tipoMaterial} para ${orden.numeroOrden}`,
-                mensaje: `ALERTA: ${orden.numeroOrden} (${orden.cliente}) - Sin inventario de ${orden.tipoMaterial}. Fecha: ${orden.fechaEntrega} (${diasRestantes} dias). Disponible: ${disponible.toFixed(2)} Kg`
-            });
-        } catch (e) {
-            console.warn('Error creando alerta con email:', e.message);
+            await this.verificarYCrearAlertas(orden);
         }
     },
 

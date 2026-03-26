@@ -482,7 +482,12 @@
                             <div class="ot-grid" style="grid-template-columns: 2fr 1fr;">
                                 <div class="ot-field">
                                     <label class="form-label required-field">Producto</label>
-                                    <input type="text" class="form-control form-control-sm" id="producto" list="listaProductos" required placeholder="Producto...">
+                                    <div class="d-flex gap-1 flex-1" style="min-width:0;">
+                                        <input type="text" class="form-control form-control-sm" id="producto" list="listaProductos" required placeholder="Producto...">
+                                        <button type="button" class="btn btn-success btn-sm" id="btnCrearProducto" data-bs-toggle="modal" data-bs-target="#modalCrearProducto" title="Crear nuevo producto" style="flex-shrink:0; font-size:0.75rem; padding:0.15rem 0.4rem;">
+                                            <i class="bi bi-plus-lg"></i>
+                                        </button>
+                                    </div>
                                     <datalist id="listaProductos"></datalist>
                                     <datalist id="listaTintasColor"></datalist>
                                 </div>
@@ -723,29 +728,32 @@
                             <input type="number" class="form-control form-control-sm" id="numRepeticion" min="1">
                         </div>
                         <div class="ot-field">
-                            <label class="form-label">Desarrollo (mm)</label>
-                            <input type="number" class="form-control form-control-sm" id="desarrollo" step="0.01" readonly title="Frecuencia x Repeticion">
+                            <label class="form-label">Desarrollo (mm) <small class="text-muted">(auto)</small></label>
+                            <input type="number" class="form-control form-control-sm" id="desarrollo" step="0.01" readonly title="Auto: Frecuencia x Repeticion" style="background-color: #d4edda;">
                         </div>
                     </div>
                     <!-- Fila 3: ANCHO MONTAJE | FIGURA EMBOBINADO IMPRESION | N° COLORES (como Excel fila 13) -->
                     <div class="ot-grid" style="grid-template-columns: 1fr 1fr 1fr;">
                         <div class="ot-field">
-                            <label class="form-label">Ancho Montaje (mm)</label>
-                            <input type="number" class="form-control form-control-sm" id="anchoMontaje" step="0.01" readonly title="Ancho Corte x N° Bandas">
+                            <label class="form-label">Ancho Montaje (mm) <small class="text-muted">(auto)</small></label>
+                            <input type="number" class="form-control form-control-sm" id="anchoMontaje" step="0.01" readonly title="Auto: Ancho Corte x N° Bandas" style="background-color: #d4edda;">
                         </div>
                         <div class="ot-field">
                             <label class="form-label">Figura Embobinado Impresion</label>
-                            <select class="form-select form-select-sm" id="figuraEmbobinadoMontaje">
-                                <option value="">-</option>
-                                <option value="1">1</option>
-                                <option value="2">2</option>
-                                <option value="3">3</option>
-                                <option value="4">4</option>
-                                <option value="5">5</option>
-                                <option value="6">6</option>
-                                <option value="7">7</option>
-                                <option value="8">8</option>
-                            </select>
+                            <div class="d-flex align-items-center gap-1 flex-1" style="min-width:0;">
+                                <select class="form-select form-select-sm" id="figuraEmbobinadoMontaje" style="width: 50px; flex-shrink: 0;">
+                                    <option value="">-</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                    <option value="7">7</option>
+                                    <option value="8">8</option>
+                                </select>
+                                <div id="figuraEmbobinadoMontajePreview" class="figura-embobinado-preview" title="Vista previa"></div>
+                            </div>
                         </div>
                         <div class="ot-field">
                             <label class="form-label">N° Colores</label>
@@ -755,8 +763,8 @@
                     <!-- Campos adicionales no en Excel pero existentes en el sistema -->
                     <div class="ot-grid" style="grid-template-columns: 1fr 1fr 2fr;">
                         <div class="ot-field">
-                            <label class="form-label">Pinon (auto)</label>
-                            <input type="number" class="form-control form-control-sm" id="pinon" readonly title="Desarrollo / 5">
+                            <label class="form-label">Pinon <small class="text-muted">(auto)</small></label>
+                            <input type="number" class="form-control form-control-sm" id="pinon" readonly title="Auto: Desarrollo / 5" style="background-color: #d4edda;">
                         </div>
                         <div class="ot-field" id="planchasContainer" style="display: none;">
                             <label class="form-label">Planchas</label>
@@ -1332,6 +1340,79 @@
     <script src="src/js/utils/sync-realtime.js"></script>
     <script src="src/js/utils/theme.js"></script>
     <script src="src/js/utils/auth.js"></script>
+    <!-- Modal Crear Producto -->
+    <div class="modal fade" id="modalCrearProducto" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white py-2">
+                    <h6 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Crear Nuevo Producto</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label class="form-label">Nombre del Producto *</label>
+                        <input type="text" class="form-control" id="nuevoProductoNombre" placeholder="Ej: Bolsa Arroz 1kg">
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-6">
+                            <label class="form-label">Tipo Material *</label>
+                            <select class="form-select" id="nuevoProductoTipo">
+                                <option value="">Seleccionar...</option>
+                                <option>BOPP NORMAL</option>
+                                <option>BOPP MATE</option>
+                                <option>BOPP PASTA</option>
+                                <option>BOPP PERLADO</option>
+                                <option>METAL</option>
+                                <option>PERLADO</option>
+                                <option>CAST</option>
+                                <option>PEBD</option>
+                                <option>PEBD PIGMENT</option>
+                                <option>PET</option>
+                            </select>
+                        </div>
+                        <div class="col-3">
+                            <label class="form-label">Micras *</label>
+                            <input type="number" class="form-control" id="nuevoProductoMicras" placeholder="20">
+                        </div>
+                        <div class="col-3">
+                            <label class="form-label">Ancho (mm) *</label>
+                            <input type="number" class="form-control" id="nuevoProductoAncho" placeholder="610">
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-6">
+                            <label class="form-label">Estructura Material</label>
+                            <input type="text" class="form-control" id="nuevoProductoEstructura" placeholder="BOPP 20 + CAST 30">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Kg Disponibles</label>
+                            <input type="number" class="form-control" id="nuevoProductoKg" step="0.01" placeholder="0">
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-6">
+                            <label class="form-label">Proveedor</label>
+                            <input type="text" class="form-control" id="nuevoProductoProveedor" placeholder="Ej: Siplast">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Cliente asociado</label>
+                            <input type="text" class="form-control" id="nuevoProductoCliente" placeholder="Ej: Alimentos XYZ">
+                        </div>
+                    </div>
+                    <div class="alert alert-info py-1 mb-0" style="font-size:0.8rem;">
+                        <i class="bi bi-info-circle me-1"></i>El SKU y codigo de barras se generan automaticamente.
+                    </div>
+                </div>
+                <div class="modal-footer py-1">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-success btn-sm" id="btnGuardarNuevoProducto">
+                        <i class="bi bi-check-lg me-1"></i>Crear y Seleccionar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="src/js/utils/demoData.js"></script>
     <script src="src/js/utils/inventario-service.js"></script>
     <script src="src/js/utils/cliente-memoria.js"></script>

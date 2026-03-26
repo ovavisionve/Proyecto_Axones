@@ -332,6 +332,20 @@ const CONFIG = {
         ],
     },
 
+    // ============================================
+    // EmailJS - Configuracion para envio de correos
+    // ============================================
+    // Pasos para configurar:
+    // 1. Crear cuenta en https://www.emailjs.com/ (gratis hasta 200 emails/mes)
+    // 2. Email Services > Add New Service > Gmail > conectar gerenciaaxones@gmail.com
+    // 3. Email Templates > Create New Template (ver instrucciones abajo)
+    // 4. Copiar los IDs aqui
+    EMAILJS_SERVICE_ID: 'service_axones',       // ID del servicio (Email Services > Service ID)
+    EMAILJS_TEMPLATE_ID: 'template_solicitud',  // ID del template (Email Templates > Template ID)
+    EMAILJS_PUBLIC_KEY: '',                      // Public Key (Account > API Keys > Public Key)
+    // IMPORTANTE: Dejar EMAILJS_PUBLIC_KEY vacio hasta configurar la cuenta.
+    // Cuando este vacio, el sistema usa mailto:// como fallback (abre Gmail del usuario).
+
     // Emails para notificaciones (Ficha Tecnica seccion 12.2)
     NOTIFICACIONES_EMAILS: {
         stock_bajo: [

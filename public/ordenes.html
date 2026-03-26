@@ -1413,6 +1413,19 @@
         </div>
     </div>
 
+    <!-- EmailJS SDK para envio de alertas por correo -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script type="text/javascript">
+        // Inicializar EmailJS con la public key de config.js
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof CONFIG !== 'undefined' && CONFIG.EMAILJS_PUBLIC_KEY) {
+                emailjs.init(CONFIG.EMAILJS_PUBLIC_KEY);
+                console.log('[EmailJS] Inicializado correctamente');
+            } else {
+                console.log('[EmailJS] No configurado - los emails se enviaran via mailto');
+            }
+        });
+    </script>
     <script src="src/js/utils/demoData.js"></script>
     <script src="src/js/utils/inventario-service.js"></script>
     <script src="src/js/utils/cliente-memoria.js"></script>

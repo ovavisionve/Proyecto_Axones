@@ -658,7 +658,13 @@ const Ordenes = {
         // Figura Embobinado visual preview (Area Corte)
         const figEmbCorte = document.getElementById('orientacionEmbalaje');
         if (figEmbCorte) {
-            figEmbCorte.addEventListener('change', () => this.renderFiguraEmbobinadoPreview());
+            figEmbCorte.addEventListener('change', () => this.renderFiguraEmbobinadoPreview('orientacionEmbalaje', 'figuraEmbobinadoPreview'));
+        }
+
+        // Figura Embobinado visual preview (Area Montaje)
+        const figEmbMontajeEl = document.getElementById('figuraEmbobinadoMontaje');
+        if (figEmbMontajeEl) {
+            figEmbMontajeEl.addEventListener('change', () => this.renderFiguraEmbobinadoPreview('figuraEmbobinadoMontaje', 'figuraEmbobinadoMontajePreview'));
         }
 
         // Kg Ingresados Corte auto-fill from pedidoKg
@@ -709,6 +715,12 @@ const Ordenes = {
         const modalOrdenes = document.getElementById('modalListaOrdenes');
         if (modalOrdenes) {
             modalOrdenes.addEventListener('show.bs.modal', () => this.renderTablaOrdenes());
+        }
+
+        // Crear nuevo producto
+        const btnGuardarNuevoProducto = document.getElementById('btnGuardarNuevoProducto');
+        if (btnGuardarNuevoProducto) {
+            btnGuardarNuevoProducto.addEventListener('click', () => this.crearNuevoProducto());
         }
     },
 
@@ -1364,9 +1376,11 @@ const Ordenes = {
      * Renderiza la vista previa visual de la figura de embobinado (1-8)
      * Muestra un SVG con el numero dentro de un dibujo de bobina
      */
-    renderFiguraEmbobinadoPreview: function() {
-        const container = document.getElementById('figuraEmbobinadoPreview');
-        const val = document.getElementById('orientacionEmbalaje')?.value;
+    renderFiguraEmbobinadoPreview: function(selectId, previewId) {
+        selectId = selectId || 'orientacionEmbalaje';
+        previewId = previewId || 'figuraEmbobinadoPreview';
+        const container = document.getElementById(previewId);
+        const val = document.getElementById(selectId)?.value;
         if (!container) return;
         if (!val) {
             container.innerHTML = '';
@@ -1379,6 +1393,87 @@ const Ordenes = {
             <circle cx="20" cy="20" r="3" fill="#666"/>
             <text x="20" y="24" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">${val}</text>
         </svg>`;
+    },
+
+    /**
+     * Crea un nuevo producto desde el modal y lo agrega al inventario en Supabase
+     */
+    crearNuevoProducto: async function() {
+        const nombre = document.getElementById('nuevoProductoNombre')?.value.trim();
+        const tipo = document.getElementById('nuevoProductoTipo')?.value;
+        const micras = parseFloat(document.getElementById('nuevoProductoMicras')?.value) || 0;
+        const ancho = parseFloat(document.getElementById('nuevoProductoAncho')?.value) || 0;
+        const estructura = document.getElementById('nuevoProductoEstructura')?.value.trim() || '';
+        const kg = parseFloat(document.getElementById('nuevoProductoKg')?.value) || 0;
+        const proveedor = document.getElementById('nuevoProductoProveedor')?.value.trim() || '';
+        const cliente = document.getElementById('nuevoProductoCliente')?.value.trim() || '';
+
+        if (!nombre || !tipo || !micras || !ancho) {
+            if (typeof showToast === 'function') {
+                showToast('Completa los campos obligatorios: Nombre, Tipo Material, Micras y Ancho', 'danger');
+            } else {
+                alert('Completa los campos obligatorios: Nombre, Tipo Material, Micras y Ancho');
+            }
+            return;
+        }
+
+        // Generar SKU
+        const PREFIJOS = { 'BOPP NORMAL': 'BN', 'BOPP MATE': 'BM', 'BOPP PASTA': 'BP', 'BOPP PERLADO': 'BPE', 'METAL': 'MT', 'PERLADO': 'PE', 'CAST': 'CA', 'PEBD': 'PB', 'PEBD PIGMENT': 'PBP', 'PET': 'PT' };
+        const prefijo = PREFIJOS[tipo] || tipo.substring(0, 2).toUpperCase();
+        const sku = `${prefijo}-${micras}-${ancho}`;
+        const densidad = this.DENSIDADES[tipo] || 0.90;
+
+        const nuevoMaterial = {
+            material: tipo,
+            micras: micras,
+            ancho: ancho,
+            kg: kg,
+            producto: nombre,
+            sku: sku,
+            densidad: densidad,
+            proveedor: proveedor,
+            estructura: estructura,
+            cliente: cliente
+        };
+
+        // Guardar en Supabase
+        try {
+            if (AxonesDB.isReady()) {
+                await AxonesDB.client.from('materiales').insert([nuevoMaterial]);
+            }
+        } catch (e) {
+            console.warn('Error guardando producto en Supabase:', e.message);
+        }
+
+        // Agregar al inventario local
+        this.inventario.push(nuevoMaterial);
+
+        // Recargar datalist de productos
+        this.cargarProductosDelInventario();
+
+        // Pre-llenar campos de la OT con el nuevo producto
+        const productoInput = document.getElementById('producto');
+        if (productoInput) {
+            productoInput.value = `${tipo} ${micras}µ x ${ancho}mm - ${nombre} | ${sku}`;
+            // Trigger the selection handler
+            this.onProductoSeleccionado();
+        }
+        const estructuraInput = document.getElementById('estructuraMaterial');
+        if (estructuraInput && estructura) estructuraInput.value = estructura;
+
+        // Cerrar modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalCrearProducto'));
+        if (modal) modal.hide();
+
+        // Limpiar campos del modal
+        ['nuevoProductoNombre', 'nuevoProductoTipo', 'nuevoProductoMicras', 'nuevoProductoAncho', 'nuevoProductoEstructura', 'nuevoProductoKg', 'nuevoProductoProveedor', 'nuevoProductoCliente'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+
+        if (typeof showToast === 'function') {
+            showToast(`Producto "${nombre}" creado con SKU: ${sku}`, 'success');
+        }
     },
 
     /**

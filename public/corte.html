@@ -53,7 +53,23 @@
     .form-label { font-size: 0.75rem; font-weight: 600; margin-bottom: 0.1rem; }
     .form-control, .form-select { font-size: 0.8rem; }
     @media print { .no-print { display: none !important; } .form-section { box-shadow: none; border: 1px solid #ddd; } }
-    @media (max-width: 768px) { .ot-grid { grid-template-columns: 1fr; } .ot-two-col { grid-template-columns: 1fr; } }
+    /* Tablet responsive */
+    @media (max-width: 1024px) {
+        .form-control, .form-select { font-size: 0.9rem !important; padding: 0.4rem 0.5rem !important; min-height: 2.4rem !important; }
+        .form-label, .ot-label { font-size: 0.8rem !important; }
+        .bobina-input { font-size: 0.9rem !important; padding: 0.4rem !important; min-height: 2.4rem !important; }
+        .form-section { padding: 0.75rem !important; }
+        .turno-btn { font-size: 0.85rem !important; padding: 0.4rem 0.8rem !important; }
+        .paleta-col { width: 25% !important; }
+    }
+    @media (max-width: 768px) {
+        .ot-grid { grid-template-columns: 1fr !important; }
+        .ot-two-col { grid-template-columns: 1fr; }
+        .form-control, .form-select { font-size: 1rem !important; padding: 0.5rem 0.6rem !important; min-height: 2.8rem !important; }
+        .form-label, .ot-label { font-size: 0.85rem !important; }
+        .bobina-input { font-size: 1rem !important; padding: 0.5rem !important; min-height: 2.8rem !important; }
+        .paleta-col { width: 50% !important; }
+    }
     </style>
 </head>
 <body>

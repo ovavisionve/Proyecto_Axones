@@ -2193,9 +2193,23 @@ const Ordenes = {
     },
 
     /**
-     * Envia email de solicitud de material
-     * Usa EmailJS si esta configurado, sino retorna false
-     * Para configurar: agregar en config.js EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, EMAILJS_PUBLIC_KEY
+     * Envia email de solicitud de material via EmailJS
+     * Si EmailJS no esta configurado, abre mailto como fallback
+     *
+     * Template de EmailJS debe tener estas variables:
+     *   {{to_email}}     - Destinatario
+     *   {{subject}}      - Asunto del correo
+     *   {{from_name}}    - "Sistema Axones"
+     *   {{numero_ot}}    - Numero de OT
+     *   {{cliente}}      - Nombre del cliente
+     *   {{producto}}     - Nombre del producto
+     *   {{maquina}}      - Maquina asignada
+     *   {{pedido_kg}}    - Kg del pedido
+     *   {{estructura}}   - Estructura del material
+     *   {{fecha_entrega}}- Fecha de entrega
+     *   {{dias_restantes}}- Dias para la entrega
+     *   {{tabla_faltantes}}- Tabla HTML con materiales faltantes
+     *   {{message}}      - Mensaje en texto plano (backup)
      */
     enviarEmailSolicitudMaterial: async function(orden, htmlContent, textoPlano) {
         // Obtener destinatarios
@@ -2203,43 +2217,58 @@ const Ordenes = {
             ? CONFIG.NOTIFICACIONES_EMAILS.stock_bajo
             : ['gerenciaaxones@gmail.com', 'anl.almacenaxones@gmail.com'];
 
-        // Intentar EmailJS
-        if (typeof emailjs !== 'undefined' && CONFIG.EMAILJS_SERVICE_ID) {
+        const fechaEntrega = orden.fechaEntrega || 'N/A';
+        const diasRestantes = fechaEntrega !== 'N/A'
+            ? Math.ceil((new Date(fechaEntrega) - new Date()) / (1000 * 60 * 60 * 24))
+            : '?';
+
+        // Intentar EmailJS (solo si PUBLIC_KEY esta configurada)
+        if (typeof emailjs !== 'undefined' &&
+            typeof CONFIG !== 'undefined' &&
+            CONFIG.EMAILJS_PUBLIC_KEY &&
+            CONFIG.EMAILJS_SERVICE_ID) {
             try {
                 for (const email of destinatarios) {
                     await emailjs.send(CONFIG.EMAILJS_SERVICE_ID, CONFIG.EMAILJS_TEMPLATE_ID, {
                         to_email: email,
-                        subject: `[SOLICITUD MATERIAL] ${orden.numeroOrden} - ${orden.cliente}`,
-                        message_html: htmlContent,
-                        message: textoPlano,
-                        from_name: 'Sistema Axones'
+                        subject: `[SOLICITUD MATERIAL] ${orden.numeroOrden} - ${orden.cliente || 'Sin cliente'}`,
+                        from_name: 'Sistema Axones',
+                        numero_ot: orden.numeroOrden || '',
+                        cliente: orden.cliente || 'N/A',
+                        producto: orden.producto || 'N/A',
+                        maquina: orden.maquina || 'N/A',
+                        pedido_kg: orden.pedidoKg || '0',
+                        estructura: orden.estructuraMaterial || 'N/A',
+                        fecha_entrega: fechaEntrega,
+                        dias_restantes: diasRestantes,
+                        tabla_faltantes: htmlContent,
+                        message: textoPlano
                     });
                 }
-                console.log(`Email enviado a ${destinatarios.length} destinatarios`);
+                console.log(`[EmailJS] Email enviado a ${destinatarios.length} destinatarios`);
                 return true;
             } catch (e) {
-                console.warn('Error enviando email via EmailJS:', e);
-                return false;
+                console.warn('[EmailJS] Error enviando email:', e);
+                // Caer al fallback mailto
             }
         }
 
         // Fallback: mailto link (abre cliente de correo del usuario)
         try {
-            const asunto = encodeURIComponent(`[SOLICITUD MATERIAL] ${orden.numeroOrden} - ${orden.cliente}`);
+            const asunto = encodeURIComponent(`[SOLICITUD MATERIAL] ${orden.numeroOrden} - ${orden.cliente || ''}`);
             const cuerpo = encodeURIComponent(textoPlano);
             const mailto = `mailto:${destinatarios.join(',')}?subject=${asunto}&body=${cuerpo}`;
 
-            // Crear link invisible y hacer click
             const link = document.createElement('a');
             link.href = mailto;
             link.style.display = 'none';
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            console.log('Abriendo cliente de correo con solicitud de material');
+            console.log('[Email] Abriendo cliente de correo con solicitud de material');
             return true;
         } catch (e) {
-            console.warn('No se pudo abrir cliente de correo:', e);
+            console.warn('[Email] No se pudo abrir cliente de correo:', e);
             return false;
         }
     },

@@ -335,6 +335,9 @@ const CONFIG = {
     // ============================================
     // EmailJS - Configuracion para envio de correos
     // ============================================
+    // ALERTAS_EMAIL_ACTIVO: poner en true cuando quieran activar el envio automatico
+    // Mientras este en false, las OTs se crean sin enviar correos ni alertas de stock
+    ALERTAS_EMAIL_ACTIVO: false,
     // Pasos para configurar:
     // 1. Crear cuenta en https://www.emailjs.com/ (gratis hasta 200 emails/mes)
     // 2. Email Services > Add New Service > Gmail > conectar gerenciaaxones@gmail.com

@@ -1987,6 +1987,9 @@ const Ordenes = {
      * Ahora revisa TODOS los materiales de la ficha tecnica (capas, adhesivo, tintas).
      */
     verificarYCrearAlertas: async function(orden) {
+        // Desactivado mientras estan en pruebas - activar en config.js: ALERTAS_EMAIL_ACTIVO: true
+        if (typeof CONFIG !== 'undefined' && !CONFIG.ALERTAS_EMAIL_ACTIVO) return;
+
         const pedidoKg = parseFloat(orden.pedidoKg) || 0;
         if (!pedidoKg) return;
 

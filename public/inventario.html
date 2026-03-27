@@ -167,11 +167,21 @@
                             Ultima actualizacion: <span id="fechaActualizacion">--</span>
                         </p>
                     </div>
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-outline-success btn-sm" id="btnSyncSupabase" title="Sincronizar inventario con Supabase">
-                            <i class="bi bi-cloud-upload me-1"></i> Sync a Supabase
-                        </button>
-                        <button class="btn btn-outline-secondary btn-sm" id="btnExportar">
+                    <div class="d-flex gap-2 flex-wrap">
+                        <div class="dropdown">
+                            <button class="btn btn-outline-info btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="bi bi-file-earmark-bar-graph me-1"></i> Reportes
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#" onclick="Inventario.reportePorMaterial()"><i class="bi bi-box-seam me-2"></i>Reporte por Material</a></li>
+                                <li><a class="dropdown-item" href="#" onclick="Inventario.reportePorProveedor()"><i class="bi bi-building me-2"></i>Reporte por Proveedor</a></li>
+                                <li><a class="dropdown-item" href="#" onclick="Inventario.reporteStockBajo()"><i class="bi bi-exclamation-triangle me-2"></i>Stock Bajo / Agotado</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="#" onclick="Inventario.exportarCSV()"><i class="bi bi-filetype-csv me-2"></i>Exportar CSV</a></li>
+                                <li><a class="dropdown-item" href="#" onclick="Inventario.imprimirInventario()"><i class="bi bi-printer me-2"></i>Imprimir Inventario</a></li>
+                            </ul>
+                        </div>
+                        <button class="btn btn-outline-secondary btn-sm" id="btnExportar" style="display:none;">
                             <i class="bi bi-download me-1"></i> Exportar
                         </button>
                         <button class="btn btn-outline-primary btn-sm" id="btnActualizar">

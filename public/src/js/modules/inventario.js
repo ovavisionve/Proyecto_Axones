@@ -255,7 +255,7 @@ const Inventario = {
                         tipo: m.tipo,
                         micras: m.micras,
                         ancho: m.ancho,
-                        kg: m.kg || m.stock_kg || 0,
+                        kg: m.stock_kg || 0,
                         densidad: m.densidad,
                         sku: m.sku,
                         codigoBarra: m.codigo_barras,
@@ -1347,28 +1347,45 @@ const Inventario = {
             return;
         }
 
-        const nuevoItem = {
-            material: document.getElementById('nuevoMaterial').value,
-            micras: parseInt(document.getElementById('nuevoMicras').value),
-            ancho: parseInt(document.getElementById('nuevoAncho').value),
-            kg: parseFloat(document.getElementById('nuevoKg').value),
-            proveedor: document.getElementById('nuevoProveedor').value,
-            producto: document.getElementById('nuevoProducto').value,
-            importado: document.getElementById('nuevoImportado').checked,
-        };
+        const kgValue = parseFloat(document.getElementById('nuevoKg').value);
+        const proveedorValue = document.getElementById('nuevoProveedor').value;
+        const productoValue = document.getElementById('nuevoProducto').value;
+        const importadoValue = document.getElementById('nuevoImportado').checked;
 
-        if (!nuevoItem.proveedor) {
+        if (!proveedorValue) {
             alert('El proveedor es obligatorio');
             return;
         }
 
+        // Objeto para Supabase (columnas reales de la tabla materiales)
+        const dbItem = {
+            material: document.getElementById('nuevoMaterial').value,
+            tipo: document.getElementById('nuevoMaterial').value,
+            micras: parseInt(document.getElementById('nuevoMicras').value),
+            ancho: parseInt(document.getElementById('nuevoAncho').value),
+            stock_kg: kgValue,
+            notas: (productoValue || '') + (importadoValue ? ' (IMPORTADO)' : ''),
+            activo: true
+        };
+
+        // Objeto local (para la UI)
+        const nuevoItem = {
+            material: dbItem.material,
+            micras: dbItem.micras,
+            ancho: dbItem.ancho,
+            kg: kgValue,
+            proveedor: proveedorValue,
+            producto: productoValue,
+            importado: importadoValue,
+        };
+
         // Guardar directamente en Supabase
         if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
             try {
-                const { data, error } = await AxonesDB.client.from('materiales').insert([nuevoItem]).select();
+                const { data, error } = await AxonesDB.client.from('materiales').insert([dbItem]).select();
                 if (error) throw error;
                 if (data && data[0]) nuevoItem.id = data[0].id;
-                console.log('[Inventario] Material guardado en Supabase:', nuevoItem.material);
+                console.log('[Inventario] Material guardado en Supabase:', dbItem.material, 'stock_kg:', dbItem.stock_kg);
             } catch (e) {
                 console.error('[Inventario] Error guardando en Supabase:', e);
                 alert('Error guardando material: ' + e.message);
@@ -1420,8 +1437,8 @@ const Inventario = {
             // Guardar en Supabase
             if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady() && item.id) {
                 try {
-                    await AxonesDB.client.from('materiales').update({ kg: item.kg, stock_kg: item.kg }).eq('id', item.id);
-                    console.log('[Inventario] Kg actualizado en Supabase:', item.id, item.kg);
+                    await AxonesDB.client.from('materiales').update({ stock_kg: item.kg }).eq('id', item.id);
+                    console.log('[Inventario] stock_kg actualizado en Supabase:', item.id, item.kg);
                 } catch (e) {
                     console.error('[Inventario] Error actualizando en Supabase:', e);
                 }
@@ -1478,7 +1495,7 @@ const Inventario = {
                 item.kg -= cantidadUsar;
                 if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady() && item.id) {
                     try {
-                        await AxonesDB.client.from('materiales').update({ kg: item.kg, stock_kg: item.kg }).eq('id', item.id);
+                        await AxonesDB.client.from('materiales').update({ stock_kg: item.kg }).eq('id', item.id);
                     } catch (e) { console.error('[Inventario] Error:', e); }
                 }
             }

@@ -1189,15 +1189,30 @@ const Corte = {
                 await AxonesDB.client.from('produccion_corte').insert({
                     orden_id: datos.otId || null,
                     numero_ot: datos.ordenTrabajo || '',
-                    maquina: datos.maquina || '',
-                    turno: datos.turno || '',
-                    operador: datos.operador || '',
                     fecha: datos.fecha || new Date().toISOString().split('T')[0],
-                    datos: datos
+                    turno: datos.turno || '',
+                    maquina: datos.maquina || '',
+                    operador: datos.operador || '',
+                    ayudante: datos.ayudante || '',
+                    supervisor: datos.supervisor || '',
+                    bobinas_entrada: datos.bobinasEntrada || [],
+                    total_entrada: datos.totalEntrada || 0,
+                    paletas: datos.paletas || [],
+                    num_paletas: datos.numPaletas || 0,
+                    peso_total_salida: datos.pesoTotalSalida || datos.pesoTotal || 0,
+                    scrap_refile: datos.scrapRefile || datos.scrapTransparente || 0,
+                    total_scrap: datos.totalScrap || 0,
+                    merma: datos.merma || 0,
+                    porcentaje_refil: datos.porcentajeRefil || 0,
+                    etiquetas_entrada: datos.etiquetasEntrada || {},
+                    observaciones: JSON.stringify(datos),
+                    registrado_por_nombre: datos.registradoPorNombre || ''
                 });
+                console.log('[Corte] Registro guardado en Supabase');
             }
         } catch (error) {
-            console.warn('[Corte] Error guardando en Supabase:', error);
+            console.error('[Corte] Error guardando en Supabase:', error);
+            alert('Error al guardar: ' + error.message);
         }
     },
 

@@ -1543,15 +1543,35 @@ const Impresion = {
      */
     guardarLocal: async function(datos) {
         if (AxonesDB.isReady()) {
-            // Guardar en tabla produccion_impresion con columna datos JSONB
-            await AxonesDB.client.from('produccion_impresion').insert({
-                orden_id: datos.otId || null,
-                numero_ot: datos.ordenTrabajo || null,
-                datos: datos
-            });
-            console.log('Registro de impresion guardado en Supabase');
-        } else {
-            console.warn('Supabase no disponible, registro no guardado');
+            try {
+                await AxonesDB.client.from('produccion_impresion').insert({
+                    orden_id: datos.otId || null,
+                    numero_ot: datos.ordenTrabajo || null,
+                    fecha: datos.fecha || new Date().toISOString().split('T')[0],
+                    turno: datos.turno || '',
+                    maquina: datos.maquina || '',
+                    operador: datos.operador || '',
+                    ayudante: datos.ayudante || '',
+                    supervisor: datos.supervisor || '',
+                    bobinas_entrada: datos.materialesEntrada || [],
+                    total_entrada: datos.totalMaterialEntrada || 0,
+                    bobinas_salida: datos.bobinasSalida || [],
+                    num_bobinas: datos.numBobinas || 0,
+                    peso_total: datos.pesoTotal || 0,
+                    total_scrap: datos.totalScrap || 0,
+                    merma: datos.merma || 0,
+                    porcentaje_refil: datos.porcentajeScrap || 0,
+                    metraje: datos.metraje || 0,
+                    etiquetas_entrada: datos.etiquetasEntrada || {},
+                    etiquetas_salida: datos.etiquetasSalida || {},
+                    observaciones: JSON.stringify(datos),
+                    registrado_por_nombre: datos.registradoPorNombre || ''
+                });
+                console.log('[Impresion] Registro guardado en Supabase');
+            } catch (e) {
+                console.error('[Impresion] Error guardando en Supabase:', e);
+                alert('Error al guardar: ' + e.message);
+            }
         }
     },
 

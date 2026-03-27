@@ -965,12 +965,45 @@ const Laminacion = {
                 await AxonesDB.client.from('produccion_laminacion').insert({
                     orden_id: datos.otId || null,
                     numero_ot: datos.ordenTrabajo || '',
-                    datos: datos
+                    fecha: datos.fecha || new Date().toISOString().split('T')[0],
+                    turno: datos.turno || '',
+                    maquina: datos.maquina || '',
+                    operador: datos.operador || '',
+                    ayudante: datos.ayudante || '',
+                    supervisor: datos.supervisor || '',
+                    bobinas_entrada: datos.bobinasEntrada || [],
+                    total_entrada: datos.totalEntrada || 0,
+                    bobinas_virgen: datos.bobinasVirgen || [],
+                    total_entrada_virgen: datos.totalEntradaVirgen || 0,
+                    adhesivo_entrada: datos.adhesivoEntrada || 0,
+                    adhesivo_sobro: datos.adhesivoSobro || 0,
+                    consumo_adhesivo: datos.consumoAdhesivo || 0,
+                    catalizador_entrada: datos.catalizadorEntrada || 0,
+                    catalizador_sobro: datos.catalizadorSobro || 0,
+                    consumo_catalizador: datos.consumoCatalizador || 0,
+                    acetato_entrada: datos.acetatoEntrada || 0,
+                    acetato_sobro: datos.acetatoSobro || 0,
+                    consumo_acetato: datos.consumoAcetato || 0,
+                    bobinas_salida: datos.bobinasSalida || [],
+                    num_bobinas: datos.numBobinas || 0,
+                    peso_total: datos.pesoTotal || 0,
+                    scrap_transparente: datos.scrapTransparente || 0,
+                    scrap_impreso: datos.scrapImpreso || 0,
+                    scrap_laminado: datos.scrapLaminado || 0,
+                    total_scrap: datos.totalScrap || 0,
+                    merma: datos.merma || 0,
+                    porcentaje_refil: datos.porcentajeRefil || 0,
+                    metraje: datos.metraje || 0,
+                    etiquetas_entrada: datos.etiquetasEntrada || {},
+                    etiquetas_salida: datos.etiquetasSalida || {},
+                    observaciones: JSON.stringify(datos),
+                    registrado_por_nombre: datos.registradoPorNombre || ''
                 });
-                console.log('[Laminacion] Registro guardado en Supabase produccion_laminacion');
+                console.log('[Laminacion] Registro guardado en Supabase');
             }
         } catch (e) {
-            console.warn('[Laminacion] Error guardando en Supabase:', e);
+            console.error('[Laminacion] Error guardando en Supabase:', e);
+            alert('Error al guardar: ' + e.message);
         }
     },
 

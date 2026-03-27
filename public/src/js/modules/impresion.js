@@ -28,8 +28,6 @@ const Impresion = {
         this.setupEventListeners();
         this.setupCalculations();
         this.initDevolucionRechazada();
-        this.initConsumoTintas();
-        this.initSolventes();
 
         // Poblar selector de OTs y verificar si viene una por URL
         await this.poblarSelectorOT();
@@ -211,6 +209,9 @@ const Impresion = {
         // Mostrar formulario de produccion
         const form = document.getElementById('formImpresion');
         if (form) form.style.display = '';
+
+        // Pre-llenar colores y anilox desde la OT
+        this.preLlenarColoresDesdeOT(orden);
 
         // Actualizar badge
         const badge = document.getElementById('estadoOT');
@@ -954,16 +955,7 @@ const Impresion = {
     /**
      * Inicializa la seccion de consumo de tintas
      */
-    initConsumoTintas: function() {
-        const btnAgregar = document.getElementById('btnAgregarTinta');
-        if (btnAgregar) {
-            btnAgregar.addEventListener('click', () => this.agregarFilaTinta('consumo'));
-        }
-        const btnDevTinta = document.getElementById('btnAgregarDevTinta');
-        if (btnDevTinta) {
-            btnDevTinta.addEventListener('click', () => this.agregarFilaTinta('devolucion'));
-        }
-    },
+    // Nota: Consumo de tintas/solventes se gestiona desde el modulo Tintas (tintas.html)
 
     /**
      * Obtiene tintas del inventario para el selector
@@ -1070,124 +1062,44 @@ const Impresion = {
     },
 
     /**
-     * Recopila datos de consumo de tintas
+     * Recopila datos de colores y anilox del operador (8 posiciones)
      */
-    recopilarConsumoTintas: function() {
-        const filas = document.querySelectorAll('#bodyConsumoTintas tr');
+    recopilarColoresAnilox: function() {
         const datos = [];
-        filas.forEach(fila => {
-            const selector = fila.querySelector('.tinta-selector');
-            const kgInput = fila.querySelector('.tinta-kg-consumo');
-            const kg = parseFloat(kgInput?.value) || 0;
-            if (kg > 0 && selector?.value) {
-                const opt = selector.selectedOptions[0];
+        for (let i = 1; i <= 8; i++) {
+            const color = document.getElementById(`impColor${i}`)?.value || '';
+            if (color) {
                 datos.push({
-                    indice: parseInt(selector.value),
-                    nombre: opt?.dataset?.nombre || '',
-                    kg: kg
+                    posicion: i,
+                    color: color,
+                    anilox: document.getElementById(`impAnilox${i}`)?.value || '',
+                    viscosidad: parseFloat(document.getElementById(`impVisc${i}`)?.value) || null,
+                    observaciones: document.getElementById(`impColorObs${i}`)?.value || ''
                 });
             }
-        });
-        return datos;
-    },
-
-    /**
-     * Recopila datos de devolucion de tintas
-     */
-    recopilarDevolucionTintas: function() {
-        const filas = document.querySelectorAll('#bodyDevolucionTintas tr');
-        const datos = [];
-        filas.forEach(fila => {
-            const selector = fila.querySelector('.tinta-dev-selector');
-            const kgInput = fila.querySelector('.tinta-kg-devolucion');
-            const kg = parseFloat(kgInput?.value) || 0;
-            if (kg > 0 && selector?.value) {
-                const opt = selector.selectedOptions[0];
-                datos.push({
-                    indice: parseInt(selector.value),
-                    nombre: opt?.dataset?.nombre || '',
-                    kg: kg
-                });
-            }
-        });
-        return datos;
-    },
-
-    /**
-     * Descuenta consumo y repone devolucion de tintas en el inventario
-     */
-    descontarTintas: async function(datos) {
-        try {
-            const tintas = this._tintasCache || await this.obtenerTintasInventario();
-            let actualizado = false;
-
-            // Descontar consumo
-            if (datos.consumoTintas) {
-                for (const item of datos.consumoTintas) {
-                    if (tintas[item.indice]) {
-                        const tinta = tintas[item.indice];
-                        const actual = parseFloat(tinta.cantidad || tinta.kg || 0);
-                        const campo = tinta.cantidad !== undefined ? 'cantidad' : 'kg';
-                        const nuevoValor = Math.max(0, actual - item.kg);
-                        tinta[campo] = nuevoValor;
-                        actualizado = true;
-                        console.log(`Tintas: Descontados ${item.kg} Kg de ${item.nombre} (Quedan: ${nuevoValor} Kg)`);
-
-                        // Actualizar en Supabase
-                        if (AxonesDB.isReady() && tinta.id) {
-                            await AxonesDB.client.from('tintas').update({ [campo]: nuevoValor }).eq('id', tinta.id);
-                        }
-                    }
-                }
-            }
-
-            // Reponer devolucion
-            if (datos.devolucionTintas) {
-                for (const item of datos.devolucionTintas) {
-                    if (tintas[item.indice]) {
-                        const tinta = tintas[item.indice];
-                        const actual = parseFloat(tinta.cantidad || tinta.kg || 0);
-                        const campo = tinta.cantidad !== undefined ? 'cantidad' : 'kg';
-                        const nuevoValor = actual + item.kg;
-                        tinta[campo] = nuevoValor;
-                        actualizado = true;
-                        console.log(`Tintas: Repuestos ${item.kg} Kg de ${item.nombre} (Total: ${nuevoValor} Kg)`);
-
-                        // Actualizar en Supabase
-                        if (AxonesDB.isReady() && tinta.id) {
-                            await AxonesDB.client.from('tintas').update({ [campo]: nuevoValor }).eq('id', tinta.id);
-                        }
-                    }
-                }
-            }
-
-            if (actualizado) {
-                console.log('Inventario de tintas actualizado en Supabase despues de produccion');
-            }
-        } catch (error) {
-            console.warn('Error al actualizar inventario de tintas:', error);
         }
+        return datos;
     },
 
     /**
-     * Inicializa la seccion de solventes
+     * Pre-llena colores y anilox desde la OT seleccionada
      */
-    initSolventes: function() {
-        document.querySelectorAll('.solvente-input').forEach(input => {
-            input.addEventListener('input', () => this.calcularTotalSolventes());
+    preLlenarColoresDesdeOT: function(orden) {
+        if (!orden || !orden.tintas) return;
+        const tintas = Array.isArray(orden.tintas) ? orden.tintas : [];
+        tintas.forEach(t => {
+            const pos = t.posicion;
+            if (pos >= 1 && pos <= 8) {
+                const colorEl = document.getElementById(`impColor${pos}`);
+                const aniloxEl = document.getElementById(`impAnilox${pos}`);
+                const viscEl = document.getElementById(`impVisc${pos}`);
+                const obsEl = document.getElementById(`impColorObs${pos}`);
+                if (colorEl) colorEl.value = t.color || '';
+                if (aniloxEl) aniloxEl.value = t.anilox || '';
+                if (viscEl && t.viscosidad) viscEl.value = t.viscosidad;
+                if (obsEl) obsEl.value = t.observaciones || '';
+            }
         });
-    },
-
-    /**
-     * Calcula total de solventes
-     */
-    calcularTotalSolventes: function() {
-        let total = 0;
-        document.querySelectorAll('.solvente-input').forEach(input => {
-            total += parseFloat(input.value) || 0;
-        });
-        const el = document.getElementById('totalSolventes');
-        if (el) el.textContent = total.toFixed(2);
     },
 
     /**
@@ -1458,8 +1370,7 @@ const Impresion = {
             // Descontar material del inventario automaticamente
             await this.descontarInventario(datos);
 
-            // Descontar tintas del inventario (consumo) y reponer (devolucion)
-            await this.descontarTintas(datos);
+            // Nota: Consumo de tintas/solventes se gestiona desde el modulo Tintas
 
             // Verificar alertas
             await this.verificarAlertas(datos);
@@ -1573,6 +1484,7 @@ const Impresion = {
             devolucionBuenaKg: parseFloat(document.getElementById('devolucionBuenaKg')?.value) || 0,
             devolucionBuenaFecha: document.getElementById('devolucionBuenaFecha')?.value || '',
             devolucionBuenaHora: document.getElementById('devolucionBuenaHora')?.value || '',
+            devolucionBuenaObs: document.getElementById('devolucionBuenaObs')?.value || '',
             devolucionRechazada: devolucionRechazada,
             totalDevolucionRechazada: this.calcularTotalDevolucionRechazada(),
             totalConsumido: parseFloat(document.getElementById('totalConsumido')?.textContent) || 0,
@@ -1599,17 +1511,8 @@ const Impresion = {
             horaInicio: document.getElementById('horaInicio')?.value || '',
             horaArranque: document.getElementById('horaArranque')?.value || '',
 
-            // Consumo y devolucion de tintas
-            consumoTintas: this.recopilarConsumoTintas(),
-            totalConsumoTintas: parseFloat(document.getElementById('totalConsumoTintas')?.textContent) || 0,
-            devolucionTintas: this.recopilarDevolucionTintas(),
-            totalDevolucionTintas: parseFloat(document.getElementById('totalDevolucionTintas')?.textContent) || 0,
-
-            // Solventes
-            solAlcohol: parseFloat(document.getElementById('solAlcohol')?.value) || 0,
-            solMetoxi: parseFloat(document.getElementById('solMetoxi')?.value) || 0,
-            solAcetato: parseFloat(document.getElementById('solAcetato')?.value) || 0,
-            totalSolventes: parseFloat(document.getElementById('totalSolventes')?.textContent) || 0,
+            // Colores y Anilox (registro del operador)
+            coloresAnilox: this.recopilarColoresAnilox(),
 
             // Paradas y observaciones
             motivosParadas: document.getElementById('motivosParadas').value,

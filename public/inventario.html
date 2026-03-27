@@ -199,7 +199,7 @@
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="tab-adhesivo" data-bs-toggle="tab" data-bs-target="#panel-adhesivo" type="button" role="tab">
-                            <i class="bi bi-moisture me-1"></i> Adhesivos
+                            <i class="bi bi-moisture me-1"></i> Quimicos
                             <span class="badge bg-warning text-dark ms-1" id="countAdhesivo">0</span>
                         </button>
                     </li>
@@ -407,7 +407,7 @@
                     <div class="col-6 col-md-3">
                         <div class="card border-start border-primary border-4 h-100">
                             <div class="card-body py-2 px-3">
-                                <small class="text-muted d-block">Tintas Laminacion</small>
+                                <small class="text-muted d-block">Tinta Laminada</small>
                                 <strong id="totalTintasLam">0</strong> <small>Kg</small>
                             </div>
                         </div>
@@ -415,7 +415,7 @@
                     <div class="col-6 col-md-3">
                         <div class="card border-start border-info border-4 h-100">
                             <div class="card-body py-2 px-3">
-                                <small class="text-muted d-block">Tintas Superficie</small>
+                                <small class="text-muted d-block">Tinta Superficie</small>
                                 <strong id="totalTintasSuper">0</strong> <small>Kg</small>
                             </div>
                         </div>
@@ -468,6 +468,7 @@
                                                 <th>Color / Nombre</th>
                                                 <th class="text-center">Tipo</th>
                                                 <th class="text-center">Codigo</th>
+                                                <th>Proveedor</th>
                                                 <th class="text-end">Cantidad</th>
                                                 <th class="text-center">Unidad</th>
                                                 <th class="text-center">Estado</th>
@@ -475,7 +476,7 @@
                                             </tr>
                                         </thead>
                                         <tbody id="tablaTintas">
-                                            <tr><td colspan="7" class="text-center text-muted py-3">Cargando tintas...</td></tr>
+                                            <tr><td colspan="8" class="text-center text-muted py-3">Cargando tintas...</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -490,7 +491,7 @@
                 <!-- Resumen de Adhesivos -->
                 <div class="row mb-4 g-3">
                     <div class="col-12">
-                        <h6 class="text-muted mb-2"><i class="bi bi-moisture me-1"></i> Resumen de Adhesivos y Consumibles</h6>
+                        <h6 class="text-muted mb-2"><i class="bi bi-moisture me-1"></i> Resumen de Quimicos y Consumibles</h6>
                     </div>
                     <div class="col-6 col-md-3">
                         <div class="card border-start border-warning border-4 h-100">
@@ -508,7 +509,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-6 col-md-3">
+                    <div class="col-6 col-md-2">
                         <div class="card border-start border-secondary border-4 h-100">
                             <div class="card-body py-2 px-3">
                                 <small class="text-muted d-block">Acetato</small>
@@ -516,7 +517,15 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-6 col-md-3">
+                    <div class="col-6 col-md-2">
+                        <div class="card border-start border-info border-4 h-100">
+                            <div class="card-body py-2 px-3">
+                                <small class="text-muted d-block">Alcohol</small>
+                                <strong id="totalAlcohol">0</strong> <small>Lt</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-2">
                         <div class="card border-start border-success border-4 h-100">
                             <div class="card-body py-2 px-3">
                                 <small class="text-muted d-block">Total Items</small>
@@ -540,6 +549,8 @@
                             <option value="adhesivo">Adhesivo</option>
                             <option value="catalizador">Catalizador</option>
                             <option value="acetato">Acetato</option>
+                            <option value="alcohol">Alcohol</option>
+                            <option value="solvente">Solvente</option>
                             <option value="otro">Otros</option>
                         </select>
                     </div>
@@ -556,6 +567,7 @@
                                             <tr>
                                                 <th>Producto</th>
                                                 <th class="text-center">Tipo</th>
+                                                <th>Proveedor</th>
                                                 <th class="text-center">Lote</th>
                                                 <th class="text-end">Cantidad</th>
                                                 <th class="text-center">Unidad</th>

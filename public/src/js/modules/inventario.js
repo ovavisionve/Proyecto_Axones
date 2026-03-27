@@ -1408,20 +1408,30 @@ const Inventario = {
     /**
      * Editar un item del inventario
      */
-    editarItem: function(id) {
+    editarItem: async function(id) {
         const item = this.items.find(i => i.id === id);
         if (!item) return;
 
-        // Solicitar nuevo valor de Kg
         const nuevoKg = prompt(`Editar cantidad para ${item.material} ${item.micras}µ x ${item.ancho}mm\nCantidad actual: ${item.kg} Kg\n\nNueva cantidad:`, item.kg);
 
         if (nuevoKg !== null) {
             item.kg = parseFloat(nuevoKg) || 0;
-            this.saveInventario();
+
+            // Guardar en Supabase
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady() && item.id) {
+                try {
+                    await AxonesDB.client.from('materiales').update({ kg: item.kg, stock_kg: item.kg }).eq('id', item.id);
+                    console.log('[Inventario] Kg actualizado en Supabase:', item.id, item.kg);
+                } catch (e) {
+                    console.error('[Inventario] Error actualizando en Supabase:', e);
+                }
+            }
+
             this.renderInventario();
             this.updateTotales();
 
-            Axones.showSuccess('Cantidad actualizada');
+            if (typeof Axones !== 'undefined') Axones.showSuccess('Cantidad actualizada');
+            else if (typeof showToast === 'function') showToast('Cantidad actualizada', 'success');
         }
     },
 
@@ -1429,7 +1439,7 @@ const Inventario = {
      * Usar material en una OT (descontar del inventario)
      * Usa InventarioService para registrar movimiento y verificar stock bajo
      */
-    usarMaterial: function(id) {
+    usarMaterial: async function(id) {
         const item = this.items.find(i => i.id === id);
         if (!item) return;
 
@@ -1464,15 +1474,20 @@ const Inventario = {
                     this.filteredItems = [...this.items];
                 }
             } else {
-                // Fallback sin servicio
+                // Fallback: descontar localmente y en Supabase
                 item.kg -= cantidadUsar;
+                if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady() && item.id) {
+                    try {
+                        await AxonesDB.client.from('materiales').update({ kg: item.kg, stock_kg: item.kg }).eq('id', item.id);
+                    } catch (e) { console.error('[Inventario] Error:', e); }
+                }
             }
 
-            this.saveInventario();
             this.renderInventario();
             this.updateTotales();
 
-            Axones.showSuccess(`Se descontaron ${cantidadUsar} Kg del inventario`);
+            if (typeof Axones !== 'undefined') Axones.showSuccess(`Se descontaron ${cantidadUsar} Kg del inventario`);
+            else if (typeof showToast === 'function') showToast(`Se descontaron ${cantidadUsar} Kg`, 'success');
         }
     },
 

@@ -124,30 +124,37 @@ const Tintas = {
         } catch(e) { console.error('Error precargando OT:', e); }
     },
 
-    /** Agrega una fila de tinta editable a la tabla */
-    agregarFilaTintaConsumo: function(tipo) {
-        const bodyId = tipo === 'lam' ? 'bodyTintasLam' : 'bodyTintasSup';
-        const tbody = document.getElementById(bodyId);
+    /** Agrega una fila de tinta editable a la tabla unificada */
+    agregarFilaTintaConsumo: function() {
+        const tbody = document.getElementById('bodyConsumoTintas');
         if (!tbody) return;
 
-        const opciones = this.generarOpcionesTintaSelector(tipo);
+        const opciones = this.generarOpcionesTintaSelector();
+        const n = tbody.querySelectorAll('tr').length;
         const fila = document.createElement('tr');
         fila.innerHTML = `
+            <td><input type="text" class="form-control form-control-sm tinta-codigo" placeholder="Codigo" style="width:100%;"></td>
             <td>
-                <input type="text" class="form-control form-control-sm tinta-nombre" list="listaTintasConsumo_${tipo}" placeholder="Escribir color...">
-                <datalist id="listaTintasConsumo_${tipo}">${opciones.replace(/<\/?optgroup[^>]*>/g, '')}</datalist>
+                <input type="text" class="form-control form-control-sm tinta-nombre" list="listaTintasConsumo_${n}" placeholder="Color...">
+                <datalist id="listaTintasConsumo_${n}">${opciones.replace(/<\/?optgroup[^>]*>/g, '')}</datalist>
+            </td>
+            <td><input type="text" class="form-control form-control-sm tinta-proveedor" placeholder="Proveedor"></td>
+            <td>
+                <select class="form-select form-select-sm tinta-tipo" style="font-size:0.7rem;">
+                    <option value="laminada">Laminada</option>
+                    <option value="superficie">Superficie</option>
+                </select>
             </td>
             <td>
                 <select class="form-select form-select-sm tinta-fuente" style="font-size:0.7rem;">
-                    <option value="inventario">Inv.</option>
-                    <option value="cementerio">Cem.</option>
+                    <option value="original">Original</option>
+                    <option value="cementerio">Cementerio</option>
                 </select>
             </td>
             <td><input type="number" class="form-control form-control-sm tinta-kg-usado" step="0.01" min="0" value="0"></td>
             <td><input type="number" class="form-control form-control-sm tinta-kg-restante" step="0.01" min="0" value="0"></td>
             <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove();Tintas.calcularTotalesConsumo();"><i class="bi bi-x"></i></button></td>
         `;
-        // Recalcular al cambiar valores
         fila.querySelectorAll('input[type=number]').forEach(inp => {
             inp.addEventListener('input', () => this.calcularTotalesConsumo());
         });
@@ -165,9 +172,8 @@ const Tintas = {
             });
         }
 
-        // Botones agregar tinta
-        document.getElementById('btnAgregarTintaLam')?.addEventListener('click', () => this.agregarFilaTintaConsumo('lam'));
-        document.getElementById('btnAgregarTintaSup')?.addEventListener('click', () => this.agregarFilaTintaConsumo('sup'));
+        // Boton agregar tinta (tabla unificada)
+        document.getElementById('btnAgregarTintaConsumo')?.addEventListener('click', () => this.agregarFilaTintaConsumo());
 
         // Solventes
         document.querySelectorAll('.solvente-input').forEach(input => {
@@ -207,21 +213,25 @@ const Tintas = {
 
     /** Calcula totales de tintas y solventes (nueva version con tablas editables) */
     calcularTotalesConsumo: function() {
-        let totalLam = 0, totalRestLam = 0;
-        document.querySelectorAll('#bodyTintasLam .tinta-kg-usado').forEach(i => { totalLam += parseFloat(i.value) || 0; });
-        document.querySelectorAll('#bodyTintasLam .tinta-kg-restante').forEach(i => { totalRestLam += parseFloat(i.value) || 0; });
+        // Tabla unificada de consumo
+        let totalUsado = 0, totalRestante = 0;
+        let totalLam = 0, totalSup = 0;
+        document.querySelectorAll('#bodyConsumoTintas tr').forEach(row => {
+            const kg = parseFloat(row.querySelector('.tinta-kg-usado')?.value) || 0;
+            const rest = parseFloat(row.querySelector('.tinta-kg-restante')?.value) || 0;
+            const tipo = row.querySelector('.tinta-tipo')?.value || 'laminada';
+            totalUsado += kg;
+            totalRestante += rest;
+            if (tipo === 'laminada') totalLam += kg; else totalSup += kg;
+        });
+        const elUsado = document.getElementById('totalTintasUsadas');
+        if (elUsado) elUsado.textContent = totalUsado.toFixed(2);
+        const elRest = document.getElementById('totalTintasRestante');
+        if (elRest) elRest.textContent = totalRestante.toFixed(2);
         const elLam = document.getElementById('totalLaminacion');
         if (elLam) elLam.textContent = totalLam.toFixed(2);
-        const elRestLam = document.getElementById('totalRestanteLam');
-        if (elRestLam) elRestLam.textContent = totalRestLam.toFixed(2);
-
-        let totalSup = 0, totalRestSup = 0;
-        document.querySelectorAll('#bodyTintasSup .tinta-kg-usado').forEach(i => { totalSup += parseFloat(i.value) || 0; });
-        document.querySelectorAll('#bodyTintasSup .tinta-kg-restante').forEach(i => { totalRestSup += parseFloat(i.value) || 0; });
         const elSup = document.getElementById('totalSuperficie');
         if (elSup) elSup.textContent = totalSup.toFixed(2);
-        const elRestSup = document.getElementById('totalRestanteSup');
-        if (elRestSup) elRestSup.textContent = totalRestSup.toFixed(2);
 
         const alcohol = parseFloat(document.getElementById('solAlcohol')?.value) || 0;
         const metoxi = parseFloat(document.getElementById('solMetoxi')?.value) || 0;
@@ -244,17 +254,20 @@ const Tintas = {
         if (el) el.textContent = total.toFixed(2);
     },
 
-    /** Recopila datos de filas de tinta de una tabla */
-    recopilarFilasTinta: function(bodyId) {
-        const rows = document.querySelectorAll(`#${bodyId} tr`);
+    /** Recopila datos de filas de tinta de la tabla unificada */
+    recopilarFilasTinta: function() {
+        const rows = document.querySelectorAll('#bodyConsumoTintas tr');
         const datos = [];
         rows.forEach(row => {
+            const codigo = row.querySelector('.tinta-codigo')?.value || '';
             const nombre = row.querySelector('.tinta-nombre')?.value || '';
-            const fuente = row.querySelector('.tinta-fuente')?.value || 'inventario';
+            const proveedor = row.querySelector('.tinta-proveedor')?.value || '';
+            const tipo = row.querySelector('.tinta-tipo')?.value || 'laminada';
+            const fuente = row.querySelector('.tinta-fuente')?.value || 'original';
             const kgUsado = parseFloat(row.querySelector('.tinta-kg-usado')?.value) || 0;
             const kgRestante = parseFloat(row.querySelector('.tinta-kg-restante')?.value) || 0;
-            if (nombre && kgUsado > 0) {
-                datos.push({ nombre, fuente, kgUsado, kgRestante });
+            if ((nombre || codigo) && kgUsado > 0) {
+                datos.push({ codigo, nombre, proveedor, tipo, fuente, kgUsado, kgRestante });
             }
         });
         return datos;
@@ -262,7 +275,7 @@ const Tintas = {
 
     /** Recopila datos del formulario de consumo */
     recopilarConsumo: function() {
-        const tintasLam = this.recopilarFilasTinta('bodyTintasLam');
+        const tintas = this.recopilarFilasTinta();
         const tintasSup = this.recopilarFilasTinta('bodyTintasSup');
 
         return {
@@ -276,10 +289,8 @@ const Tintas = {
             maquina: this._ordenCargada?.maquina || '',
             turno: this._ordenCargada?.turno || '',
             material: this._ordenCargada?.tipoMaterial || '',
-            tintasLaminacion: tintasLam,
-            totalLaminacion: parseFloat(document.getElementById('totalLaminacion')?.textContent) || 0,
-            tintasSuperficie: tintasSup,
-            totalSuperficie: parseFloat(document.getElementById('totalSuperficie')?.textContent) || 0,
+            tintas: tintas,
+            totalTintas: parseFloat(document.getElementById('totalTintasUsadas')?.textContent) || 0,
             solventes: {
                 alcohol: parseFloat(document.getElementById('solAlcohol')?.value) || 0,
                 metoxi: parseFloat(document.getElementById('solMetoxi')?.value) || 0,

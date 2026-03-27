@@ -700,13 +700,14 @@ const Inventario = {
         tbody.innerHTML = this.filteredTintas.map((tinta, index) => {
             const estadoClass = tinta.cantidad <= 5 ? 'bg-danger' : tinta.cantidad <= 15 ? 'bg-warning text-dark' : 'bg-success';
             const estadoTexto = tinta.cantidad <= 5 ? 'Bajo' : tinta.cantidad <= 15 ? 'Medio' : 'OK';
-            const tipoTexto = tinta.tipo === 'laminacion' ? 'Laminacion' : tinta.tipo === 'superficie' ? 'Superficie' : tinta.tipo === 'prueba_laminacion' ? 'Prueba Lam.' : 'Solvente';
+            const tipoTexto = tinta.tipo === 'laminacion' ? 'Laminada' : tinta.tipo === 'superficie' ? 'Superficie' : tinta.tipo === 'prueba_laminacion' ? 'Prueba Lam.' : 'Solvente';
 
             return `
                 <tr>
                     <td><i class="bi bi-droplet me-1" style="color: ${this.getColorTinta(tinta.nombre)};"></i>${tinta.nombre}</td>
                     <td class="text-center"><span class="badge bg-info">${tipoTexto}</span></td>
-                    <td class="text-center">${tinta.codigo}</td>
+                    <td class="text-center">${tinta.codigo || '-'}</td>
+                    <td>${tinta.proveedor || tinta.proveedor_nombre || '-'}</td>
                     <td class="text-end">${this.formatNumber(tinta.cantidad)}</td>
                     <td class="text-center">${tinta.unidad}</td>
                     <td class="text-center"><span class="badge ${estadoClass}">${estadoTexto}</span></td>
@@ -720,6 +721,97 @@ const Inventario = {
         }).join('');
 
         this.updateTotalesTintas();
+        this.renderCementerio();
+    },
+
+    /**
+     * Carga y renderiza el cementerio de tintas
+     */
+    renderCementerio: async function() {
+        const tbody = document.getElementById('tablaCementerio');
+        if (!tbody) return;
+
+        let cementerio = [];
+        if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+            try {
+                const res = await AxonesDB.client.from('tintas_cementerio').select('*').order('created_at', { ascending: false });
+                cementerio = res.data || [];
+            } catch (e) {
+                console.warn('Error cargando cementerio:', e);
+            }
+        }
+
+        // Filtros
+        const filtroTipo = document.getElementById('filtroCementerioTipo')?.value || '';
+        const filtroMotivo = document.getElementById('filtroCementerioMotivo')?.value || '';
+        if (filtroTipo) cementerio = cementerio.filter(t => (t.tipo || '').includes(filtroTipo));
+        if (filtroMotivo) cementerio = cementerio.filter(t => t.motivo === filtroMotivo);
+
+        // Actualizar badge
+        const badge = document.getElementById('countCementerio');
+        if (badge) badge.textContent = cementerio.length;
+
+        if (cementerio.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">No hay tintas archivadas</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = cementerio.map(t => {
+            // Generar codigo del cementerio: CEM-{tipo}-{secuencial}
+            const tipoPrefix = (t.tipo || '').includes('superficie') ? 'SUP' : 'LAM';
+            const codigo = t.codigo_cementerio || `CEM-${tipoPrefix}-${String(t.id).substring(0, 6).toUpperCase()}`;
+            const tipoTexto = (t.tipo || '').includes('superficie') ? 'Superficie' : 'Laminada';
+            const motivoColors = { agotada: 'bg-secondary', vencida: 'bg-warning text-dark', contaminada: 'bg-danger', descontinuada: 'bg-dark', otro: 'bg-info' };
+            const fecha = t.created_at ? new Date(t.created_at).toLocaleDateString('es-VE') : '-';
+
+            return `<tr>
+                <td><code>${codigo}</code></td>
+                <td><i class="bi bi-droplet me-1" style="color: ${this.getColorTinta(t.nombre || t.color || '')}"></i>${t.nombre || t.color || '-'}</td>
+                <td class="text-center"><span class="badge bg-info">${tipoTexto}</span></td>
+                <td>${t.proveedor || '-'}</td>
+                <td><span class="badge ${motivoColors[t.motivo] || 'bg-secondary'}">${t.motivo || '-'}</span></td>
+                <td class="text-end">${parseFloat(t.stock_final || 0).toFixed(1)} Kg</td>
+                <td class="text-center">${fecha}</td>
+                <td class="text-center">
+                    <button class="btn btn-sm btn-outline-success" onclick="Inventario.restaurarTintaCementerio('${t.id}')" title="Restaurar al inventario">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                    </button>
+                </td>
+            </tr>`;
+        }).join('');
+
+        // Setup filtros
+        document.getElementById('filtroCementerioTipo')?.addEventListener('change', () => this.renderCementerio());
+        document.getElementById('filtroCementerioMotivo')?.addEventListener('change', () => this.renderCementerio());
+    },
+
+    /**
+     * Restaura una tinta del cementerio al inventario activo
+     */
+    restaurarTintaCementerio: async function(id) {
+        if (!confirm('¿Restaurar esta tinta al inventario activo?')) return;
+        if (!AxonesDB.isReady()) return;
+
+        try {
+            // Obtener datos del cementerio
+            const res = await AxonesDB.client.from('tintas_cementerio').select('*').eq('id', id).single();
+            if (!res.data) { alert('Tinta no encontrada'); return; }
+            const t = res.data;
+
+            // Reactivar en tabla tintas si existe, o crear nueva
+            if (t.tinta_id) {
+                await AxonesDB.client.from('tintas').update({ activo: true }).eq('id', t.tinta_id);
+            }
+
+            // Eliminar del cementerio
+            await AxonesDB.client.from('tintas_cementerio').delete().eq('id', id);
+
+            if (typeof showToast === 'function') showToast('Tinta restaurada al inventario', 'success');
+            this.renderCementerio();
+        } catch (e) {
+            console.warn('Error restaurando tinta:', e);
+            alert('Error al restaurar: ' + e.message);
+        }
     },
 
     /**

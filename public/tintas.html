@@ -342,9 +342,33 @@
                             <!-- Tintas de Laminacion -->
                             <div class="form-section">
                                 <div class="form-section-title title-laminacion">
-                                    <i class="bi bi-droplet-fill me-1"></i> Tintas de Laminacion (Kg)
+                                    <i class="bi bi-droplet-fill me-1"></i> Tintas Laminada (Kg)
                                 </div>
-                                <div id="gridLaminacion"></div>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered mb-1">
+                                        <thead class="table-primary">
+                                            <tr>
+                                                <th style="width:45%">Color / Nombre</th>
+                                                <th style="width:15%">Fuente</th>
+                                                <th style="width:20%">Kg Usados</th>
+                                                <th style="width:17%">Kg Restante</th>
+                                                <th style="width:3%"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="bodyTintasLam"></tbody>
+                                        <tfoot>
+                                            <tr class="table-primary">
+                                                <td colspan="2" class="fw-bold text-end">Total Laminada:</td>
+                                                <td class="fw-bold" id="totalLaminacion">0.00</td>
+                                                <td class="fw-bold" id="totalRestanteLam">0.00</td>
+                                                <td></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="btnAgregarTintaLam">
+                                    <i class="bi bi-plus-circle me-1"></i>Agregar tinta
+                                </button>
                             </div>
                         </div>
 
@@ -353,9 +377,33 @@
                             <!-- Tintas de Superficie -->
                             <div class="form-section">
                                 <div class="form-section-title title-superficie">
-                                    <i class="bi bi-droplet me-1"></i> Tintas de Superficie (Kg)
+                                    <i class="bi bi-droplet me-1"></i> Tinta Superficie (Kg)
                                 </div>
-                                <div id="gridSuperficie"></div>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered mb-1">
+                                        <thead class="table-warning">
+                                            <tr>
+                                                <th style="width:45%">Color / Nombre</th>
+                                                <th style="width:15%">Fuente</th>
+                                                <th style="width:20%">Kg Usados</th>
+                                                <th style="width:17%">Kg Restante</th>
+                                                <th style="width:3%"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="bodyTintasSup"></tbody>
+                                        <tfoot>
+                                            <tr class="table-warning">
+                                                <td colspan="2" class="fw-bold text-end">Total Superficie:</td>
+                                                <td class="fw-bold" id="totalSuperficie">0.00</td>
+                                                <td class="fw-bold" id="totalRestanteSup">0.00</td>
+                                                <td></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-warning" id="btnAgregarTintaSup">
+                                    <i class="bi bi-plus-circle me-1"></i>Agregar tinta
+                                </button>
                             </div>
 
                             <!-- Solventes -->
@@ -416,17 +464,7 @@
                                 </div>
                             </div>
 
-                            <!-- Restante de Tintas Usadas -->
-                            <div class="form-section">
-                                <div class="form-section-title" style="border-color: #dc3545;">
-                                    <i class="bi bi-droplet-half me-1"></i> Restante de Tintas (Kg sobrante en envase)
-                                </div>
-                                <div id="gridRestante"></div>
-                                <div class="alert alert-light py-2 mt-2 mb-0 d-flex justify-content-between">
-                                    <span><strong>Total Restante:</strong></span>
-                                    <span><strong id="totalRestante">0.00</strong> Kg</span>
-                                </div>
-                            </div>
+                            <!-- Nota: restante de tintas ahora se registra en la misma fila de cada tinta -->
                         </div>
                     </div>
                 </form>

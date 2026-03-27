@@ -484,6 +484,56 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Cementerio de Tintas (integrado) -->
+                <div class="mt-4">
+                    <h6 class="text-muted mb-2">
+                        <i class="bi bi-archive me-1"></i> Cementerio de Tintas
+                        <span class="badge bg-secondary ms-1" id="countCementerio">0</span>
+                    </h6>
+                    <div class="row mb-2">
+                        <div class="col-md-4">
+                            <select class="form-select form-select-sm" id="filtroCementerioTipo">
+                                <option value="">Todos los tipos</option>
+                                <option value="laminada">Tinta Laminada</option>
+                                <option value="superficie">Tinta Superficie</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <select class="form-select form-select-sm" id="filtroCementerioMotivo">
+                                <option value="">Todos los motivos</option>
+                                <option value="agotada">Agotada</option>
+                                <option value="vencida">Vencida</option>
+                                <option value="contaminada">Contaminada</option>
+                                <option value="descontinuada">Descontinuada</option>
+                                <option value="otro">Otro</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body p-0">
+                            <div class="table-responsive" style="max-height: 40vh; overflow-y: auto;">
+                                <table class="table table-hover table-sm mb-0">
+                                    <thead class="table-secondary">
+                                        <tr>
+                                            <th>Codigo</th>
+                                            <th>Color / Nombre</th>
+                                            <th class="text-center">Tipo</th>
+                                            <th>Proveedor</th>
+                                            <th>Motivo</th>
+                                            <th class="text-end">Stock Final</th>
+                                            <th class="text-center">Fecha Archivo</th>
+                                            <th class="text-center">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tablaCementerio">
+                                        <tr><td colspan="8" class="text-center text-muted py-3">Cargando cementerio...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div><!-- Fin panel-tinta -->
 
             <!-- Panel Adhesivos -->

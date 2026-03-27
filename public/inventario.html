@@ -203,6 +203,12 @@
                             <span class="badge bg-warning text-dark ms-1" id="countAdhesivo">0</span>
                         </button>
                     </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tab-bobinas-malas" data-bs-toggle="tab" data-bs-target="#panel-bobinas-malas" type="button" role="tab">
+                            <i class="bi bi-exclamation-triangle me-1"></i> Bobinas Malas
+                            <span class="badge bg-danger ms-1" id="countBobinasMalas">0</span>
+                        </button>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -635,6 +641,61 @@
                     </div>
                 </div>
             </div><!-- Fin panel-adhesivo -->
+
+            <!-- Panel Bobinas Malas -->
+            <div class="tab-pane fade" id="panel-bobinas-malas" role="tabpanel">
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <h6 class="text-muted mb-2">
+                            <i class="bi bi-exclamation-triangle me-1"></i> Inventario de Bobinas Malas (para calibrar)
+                        </h6>
+                        <p class="small text-muted">Bobinas rechazadas en produccion que se reutilizan para calibrar maquinas.</p>
+                    </div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-3">
+                        <select class="form-select form-select-sm" id="filtroBobMalaProceso">
+                            <option value="">Todos los procesos</option>
+                            <option value="impresion">Impresion</option>
+                            <option value="laminacion">Laminacion</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select form-select-sm" id="filtroBobMalaEstado">
+                            <option value="">Todos los estados</option>
+                            <option value="disponible">Disponible</option>
+                            <option value="usada">Usada</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <span class="badge bg-danger">Total: <span id="totalKgBobinasMalas">0</span> Kg</span>
+                    </div>
+                </div>
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-0">
+                        <div class="table-responsive" style="max-height: 50vh; overflow-y: auto;">
+                            <table class="table table-hover table-sm mb-0">
+                                <thead class="table-danger">
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>OT</th>
+                                        <th>Proceso</th>
+                                        <th>Proveedor</th>
+                                        <th>Referencia</th>
+                                        <th class="text-end">Kg</th>
+                                        <th>Motivo</th>
+                                        <th class="text-center">Estado</th>
+                                        <th class="text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaBobinasMalas">
+                                    <tr><td colspan="9" class="text-center text-muted py-3">Cargando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
         </div><!-- Fin tab-content -->
     </main>

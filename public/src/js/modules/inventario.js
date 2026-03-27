@@ -145,6 +145,7 @@ const Inventario = {
             this.renderInventario();
             this.renderTintas();
             this.renderAdhesivos();
+            this.renderBobinasMalas();
             this.updateTotales();
             this.updateCounts();
             this.setFechaActualizacion();
@@ -812,6 +813,83 @@ const Inventario = {
             console.warn('Error restaurando tinta:', e);
             alert('Error al restaurar: ' + e.message);
         }
+    },
+
+    /**
+     * Carga y renderiza inventario de bobinas malas (para calibrar)
+     */
+    renderBobinasMalas: async function() {
+        const tbody = document.getElementById('tablaBobinasMalas');
+        if (!tbody) return;
+
+        let bobinas = [];
+        if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+            try {
+                const { data } = await AxonesDB.client.from('sync_store')
+                    .select('value').eq('key', 'axones_bobinas_malas').single();
+                bobinas = data?.value ? JSON.parse(data.value) : [];
+            } catch (e) { console.warn('Error cargando bobinas malas:', e); }
+        }
+
+        // Filtros
+        const filtroProceso = document.getElementById('filtroBobMalaProceso')?.value || '';
+        const filtroEstado = document.getElementById('filtroBobMalaEstado')?.value || '';
+        if (filtroProceso) bobinas = bobinas.filter(b => b.proceso === filtroProceso);
+        if (filtroEstado) bobinas = bobinas.filter(b => b.estado === filtroEstado);
+
+        // Badge y total
+        const badge = document.getElementById('countBobinasMalas');
+        if (badge) badge.textContent = bobinas.length;
+        const totalKg = bobinas.reduce((s, b) => s + (parseFloat(b.kg) || 0), 0);
+        const totalEl = document.getElementById('totalKgBobinasMalas');
+        if (totalEl) totalEl.textContent = totalKg.toFixed(1);
+
+        if (bobinas.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-3">No hay bobinas malas registradas</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = bobinas.map(b => {
+            const estadoClass = b.estado === 'disponible' ? 'bg-warning text-dark' : 'bg-secondary';
+            return `<tr>
+                <td>${b.fecha || '-'}</td>
+                <td><strong>${b.ordenTrabajo || '-'}</strong></td>
+                <td><span class="badge bg-info">${b.proceso || '-'}</span></td>
+                <td>${b.proveedor || '-'}</td>
+                <td>${b.referencia || '-'}</td>
+                <td class="text-end">${parseFloat(b.kg || 0).toFixed(1)}</td>
+                <td>${b.motivo || '-'}</td>
+                <td class="text-center"><span class="badge ${estadoClass}">${b.estado || 'disponible'}</span></td>
+                <td class="text-center">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="Inventario.marcarBobinaUsada('${b.id}')" title="Marcar como usada">
+                        <i class="bi bi-check-lg"></i>
+                    </button>
+                </td>
+            </tr>`;
+        }).join('');
+
+        // Setup filtros
+        document.getElementById('filtroBobMalaProceso')?.addEventListener('change', () => this.renderBobinasMalas());
+        document.getElementById('filtroBobMalaEstado')?.addEventListener('change', () => this.renderBobinasMalas());
+    },
+
+    /**
+     * Marca una bobina mala como usada (ya se uso para calibrar)
+     */
+    marcarBobinaUsada: async function(id) {
+        if (!AxonesDB.isReady()) return;
+        try {
+            const { data } = await AxonesDB.client.from('sync_store')
+                .select('value').eq('key', 'axones_bobinas_malas').single();
+            const bobinas = data?.value ? JSON.parse(data.value) : [];
+            const bobina = bobinas.find(b => b.id === id);
+            if (bobina) {
+                bobina.estado = bobina.estado === 'usada' ? 'disponible' : 'usada';
+                await AxonesDB.client.from('sync_store')
+                    .upsert({ key: 'axones_bobinas_malas', value: JSON.stringify(bobinas) });
+                this.renderBobinasMalas();
+            }
+        } catch (e) { console.warn('Error actualizando bobina:', e); }
     },
 
     /**

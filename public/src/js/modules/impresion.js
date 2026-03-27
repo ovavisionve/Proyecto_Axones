@@ -39,8 +39,8 @@ const Impresion = {
         // Inicializar checklist
         this.setupChecklist();
 
-        // Calcular tiempo de preparacion automatico
-        this.setupTiempoPreparacion();
+        // Inicializar 3 temporizadores (Preparacion, Produccion, Desmontaje)
+        this.initTemporizadores();
 
         // Flechitas de etiquetas en bobinas
         this.setupEtiquetasBobinas();
@@ -1507,9 +1507,12 @@ const Impresion = {
             totalScrap: parseFloat(document.getElementById('totalScrap')?.value) || 0,
             porcentajeScrap: parseFloat(document.getElementById('porcentajeRefil')?.value) || 0,
 
-            // Tiempos
-            horaInicio: document.getElementById('horaInicio')?.value || '',
-            horaArranque: document.getElementById('horaArranque')?.value || '',
+            // Tiempos (3 temporizadores)
+            tiempoPreparacion: this._timers.preparacion.total,
+            tiempoProduccion: this._timers.produccion.total + (this._timers.produccion.estado === 'en_progreso' ? (Date.now() - this._timers.produccion.inicio) : 0),
+            tiempoDesmontaje: this._timers.desmontaje.total,
+            paradasProduccion: this._timers.produccion.pausas,
+            motivoPrepRetraso: document.getElementById('timerPrepMotivo')?.value || '',
 
             // Colores y Anilox (registro del operador)
             coloresAnilox: this.recopilarColoresAnilox(),
@@ -1914,31 +1917,187 @@ const Impresion = {
     /**
      * Configura calculo automatico del tiempo de preparacion
      */
-    setupTiempoPreparacion: function() {
-        const horaInicio = document.getElementById('horaInicio');
-        const horaArranque = document.getElementById('horaArranque');
+    // Estado de los 3 temporizadores locales
+    _timers: {
+        preparacion: { estado: 'pendiente', inicio: null, total: 0, interval: null, pausas: [] },
+        produccion: { estado: 'pendiente', inicio: null, total: 0, interval: null, pausas: [] },
+        desmontaje: { estado: 'pendiente', inicio: null, total: 0, interval: null, pausas: [] }
+    },
 
-        const calcular = () => {
-            const inicio = horaInicio?.value;
-            const arranque = horaArranque?.value;
-            const span = document.getElementById('tiempoPreparacionCalc');
-            if (!span) return;
+    /**
+     * Inicializa los 3 temporizadores (Preparacion, Produccion, Desmontaje)
+     */
+    initTemporizadores: function() {
+        const self = this;
 
-            if (inicio && arranque) {
-                const [hi, mi] = inicio.split(':').map(Number);
-                const [ha, ma] = arranque.split(':').map(Number);
-                let diffMin = (ha * 60 + ma) - (hi * 60 + mi);
-                if (diffMin < 0) diffMin += 24 * 60;
-                const horas = Math.floor(diffMin / 60);
-                const mins = diffMin % 60;
-                span.textContent = horas > 0 ? `${horas}h ${mins}min` : `${mins} min`;
-            } else {
-                span.textContent = '--';
-            }
-        };
+        // --- PREPARACION ---
+        const btnPrepPlay = document.getElementById('btnPrepPlay');
+        const btnPrepPause = document.getElementById('btnPrepPause');
+        const btnPrepStop = document.getElementById('btnPrepStop');
+        if (btnPrepPlay) btnPrepPlay.addEventListener('click', () => self.timerPlay('preparacion'));
+        if (btnPrepPause) btnPrepPause.addEventListener('click', () => self.timerPause('preparacion'));
+        if (btnPrepStop) btnPrepStop.addEventListener('click', () => self.timerStop('preparacion'));
 
-        if (horaInicio) horaInicio.addEventListener('change', calcular);
-        if (horaArranque) horaArranque.addEventListener('change', calcular);
+        // --- PRODUCCION ---
+        const btnProdPlay = document.getElementById('btnProdPlay');
+        const btnProdPause = document.getElementById('btnProdPause');
+        const btnProdStop = document.getElementById('btnProdStop');
+        if (btnProdPlay) btnProdPlay.addEventListener('click', () => {
+            document.getElementById('timerProdPausaForm').style.display = 'none';
+            self.timerPlay('produccion');
+        });
+        if (btnProdPause) btnProdPause.addEventListener('click', () => {
+            // Mostrar formulario de motivo (obligatorio)
+            document.getElementById('timerProdPausaForm').style.display = '';
+        });
+        if (btnProdStop) btnProdStop.addEventListener('click', () => self.timerStop('produccion'));
+
+        // Confirmar pausa con motivo
+        const btnConfirm = document.getElementById('btnProdConfirmPause');
+        if (btnConfirm) btnConfirm.addEventListener('click', () => {
+            const motivo = document.getElementById('timerProdPausaMotivo')?.value;
+            if (!motivo) { alert('Seleccione un motivo de parada'); return; }
+            const obs = document.getElementById('timerProdPausaObs')?.value || '';
+            self.timerPause('produccion', motivo + (obs ? ': ' + obs : ''));
+            document.getElementById('timerProdPausaForm').style.display = 'none';
+            document.getElementById('timerProdPausaMotivo').value = '';
+            document.getElementById('timerProdPausaObs').value = '';
+        });
+
+        // Mostrar campo "Otro" cuando seleccionan Otro
+        const motivoSelect = document.getElementById('timerProdPausaMotivo');
+        if (motivoSelect) {
+            motivoSelect.addEventListener('change', () => {
+                const obsInput = document.getElementById('timerProdPausaObs');
+                if (obsInput) obsInput.style.display = motivoSelect.value === 'Otro' ? '' : 'none';
+            });
+        }
+
+        // --- DESMONTAJE ---
+        const btnDesmPlay = document.getElementById('btnDesmPlay');
+        const btnDesmStop = document.getElementById('btnDesmStop');
+        if (btnDesmPlay) btnDesmPlay.addEventListener('click', () => self.timerPlay('desmontaje'));
+        if (btnDesmStop) btnDesmStop.addEventListener('click', () => self.timerStop('desmontaje'));
+    },
+
+    timerPlay: function(tipo) {
+        const t = this._timers[tipo];
+        if (t.estado === 'completado') return;
+        t.estado = 'en_progreso';
+        t.inicio = Date.now();
+
+        // Actualizar UI
+        this.timerUpdateUI(tipo);
+
+        // Iniciar interval
+        if (t.interval) clearInterval(t.interval);
+        t.interval = setInterval(() => this.timerTick(tipo), 1000);
+    },
+
+    timerPause: function(tipo, motivo) {
+        const t = this._timers[tipo];
+        if (t.estado !== 'en_progreso') return;
+        const sesion = Date.now() - t.inicio;
+        t.total += sesion;
+        t.estado = 'pausado';
+        t.pausas.push({ timestamp: new Date().toISOString(), duracion: sesion, motivo: motivo || '' });
+        if (t.interval) { clearInterval(t.interval); t.interval = null; }
+
+        this.timerUpdateUI(tipo);
+
+        // Renderizar lista de pausas (solo produccion)
+        if (tipo === 'produccion') this.renderPausasProduccion();
+    },
+
+    timerStop: function(tipo) {
+        const t = this._timers[tipo];
+        if (t.estado === 'en_progreso') {
+            t.total += Date.now() - t.inicio;
+        }
+        t.estado = 'completado';
+        if (t.interval) { clearInterval(t.interval); t.interval = null; }
+
+        this.timerUpdateUI(tipo);
+
+        // Alerta si preparacion > 1 hora
+        if (tipo === 'preparacion' && t.total > 3600000) {
+            document.getElementById('timerPrepAlerta').style.display = '';
+        }
+    },
+
+    timerTick: function(tipo) {
+        const t = this._timers[tipo];
+        const current = t.total + (t.estado === 'en_progreso' ? (Date.now() - t.inicio) : 0);
+        const display = this.formatearTiempoMs(current);
+
+        const ids = { preparacion: 'timerPrepDisplay', produccion: 'timerProdDisplay', desmontaje: 'timerDesmDisplay' };
+        const el = document.getElementById(ids[tipo]);
+        if (el) el.textContent = display;
+
+        // Alerta si preparacion pasa de 1 hora
+        if (tipo === 'preparacion' && current > 3600000) {
+            document.getElementById('timerPrepAlerta').style.display = '';
+        }
+    },
+
+    timerUpdateUI: function(tipo) {
+        const t = this._timers[tipo];
+        const badgeIds = { preparacion: 'timerPrepEstado', produccion: 'timerProdEstado', desmontaje: 'timerDesmEstado' };
+        const badge = document.getElementById(badgeIds[tipo]);
+        if (badge) {
+            const labels = { pendiente: 'Pendiente', en_progreso: 'En progreso', pausado: 'Pausado', completado: 'Completado' };
+            const colors = { pendiente: 'bg-secondary', en_progreso: 'bg-success', pausado: 'bg-warning text-dark', completado: 'bg-primary' };
+            badge.textContent = labels[t.estado] || t.estado;
+            badge.className = 'badge ' + (colors[t.estado] || 'bg-secondary');
+        }
+
+        // Botones preparacion
+        if (tipo === 'preparacion') {
+            const play = document.getElementById('btnPrepPlay');
+            const pause = document.getElementById('btnPrepPause');
+            const stop = document.getElementById('btnPrepStop');
+            if (play) play.disabled = t.estado === 'en_progreso' || t.estado === 'completado';
+            if (pause) pause.disabled = t.estado !== 'en_progreso';
+            if (stop) stop.disabled = t.estado !== 'en_progreso' && t.estado !== 'pausado';
+        }
+        // Botones produccion
+        if (tipo === 'produccion') {
+            const play = document.getElementById('btnProdPlay');
+            const pause = document.getElementById('btnProdPause');
+            const stop = document.getElementById('btnProdStop');
+            if (play) play.disabled = t.estado === 'en_progreso' || t.estado === 'completado';
+            if (pause) pause.disabled = t.estado !== 'en_progreso';
+            if (stop) stop.disabled = t.estado === 'pendiente' || t.estado === 'completado';
+        }
+        // Botones desmontaje
+        if (tipo === 'desmontaje') {
+            const play = document.getElementById('btnDesmPlay');
+            const stop = document.getElementById('btnDesmStop');
+            if (play) play.disabled = t.estado === 'en_progreso' || t.estado === 'completado';
+            if (stop) stop.disabled = t.estado !== 'en_progreso';
+        }
+    },
+
+    renderPausasProduccion: function() {
+        const container = document.getElementById('timerProdPausas');
+        if (!container) return;
+        const pausas = this._timers.produccion.pausas;
+        if (pausas.length === 0) { container.innerHTML = ''; return; }
+        let html = '<div class="small mt-1"><strong>Paradas registradas:</strong><ul class="mb-0" style="padding-left:1.2rem;">';
+        pausas.forEach((p, i) => {
+            const hora = new Date(p.timestamp).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+            html += `<li>${hora} - ${p.motivo} <small class="text-muted">(${this.formatearTiempoMs(p.duracion)})</small></li>`;
+        });
+        html += '</ul></div>';
+        container.innerHTML = html;
+    },
+
+    formatearTiempoMs: function(ms) {
+        const totalSeg = Math.floor(ms / 1000);
+        const h = Math.floor(totalSeg / 3600);
+        const m = Math.floor((totalSeg % 3600) / 60);
+        const s = totalSeg % 60;
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     },
 
     /**

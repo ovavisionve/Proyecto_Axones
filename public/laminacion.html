@@ -388,29 +388,65 @@
                         </div>
                     </div>
 
-                    <!-- CAPSULA: Control de Tiempo -->
+                    <!-- CAPSULA: Temporizadores de Produccion -->
                     <div class="form-section">
                         <div class="form-section-title">
-                            <i class="bi bi-stopwatch me-1"></i> Control de Tiempo
+                            <i class="bi bi-stopwatch me-1"></i> Temporizadores de Produccion
                         </div>
-                        <div class="row g-2">
-                            <div class="col-4">
-                                <label for="horaInicio" class="form-label small">Hora Inicio</label>
-                                <input type="time" class="form-control form-control-sm" id="horaInicio">
+                        <!-- Temporizador 1: Preparacion -->
+                        <div class="p-2 mb-2" style="background: #fff3cd; border-radius: 6px; border-left: 4px solid #ffc107;">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label small fw-bold mb-0 text-warning"><i class="bi bi-gear me-1"></i>PREPARACION</label>
+                                <span class="badge bg-secondary" id="timerPrepEstado">Pendiente</span>
                             </div>
-                            <div class="col-4">
-                                <label for="horaArranque" class="form-label small">Hora Arranque</label>
-                                <input type="time" class="form-control form-control-sm" id="horaArranque">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="fw-bold" id="timerPrepDisplay" style="font-size:1.3rem; font-family:monospace;">00:00:00</span>
+                                <button type="button" class="btn btn-sm btn-success" id="btnPrepPlay"><i class="bi bi-play-fill"></i></button>
+                                <button type="button" class="btn btn-sm btn-warning" id="btnPrepPause" disabled><i class="bi bi-pause-fill"></i></button>
+                                <button type="button" class="btn btn-sm btn-primary" id="btnPrepStop" disabled><i class="bi bi-check-lg"></i> Listo</button>
                             </div>
-                            <div class="col-4">
-                                <label for="horaFinal" class="form-label small">Hora Final</label>
-                                <input type="time" class="form-control form-control-sm" id="horaFinal">
-                            </div>
-                            <div class="col-12" id="resumenTiempoLaminacion">
-                                <div class="alert alert-info py-1 px-2 mb-0 small">
-                                    <i class="bi bi-clock me-1"></i>
-                                    <strong>Tiempo preparacion:</strong> <span id="tiempoPreparacionCalc">--</span>
+                            <div id="timerPrepAlerta" class="mt-1" style="display:none;">
+                                <div class="alert alert-danger py-1 px-2 mb-0 small">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>Preparacion excede 1 hora.
+                                    <input type="text" class="form-control form-control-sm mt-1" id="timerPrepMotivo" placeholder="Indique el motivo del retraso...">
                                 </div>
+                            </div>
+                        </div>
+                        <!-- Temporizador 2: Produccion -->
+                        <div class="p-2 mb-2" style="background: #e9d5ff; border-radius: 6px; border-left: 4px solid #6f42c1;">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label small fw-bold mb-0" style="color:#6f42c1;"><i class="bi bi-layers me-1"></i>PRODUCCION</label>
+                                <span class="badge bg-secondary" id="timerProdEstado">Pendiente</span>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="fw-bold" id="timerProdDisplay" style="font-size:1.3rem; font-family:monospace;">00:00:00</span>
+                                <button type="button" class="btn btn-sm btn-success" id="btnProdPlay"><i class="bi bi-play-fill"></i></button>
+                                <button type="button" class="btn btn-sm btn-warning" id="btnProdPause" disabled><i class="bi bi-pause-fill"></i> Parada</button>
+                                <button type="button" class="btn btn-sm btn-danger" id="btnProdStop" disabled><i class="bi bi-stop-fill"></i> Fin</button>
+                            </div>
+                            <div id="timerProdPausaForm" class="mt-1" style="display:none;">
+                                <div class="alert alert-warning py-1 px-2 mb-0 small">
+                                    <i class="bi bi-pause-circle me-1"></i>Motivo de parada:
+                                    <select class="form-select form-select-sm mt-1" id="timerProdPausaMotivo">
+                                        <option value="">-- Seleccionar motivo --</option>
+                                        <option>Cambio de bobina</option><option>Ajuste de maquina</option><option>Falla mecanica</option><option>Falla electrica</option><option>Problema de calidad</option><option>Falta de material</option><option>Almuerzo/Descanso</option><option>Otro</option>
+                                    </select>
+                                    <input type="text" class="form-control form-control-sm mt-1" id="timerProdPausaObs" placeholder="Observacion..." style="display:none;">
+                                    <button type="button" class="btn btn-sm btn-outline-warning mt-1" id="btnProdConfirmPause">Confirmar parada</button>
+                                </div>
+                            </div>
+                            <div id="timerProdPausas" class="mt-1"></div>
+                        </div>
+                        <!-- Temporizador 3: Desmontaje -->
+                        <div class="p-2" style="background: #e2e3e5; border-radius: 6px; border-left: 4px solid #6c757d;">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label small fw-bold mb-0 text-secondary"><i class="bi bi-wrench me-1"></i>DESMONTAJE</label>
+                                <span class="badge bg-secondary" id="timerDesmEstado">Pendiente</span>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="fw-bold" id="timerDesmDisplay" style="font-size:1.3rem; font-family:monospace;">00:00:00</span>
+                                <button type="button" class="btn btn-sm btn-success" id="btnDesmPlay"><i class="bi bi-play-fill"></i></button>
+                                <button type="button" class="btn btn-sm btn-secondary" id="btnDesmStop" disabled><i class="bi bi-check-lg"></i> Listo</button>
                             </div>
                         </div>
                     </div>
@@ -503,17 +539,21 @@
                                 <i class="bi bi-check-circle me-1"></i>Devolucion Buena (bobina sobrante que se repone al inventario)
                             </label>
                             <div class="row g-2">
-                                <div class="col-4">
+                                <div class="col-3">
                                     <label class="form-label small">Kg Devueltos</label>
                                     <input type="number" class="form-control form-control-sm" id="devolucionBuenaKg" step="0.01" min="0" value="0">
                                 </div>
-                                <div class="col-4">
+                                <div class="col-3">
                                     <label class="form-label small">Fecha</label>
                                     <input type="date" class="form-control form-control-sm" id="devolucionBuenaFecha">
                                 </div>
-                                <div class="col-4">
+                                <div class="col-2">
                                     <label class="form-label small">Hora</label>
                                     <input type="time" class="form-control form-control-sm" id="devolucionBuenaHora">
+                                </div>
+                                <div class="col-4">
+                                    <label class="form-label small">Observaciones</label>
+                                    <input type="text" class="form-control form-control-sm" id="devolucionBuenaObs" placeholder="Ej: Devolucion por medida">
                                 </div>
                             </div>
                         </div>
@@ -785,90 +825,7 @@
                         </div>
                     </div>
 
-                    <!-- Consumo de Tintas -->
-                    <div class="form-section" style="background: #fff8e1;">
-                        <div class="form-section-title">
-                            <i class="bi bi-droplet-fill me-1"></i> Consumo de Tintas (Kg)
-                        </div>
-                        <div class="table-responsive">
-                            <table class="table table-sm table-bordered mb-1" id="tablaConsumoTintas">
-                                <thead style="background: #fff3cd;">
-                                    <tr>
-                                        <th style="width:35%">Tipo / Color</th>
-                                        <th style="width:20%">Kg Usados</th>
-                                        <th style="width:20%">Stock Actual</th>
-                                        <th style="width:3%"></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="bodyConsumoTintas"></tbody>
-                                <tfoot>
-                                    <tr style="background: #fff3cd;">
-                                        <td class="fw-bold text-end">Total Tintas:</td>
-                                        <td class="fw-bold" id="totalConsumoTintas">0.00</td>
-                                        <td colspan="2"></td>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-                        <button type="button" class="btn btn-sm btn-outline-warning" id="btnAgregarTinta">
-                            <i class="bi bi-plus-circle me-1"></i>Agregar tinta del inventario
-                        </button>
-                    </div>
-
-                    <!-- Solventes -->
-                    <div class="form-section">
-                        <div class="form-section-title">
-                            <i class="bi bi-moisture me-1"></i> Solventes (Lt)
-                        </div>
-                        <div class="row g-2">
-                            <div class="col-4">
-                                <label class="form-label small">Alcohol IPA</label>
-                                <input type="number" class="form-control form-control-sm solvente-input" id="solAlcohol" step="0.01" min="0" value="0">
-                            </div>
-                            <div class="col-4">
-                                <label class="form-label small">Metoxi</label>
-                                <input type="number" class="form-control form-control-sm solvente-input" id="solMetoxi" step="0.01" min="0" value="0">
-                            </div>
-                            <div class="col-4">
-                                <label class="form-label small">Acetato</label>
-                                <input type="number" class="form-control form-control-sm solvente-input" id="solAcetato" step="0.01" min="0" value="0">
-                            </div>
-                        </div>
-                        <div class="row mt-1">
-                            <div class="col text-end">
-                                <span class="badge bg-secondary">Total Solventes: <span id="totalSolventes">0.00</span> Lt</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Devolucion de Tintas -->
-                    <div class="form-section" style="background: #e8f5e9;">
-                        <div class="form-section-title">
-                            <i class="bi bi-droplet me-1"></i> Devolucion de Tintas (Kg sobrante)
-                        </div>
-                        <div class="table-responsive">
-                            <table class="table table-sm table-bordered mb-1" id="tablaDevolucionTintas">
-                                <thead class="table-success">
-                                    <tr>
-                                        <th style="width:35%">Tipo / Color</th>
-                                        <th style="width:20%">Kg Devueltos</th>
-                                        <th style="width:3%"></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="bodyDevolucionTintas"></tbody>
-                                <tfoot>
-                                    <tr class="table-success">
-                                        <td class="fw-bold text-end">Total Devuelto:</td>
-                                        <td class="fw-bold" id="totalDevolucionTintas">0.00</td>
-                                        <td></td>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-                        <button type="button" class="btn btn-sm btn-outline-success" id="btnAgregarDevTinta">
-                            <i class="bi bi-plus-circle me-1"></i>Agregar devolucion de tinta
-                        </button>
-                    </div>
+                    <!-- Nota: Consumo de tintas/solventes se gestiona desde tintas.html -->
 
                     <!-- Tiempos y Paradas -->
                     <div class="form-section">

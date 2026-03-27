@@ -444,11 +444,6 @@ const Corte = {
             input.addEventListener('input', () => this.calcularTotales());
         });
 
-        // Calcular total de restante
-        document.querySelectorAll('.restante-entrada').forEach(input => {
-            input.addEventListener('input', () => this.calcularTotales());
-        });
-
         // Calcular total de scrap
         document.querySelectorAll('.scrap-input').forEach(input => {
             input.addEventListener('input', () => this.calcularTotales());
@@ -614,28 +609,18 @@ const Corte = {
             }
         }
 
-        // Total restante
-        let totalRestante = 0;
-        document.querySelectorAll('.restante-entrada').forEach(input => {
-            totalRestante += parseFloat(input.value) || 0;
-        });
-        const totalRestanteEl = document.getElementById('totalRestante');
-        if (totalRestanteEl) totalRestanteEl.value = totalRestante.toFixed(2);
-
-        const totalConsumido = totalEntrada - totalRestante;
-        const totalConsumidoEl = document.getElementById('totalConsumido');
-        if (totalConsumidoEl) totalConsumidoEl.textContent = totalConsumido.toFixed(2);
+        // Total consumido = total entrada (restante de bobinas eliminado)
+        const totalRestante = 0;
+        const totalConsumido = totalEntrada;
 
         // Actualizar Resumen de Produccion
         const resEntrada = document.getElementById('resumenEntrada');
-        const resRestante = document.getElementById('resumenRestante');
         const resConsumido = document.getElementById('resumenConsumido');
         const resSalida = document.getElementById('resumenSalida');
         const resScrap = document.getElementById('resumenScrap');
         const resMerma = document.getElementById('resumenMermaCalc');
         const resRefil = document.getElementById('resumenRefilCalc');
         if (resEntrada) resEntrada.textContent = totalEntrada.toFixed(2) + ' Kg';
-        if (resRestante) resRestante.textContent = totalRestante.toFixed(2) + ' Kg';
         if (resConsumido) resConsumido.textContent = totalConsumido.toFixed(2) + ' Kg';
         if (resSalida) resSalida.textContent = pesoSalida.toFixed(2) + ' Kg';
         if (resScrap) resScrap.textContent = totalScrap.toFixed(2) + ' Kg';
@@ -1664,7 +1649,7 @@ const Corte = {
             form.reset();
 
             // Limpiar campos calculados
-            const campos = ['totalEntrada', 'merma', 'totalScrap', 'porcentajeRefil', 'pesoTotalSalida', 'totalRestante'];
+            const campos = ['totalEntrada', 'merma', 'totalScrap', 'porcentajeRefil', 'pesoTotalSalida'];
             campos.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.value = '';
@@ -1706,13 +1691,12 @@ const Corte = {
             });
 
             // Resetear resumen de produccion
-            ['resumenEntrada', 'resumenRestante', 'resumenConsumido', 'resumenSalida', 'resumenScrap', 'resumenMermaCalc', 'resumenRefilCalc'].forEach(id => {
+            ['resumenEntrada', 'resumenConsumido', 'resumenSalida', 'resumenScrap', 'resumenMermaCalc', 'resumenRefilCalc'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.textContent = '0.00 Kg';
             });
 
-            const totalConsumidoEl = document.getElementById('totalConsumido');
-            if (totalConsumidoEl) totalConsumidoEl.textContent = '0';
+            // totalConsumido element removed (restante section eliminated)
         }
 
         // Resetear seleccion de OT

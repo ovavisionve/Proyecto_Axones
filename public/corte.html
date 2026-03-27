@@ -350,324 +350,241 @@
 
         <!-- ============ FORMULARIO DE PRODUCCION ============ -->
         <form id="formCorte" style="display: none;">
-            <div class="row">
-                <!-- Columna Izquierda -->
-                <div class="col-lg-6">
-                    <!-- CAPSULA: Informacion del Turno -->
-                    <div class="form-section">
-                        <div class="form-section-title">
-                            <i class="bi bi-people me-1"></i> Informacion del Turno
-                        </div>
-                        <div class="row g-2">
-                            <div class="col-12">
-                                <label class="form-label small">Turno</label>
-                                <div class="btn-group w-100" role="group">
-                                    <input type="radio" class="btn-check" name="turno" id="turnoDiurno" value="diurno">
-                                    <label class="btn btn-outline-success turno-btn" for="turnoDiurno">
-                                        <i class="bi bi-sun me-1"></i> Diurno (7am - 7pm)
-                                    </label>
-                                    <input type="radio" class="btn-check" name="turno" id="turnoNocturno" value="nocturno">
-                                    <label class="btn btn-outline-success turno-btn" for="turnoNocturno">
-                                        <i class="bi bi-moon me-1"></i> Nocturno (7pm - 7am)
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-4">
-                                <label for="operador" class="form-label small">Operador</label>
-                                <input type="text" class="form-control form-control-sm" id="operador" placeholder="Nombre operador" required>
-                            </div>
-                            <div class="col-4">
-                                <label for="ayudante" class="form-label small">Ayudante</label>
-                                <input type="text" class="form-control form-control-sm" id="ayudante" placeholder="Nombre ayudante">
-                            </div>
-                            <div class="col-4">
-                                <label for="supervisor" class="form-label small">Supervisor</label>
-                                <input type="text" class="form-control form-control-sm" id="supervisor" placeholder="Nombre supervisor">
-                            </div>
+            <!-- Campos ocultos para datos de especificaciones (se llenan desde OT) -->
+            <input type="hidden" id="anchoCorte">
+            <input type="hidden" id="fotocelda">
+            <input type="hidden" id="tipoEmpalme">
+            <input type="hidden" id="figuraEmbobinado">
+            <input type="hidden" id="pesoBobina">
+            <input type="hidden" id="diametroCore">
+            <input type="hidden" id="metrosBobina">
+            <input type="hidden" id="numPistas">
+            <input type="hidden" id="materialAncho">
+            <input type="hidden" id="materialMicraje">
+            <input type="hidden" id="materialDensidad">
+
+            <!-- 1. INFORMACION DEL TURNO -->
+            <div class="form-section">
+                <div class="form-section-title">
+                    <i class="bi bi-people me-1"></i> Informacion del Turno
+                </div>
+                <div class="row g-2">
+                    <div class="col-12">
+                        <label class="form-label small">Turno</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="turno" id="turnoDiurno" value="diurno">
+                            <label class="btn btn-outline-success turno-btn" for="turnoDiurno">
+                                <i class="bi bi-sun me-1"></i> Diurno (7am - 7pm)
+                            </label>
+                            <input type="radio" class="btn-check" name="turno" id="turnoNocturno" value="nocturno">
+                            <label class="btn btn-outline-success turno-btn" for="turnoNocturno">
+                                <i class="bi bi-moon me-1"></i> Nocturno (7pm - 7am)
+                            </label>
                         </div>
                     </div>
+                    <div class="col-4">
+                        <label for="operador" class="form-label small">Operador</label>
+                        <input type="text" class="form-control form-control-sm" id="operador" placeholder="Nombre operador" required>
+                    </div>
+                    <div class="col-4">
+                        <label for="ayudante" class="form-label small">Ayudante</label>
+                        <input type="text" class="form-control form-control-sm" id="ayudante" placeholder="Nombre ayudante">
+                    </div>
+                    <div class="col-4">
+                        <label for="supervisor" class="form-label small">Supervisor</label>
+                        <input type="text" class="form-control form-control-sm" id="supervisor" placeholder="Nombre supervisor">
+                    </div>
+                </div>
+            </div>
 
-                    <!-- CAPSULA: Temporizador de Produccion -->
-                    <div class="form-section">
-                        <div class="form-section-title">
-                            <i class="bi bi-stopwatch me-1"></i> Temporizador de Produccion
+            <!-- 2. TEMPORIZADOR -->
+            <div class="form-section">
+                <div class="form-section-title">
+                    <i class="bi bi-stopwatch me-1"></i> Temporizador
+                </div>
+                <div class="p-2" style="background: #d1e7dd; border-radius: 6px; border: 2px solid #198754;">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="badge bg-secondary" id="timerProdEstado">Pendiente</span>
+                    </div>
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <div>
+                            <div class="fw-bold" id="timerProdDisplay" style="font-size:2rem; font-family:monospace; line-height:1;">00:00:00</div>
+                            <small class="text-muted">Tiempo transcurrido</small>
                         </div>
-                        <div class="p-2" style="background: #d1e7dd; border-radius: 6px; border: 2px solid #198754;">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span class="badge bg-secondary" id="timerProdEstado">Pendiente</span>
-                            </div>
-                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-                                <div>
-                                    <div class="fw-bold" id="timerProdDisplay" style="font-size:2rem; font-family:monospace; line-height:1;">00:00:00</div>
-                                    <small class="text-muted">Tiempo transcurrido</small>
-                                </div>
-                                <div class="d-flex flex-column gap-1">
-                                    <button type="button" class="btn btn-success" id="btnProdPlay"><i class="bi bi-play-fill me-1"></i> Iniciar</button>
-                                    <button type="button" class="btn btn-warning" id="btnProdPause" disabled><i class="bi bi-pause-fill me-1"></i> Pausar</button>
-                                    <button type="button" class="btn btn-danger" id="btnProdStop" disabled><i class="bi bi-stop-fill me-1"></i> Detener</button>
-                                </div>
-                            </div>
-                            <div class="row g-2 mt-2">
-                                <div class="col-4">
-                                    <small class="text-muted d-block">Tiempo Muerto</small>
-                                    <span class="fw-bold text-danger" id="timerMuertoDisplay" style="font-size:1.1rem; font-family:monospace;">00:00:00</span>
-                                </div>
-                                <div class="col-4">
-                                    <small class="text-muted d-block">Tiempo Efectivo</small>
-                                    <span class="fw-bold text-success" id="timerEfectivoDisplay" style="font-size:1.1rem; font-family:monospace;">00:00:00</span>
-                                </div>
-                                <div class="col-4">
-                                    <small class="text-muted d-block">Kg/Hora (estimado)</small>
-                                    <span class="fw-bold" id="timerKgHora" style="font-size:1.1rem;">0</span>
-                                </div>
-                            </div>
-                            <div id="timerProdPausaForm" class="mt-2" style="display:none;">
-                                <div class="alert alert-warning py-2 px-2 mb-0 small">
-                                    <i class="bi bi-pause-circle me-1"></i><strong>Registrar motivo de parada:</strong>
-                                    <select class="form-select form-select-sm mt-1" id="timerProdPausaMotivo">
-                                        <option value="">-- Seleccionar motivo --</option>
-                                        <option>Cambio de bobina</option>
-                                        <option>Ajuste de maquina</option>
-                                        <option>Falla mecanica</option>
-                                        <option>Falla electrica</option>
-                                        <option>Problema de calidad</option>
-                                        <option>Falta de material</option>
-                                        <option>Almuerzo/Descanso</option>
-                                        <option>Otro</option>
-                                    </select>
-                                    <input type="text" class="form-control form-control-sm mt-1" id="timerProdPausaObs" placeholder="Detalle..." style="display:none;">
-                                    <button type="button" class="btn btn-sm btn-outline-success mt-1" id="btnProdConfirmPause"><i class="bi bi-check-lg me-1"></i>Registrar y continuar</button>
-                                </div>
-                            </div>
-                            <div id="timerProdPausas" class="mt-1"></div>
+                        <div class="d-flex flex-column gap-1">
+                            <button type="button" class="btn btn-success" id="btnProdPlay"><i class="bi bi-play-fill me-1"></i> Iniciar</button>
+                            <button type="button" class="btn btn-warning" id="btnProdPause" disabled><i class="bi bi-pause-fill me-1"></i> Pausar</button>
+                            <button type="button" class="btn btn-danger" id="btnProdStop" disabled><i class="bi bi-stop-fill me-1"></i> Detener</button>
                         </div>
                     </div>
-
-                    <!-- Especificaciones de Corte -->
-                    <div class="form-section">
-                        <div class="form-section-title">
-                            <i class="bi bi-gear me-1"></i> Especificaciones de Corte
+                    <div class="row g-2 mt-2">
+                        <div class="col-3">
+                            <small class="text-muted d-block">Tiempo Muerto</small>
+                            <span class="fw-bold text-danger" id="timerMuertoDisplay" style="font-size:1.1rem; font-family:monospace;">00:00:00</span>
                         </div>
-                        <div class="row g-2">
-                            <div class="col-md-3">
-                                <label for="anchoCorte" class="form-label small">Ancho de Corte (mm)</label>
-                                <input type="number" class="form-control form-control-sm" id="anchoCorte" step="0.01" placeholder="Ej: 150">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="fotocelda" class="form-label small">Fotocelda</label>
-                                <select class="form-select form-select-sm" id="fotocelda">
-                                    <option value="">Seleccionar...</option>
-                                    <option value="marca">Con Marca</option>
-                                    <option value="sin_marca">Sin Marca</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label for="tipoEmpalme" class="form-label small">Tipo de Empalme</label>
-                                <select class="form-select form-select-sm" id="tipoEmpalme">
-                                    <option value="">Seleccionar...</option>
-                                    <option value="cinta">Cinta</option>
-                                    <option value="termosellado">Termosellado</option>
-                                    <option value="sin_empalme">Sin Empalme</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label for="figuraEmbobinado" class="form-label small">Figura Embobinado</label>
-                                <select class="form-select form-select-sm" id="figuraEmbobinado">
-                                    <option value="">Seleccionar...</option>
-                                    <option value="1">1</option>
-                                    <option value="2">2</option>
-                                    <option value="3">3</option>
-                                    <option value="4">4</option>
-                                    <option value="5">5</option>
-                                    <option value="6">6</option>
-                                    <option value="7">7</option>
-                                    <option value="8">8</option>
-                                </select>
-                            </div>
-                            <!-- Fila 2 -->
-                            <div class="col-md-3">
-                                <label for="pesoBobina" class="form-label small">Peso por Bobina (Kg)</label>
-                                <input type="number" class="form-control form-control-sm" id="pesoBobina" step="0.01" placeholder="Peso objetivo">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="diametroCore" class="form-label small">Diametro Core (pulgadas)</label>
-                                <select class="form-select form-select-sm" id="diametroCore">
-                                    <option value="">Seleccionar...</option>
-                                    <option value="3">3"</option>
-                                    <option value="6">6"</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label for="metrosBobina" class="form-label small">Metros/Bobina <small class="text-muted">(auto)</small></label>
-                                <input type="text" class="form-control form-control-sm" id="metrosBobina" readonly style="background-color: #e9ecef;">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="numPistas" class="form-label small">N° de Pistas</label>
-                                <input type="number" class="form-control form-control-sm" id="numPistas" min="1" max="12" placeholder="Ej: 4">
-                            </div>
+                        <div class="col-3">
+                            <small class="text-muted d-block">Tiempo Efectivo</small>
+                            <span class="fw-bold text-success" id="timerEfectivoDisplay" style="font-size:1.1rem; font-family:monospace;">00:00:00</span>
                         </div>
-                        <!-- Campos ocultos -->
-                        <input type="hidden" id="materialAncho">
-                        <input type="hidden" id="materialMicraje">
-                        <input type="hidden" id="materialDensidad">
-                    </div>
-
-                    <!-- Ingreso de Bobinas Madres -->
-                    <div class="form-section">
-                        <div class="form-section-title">
-                            <i class="bi bi-box-seam me-1"></i> Ingreso de Bobinas Madres (Laminas) - Kg
+                        <div class="col-3">
+                            <small class="text-muted d-block">Kg/Hora (estimado)</small>
+                            <span class="fw-bold" id="timerKgHora" style="font-size:1.1rem;">0</span>
                         </div>
-                        <div class="row g-1">
-                            <!-- Fila 1: 1-5 -->
-                            <div class="col">
-                                <span class="bobina-label">1</span>
-                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob1" step="0.01" min="0">
-                            </div>
-                            <div class="col">
-                                <span class="bobina-label">2</span>
-                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob2" step="0.01" min="0">
-                            </div>
-                            <div class="col">
-                                <span class="bobina-label">3</span>
-                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob3" step="0.01" min="0">
-                            </div>
-                            <div class="col">
-                                <span class="bobina-label">4</span>
-                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob4" step="0.01" min="0">
-                            </div>
-                            <div class="col">
-                                <span class="bobina-label">5</span>
-                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob5" step="0.01" min="0">
-                            </div>
-                        </div>
-                        <div class="row g-1 mt-1">
-                            <!-- Fila 2: 6-10 -->
-                            <div class="col">
-                                <span class="bobina-label">6</span>
-                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob6" step="0.01" min="0">
-                            </div>
-                            <div class="col">
-                                <span class="bobina-label">7</span>
-                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob7" step="0.01" min="0">
-                            </div>
-                            <div class="col">
-                                <span class="bobina-label">8</span>
-                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob8" step="0.01" min="0">
-                            </div>
-                            <div class="col">
-                                <span class="bobina-label">9</span>
-                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob9" step="0.01" min="0">
-                            </div>
-                            <div class="col">
-                                <span class="bobina-label">10</span>
-                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob10" step="0.01" min="0">
-                            </div>
-                        </div>
-                        <div class="row g-1 mt-1">
-                            <!-- Fila 3: 11-14 + Total -->
-                            <div class="col">
-                                <span class="bobina-label">11</span>
-                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob11" step="0.01" min="0">
-                            </div>
-                            <div class="col">
-                                <span class="bobina-label">12</span>
-                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob12" step="0.01" min="0">
-                            </div>
-                            <div class="col">
-                                <span class="bobina-label">13</span>
-                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob13" step="0.01" min="0">
-                            </div>
-                            <div class="col">
-                                <span class="bobina-label">14</span>
-                                <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob14" step="0.01" min="0">
-                            </div>
-                            <div class="col-2">
-                                <span class="bobina-label fw-bold">TOTAL</span>
-                                <input type="text" class="form-control form-control-sm bobina-input total-highlight" id="totalEntrada" readonly>
-                            </div>
+                        <div class="col-3">
+                            <small class="text-muted d-block">Tiempo Efectivo</small>
+                            <input type="text" class="form-control form-control-sm total-highlight" id="tiempoEfectivo" readonly value="00:00">
                         </div>
                     </div>
+                    <div id="timerProdPausaForm" class="mt-2" style="display:none;">
+                        <div class="alert alert-warning py-2 px-2 mb-0 small">
+                            <i class="bi bi-pause-circle me-1"></i><strong>Registrar motivo de parada:</strong>
+                            <select class="form-select form-select-sm mt-1" id="timerProdPausaMotivo">
+                                <option value="">-- Seleccionar motivo --</option>
+                                <option>Cambio de bobina</option>
+                                <option>Ajuste de maquina</option>
+                                <option>Falla mecanica</option>
+                                <option>Falla electrica</option>
+                                <option>Problema de calidad</option>
+                                <option>Falta de material</option>
+                                <option>Almuerzo/Descanso</option>
+                                <option>Otro</option>
+                            </select>
+                            <input type="text" class="form-control form-control-sm mt-1" id="timerProdPausaObs" placeholder="Detalle..." style="display:none;">
+                            <button type="button" class="btn btn-sm btn-outline-success mt-1" id="btnProdConfirmPause"><i class="bi bi-check-lg me-1"></i>Registrar y continuar</button>
+                        </div>
+                    </div>
+                    <div id="timerProdPausas" class="mt-1"></div>
+                </div>
+                <!-- Hidden legacy fields for compatibility -->
+                <input type="hidden" id="temporizadorDisplay" value="00:00:00">
+                <input type="hidden" id="kgPorHora" value="0">
+                <input type="hidden" id="motivosParadas">
+            </div>
 
-                    <!-- Restante de Bobinas Usadas -->
-                    <div class="form-section">
-                        <div class="form-section-title">
-                            <i class="bi bi-arrow-return-left me-1"></i> Restante de Bobinas Usadas (Kg)
-                        </div>
-                        <div class="row g-1">
-                            <div class="col"><span class="bobina-label">1</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest1" step="0.01" min="0"></div>
-                            <div class="col"><span class="bobina-label">2</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest2" step="0.01" min="0"></div>
-                            <div class="col"><span class="bobina-label">3</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest3" step="0.01" min="0"></div>
-                            <div class="col"><span class="bobina-label">4</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest4" step="0.01" min="0"></div>
-                            <div class="col"><span class="bobina-label">5</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest5" step="0.01" min="0"></div>
-                        </div>
-                        <div class="row g-1 mt-1">
-                            <div class="col"><span class="bobina-label">6</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest6" step="0.01" min="0"></div>
-                            <div class="col"><span class="bobina-label">7</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest7" step="0.01" min="0"></div>
-                            <div class="col"><span class="bobina-label">8</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest8" step="0.01" min="0"></div>
-                            <div class="col"><span class="bobina-label">9</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest9" step="0.01" min="0"></div>
-                            <div class="col"><span class="bobina-label">10</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest10" step="0.01" min="0"></div>
-                        </div>
-                        <div class="row g-1 mt-1">
-                            <div class="col"><span class="bobina-label">11</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest11" step="0.01" min="0"></div>
-                            <div class="col"><span class="bobina-label">12</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest12" step="0.01" min="0"></div>
-                            <div class="col"><span class="bobina-label">13</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest13" step="0.01" min="0"></div>
-                            <div class="col"><span class="bobina-label">14</span><input type="number" class="form-control form-control-sm bobina-input restante-entrada" id="rest14" step="0.01" min="0"></div>
-                            <div class="col-2">
-                                <span class="bobina-label fw-bold">TOTAL</span>
-                                <input type="text" class="form-control form-control-sm bobina-input total-highlight" id="totalRestante" readonly>
-                            </div>
-                        </div>
-                        <div class="row mt-2">
-                            <div class="col text-end">
-                                <span class="badge bg-info">Consumido: <span id="totalConsumido">0</span> Kg</span>
-                            </div>
+            <!-- 3. INGRESO DE BOBINAS IMPRESA (Kg) -->
+            <div class="form-section">
+                <div class="form-section-title">
+                    <i class="bi bi-box-seam me-1"></i> Ingreso de Bobinas Impresa - Kg
+                </div>
+                <div class="row g-1">
+                    <!-- Fila 1: 1-5 -->
+                    <div class="col">
+                        <span class="bobina-label">1</span>
+                        <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob1" step="0.01" min="0">
+                    </div>
+                    <div class="col">
+                        <span class="bobina-label">2</span>
+                        <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob2" step="0.01" min="0">
+                    </div>
+                    <div class="col">
+                        <span class="bobina-label">3</span>
+                        <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob3" step="0.01" min="0">
+                    </div>
+                    <div class="col">
+                        <span class="bobina-label">4</span>
+                        <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob4" step="0.01" min="0">
+                    </div>
+                    <div class="col">
+                        <span class="bobina-label">5</span>
+                        <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob5" step="0.01" min="0">
+                    </div>
+                </div>
+                <div class="row g-1 mt-1">
+                    <!-- Fila 2: 6-10 -->
+                    <div class="col">
+                        <span class="bobina-label">6</span>
+                        <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob6" step="0.01" min="0">
+                    </div>
+                    <div class="col">
+                        <span class="bobina-label">7</span>
+                        <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob7" step="0.01" min="0">
+                    </div>
+                    <div class="col">
+                        <span class="bobina-label">8</span>
+                        <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob8" step="0.01" min="0">
+                    </div>
+                    <div class="col">
+                        <span class="bobina-label">9</span>
+                        <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob9" step="0.01" min="0">
+                    </div>
+                    <div class="col">
+                        <span class="bobina-label">10</span>
+                        <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob10" step="0.01" min="0">
+                    </div>
+                </div>
+                <div class="row g-1 mt-1">
+                    <!-- Fila 3: 11-14 + Total -->
+                    <div class="col">
+                        <span class="bobina-label">11</span>
+                        <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob11" step="0.01" min="0">
+                    </div>
+                    <div class="col">
+                        <span class="bobina-label">12</span>
+                        <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob12" step="0.01" min="0">
+                    </div>
+                    <div class="col">
+                        <span class="bobina-label">13</span>
+                        <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob13" step="0.01" min="0">
+                    </div>
+                    <div class="col">
+                        <span class="bobina-label">14</span>
+                        <input type="number" class="form-control form-control-sm bobina-input bobina-entrada" id="bob14" step="0.01" min="0">
+                    </div>
+                    <div class="col-2">
+                        <span class="bobina-label fw-bold">TOTAL</span>
+                        <input type="text" class="form-control form-control-sm bobina-input total-highlight" id="totalEntrada" readonly>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. PALETAS DE SALIDA (Dinamicas) -->
+            <div class="form-section">
+                <div class="form-section-title d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-box-seam me-1"></i> Bobinas de Salida por Paleta - Peso Neto (Kg)</span>
+                    <button type="button" class="btn btn-success btn-sm" id="btnAgregarPaleta">
+                        <i class="bi bi-plus-circle me-1"></i> Agregar Paleta
+                    </button>
+                </div>
+                <div class="row g-3" id="paletasContainer">
+                    <!-- Paletas generadas dinamicamente por JS -->
+                </div>
+            </div>
+
+            <!-- 5. SCRAP / REFIL -->
+            <div class="form-section">
+                <div class="form-section-title">
+                    <i class="bi bi-recycle me-1"></i> Scrap / Refil
+                </div>
+                <div class="row g-2">
+                    <div class="col-4">
+                        <label class="form-label small">Refile (Kg)</label>
+                        <input type="number" class="form-control form-control-sm scrap-input" id="scrapRefile" step="0.01" min="0" value="0">
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label small">Impreso (Kg)</label>
+                        <input type="number" class="form-control form-control-sm scrap-input" id="scrapImpreso" step="0.01" min="0" value="0">
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label small">Total Scrap</label>
+                        <input type="text" class="form-control form-control-sm total-highlight" id="totalScrap" readonly>
+                    </div>
+                </div>
+                <div class="row g-2 mt-2">
+                    <div class="col-6">
+                        <label class="form-label small">% Refil</label>
+                        <input type="text" class="form-control form-control-sm total-highlight" id="porcentajeRefil" readonly>
+                    </div>
+                    <div class="col-6">
+                        <div id="indicadorRefil" class="alert alert-secondary py-1 px-2 mb-0 small text-center">
+                            <i class="bi bi-dash-circle me-1"></i> Sin datos
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Columna Derecha -->
+            <!-- 6. RESUMEN DEL TURNO -->
+            <div class="row">
                 <div class="col-lg-6">
-                    <!-- Temporizador de Turno -->
-                    <div class="form-section">
-                        <div class="form-section-title">
-                            <i class="bi bi-stopwatch me-1"></i> Temporizador de Turno
-                        </div>
-                        <div class="row g-2 align-items-center">
-                            <div class="col-6">
-                                <div class="d-flex align-items-center justify-content-center">
-                                    <div class="text-center">
-                                        <div class="display-6 fw-bold text-success" id="temporizadorDisplay">00:00:00</div>
-                                        <small class="text-muted">Tiempo transcurrido</small>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="d-grid gap-1">
-                                    <button type="button" class="btn btn-success btn-sm" id="btnIniciarTemporizador">
-                                        <i class="bi bi-play-fill me-1"></i> Iniciar
-                                    </button>
-                                    <button type="button" class="btn btn-warning btn-sm" id="btnPausarTemporizador" disabled>
-                                        <i class="bi bi-pause-fill me-1"></i> Pausar
-                                    </button>
-                                    <button type="button" class="btn btn-danger btn-sm" id="btnDetenerTemporizador" disabled>
-                                        <i class="bi bi-stop-fill me-1"></i> Detener
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row g-2 mt-2">
-                            <div class="col-6">
-                                <label class="form-label small">Kg/Hora (estimado)</label>
-                                <input type="text" class="form-control form-control-sm total-highlight" id="kgPorHora" readonly value="0">
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label small">Tiempo Efectivo</label>
-                                <input type="text" class="form-control form-control-sm total-highlight" id="tiempoEfectivo" readonly value="00:00">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Resumen del Turno -->
                     <div class="form-section">
                         <div class="form-section-title">
                             <i class="bi bi-clipboard-check me-1"></i> Resumen del Turno
@@ -701,129 +618,10 @@
                             </div>
                         </div>
                     </div>
-
                 </div>
-            </div>
 
-            <!-- Paletas de Salida - Full Width - Dinamicas -->
-            <div class="row">
-                <div class="col-12">
-                    <div class="form-section">
-                        <div class="form-section-title d-flex justify-content-between align-items-center">
-                            <span><i class="bi bi-box-seam me-1"></i> Bobinas de Salida por Paleta - Peso Neto (Kg)</span>
-                            <button type="button" class="btn btn-success btn-sm" id="btnAgregarPaleta">
-                                <i class="bi bi-plus-circle me-1"></i> Agregar Paleta
-                            </button>
-                        </div>
-                        <div class="row g-3" id="paletasContainer">
-                            <!-- Paletas generadas dinamicamente por JS -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Scrap y Observaciones -->
-            <div class="row">
+                <!-- 7. RESUMEN DE PALETAS -->
                 <div class="col-lg-6">
-                    <!-- Scrap (Refil) -->
-                    <div class="form-section">
-                        <div class="form-section-title">
-                            <i class="bi bi-recycle me-1"></i> Scrap / Refil
-                        </div>
-                        <div class="row g-2">
-                            <div class="col-4">
-                                <label class="form-label small">Refile (Kg)</label>
-                                <input type="number" class="form-control form-control-sm scrap-input" id="scrapRefile" step="0.01" min="0" value="0">
-                            </div>
-                            <div class="col-4">
-                                <label class="form-label small">Impreso (Kg)</label>
-                                <input type="number" class="form-control form-control-sm scrap-input" id="scrapImpreso" step="0.01" min="0" value="0">
-                            </div>
-                            <div class="col-4">
-                                <label class="form-label small">Total Scrap</label>
-                                <input type="text" class="form-control form-control-sm total-highlight" id="totalScrap" readonly>
-                            </div>
-                        </div>
-                        <div class="row g-2 mt-2">
-                            <div class="col-6">
-                                <label class="form-label small">% Refil</label>
-                                <input type="text" class="form-control form-control-sm total-highlight" id="porcentajeRefil" readonly>
-                            </div>
-                            <div class="col-6">
-                                <div id="indicadorRefil" class="alert alert-secondary py-1 px-2 mb-0 small text-center">
-                                    <i class="bi bi-dash-circle me-1"></i> Sin datos
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Tiempos -->
-                    <div class="form-section">
-                        <div class="form-section-title">
-                            <i class="bi bi-stopwatch me-1"></i> Tiempos y Paradas
-                        </div>
-                        <div class="row g-2">
-                            <div class="col-12">
-                                <label class="form-label small">Motivos de Paradas</label>
-                                <textarea class="form-control form-control-sm" id="motivosParadas" rows="2" placeholder="Describir paradas y sus motivos..."></textarea>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Resumen de Produccion -->
-                    <div class="form-section" style="background: #f0fff4;">
-                        <div class="form-section-title">
-                            <i class="bi bi-calculator me-1"></i> Resumen de Produccion
-                        </div>
-                        <div class="table-responsive">
-                            <table class="table table-sm table-bordered mb-0">
-                                <tbody>
-                                    <tr>
-                                        <td class="fw-bold">Total Bobinas Entrada</td>
-                                        <td class="text-end" id="resumenEntrada">0.00 Kg</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="fw-bold">Total Restante (devuelto)</td>
-                                        <td class="text-end" id="resumenRestante">0.00 Kg</td>
-                                    </tr>
-                                    <tr class="table-primary">
-                                        <td class="fw-bold">Material Consumido</td>
-                                        <td class="text-end fw-bold" id="resumenConsumido">0.00 Kg</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="fw-bold">Total Salida (paletas)</td>
-                                        <td class="text-end" id="resumenSalida">0.00 Kg</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="fw-bold">Total Scrap</td>
-                                        <td class="text-end" id="resumenScrap">0.00 Kg</td>
-                                    </tr>
-                                    <tr class="table-warning">
-                                        <td class="fw-bold">Merma (Consumido - Salida - Scrap)</td>
-                                        <td class="text-end fw-bold" id="resumenMermaCalc">0.00 Kg</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="fw-bold">% Refil</td>
-                                        <td class="text-end" id="resumenRefilCalc">0.00%</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="mt-2 text-end">
-                            <small class="text-muted"><i class="bi bi-info-circle me-1"></i>El material restante se devuelve al inventario al guardar</small>
-                        </div>
-                    </div>
-
-                    <!-- Observaciones -->
-                    <div class="form-section">
-                        <div class="form-section-title">
-                            <i class="bi bi-chat-left-text me-1"></i> Observaciones
-                        </div>
-                        <textarea class="form-control form-control-sm" id="observaciones" rows="3" placeholder="Observaciones adicionales..."></textarea>
-                    </div>
-                </div>
-                <div class="col-lg-6">
-                    <!-- Resumen de Paletas -->
                     <div class="form-section">
                         <div class="form-section-title">
                             <i class="bi bi-bar-chart me-1"></i> Resumen de Paletas
@@ -855,13 +653,58 @@
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Boton Guardar al fondo del formulario -->
-                <div class="text-center my-3 no-print">
-                    <button class="btn btn-success" id="btnGuardarBottom">
-                        <i class="bi bi-save me-1"></i> Guardar
-                    </button>
+            <!-- 8. OBSERVACIONES -->
+            <div class="form-section">
+                <div class="form-section-title">
+                    <i class="bi bi-chat-left-text me-1"></i> Observaciones
                 </div>
+                <textarea class="form-control form-control-sm" id="observaciones" rows="3" placeholder="Observaciones adicionales..."></textarea>
+            </div>
+
+            <!-- 9. RESUMEN DE PRODUCCION -->
+            <div class="form-section" style="background: #f0fff4;">
+                <div class="form-section-title">
+                    <i class="bi bi-calculator me-1"></i> Resumen de Produccion
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered mb-0">
+                        <tbody>
+                            <tr>
+                                <td class="fw-bold">Total Bobinas Entrada</td>
+                                <td class="text-end" id="resumenEntrada">0.00 Kg</td>
+                            </tr>
+                            <tr class="table-primary">
+                                <td class="fw-bold">Material Consumido</td>
+                                <td class="text-end fw-bold" id="resumenConsumido">0.00 Kg</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">Total Salida (paletas)</td>
+                                <td class="text-end" id="resumenSalida">0.00 Kg</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">Total Scrap</td>
+                                <td class="text-end" id="resumenScrap">0.00 Kg</td>
+                            </tr>
+                            <tr class="table-warning">
+                                <td class="fw-bold">Merma (Consumido - Salida - Scrap)</td>
+                                <td class="text-end fw-bold" id="resumenMermaCalc">0.00 Kg</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">% Refil</td>
+                                <td class="text-end" id="resumenRefilCalc">0.00%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Boton Guardar al fondo del formulario -->
+            <div class="text-center my-3 no-print">
+                <button class="btn btn-success" id="btnGuardarBottom">
+                    <i class="bi bi-save me-1"></i> Guardar
+                </button>
             </div>
         </form>
     </main>

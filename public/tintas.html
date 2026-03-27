@@ -282,59 +282,35 @@
                     <div class="row">
                         <!-- Columna Izquierda -->
                         <div class="col-lg-6">
-                            <!-- Datos de la OT -->
+                            <!-- Selector de OT (como en impresion/laminacion/corte) -->
                             <div class="form-section">
-                                <div class="form-section-title" style="border-color: #0d6efd;">
-                                    <i class="bi bi-file-earmark-text me-1"></i> Orden de Trabajo
-                                    <span class="badge badge-solo-registro float-end">Solo Registro</span>
+                                <div class="form-section-title" style="border-color: #6f42c1;">
+                                    <i class="bi bi-file-earmark-text me-1"></i> Seleccionar Orden de Trabajo
                                 </div>
                                 <div class="row g-2">
-                                    <div class="col-md-4">
-                                        <label class="form-label small">Fecha</label>
-                                        <input type="date" class="form-control form-control-sm" id="consumoFecha" required>
-                                    </div>
-                                    <div class="col-md-4">
+                                    <div class="col-md-6">
                                         <label class="form-label small">Orden de Trabajo</label>
                                         <select class="form-select form-select-sm" id="consumoOT">
                                             <option value="">Seleccionar OT...</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label small">Kg Produccion</label>
-                                        <input type="number" class="form-control form-control-sm" id="consumoKg" step="0.01" min="0">
+                                    <div class="col-md-3">
+                                        <label class="form-label small">Fecha</label>
+                                        <input type="date" class="form-control form-control-sm" id="consumoFecha" required>
                                     </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label small">Cliente</label>
-                                        <input type="text" class="form-control form-control-sm" id="consumoCliente" readonly>
+                                    <div class="col-md-3">
+                                        <label class="form-label small">Estado</label>
+                                        <span class="badge bg-secondary d-block py-2" id="consumoEstadoOT">Sin OT</span>
                                     </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label small">Producto</label>
-                                        <input type="text" class="form-control form-control-sm" id="consumoProducto" readonly>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label small">Maquina</label>
-                                        <select class="form-select form-select-sm" id="consumoMaquina">
-                                            <option value="">Seleccionar...</option>
-                                            <option value="comexi_1">COMEXI 1</option>
-                                            <option value="comexi_3">COMEXI 3</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label small">Turno</label>
-                                        <select class="form-select form-select-sm" id="consumoTurno">
-                                            <option value="D">Diurno</option>
-                                            <option value="DHE">Diurno H.E.</option>
-                                            <option value="N">Nocturno</option>
-                                            <option value="NHE">Nocturno H.E.</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label small">Status</label>
-                                        <select class="form-select form-select-sm" id="consumoStatus">
-                                            <option value="en_proceso">En Proceso</option>
-                                            <option value="finalizo">Finalizo</option>
-                                            <option value="finalizo_rebobinado">Finalizo Rebobinado</option>
-                                        </select>
+                                </div>
+                                <!-- Resumen auto-llenado desde OT (read-only) -->
+                                <div id="resumenOTTintas" style="display:none;" class="mt-2">
+                                    <div class="row g-1" style="font-size:0.8rem;">
+                                        <div class="col-6"><strong>Cliente:</strong> <span id="consumoCliente">-</span></div>
+                                        <div class="col-6"><strong>Producto:</strong> <span id="consumoProducto">-</span></div>
+                                        <div class="col-4"><strong>Maquina:</strong> <span id="consumoMaquina">-</span></div>
+                                        <div class="col-4"><strong>Pedido:</strong> <span id="consumoKg">-</span> Kg</div>
+                                        <div class="col-4"><strong>Material:</strong> <span id="consumoMaterial">-</span></div>
                                     </div>
                                 </div>
                             </div>

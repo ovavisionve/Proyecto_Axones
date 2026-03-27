@@ -1224,6 +1224,95 @@ const Inventario = {
         this.renderInventario();
     },
 
+    // ==================== REPORTES ====================
+
+    reportePorMaterial: function() {
+        const grupos = {};
+        this.items.forEach(item => {
+            const mat = item.material || 'Sin clasificar';
+            if (!grupos[mat]) grupos[mat] = { items: [], totalKg: 0 };
+            grupos[mat].items.push(item);
+            grupos[mat].totalKg += parseFloat(item.kg) || 0;
+        });
+        let html = `<html><head><title>Reporte por Material - Inventario Axones</title>
+            <style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse;margin:10px 0}
+            th,td{border:1px solid #ddd;padding:6px;font-size:12px}th{background:#f0c040;font-weight:bold}
+            h2{color:#333;border-bottom:2px solid #0d6efd;padding-bottom:5px}h3{color:#0d6efd;margin-top:20px}
+            .total{font-weight:bold;background:#e9ecef}.right{text-align:right}</style></head><body>
+            <h2>Reporte de Inventario por Material</h2>
+            <p>Fecha: ${new Date().toLocaleDateString('es-VE')} | Total items: ${this.items.length} | Total Kg: ${this.items.reduce((s,i)=>s+(parseFloat(i.kg)||0),0).toFixed(2)}</p>`;
+        Object.entries(grupos).sort((a,b)=>b[1].totalKg-a[1].totalKg).forEach(([mat, data]) => {
+            html += `<h3>${mat} (${data.items.length} items - ${data.totalKg.toFixed(2)} Kg)</h3>
+                <table><tr><th>Micras</th><th>Ancho</th><th>Kg</th><th>Proveedor</th><th>Producto</th></tr>`;
+            data.items.forEach(i => { html += `<tr><td>${i.micras}</td><td>${i.ancho}</td><td class="right">${this.formatNumber(i.kg)}</td><td>${i.proveedor||'-'}</td><td>${i.producto||'-'}</td></tr>`; });
+            html += `<tr class="total"><td colspan="2">Total ${mat}</td><td class="right">${data.totalKg.toFixed(2)} Kg</td><td colspan="2"></td></tr></table>`;
+        });
+        html += `<div style="margin-top:30px;text-align:center"><small>Sistema Axones - Inversiones Axones 2008, C.A.</small></div></body></html>`;
+        const w = window.open('', '_blank'); w.document.write(html); w.document.close(); w.print();
+    },
+
+    reportePorProveedor: function() {
+        const grupos = {};
+        this.items.forEach(item => {
+            const prov = item.proveedor || 'Sin proveedor';
+            if (!grupos[prov]) grupos[prov] = { items: [], totalKg: 0 };
+            grupos[prov].items.push(item);
+            grupos[prov].totalKg += parseFloat(item.kg) || 0;
+        });
+        let html = `<html><head><title>Reporte por Proveedor - Inventario Axones</title>
+            <style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse;margin:10px 0}
+            th,td{border:1px solid #ddd;padding:6px;font-size:12px}th{background:#f0c040;font-weight:bold}
+            h2{color:#333;border-bottom:2px solid #0d6efd;padding-bottom:5px}h3{color:#198754;margin-top:20px}
+            .total{font-weight:bold;background:#e9ecef}.right{text-align:right}</style></head><body>
+            <h2>Reporte de Inventario por Proveedor</h2>
+            <p>Fecha: ${new Date().toLocaleDateString('es-VE')} | Proveedores: ${Object.keys(grupos).length}</p>`;
+        Object.entries(grupos).sort((a,b)=>b[1].totalKg-a[1].totalKg).forEach(([prov, data]) => {
+            html += `<h3>${prov} (${data.items.length} items - ${data.totalKg.toFixed(2)} Kg)</h3>
+                <table><tr><th>Material</th><th>Micras</th><th>Ancho</th><th>Kg</th><th>Producto</th></tr>`;
+            data.items.forEach(i => { html += `<tr><td>${i.material}</td><td>${i.micras}</td><td>${i.ancho}</td><td class="right">${this.formatNumber(i.kg)}</td><td>${i.producto||'-'}</td></tr>`; });
+            html += `<tr class="total"><td colspan="3">Total ${prov}</td><td class="right">${data.totalKg.toFixed(2)} Kg</td><td></td></tr></table>`;
+        });
+        html += `</body></html>`;
+        const w = window.open('', '_blank'); w.document.write(html); w.document.close(); w.print();
+    },
+
+    reporteStockBajo: function() {
+        const bajos = this.items.filter(i => (parseFloat(i.kg) || 0) <= 500);
+        const agotados = bajos.filter(i => (parseFloat(i.kg) || 0) === 0);
+        let html = `<html><head><title>Stock Bajo - Inventario Axones</title>
+            <style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse;margin:10px 0}
+            th,td{border:1px solid #ddd;padding:6px;font-size:12px}th{background:#dc3545;color:white;font-weight:bold}
+            h2{color:#333;border-bottom:2px solid #dc3545;padding-bottom:5px}
+            .agotado{background:#f8d7da}.bajo{background:#fff3cd}.right{text-align:right}</style></head><body>
+            <h2>Reporte de Stock Bajo / Agotado</h2>
+            <p>Fecha: ${new Date().toLocaleDateString('es-VE')} | Agotados: ${agotados.length} | Stock bajo: ${bajos.length - agotados.length}</p>
+            <table><tr><th>Material</th><th>Micras</th><th>Ancho</th><th>Kg</th><th>Proveedor</th><th>Producto</th><th>Estado</th></tr>`;
+        bajos.sort((a,b)=>(parseFloat(a.kg)||0)-(parseFloat(b.kg)||0)).forEach(i => {
+            const clase = (parseFloat(i.kg)||0) === 0 ? 'agotado' : 'bajo';
+            const estado = (parseFloat(i.kg)||0) === 0 ? 'AGOTADO' : 'BAJO';
+            html += `<tr class="${clase}"><td>${i.material}</td><td>${i.micras}</td><td>${i.ancho}</td><td class="right">${this.formatNumber(i.kg)}</td><td>${i.proveedor||'-'}</td><td>${i.producto||'-'}</td><td><strong>${estado}</strong></td></tr>`;
+        });
+        html += `</table></body></html>`;
+        const w = window.open('', '_blank'); w.document.write(html); w.document.close(); w.print();
+    },
+
+    exportarCSV: function() {
+        let csv = 'Material,Micras,Ancho,Kg,Proveedor,Producto,SKU,Estado\n';
+        this.items.forEach(i => {
+            const estado = (parseFloat(i.kg)||0) === 0 ? 'Agotado' : (parseFloat(i.kg)||0) < 500 ? 'Bajo' : 'OK';
+            csv += `"${i.material}",${i.micras},${i.ancho},${parseFloat(i.kg)||0},"${i.proveedor||''}","${i.producto||''}","${i.sku||''}","${estado}"\n`;
+        });
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = `inventario_axones_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click(); URL.revokeObjectURL(url);
+        if (typeof showToast === 'function') showToast('CSV exportado', 'success');
+    },
+
+    imprimirInventario: function() {
+        window.print();
+    },
+
     /**
      * Renderiza la tabla de inventario
      */

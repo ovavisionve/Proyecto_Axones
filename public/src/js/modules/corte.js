@@ -67,6 +67,10 @@ const Corte = {
         // Flechitas de etiquetas en bobinas de entrada
         this.setupEtiquetasBobinas();
 
+        // Autosave
+        this.restaurarAutosave();
+        this._autosaveInterval = setInterval(() => this.autosave(), 10000);
+
         // Escuchar re-sync del cloud para recargar datos
         window.addEventListener('axones-sync', async () => {
             await this.poblarSelectorOT();
@@ -1006,6 +1010,7 @@ const Corte = {
 
         try {
             await this.guardarLocal(datos);
+            this.limpiarAutosave();
             this.mostrarToast('Registro de corte guardado', 'success');
 
             // Descontar material del inventario
@@ -1643,7 +1648,39 @@ const Corte = {
     /**
      * Limpia el formulario
      */
+    AUTOSAVE_KEY: 'axones_autosave_corte',
+    autosave: function() {
+        const form = document.getElementById('formCorte');
+        if (!form || form.style.display === 'none' || !this.ordenCargada) return;
+        const data = { timestamp: Date.now(), ordenId: this.ordenCargada?.id || '', ordenNumero: this.ordenCargada?.numeroOrden || this.ordenCargada?.nombreOT || '', campos: {} };
+        form.querySelectorAll('input, select, textarea').forEach(el => {
+            if (el.id && el.type !== 'hidden') { data.campos[el.id] = el.type === 'checkbox' || el.type === 'radio' ? el.checked : el.value; }
+        });
+        data.timer = { ...this._timer, interval: null };
+        localStorage.setItem(this.AUTOSAVE_KEY, JSON.stringify(data));
+    },
+    restaurarAutosave: function() {
+        const saved = localStorage.getItem(this.AUTOSAVE_KEY);
+        if (!saved) return;
+        try {
+            const data = JSON.parse(saved);
+            if (Date.now() - data.timestamp > 12 * 60 * 60 * 1000) { localStorage.removeItem(this.AUTOSAVE_KEY); return; }
+            const hace = Math.floor((Date.now() - data.timestamp) / 60000);
+            if (!confirm(`Se encontraron datos sin guardar de la OT ${data.ordenNumero} (hace ${hace} min).\n\n¿Desea recuperarlos?`)) { localStorage.removeItem(this.AUTOSAVE_KEY); return; }
+            const select = document.getElementById('ordenTrabajo');
+            if (select && data.ordenId) { for (let i = 0; i < select.options.length; i++) { if (select.options[i].value === data.ordenId || select.options[i].textContent.includes(data.ordenNumero)) { select.selectedIndex = i; select.dispatchEvent(new Event('change')); break; } } }
+            setTimeout(() => {
+                const f = document.getElementById('formCorte'); if (!f) return;
+                Object.entries(data.campos || {}).forEach(([id, v]) => { const el = document.getElementById(id); if (!el) return; if (el.type === 'checkbox' || el.type === 'radio') el.checked = v; else el.value = v; });
+                if (data.timer) { this._timer = { ...data.timer, interval: null }; if (this._timer.estado === 'corriendo' && this._timer.inicio) { this._timer.interval = setInterval(() => this.timerTick(), 1000); } this.timerUpdateUI(); this.timerTick(); }
+                if (typeof showToast === 'function') showToast('Datos recuperados de la sesion anterior', 'info');
+            }, 500);
+        } catch (e) { localStorage.removeItem(this.AUTOSAVE_KEY); }
+    },
+    limpiarAutosave: function() { localStorage.removeItem(this.AUTOSAVE_KEY); },
+
     limpiar: function() {
+        this.limpiarAutosave();
         const form = document.getElementById('formCorte');
         if (form) {
             form.reset();

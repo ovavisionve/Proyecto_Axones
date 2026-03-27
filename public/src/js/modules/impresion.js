@@ -45,6 +45,11 @@ const Impresion = {
         // Flechitas de etiquetas en bobinas
         this.setupEtiquetasBobinas();
 
+        // Autosave: restaurar datos si hay sesion guardada
+        this.restaurarAutosave();
+        // Autosave: guardar cada 10 segundos
+        this._autosaveInterval = setInterval(() => this.autosave(), 10000);
+
         // Escuchar re-sync del cloud para recargar datos
         window.addEventListener('axones-sync', async () => {
             await this.cargarDatosIniciales();
@@ -1376,6 +1381,7 @@ const Impresion = {
             // Verificar alertas
             await this.verificarAlertas(datos);
 
+            this.limpiarAutosave();
             this.mostrarToast('Registro guardado', 'success');
 
             // Limpiar formulario
@@ -2247,10 +2253,124 @@ const Impresion = {
         }
     },
 
+    // ==================== AUTOSAVE ====================
+    AUTOSAVE_KEY: 'axones_autosave_impresion',
+
+    /**
+     * Guarda el estado actual del formulario en localStorage cada 10 seg
+     */
+    autosave: function() {
+        const form = document.getElementById('formImpresion');
+        if (!form || form.style.display === 'none') return;
+        if (!this.ordenCargada) return;
+
+        const data = {
+            timestamp: Date.now(),
+            ordenId: this.ordenCargada?.id || '',
+            ordenNumero: this.ordenCargada?.numeroOrden || this.ordenCargada?.nombreOT || '',
+            campos: {}
+        };
+
+        // Guardar todos los inputs/selects/textareas del formulario
+        form.querySelectorAll('input, select, textarea').forEach(el => {
+            if (el.id && el.type !== 'hidden') {
+                if (el.type === 'checkbox' || el.type === 'radio') {
+                    data.campos[el.id] = el.checked;
+                } else {
+                    data.campos[el.id] = el.value;
+                }
+            }
+        });
+
+        // Guardar timer
+        data.timer = { ...this._timer, interval: null };
+        data.timerDesm = { ...this._timerDesm, interval: null };
+
+        localStorage.setItem(this.AUTOSAVE_KEY, JSON.stringify(data));
+    },
+
+    /**
+     * Restaura datos guardados si hay una sesion previa
+     */
+    restaurarAutosave: function() {
+        const saved = localStorage.getItem(this.AUTOSAVE_KEY);
+        if (!saved) return;
+
+        try {
+            const data = JSON.parse(saved);
+            // Solo restaurar si es reciente (menos de 12 horas)
+            if (Date.now() - data.timestamp > 12 * 60 * 60 * 1000) {
+                localStorage.removeItem(this.AUTOSAVE_KEY);
+                return;
+            }
+
+            // Preguntar al usuario
+            const hace = Math.floor((Date.now() - data.timestamp) / 60000);
+            const msg = `Se encontraron datos sin guardar de la OT ${data.ordenNumero} (hace ${hace} min).\n\n¿Desea recuperarlos?`;
+            if (!confirm(msg)) {
+                localStorage.removeItem(this.AUTOSAVE_KEY);
+                return;
+            }
+
+            // Seleccionar la OT en el dropdown
+            const select = document.getElementById('ordenTrabajo');
+            if (select && data.ordenId) {
+                for (let i = 0; i < select.options.length; i++) {
+                    if (select.options[i].value === data.ordenId || select.options[i].textContent.includes(data.ordenNumero)) {
+                        select.selectedIndex = i;
+                        select.dispatchEvent(new Event('change'));
+                        break;
+                    }
+                }
+            }
+
+            // Restaurar campos con un pequeño delay para que el formulario se muestre
+            setTimeout(() => {
+                const form = document.getElementById('formImpresion');
+                if (!form) return;
+
+                Object.entries(data.campos || {}).forEach(([id, value]) => {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    if (el.type === 'checkbox' || el.type === 'radio') {
+                        el.checked = value;
+                    } else {
+                        el.value = value;
+                    }
+                });
+
+                // Restaurar timer
+                if (data.timer) {
+                    this._timer = { ...data.timer, interval: null };
+                    if (this._timer.estado === 'corriendo' && this._timer.inicio) {
+                        this._timer.interval = setInterval(() => this.timerTick(), 1000);
+                    }
+                    this.timerUpdateUI();
+                    this.timerTick();
+                }
+
+                console.log('[Impresion] Datos restaurados del autosave');
+                if (typeof showToast === 'function') showToast('Datos recuperados de la sesion anterior', 'info');
+            }, 500);
+
+        } catch (e) {
+            console.warn('[Impresion] Error restaurando autosave:', e);
+            localStorage.removeItem(this.AUTOSAVE_KEY);
+        }
+    },
+
+    /**
+     * Limpia el autosave (al guardar exitosamente o al limpiar)
+     */
+    limpiarAutosave: function() {
+        localStorage.removeItem(this.AUTOSAVE_KEY);
+    },
+
     /**
      * Limpia el formulario
      */
     limpiar: function() {
+        this.limpiarAutosave();
         const form = document.getElementById('formImpresion');
         if (form) {
             form.reset();

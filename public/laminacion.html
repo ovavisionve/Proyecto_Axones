@@ -388,84 +388,59 @@
                         </div>
                     </div>
 
-                    <!-- CAPSULA: Temporizadores de Produccion -->
+                    <!-- CAPSULA: Temporizador de Produccion -->
                     <div class="form-section">
                         <div class="form-section-title">
-                            <i class="bi bi-stopwatch me-1"></i> Temporizadores de Produccion
+                            <i class="bi bi-stopwatch me-1"></i> Temporizador de Produccion
                         </div>
-                        <!-- Temporizador 1: Preparacion -->
-                        <div class="p-2 mb-2" style="background: #fff3cd; border-radius: 6px; border-left: 4px solid #ffc107;">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <label class="form-label small fw-bold mb-0 text-warning">
-                                    <i class="bi bi-gear me-1"></i>PREPARACION
-                                    <small class="text-muted">(inicio turno hasta maquina lista)</small>
-                                </label>
-                                <span class="badge bg-secondary" id="timerPrepEstado">Pendiente</span>
-                            </div>
-                            <div class="d-flex align-items-center gap-2">
-                                <span class="fw-bold" id="timerPrepDisplay" style="font-size:1.3rem; font-family:monospace;">00:00:00</span>
-                                <button type="button" class="btn btn-sm btn-success" id="btnPrepPlay" title="Iniciar"><i class="bi bi-play-fill"></i></button>
-                                <button type="button" class="btn btn-sm btn-warning" id="btnPrepPause" title="Pausar" disabled><i class="bi bi-pause-fill"></i></button>
-                                <button type="button" class="btn btn-sm btn-primary" id="btnPrepStop" title="Maquina lista" disabled><i class="bi bi-check-lg"></i> Listo</button>
-                            </div>
-                            <div id="timerPrepAlerta" class="mt-1" style="display:none;">
-                                <div class="alert alert-danger py-1 px-2 mb-0 small">
-                                    <i class="bi bi-exclamation-triangle me-1"></i>Preparacion excede 1 hora.
-                                    <input type="text" class="form-control form-control-sm mt-1" id="timerPrepMotivo" placeholder="Indique el motivo del retraso...">
-                                </div>
-                            </div>
-                        </div>
-                        <!-- Temporizador 2: Produccion -->
-                        <div class="p-2 mb-2" style="background: #e9d5ff; border-radius: 6px; border-left: 4px solid #6f42c1;">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <label class="form-label small fw-bold mb-0" style="color:#6f42c1;">
-                                    <i class="bi bi-layers me-1"></i>PRODUCCION
-                                    <small class="text-muted">(tiempo de laminacion)</small>
-                                </label>
+                        <div class="p-2" style="background: #f5f0ff; border-radius: 6px; border: 2px solid #6f42c1;">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
                                 <span class="badge bg-secondary" id="timerProdEstado">Pendiente</span>
                             </div>
-                            <div class="d-flex align-items-center gap-2">
-                                <span class="fw-bold" id="timerProdDisplay" style="font-size:1.3rem; font-family:monospace;">00:00:00</span>
-                                <button type="button" class="btn btn-sm btn-success" id="btnProdPlay" title="Arrancar"><i class="bi bi-play-fill"></i></button>
-                                <button type="button" class="btn btn-sm btn-warning" id="btnProdPause" title="Parada" disabled><i class="bi bi-pause-fill"></i> Parada</button>
-                                <button type="button" class="btn btn-sm btn-danger" id="btnProdStop" title="Fin produccion" disabled><i class="bi bi-stop-fill"></i> Fin</button>
+                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                <div>
+                                    <div class="fw-bold" id="timerProdDisplay" style="font-size:2rem; font-family:monospace; line-height:1;">00:00:00</div>
+                                    <small class="text-muted">Tiempo transcurrido</small>
+                                </div>
+                                <div class="d-flex flex-column gap-1">
+                                    <button type="button" class="btn btn-success" id="btnProdPlay"><i class="bi bi-play-fill me-1"></i> Iniciar</button>
+                                    <button type="button" class="btn btn-warning" id="btnProdPause" disabled><i class="bi bi-pause-fill me-1"></i> Pausar</button>
+                                    <button type="button" class="btn btn-danger" id="btnProdStop" disabled><i class="bi bi-stop-fill me-1"></i> Detener</button>
+                                </div>
                             </div>
-                            <div id="timerProdPausaForm" class="mt-1" style="display:none;">
-                                <div class="alert alert-warning py-1 px-2 mb-0 small">
-                                    <i class="bi bi-pause-circle me-1"></i>Motivo de parada:
+                            <div class="row g-2 mt-2">
+                                <div class="col-4">
+                                    <small class="text-muted d-block">Tiempo Muerto</small>
+                                    <span class="fw-bold text-danger" id="timerMuertoDisplay" style="font-size:1.1rem; font-family:monospace;">00:00:00</span>
+                                </div>
+                                <div class="col-4">
+                                    <small class="text-muted d-block">Tiempo Efectivo</small>
+                                    <span class="fw-bold text-success" id="timerEfectivoDisplay" style="font-size:1.1rem; font-family:monospace;">00:00:00</span>
+                                </div>
+                                <div class="col-4">
+                                    <small class="text-muted d-block">Kg/Hora (estimado)</small>
+                                    <span class="fw-bold" id="timerKgHora" style="font-size:1.1rem;">0</span>
+                                </div>
+                            </div>
+                            <div id="timerProdPausaForm" class="mt-2" style="display:none;">
+                                <div class="alert alert-warning py-2 px-2 mb-0 small">
+                                    <i class="bi bi-pause-circle me-1"></i><strong>Registrar motivo de parada:</strong>
                                     <select class="form-select form-select-sm mt-1" id="timerProdPausaMotivo">
                                         <option value="">-- Seleccionar motivo --</option>
                                         <option>Cambio de bobina</option>
                                         <option>Ajuste de maquina</option>
                                         <option>Falla mecanica</option>
                                         <option>Falla electrica</option>
-                                        <option>Cambio de tinta</option>
-                                        <option>Limpieza de rodillos</option>
                                         <option>Problema de calidad</option>
                                         <option>Falta de material</option>
                                         <option>Almuerzo/Descanso</option>
                                         <option>Otro</option>
                                     </select>
-                                    <input type="text" class="form-control form-control-sm mt-1" id="timerProdPausaObs" placeholder="Observacion..." style="display:none;">
-                                    <button type="button" class="btn btn-sm btn-outline-warning mt-1" id="btnProdConfirmPause">Confirmar parada</button>
+                                    <input type="text" class="form-control form-control-sm mt-1" id="timerProdPausaObs" placeholder="Detalle..." style="display:none;">
+                                    <button type="button" class="btn btn-sm btn-outline-success mt-1" id="btnProdConfirmPause"><i class="bi bi-check-lg me-1"></i>Registrar y continuar</button>
                                 </div>
                             </div>
                             <div id="timerProdPausas" class="mt-1"></div>
-                        </div>
-                        <!-- Temporizador 3: Desmontaje -->
-                        <div class="p-2" style="background: #e2e3e5; border-radius: 6px; border-left: 4px solid #6c757d;">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <label class="form-label small fw-bold mb-0 text-secondary">
-                                    <i class="bi bi-wrench me-1"></i>DESMONTAJE
-                                    <small class="text-muted">(tiempo de desmontaje)</small>
-                                </label>
-                                <span class="badge bg-secondary" id="timerDesmEstado">Pendiente</span>
-                            </div>
-                            <div class="d-flex align-items-center gap-2">
-                                <span class="fw-bold" id="timerDesmDisplay" style="font-size:1.3rem; font-family:monospace;">00:00:00</span>
-                                <button type="button" class="btn btn-sm btn-success" id="btnDesmPlay" title="Iniciar desmontaje"><i class="bi bi-play-fill"></i></button>
-                                <button type="button" class="btn btn-sm btn-secondary" id="btnDesmStop" title="Fin desmontaje" disabled><i class="bi bi-check-lg"></i> Listo</button>
-                            </div>
                         </div>
                     </div>
 

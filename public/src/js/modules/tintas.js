@@ -158,6 +158,39 @@ const Tintas = {
         fila.querySelectorAll('input[type=number]').forEach(inp => {
             inp.addEventListener('input', () => this.calcularTotalesConsumo());
         });
+
+        // Auto-llenar campos al seleccionar tinta del datalist
+        const nombreInput = fila.querySelector('.tinta-nombre');
+        if (nombreInput) {
+            nombreInput.addEventListener('input', () => {
+                const val = nombreInput.value;
+                // Buscar en inventario
+                const inv = (this._tintasInv || []).find(t =>
+                    val.includes(t.nombre || t.color || '') || val.includes(t.id)
+                );
+                // Buscar en cementerio
+                const cem = !inv ? (this._tintasCem || []).find(t =>
+                    val.includes(t.nombre || t.color || '') || val.includes(t.id)
+                ) : null;
+
+                const found = inv || cem;
+                if (found) {
+                    const codigoEl = fila.querySelector('.tinta-codigo');
+                    const proveedorEl = fila.querySelector('.tinta-proveedor');
+                    const tipoEl = fila.querySelector('.tinta-tipo');
+                    const fuenteEl = fila.querySelector('.tinta-fuente');
+
+                    if (codigoEl) codigoEl.value = found.codigo || found.id || '';
+                    if (proveedorEl) proveedorEl.value = found.proveedor || found.proveedor_nombre || '';
+                    if (tipoEl) {
+                        const tipo = (found.tipo || '').toLowerCase();
+                        tipoEl.value = tipo.includes('superficie') ? 'superficie' : 'laminada';
+                    }
+                    if (fuenteEl) fuenteEl.value = cem ? 'cementerio' : 'original';
+                }
+            });
+        }
+
         tbody.appendChild(fila);
     },
 

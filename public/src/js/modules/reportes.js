@@ -141,6 +141,8 @@ const ReportesModule = {
             case 'impresion': this.renderTabProduccion(tc, 'impresion', this.prodImpresion); break;
             case 'laminacion': this.renderTabProduccion(tc, 'laminacion', this.prodLaminacion); break;
             case 'corte': this.renderTabProduccion(tc, 'corte', this.prodCorte); break;
+            case 'rechazado': this.renderTabRechazado(tc); break;
+            case 'tiempos': this.renderTabTiemposMuertos(tc); break;
             case 'graficos': this.renderGraficos(); break;
         }
     },
@@ -570,6 +572,163 @@ const ReportesModule = {
         const m = Math.floor((s % 3600) / 60);
         const sec = s % 60;
         return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+    },
+
+    // ==================== TAB MATERIAL RECHAZADO ====================
+    renderTabRechazado: async function(container) {
+        // Cargar reportes de rechazo desde sync_store + produccion
+        let rechazados = [];
+
+        // 1. Desde reportes de rechazo guardados
+        try {
+            const { data } = await AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_reportes_rechazo').single();
+            const reportes = data?.value ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+            reportes.forEach(r => {
+                if (r.datos && Array.isArray(r.datos)) {
+                    r.datos.forEach(d => {
+                        rechazados.push({
+                            ot: r.ordenTrabajo || '-',
+                            proveedor: d.proveedor || '-',
+                            referencia: d.referencia || '-',
+                            kg: parseFloat(d.kg) || 0,
+                            motivo: d.motivo || '-',
+                            fecha: d.fecha || r.timestamp?.split('T')[0] || '-',
+                            proceso: 'Reporte'
+                        });
+                    });
+                }
+            });
+        } catch (e) {}
+
+        // 2. Desde produccion_impresion y produccion_laminacion (devolucionRechazada en datos JSONB)
+        for (const tipo of ['impresion', 'laminacion']) {
+            const registros = tipo === 'impresion' ? this.prodImpresion : this.prodLaminacion;
+            (registros || []).forEach(reg => {
+                const datos = typeof reg.datos === 'string' ? JSON.parse(reg.datos) : (reg.datos || {});
+                const devRech = datos.devolucionRechazada || [];
+                devRech.forEach(d => {
+                    rechazados.push({
+                        ot: datos.ordenTrabajo || reg.numero_ot || '-',
+                        proveedor: d.proveedor || '-',
+                        referencia: d.referencia || '-',
+                        kg: parseFloat(d.kg) || 0,
+                        motivo: d.motivo || '-',
+                        fecha: d.fecha || reg.created_at?.split('T')[0] || '-',
+                        proceso: tipo.charAt(0).toUpperCase() + tipo.slice(1)
+                    });
+                });
+            });
+        }
+
+        if (rechazados.length === 0) {
+            container.innerHTML = '<div class="text-center text-muted py-5"><i class="bi bi-check-circle me-2"></i>No hay material rechazado registrado</div>';
+            return;
+        }
+
+        // Agrupar por proveedor para resumen
+        const porProveedor = {};
+        rechazados.forEach(r => {
+            if (!porProveedor[r.proveedor]) porProveedor[r.proveedor] = { kg: 0, count: 0 };
+            porProveedor[r.proveedor].kg += r.kg;
+            porProveedor[r.proveedor].count++;
+        });
+
+        let resumenHTML = '<div class="row g-2 mb-3">';
+        Object.entries(porProveedor).sort((a, b) => b[1].kg - a[1].kg).forEach(([prov, data]) => {
+            resumenHTML += `<div class="col-auto"><span class="badge bg-danger">${prov}: ${data.kg.toFixed(1)} Kg (${data.count} bobinas)</span></div>`;
+        });
+        resumenHTML += '</div>';
+
+        let html = resumenHTML + `<div class="table-responsive"><table class="table table-hover table-sm">
+            <thead class="table-danger"><tr>
+                <th>Fecha</th><th>OT</th><th>Proceso</th><th>Proveedor</th><th>Ref. Bobina</th><th class="text-end">Kg</th><th>Motivo</th>
+            </tr></thead><tbody>`;
+        const totalKg = rechazados.reduce((s, r) => s + r.kg, 0);
+        rechazados.sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')).forEach(r => {
+            html += `<tr><td>${r.fecha}</td><td><strong>${r.ot}</strong></td><td><span class="badge bg-info">${r.proceso}</span></td><td>${r.proveedor}</td><td>${r.referencia}</td><td class="text-end">${r.kg.toFixed(1)}</td><td>${r.motivo}</td></tr>`;
+        });
+        html += `</tbody><tfoot><tr class="table-danger"><td colspan="5" class="fw-bold text-end">Total Rechazado:</td><td class="fw-bold text-end">${totalKg.toFixed(1)} Kg</td><td></td></tr></tfoot></table></div>`;
+        container.innerHTML = html;
+    },
+
+    // ==================== TAB TIEMPOS MUERTOS ====================
+    renderTabTiemposMuertos: function(container) {
+        // Recopilar paradas de todos los registros de produccion
+        let paradas = [];
+
+        for (const tipo of ['impresion', 'laminacion', 'corte']) {
+            const registros = tipo === 'impresion' ? this.prodImpresion : tipo === 'laminacion' ? this.prodLaminacion : this.prodCorte;
+            (registros || []).forEach(reg => {
+                const datos = typeof reg.datos === 'string' ? JSON.parse(reg.datos) : (reg.datos || {});
+                const ot = datos.ordenTrabajo || reg.numero_ot || '-';
+                const tiempoTotal = datos.tiempoTotal || 0;
+                const tiempoMuerto = datos.tiempoMuerto || 0;
+                const tiempoEfectivo = datos.tiempoEfectivo || 0;
+
+                // Paradas individuales
+                const pausas = datos.paradasProduccion || [];
+                pausas.forEach(p => {
+                    paradas.push({
+                        ot: ot,
+                        proceso: tipo.charAt(0).toUpperCase() + tipo.slice(1),
+                        fecha: p.timestamp ? p.timestamp.split('T')[0] : (reg.created_at?.split('T')[0] || '-'),
+                        hora: p.timestamp ? new Date(p.timestamp).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }) : '-',
+                        motivo: p.motivo || '-',
+                        duracion: p.duracion || 0,
+                        tiempoTotal: tiempoTotal,
+                        tiempoMuerto: tiempoMuerto,
+                        tiempoEfectivo: tiempoEfectivo
+                    });
+                });
+
+                // Si no hay paradas individuales pero si hay tiempoMuerto
+                if (pausas.length === 0 && tiempoMuerto > 0) {
+                    paradas.push({
+                        ot: ot,
+                        proceso: tipo.charAt(0).toUpperCase() + tipo.slice(1),
+                        fecha: reg.created_at?.split('T')[0] || '-',
+                        hora: '-',
+                        motivo: 'Sin detalle',
+                        duracion: tiempoMuerto,
+                        tiempoTotal: tiempoTotal,
+                        tiempoMuerto: tiempoMuerto,
+                        tiempoEfectivo: tiempoEfectivo
+                    });
+                }
+            });
+        }
+
+        if (paradas.length === 0) {
+            container.innerHTML = '<div class="text-center text-muted py-5"><i class="bi bi-clock me-2"></i>No hay tiempos muertos registrados</div>';
+            return;
+        }
+
+        // Resumen por motivo
+        const porMotivo = {};
+        paradas.forEach(p => {
+            const m = p.motivo.split(':')[0].trim();
+            if (!porMotivo[m]) porMotivo[m] = { duracion: 0, count: 0 };
+            porMotivo[m].duracion += p.duracion;
+            porMotivo[m].count++;
+        });
+
+        let resumenHTML = '<div class="row g-2 mb-3">';
+        Object.entries(porMotivo).sort((a, b) => b[1].duracion - a[1].duracion).forEach(([motivo, data]) => {
+            resumenHTML += `<div class="col-auto"><span class="badge bg-warning text-dark">${motivo}: ${this.fmtTiempo(data.duracion)} (${data.count}x)</span></div>`;
+        });
+        const totalMuerto = paradas.reduce((s, p) => s + p.duracion, 0);
+        resumenHTML += `<div class="col-auto"><span class="badge bg-danger">Total Tiempo Muerto: ${this.fmtTiempo(totalMuerto)}</span></div>`;
+        resumenHTML += '</div>';
+
+        let html = resumenHTML + `<div class="table-responsive"><table class="table table-hover table-sm">
+            <thead class="table-warning"><tr>
+                <th>Fecha</th><th>OT</th><th>Proceso</th><th>Hora</th><th>Motivo</th><th class="text-end">Duracion</th>
+            </tr></thead><tbody>`;
+        paradas.sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')).forEach(p => {
+            html += `<tr><td>${p.fecha}</td><td><strong>${p.ot}</strong></td><td><span class="badge bg-info">${p.proceso}</span></td><td>${p.hora}</td><td>${p.motivo}</td><td class="text-end">${this.fmtTiempo(p.duracion)}</td></tr>`;
+        });
+        html += `</tbody></table></div>`;
+        container.innerHTML = html;
     }
 };
 

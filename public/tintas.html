@@ -315,34 +315,37 @@
                                 </div>
                             </div>
 
-                            <!-- Tintas de Laminacion -->
+                            <!-- Consumo de Tintas (tabla unificada) -->
                             <div class="form-section">
                                 <div class="form-section-title title-laminacion">
-                                    <i class="bi bi-droplet-fill me-1"></i> Tintas Laminada (Kg)
+                                    <i class="bi bi-droplet-fill me-1"></i> Consumo de Tintas (Kg)
                                 </div>
                                 <div class="table-responsive">
                                     <table class="table table-sm table-bordered mb-1">
-                                        <thead class="table-primary">
+                                        <thead style="background: #e9d5ff;">
                                             <tr>
-                                                <th style="width:45%">Color / Nombre</th>
-                                                <th style="width:15%">Fuente</th>
-                                                <th style="width:20%">Kg Usados</th>
-                                                <th style="width:17%">Kg Restante</th>
+                                                <th style="width:18%">Codigo</th>
+                                                <th style="width:20%">Color</th>
+                                                <th style="width:17%">Proveedor</th>
+                                                <th style="width:12%">Tipo</th>
+                                                <th style="width:10%">Fuente</th>
+                                                <th style="width:10%">Kg Usado</th>
+                                                <th style="width:10%">Kg Rest.</th>
                                                 <th style="width:3%"></th>
                                             </tr>
                                         </thead>
-                                        <tbody id="bodyTintasLam"></tbody>
+                                        <tbody id="bodyConsumoTintas"></tbody>
                                         <tfoot>
-                                            <tr class="table-primary">
-                                                <td colspan="2" class="fw-bold text-end">Total Laminada:</td>
-                                                <td class="fw-bold" id="totalLaminacion">0.00</td>
-                                                <td class="fw-bold" id="totalRestanteLam">0.00</td>
+                                            <tr style="background: #e9d5ff;">
+                                                <td colspan="5" class="fw-bold text-end">Total:</td>
+                                                <td class="fw-bold" id="totalTintasUsadas">0.00</td>
+                                                <td class="fw-bold" id="totalTintasRestante">0.00</td>
                                                 <td></td>
                                             </tr>
                                         </tfoot>
                                     </table>
                                 </div>
-                                <button type="button" class="btn btn-sm btn-outline-primary" id="btnAgregarTintaLam">
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="btnAgregarTintaConsumo">
                                     <i class="bi bi-plus-circle me-1"></i>Agregar tinta
                                 </button>
                             </div>
@@ -350,37 +353,6 @@
 
                         <!-- Columna Derecha -->
                         <div class="col-lg-6">
-                            <!-- Tintas de Superficie -->
-                            <div class="form-section">
-                                <div class="form-section-title title-superficie">
-                                    <i class="bi bi-droplet me-1"></i> Tinta Superficie (Kg)
-                                </div>
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-bordered mb-1">
-                                        <thead class="table-warning">
-                                            <tr>
-                                                <th style="width:45%">Color / Nombre</th>
-                                                <th style="width:15%">Fuente</th>
-                                                <th style="width:20%">Kg Usados</th>
-                                                <th style="width:17%">Kg Restante</th>
-                                                <th style="width:3%"></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="bodyTintasSup"></tbody>
-                                        <tfoot>
-                                            <tr class="table-warning">
-                                                <td colspan="2" class="fw-bold text-end">Total Superficie:</td>
-                                                <td class="fw-bold" id="totalSuperficie">0.00</td>
-                                                <td class="fw-bold" id="totalRestanteSup">0.00</td>
-                                                <td></td>
-                                            </tr>
-                                        </tfoot>
-                                    </table>
-                                </div>
-                                <button type="button" class="btn btn-sm btn-outline-warning" id="btnAgregarTintaSup">
-                                    <i class="bi bi-plus-circle me-1"></i>Agregar tinta
-                                </button>
-                            </div>
 
                             <!-- Solventes -->
                             <div class="form-section">

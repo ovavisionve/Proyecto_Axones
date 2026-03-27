@@ -65,7 +65,7 @@ const Impresion = {
             <div id="controlTiempoImpresion" class="card mb-3 border-primary" style="display: none;">
                 <div class="card-header bg-primary text-white py-2">
                     <div class="d-flex align-items-center justify-content-between">
-                        <span><i class="bi bi-stopwatch me-2"></i>Control de Tiempo - Impresion</span>
+                        <span><i class="bi bi-stopwatch me-2"></i>Tiempo de Arranque</span>
                         <span id="ordenActivaImpresion" class="badge bg-light text-primary">Sin orden</span>
                     </div>
                 </div>
@@ -1513,6 +1513,7 @@ const Impresion = {
             tiempoMuerto: this._timer.tiempoMuerto + (this._timer.estado === 'pausado' && this._timer.pausaInicio ? (Date.now() - this._timer.pausaInicio) : 0),
             tiempoEfectivo: this._timer.inicio ? Math.max(0, (Date.now() - this._timer.inicio) - this._timer.tiempoMuerto) : 0,
             paradasProduccion: this._timer.pausas,
+            tiempoDesmontaje: this._timerDesm.total || (this._timerDesm.inicio ? (Date.now() - this._timerDesm.inicio) : 0),
 
             // Colores y Anilox (registro del operador)
             coloresAnilox: this.recopilarColoresAnilox(),
@@ -1958,6 +1959,9 @@ const Impresion = {
     // Estado de los 3 temporizadores locales
     // Timer de produccion: el reloj NUNCA se detiene al pausar.
     // Pausa solo registra motivo. Tiempo Muerto = suma de pausas. Efectivo = Total - Muerto.
+    // Timer de desmontaje (simple: play/stop)
+    _timerDesm: { estado: 'pendiente', inicio: null, total: 0, interval: null },
+
     _timer: {
         estado: 'pendiente', // pendiente, corriendo, pausado, detenido
         inicio: null,        // timestamp de cuando se inicio
@@ -2029,6 +2033,27 @@ const Impresion = {
             if (self._timer.interval) { clearInterval(self._timer.interval); self._timer.interval = null; }
             self.timerTick(); // ultima actualizacion
             self.timerUpdateUI();
+        });
+
+        // --- DESMONTAJE (simple play/stop) ---
+        document.getElementById('btnDesmPlay')?.addEventListener('click', () => {
+            if (self._timerDesm.estado === 'detenido') return;
+            self._timerDesm.estado = 'corriendo';
+            self._timerDesm.inicio = Date.now();
+            document.getElementById('btnDesmPlay').disabled = true;
+            document.getElementById('btnDesmStop').disabled = false;
+            if (self._timerDesm.interval) clearInterval(self._timerDesm.interval);
+            self._timerDesm.interval = setInterval(() => {
+                const el = document.getElementById('timerDesmDisplay');
+                if (el) el.textContent = self.formatearTiempoMs(Date.now() - self._timerDesm.inicio);
+            }, 1000);
+        });
+        document.getElementById('btnDesmStop')?.addEventListener('click', () => {
+            self._timerDesm.total = Date.now() - self._timerDesm.inicio;
+            self._timerDesm.estado = 'detenido';
+            if (self._timerDesm.interval) { clearInterval(self._timerDesm.interval); self._timerDesm.interval = null; }
+            document.getElementById('btnDesmPlay').disabled = true;
+            document.getElementById('btnDesmStop').disabled = true;
         });
     },
 

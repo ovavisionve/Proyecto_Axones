@@ -98,15 +98,29 @@ const Tintas = {
         });
     },
 
-    /** Pre-llena campos al seleccionar OT */
+    /** Pre-llena campos al seleccionar OT - auto-llena resumen read-only */
     precargarOT: function(otJson) {
-        if (!otJson) return;
+        const resumen = document.getElementById('resumenOTTintas');
+        const badge = document.getElementById('consumoEstadoOT');
+        if (!otJson) {
+            if (resumen) resumen.style.display = 'none';
+            if (badge) { badge.textContent = 'Sin OT'; badge.className = 'badge bg-secondary d-block py-2'; }
+            return;
+        }
         try {
             const ot = JSON.parse(otJson);
-            const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-            set('consumoCliente', ot.cliente);
-            set('consumoProducto', ot.producto || ot.nombreProducto);
-            set('consumoKg', ot.pedidoKg || ot.kgPedidos);
+            this._ordenCargada = ot;
+            const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val || '-'; };
+            setText('consumoCliente', ot.cliente);
+            setText('consumoProducto', ot.producto || ot.nombreProducto);
+            setText('consumoKg', ot.pedidoKg || ot.kgPedidos);
+            setText('consumoMaquina', ot.maquina);
+            setText('consumoMaterial', ot.tipoMaterial || ot.estructuraMaterial);
+            if (resumen) resumen.style.display = '';
+            if (badge) {
+                badge.textContent = ot.nombreOT || ot.numeroOrden || ot.id;
+                badge.className = 'badge bg-success d-block py-2';
+            }
         } catch(e) { console.error('Error precargando OT:', e); }
     },
 
@@ -256,12 +270,12 @@ const Tintas = {
             timestamp: new Date().toISOString(),
             fecha: document.getElementById('consumoFecha')?.value || '',
             ordenTrabajo: document.getElementById('consumoOT')?.value || '',
-            kgProduccion: parseFloat(document.getElementById('consumoKg')?.value) || 0,
-            cliente: document.getElementById('consumoCliente')?.value || '',
-            producto: document.getElementById('consumoProducto')?.value || '',
-            maquina: document.getElementById('consumoMaquina')?.value || '',
-            turno: document.getElementById('consumoTurno')?.value || '',
-            status: document.getElementById('consumoStatus')?.value || '',
+            kgProduccion: parseFloat(this._ordenCargada?.pedidoKg || this._ordenCargada?.kgPedidos) || 0,
+            cliente: this._ordenCargada?.cliente || '',
+            producto: this._ordenCargada?.producto || this._ordenCargada?.nombreProducto || '',
+            maquina: this._ordenCargada?.maquina || '',
+            turno: this._ordenCargada?.turno || '',
+            material: this._ordenCargada?.tipoMaterial || '',
             tintasLaminacion: tintasLam,
             totalLaminacion: parseFloat(document.getElementById('totalLaminacion')?.textContent) || 0,
             tintasSuperficie: tintasSup,

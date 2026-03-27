@@ -767,6 +767,9 @@ const Laminacion = {
             // Descontar materiales del inventario (adhesivo, catalizador, acetato)
             await this.descontarInventarioLaminacion(datos);
 
+            // Registrar bobinas rechazadas en inventario de bobinas malas
+            await this.registrarBobinasMalas(datos);
+
             const porcentajeRefil = parseFloat(datos.porcentajeRefil) || 0;
             const umbral = CONFIG.UMBRALES_REFIL.default;
             if (porcentajeRefil > umbral.maximo) {
@@ -1062,6 +1065,31 @@ const Laminacion = {
         } catch (error) {
             console.warn('Error al descontar inventario de laminacion:', error);
         }
+    },
+
+    /**
+     * Registra bobinas rechazadas en inventario de bobinas malas
+     */
+    registrarBobinasMalas: async function(datos) {
+        if (!datos.devolucionRechazada || datos.devolucionRechazada.length === 0) return;
+        if (!AxonesDB.isReady()) return;
+        try {
+            const { data: existing } = await AxonesDB.client.from('sync_store')
+                .select('value').eq('key', 'axones_bobinas_malas').single();
+            const bobinas = existing?.value ? JSON.parse(existing.value) : [];
+            datos.devolucionRechazada.forEach(r => {
+                bobinas.push({
+                    id: 'BM_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                    fecha: r.fecha || new Date().toISOString().split('T')[0],
+                    proveedor: r.proveedor || '', referencia: r.referencia || '',
+                    kg: parseFloat(r.kg) || 0, motivo: r.motivo || '',
+                    ordenTrabajo: datos.ordenTrabajo || '', proceso: 'laminacion',
+                    estado: 'disponible', registradoPor: datos.registradoPorNombre || ''
+                });
+            });
+            await AxonesDB.client.from('sync_store')
+                .upsert({ key: 'axones_bobinas_malas', value: JSON.stringify(bobinas) });
+        } catch (e) { console.warn('Error registrando bobinas malas:', e); }
     },
 
     /**

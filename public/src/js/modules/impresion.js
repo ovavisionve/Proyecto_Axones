@@ -1508,12 +1508,11 @@ const Impresion = {
             totalScrap: parseFloat(document.getElementById('totalScrap')?.value) || 0,
             porcentajeScrap: parseFloat(document.getElementById('porcentajeRefil')?.value) || 0,
 
-            // Tiempos (3 temporizadores)
-            tiempoPreparacion: this._timers.preparacion.total,
-            tiempoProduccion: this._timers.produccion.total + (this._timers.produccion.estado === 'en_progreso' ? (Date.now() - this._timers.produccion.inicio) : 0),
-            tiempoDesmontaje: this._timers.desmontaje.total,
-            paradasProduccion: this._timers.produccion.pausas,
-            motivoPrepRetraso: document.getElementById('timerPrepMotivo')?.value || '',
+            // Tiempos (temporizador de produccion)
+            tiempoTotal: this._timer.inicio ? (Date.now() - this._timer.inicio) : 0,
+            tiempoMuerto: this._timer.tiempoMuerto + (this._timer.estado === 'pausado' && this._timer.pausaInicio ? (Date.now() - this._timer.pausaInicio) : 0),
+            tiempoEfectivo: this._timer.inicio ? Math.max(0, (Date.now() - this._timer.inicio) - this._timer.tiempoMuerto) : 0,
+            paradasProduccion: this._timer.pausas,
 
             // Colores y Anilox (registro del operador)
             coloresAnilox: this.recopilarColoresAnilox(),
@@ -1957,173 +1956,130 @@ const Impresion = {
      * Configura calculo automatico del tiempo de preparacion
      */
     // Estado de los 3 temporizadores locales
-    _timers: {
-        preparacion: { estado: 'pendiente', inicio: null, total: 0, interval: null, pausas: [] },
-        produccion: { estado: 'pendiente', inicio: null, total: 0, interval: null, pausas: [] },
-        desmontaje: { estado: 'pendiente', inicio: null, total: 0, interval: null, pausas: [] }
+    // Timer de produccion: el reloj NUNCA se detiene al pausar.
+    // Pausa solo registra motivo. Tiempo Muerto = suma de pausas. Efectivo = Total - Muerto.
+    _timer: {
+        estado: 'pendiente', // pendiente, corriendo, pausado, detenido
+        inicio: null,        // timestamp de cuando se inicio
+        tiempoMuerto: 0,     // ms acumulado de pausas
+        pausaInicio: null,   // timestamp de cuando empezo la pausa actual
+        pausas: [],          // [{timestamp, motivo, duracion}]
+        interval: null
     },
 
-    /**
-     * Inicializa los 3 temporizadores (Preparacion, Produccion, Desmontaje)
-     */
     initTemporizadores: function() {
         const self = this;
 
-        // --- PREPARACION ---
-        const btnPrepPlay = document.getElementById('btnPrepPlay');
-        const btnPrepPause = document.getElementById('btnPrepPause');
-        const btnPrepStop = document.getElementById('btnPrepStop');
-        if (btnPrepPlay) btnPrepPlay.addEventListener('click', () => self.timerPlay('preparacion'));
-        if (btnPrepPause) btnPrepPause.addEventListener('click', () => self.timerPause('preparacion'));
-        if (btnPrepStop) btnPrepStop.addEventListener('click', () => self.timerStop('preparacion'));
-
-        // --- PRODUCCION ---
-        const btnProdPlay = document.getElementById('btnProdPlay');
-        const btnProdPause = document.getElementById('btnProdPause');
-        const btnProdStop = document.getElementById('btnProdStop');
-        if (btnProdPlay) btnProdPlay.addEventListener('click', () => {
+        // Iniciar
+        document.getElementById('btnProdPlay')?.addEventListener('click', () => {
+            if (self._timer.estado === 'detenido') return;
+            self._timer.estado = 'corriendo';
+            self._timer.inicio = self._timer.inicio || Date.now();
             document.getElementById('timerProdPausaForm').style.display = 'none';
-            self.timerPlay('produccion');
+            self.timerUpdateUI();
+            if (self._timer.interval) clearInterval(self._timer.interval);
+            self._timer.interval = setInterval(() => self.timerTick(), 1000);
         });
-        if (btnProdPause) btnProdPause.addEventListener('click', () => {
-            // Mostrar formulario de motivo (obligatorio)
-            document.getElementById('timerProdPausaForm').style.display = '';
-        });
-        if (btnProdStop) btnProdStop.addEventListener('click', () => self.timerStop('produccion'));
 
-        // Confirmar pausa con motivo
-        const btnConfirm = document.getElementById('btnProdConfirmPause');
-        if (btnConfirm) btnConfirm.addEventListener('click', () => {
+        // Pausar - muestra formulario pero el reloj SIGUE
+        document.getElementById('btnProdPause')?.addEventListener('click', () => {
+            if (self._timer.estado !== 'corriendo') return;
+            self._timer.estado = 'pausado';
+            self._timer.pausaInicio = Date.now();
+            document.getElementById('timerProdPausaForm').style.display = '';
+            self.timerUpdateUI();
+            // El interval SIGUE corriendo - el reloj no se detiene
+        });
+
+        // Confirmar motivo de pausa -> registrar y volver a corriendo
+        document.getElementById('btnProdConfirmPause')?.addEventListener('click', () => {
             const motivo = document.getElementById('timerProdPausaMotivo')?.value;
             if (!motivo) { alert('Seleccione un motivo de parada'); return; }
             const obs = document.getElementById('timerProdPausaObs')?.value || '';
-            self.timerPause('produccion', motivo + (obs ? ': ' + obs : ''));
+            const duracion = Date.now() - (self._timer.pausaInicio || Date.now());
+            self._timer.tiempoMuerto += duracion;
+            self._timer.pausas.push({
+                timestamp: new Date(self._timer.pausaInicio).toISOString(),
+                motivo: motivo + (obs ? ': ' + obs : ''),
+                duracion: duracion
+            });
+            self._timer.estado = 'corriendo';
+            self._timer.pausaInicio = null;
             document.getElementById('timerProdPausaForm').style.display = 'none';
             document.getElementById('timerProdPausaMotivo').value = '';
             document.getElementById('timerProdPausaObs').value = '';
+            self.timerUpdateUI();
+            self.renderPausasProduccion();
         });
 
-        // Mostrar campo "Otro" cuando seleccionan Otro
-        const motivoSelect = document.getElementById('timerProdPausaMotivo');
-        if (motivoSelect) {
-            motivoSelect.addEventListener('change', () => {
-                const obsInput = document.getElementById('timerProdPausaObs');
-                if (obsInput) obsInput.style.display = motivoSelect.value === 'Otro' ? '' : 'none';
-            });
-        }
+        // "Otro" motivo
+        document.getElementById('timerProdPausaMotivo')?.addEventListener('change', function() {
+            const o = document.getElementById('timerProdPausaObs');
+            if (o) o.style.display = this.value === 'Otro' ? '' : 'none';
+        });
 
-        // --- DESMONTAJE ---
-        const btnDesmPlay = document.getElementById('btnDesmPlay');
-        const btnDesmStop = document.getElementById('btnDesmStop');
-        if (btnDesmPlay) btnDesmPlay.addEventListener('click', () => self.timerPlay('desmontaje'));
-        if (btnDesmStop) btnDesmStop.addEventListener('click', () => self.timerStop('desmontaje'));
+        // Detener
+        document.getElementById('btnProdStop')?.addEventListener('click', () => {
+            // Si estaba pausado, registrar ultima pausa
+            if (self._timer.estado === 'pausado' && self._timer.pausaInicio) {
+                self._timer.tiempoMuerto += Date.now() - self._timer.pausaInicio;
+                self._timer.pausas.push({ timestamp: new Date(self._timer.pausaInicio).toISOString(), motivo: 'Fin de produccion', duracion: Date.now() - self._timer.pausaInicio });
+            }
+            self._timer.estado = 'detenido';
+            if (self._timer.interval) { clearInterval(self._timer.interval); self._timer.interval = null; }
+            self.timerTick(); // ultima actualizacion
+            self.timerUpdateUI();
+        });
     },
 
-    timerPlay: function(tipo) {
-        const t = this._timers[tipo];
-        if (t.estado === 'completado') return;
-        t.estado = 'en_progreso';
-        t.inicio = Date.now();
+    timerTick: function() {
+        const t = this._timer;
+        if (!t.inicio) return;
+        const tiempoTotal = Date.now() - t.inicio;
+        const tiempoMuerto = t.tiempoMuerto + (t.estado === 'pausado' && t.pausaInicio ? (Date.now() - t.pausaInicio) : 0);
+        const tiempoEfectivo = Math.max(0, tiempoTotal - tiempoMuerto);
 
-        // Actualizar UI
-        this.timerUpdateUI(tipo);
+        const elTotal = document.getElementById('timerProdDisplay');
+        const elMuerto = document.getElementById('timerMuertoDisplay');
+        const elEfectivo = document.getElementById('timerEfectivoDisplay');
+        const elKgH = document.getElementById('timerKgHora');
 
-        // Iniciar interval
-        if (t.interval) clearInterval(t.interval);
-        t.interval = setInterval(() => this.timerTick(tipo), 1000);
-    },
+        if (elTotal) elTotal.textContent = this.formatearTiempoMs(tiempoTotal);
+        if (elMuerto) elMuerto.textContent = this.formatearTiempoMs(tiempoMuerto);
+        if (elEfectivo) elEfectivo.textContent = this.formatearTiempoMs(tiempoEfectivo);
 
-    timerPause: function(tipo, motivo) {
-        const t = this._timers[tipo];
-        if (t.estado !== 'en_progreso') return;
-        const sesion = Date.now() - t.inicio;
-        t.total += sesion;
-        t.estado = 'pausado';
-        t.pausas.push({ timestamp: new Date().toISOString(), duracion: sesion, motivo: motivo || '' });
-        if (t.interval) { clearInterval(t.interval); t.interval = null; }
-
-        this.timerUpdateUI(tipo);
-
-        // Renderizar lista de pausas (solo produccion)
-        if (tipo === 'produccion') this.renderPausasProduccion();
-    },
-
-    timerStop: function(tipo) {
-        const t = this._timers[tipo];
-        if (t.estado === 'en_progreso') {
-            t.total += Date.now() - t.inicio;
-        }
-        t.estado = 'completado';
-        if (t.interval) { clearInterval(t.interval); t.interval = null; }
-
-        this.timerUpdateUI(tipo);
-
-        // Alerta si preparacion > 1 hora
-        if (tipo === 'preparacion' && t.total > 3600000) {
-            document.getElementById('timerPrepAlerta').style.display = '';
+        // Kg/hora estimado basado en peso total de salida y tiempo efectivo
+        if (elKgH && tiempoEfectivo > 60000) {
+            const pesoTotal = parseFloat(document.getElementById('pesoTotal')?.value) || 0;
+            const horas = tiempoEfectivo / 3600000;
+            elKgH.textContent = horas > 0 ? (pesoTotal / horas).toFixed(0) : '0';
         }
     },
 
-    timerTick: function(tipo) {
-        const t = this._timers[tipo];
-        const current = t.total + (t.estado === 'en_progreso' ? (Date.now() - t.inicio) : 0);
-        const display = this.formatearTiempoMs(current);
-
-        const ids = { preparacion: 'timerPrepDisplay', produccion: 'timerProdDisplay', desmontaje: 'timerDesmDisplay' };
-        const el = document.getElementById(ids[tipo]);
-        if (el) el.textContent = display;
-
-        // Alerta si preparacion pasa de 1 hora
-        if (tipo === 'preparacion' && current > 3600000) {
-            document.getElementById('timerPrepAlerta').style.display = '';
-        }
-    },
-
-    timerUpdateUI: function(tipo) {
-        const t = this._timers[tipo];
-        const badgeIds = { preparacion: 'timerPrepEstado', produccion: 'timerProdEstado', desmontaje: 'timerDesmEstado' };
-        const badge = document.getElementById(badgeIds[tipo]);
+    timerUpdateUI: function() {
+        const t = this._timer;
+        const badge = document.getElementById('timerProdEstado');
         if (badge) {
-            const labels = { pendiente: 'Pendiente', en_progreso: 'En progreso', pausado: 'Pausado', completado: 'Completado' };
-            const colors = { pendiente: 'bg-secondary', en_progreso: 'bg-success', pausado: 'bg-warning text-dark', completado: 'bg-primary' };
+            const labels = { pendiente: 'Pendiente', corriendo: 'En Produccion', pausado: 'Parada', detenido: 'Detenido' };
+            const colors = { pendiente: 'bg-secondary', corriendo: 'bg-success', pausado: 'bg-warning text-dark', detenido: 'bg-primary' };
             badge.textContent = labels[t.estado] || t.estado;
             badge.className = 'badge ' + (colors[t.estado] || 'bg-secondary');
         }
-
-        // Botones preparacion
-        if (tipo === 'preparacion') {
-            const play = document.getElementById('btnPrepPlay');
-            const pause = document.getElementById('btnPrepPause');
-            const stop = document.getElementById('btnPrepStop');
-            if (play) play.disabled = t.estado === 'en_progreso' || t.estado === 'completado';
-            if (pause) pause.disabled = t.estado !== 'en_progreso';
-            if (stop) stop.disabled = t.estado !== 'en_progreso' && t.estado !== 'pausado';
-        }
-        // Botones produccion
-        if (tipo === 'produccion') {
-            const play = document.getElementById('btnProdPlay');
-            const pause = document.getElementById('btnProdPause');
-            const stop = document.getElementById('btnProdStop');
-            if (play) play.disabled = t.estado === 'en_progreso' || t.estado === 'completado';
-            if (pause) pause.disabled = t.estado !== 'en_progreso';
-            if (stop) stop.disabled = t.estado === 'pendiente' || t.estado === 'completado';
-        }
-        // Botones desmontaje
-        if (tipo === 'desmontaje') {
-            const play = document.getElementById('btnDesmPlay');
-            const stop = document.getElementById('btnDesmStop');
-            if (play) play.disabled = t.estado === 'en_progreso' || t.estado === 'completado';
-            if (stop) stop.disabled = t.estado !== 'en_progreso';
-        }
+        const play = document.getElementById('btnProdPlay');
+        const pause = document.getElementById('btnProdPause');
+        const stop = document.getElementById('btnProdStop');
+        if (play) play.disabled = t.estado === 'corriendo' || t.estado === 'detenido';
+        if (pause) pause.disabled = t.estado !== 'corriendo';
+        if (stop) stop.disabled = t.estado === 'pendiente' || t.estado === 'detenido';
     },
 
     renderPausasProduccion: function() {
         const container = document.getElementById('timerProdPausas');
         if (!container) return;
-        const pausas = this._timers.produccion.pausas;
+        const pausas = this._timer.pausas;
         if (pausas.length === 0) { container.innerHTML = ''; return; }
         let html = '<div class="small mt-1"><strong>Paradas registradas:</strong><ul class="mb-0" style="padding-left:1.2rem;">';
-        pausas.forEach((p, i) => {
+        pausas.forEach(p => {
             const hora = new Date(p.timestamp).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
             html += `<li>${hora} - ${p.motivo} <small class="text-muted">(${this.formatearTiempoMs(p.duracion)})</small></li>`;
         });

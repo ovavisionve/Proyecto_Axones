@@ -25,8 +25,6 @@ const Laminacion = {
         this.setupEventListeners();
         this.setupCalculations();
         this.initDevolucionRechazada();
-        this.initConsumoTintas();
-        this.initSolventes();
 
         // Poblar selector de OTs y verificar si viene una por URL
         await this.poblarSelectorOT();
@@ -38,8 +36,8 @@ const Laminacion = {
         // Inicializar checklist
         this.setupChecklist();
 
-        // Calcular tiempo de preparacion automatico
-        this.setupTiempoPreparacion();
+        // Inicializar 3 temporizadores (Preparacion, Produccion, Desmontaje)
+        this.initTemporizadores();
 
         // Flechitas de etiquetas en bobinas
         this.setupEtiquetasBobinas();
@@ -709,167 +707,7 @@ const Laminacion = {
     },
 
     // ==========================================
-    // CONSUMO Y DEVOLUCION DE TINTAS
-    // ==========================================
-
-    initConsumoTintas: function() {
-        const btnAgregar = document.getElementById('btnAgregarTinta');
-        if (btnAgregar) btnAgregar.addEventListener('click', () => this.agregarFilaTinta('consumo'));
-        const btnDevTinta = document.getElementById('btnAgregarDevTinta');
-        if (btnDevTinta) btnDevTinta.addEventListener('click', () => this.agregarFilaTinta('devolucion'));
-    },
-
-    obtenerTintasInventario: async function() {
-        try {
-            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
-                return await AxonesDB.tintas.listar({ soloActivos: false });
-            }
-            return [];
-        } catch (e) {
-            console.warn('[Laminacion] Error obteniendo tintas:', e);
-            return [];
-        }
-    },
-
-    generarOpcionesTintas: async function() {
-        const tintas = await this.obtenerTintasInventario();
-        let opciones = '<option value="">-- Seleccionar tinta --</option>';
-        tintas.forEach((t, idx) => {
-            const nombre = t.nombre || t.color || t.tipo || 'Tinta ' + (idx + 1);
-            const stock = parseFloat(t.cantidad || t.kg || 0).toFixed(2);
-            opciones += `<option value="${idx}" data-stock="${stock}" data-nombre="${nombre}">${nombre} (${stock} Kg)</option>`;
-        });
-        return opciones;
-    },
-
-    agregarFilaTinta: async function(tipo) {
-        const bodyId = tipo === 'consumo' ? 'bodyConsumoTintas' : 'bodyDevolucionTintas';
-        const tbody = document.getElementById(bodyId);
-        if (!tbody) return;
-        const opciones = await this.generarOpcionesTintas();
-        const fila = document.createElement('tr');
-        if (tipo === 'consumo') {
-            fila.innerHTML = `
-                <td><select class="form-select form-select-sm tinta-selector">${opciones}</select></td>
-                <td><input type="number" class="form-control form-control-sm tinta-kg-consumo" step="0.01" min="0" value="0"></td>
-                <td class="text-center tinta-stock-cell">-</td>
-                <td><button type="button" class="btn btn-sm btn-outline-danger btn-quitar-tinta" title="Quitar"><i class="bi bi-x"></i></button></td>`;
-        } else {
-            fila.innerHTML = `
-                <td><select class="form-select form-select-sm tinta-dev-selector">${opciones}</select></td>
-                <td><input type="number" class="form-control form-control-sm tinta-kg-devolucion" step="0.01" min="0" value="0"></td>
-                <td><button type="button" class="btn btn-sm btn-outline-danger btn-quitar-tinta" title="Quitar"><i class="bi bi-x"></i></button></td>`;
-        }
-        fila.querySelector('.btn-quitar-tinta').addEventListener('click', () => { fila.remove(); this.calcularTotalTintas(); });
-        const selector = fila.querySelector('.tinta-selector, .tinta-dev-selector');
-        if (selector) {
-            selector.addEventListener('change', () => {
-                const opt = selector.selectedOptions[0];
-                const stockCell = fila.querySelector('.tinta-stock-cell');
-                if (stockCell && opt && opt.dataset.stock) stockCell.textContent = opt.dataset.stock + ' Kg';
-                else if (stockCell) stockCell.textContent = '-';
-            });
-        }
-        const kgInput = fila.querySelector('.tinta-kg-consumo, .tinta-kg-devolucion');
-        if (kgInput) kgInput.addEventListener('input', () => this.calcularTotalTintas());
-        tbody.appendChild(fila);
-    },
-
-    calcularTotalTintas: function() {
-        let totalConsumo = 0;
-        document.querySelectorAll('.tinta-kg-consumo').forEach(input => { totalConsumo += parseFloat(input.value) || 0; });
-        const totalConsumoEl = document.getElementById('totalConsumoTintas');
-        if (totalConsumoEl) totalConsumoEl.textContent = totalConsumo.toFixed(2);
-        let totalDev = 0;
-        document.querySelectorAll('.tinta-kg-devolucion').forEach(input => { totalDev += parseFloat(input.value) || 0; });
-        const totalDevEl = document.getElementById('totalDevolucionTintas');
-        if (totalDevEl) totalDevEl.textContent = totalDev.toFixed(2);
-    },
-
-    recopilarConsumoTintas: function() {
-        const filas = document.querySelectorAll('#bodyConsumoTintas tr');
-        const datos = [];
-        filas.forEach(fila => {
-            const selector = fila.querySelector('.tinta-selector');
-            const kg = parseFloat(fila.querySelector('.tinta-kg-consumo')?.value) || 0;
-            if (kg > 0 && selector?.value) {
-                const opt = selector.selectedOptions[0];
-                datos.push({ indice: parseInt(selector.value), nombre: opt?.dataset?.nombre || '', kg: kg });
-            }
-        });
-        return datos;
-    },
-
-    recopilarDevolucionTintas: function() {
-        const filas = document.querySelectorAll('#bodyDevolucionTintas tr');
-        const datos = [];
-        filas.forEach(fila => {
-            const selector = fila.querySelector('.tinta-dev-selector');
-            const kg = parseFloat(fila.querySelector('.tinta-kg-devolucion')?.value) || 0;
-            if (kg > 0 && selector?.value) {
-                const opt = selector.selectedOptions[0];
-                datos.push({ indice: parseInt(selector.value), nombre: opt?.dataset?.nombre || '', kg: kg });
-            }
-        });
-        return datos;
-    },
-
-    descontarTintas: async function(datos) {
-        try {
-            const tintas = await this.obtenerTintasInventario();
-            let actualizado = false;
-            if (datos.consumoTintas) {
-                for (const item of datos.consumoTintas) {
-                    if (tintas[item.indice]) {
-                        const tinta = tintas[item.indice];
-                        const campo = tinta.cantidad !== undefined ? 'cantidad' : 'kg';
-                        const actual = parseFloat(tinta[campo] || 0);
-                        const nuevo = Math.max(0, actual - item.kg);
-                        if (tinta.id && AxonesDB.isReady()) {
-                            await AxonesDB.client.from('tintas').update({ stock_kg: nuevo }).eq('id', tinta.id);
-                        }
-                        actualizado = true;
-                        console.log(`Tintas: Descontados ${item.kg} Kg de ${item.nombre}`);
-                    }
-                }
-            }
-            if (datos.devolucionTintas) {
-                for (const item of datos.devolucionTintas) {
-                    if (tintas[item.indice]) {
-                        const tinta = tintas[item.indice];
-                        const campo = tinta.cantidad !== undefined ? 'cantidad' : 'kg';
-                        const actual = parseFloat(tinta[campo] || 0);
-                        const nuevo = actual + item.kg;
-                        if (tinta.id && AxonesDB.isReady()) {
-                            await AxonesDB.client.from('tintas').update({ stock_kg: nuevo }).eq('id', tinta.id);
-                        }
-                        actualizado = true;
-                        console.log(`Tintas: Repuestos ${item.kg} Kg de ${item.nombre}`);
-                    }
-                }
-            }
-            if (actualizado) {
-                console.log('Inventario de tintas actualizado en Supabase despues de laminacion');
-            }
-        } catch (error) { console.warn('Error al actualizar inventario de tintas:', error); }
-    },
-
-    // ==========================================
-    // SOLVENTES
-    // ==========================================
-
-    initSolventes: function() {
-        document.querySelectorAll('.solvente-input').forEach(input => {
-            input.addEventListener('input', () => this.calcularTotalSolventes());
-        });
-    },
-
-    calcularTotalSolventes: function() {
-        let total = 0;
-        document.querySelectorAll('.solvente-input').forEach(input => { total += parseFloat(input.value) || 0; });
-        const el = document.getElementById('totalSolventes');
-        if (el) el.textContent = total.toFixed(2);
-    },
+    // Nota: Consumo de tintas/solventes se gestiona desde el modulo Tintas (tintas.html)
 
     validarCamposRequeridos: function() {
         const errores = [];
@@ -1018,9 +856,12 @@ const Laminacion = {
             operador: document.getElementById('operador').value,
             ayudante: document.getElementById('ayudante').value,
             supervisor: document.getElementById('supervisor').value,
-            horaInicio: document.getElementById('horaInicio').value,
-            horaArranque: document.getElementById('horaArranque').value,
-            horaFinal: document.getElementById('horaFinal').value,
+            // Tiempos (3 temporizadores)
+            tiempoPreparacion: this._timers.preparacion.total,
+            tiempoProduccion: this._timers.produccion.total + (this._timers.produccion.estado === 'en_progreso' ? (Date.now() - this._timers.produccion.inicio) : 0),
+            tiempoDesmontaje: this._timers.desmontaje.total,
+            paradasProduccion: this._timers.produccion.pausas,
+            motivoPrepRetraso: document.getElementById('timerPrepMotivo')?.value || '',
 
             bobinasEntrada: bobinasEntrada,
             totalEntrada: parseFloat(document.getElementById('totalEntrada').value) || 0,
@@ -1029,6 +870,7 @@ const Laminacion = {
             devolucionBuenaKg: parseFloat(document.getElementById('devolucionBuenaKg')?.value) || 0,
             devolucionBuenaFecha: document.getElementById('devolucionBuenaFecha')?.value || '',
             devolucionBuenaHora: document.getElementById('devolucionBuenaHora')?.value || '',
+            devolucionBuenaObs: document.getElementById('devolucionBuenaObs')?.value || '',
             devolucionRechazada: devolucionRechazada,
             totalDevolucionRechazada: this.calcularTotalDevolucionRechazada(),
             totalConsumido: parseFloat(document.getElementById('totalConsumido')?.textContent) || 0,
@@ -1063,17 +905,7 @@ const Laminacion = {
             totalScrap: parseFloat(document.getElementById('totalScrap').value) || 0,
             porcentajeRefil: parseFloat(document.getElementById('porcentajeRefil').value) || 0,
 
-            // Consumo y devolucion de tintas
-            consumoTintas: this.recopilarConsumoTintas(),
-            totalConsumoTintas: parseFloat(document.getElementById('totalConsumoTintas')?.textContent) || 0,
-            devolucionTintas: this.recopilarDevolucionTintas(),
-            totalDevolucionTintas: parseFloat(document.getElementById('totalDevolucionTintas')?.textContent) || 0,
-
-            // Solventes
-            solAlcohol: parseFloat(document.getElementById('solAlcohol')?.value) || 0,
-            solMetoxi: parseFloat(document.getElementById('solMetoxi')?.value) || 0,
-            solAcetato: parseFloat(document.getElementById('solAcetato')?.value) || 0,
-            totalSolventes: parseFloat(document.getElementById('totalSolventes')?.textContent) || 0,
+            // Nota: Consumo tintas/solventes se gestiona desde modulo Tintas
 
             motivosParadas: document.getElementById('motivosParadas').value,
             observaciones: document.getElementById('observaciones').value,
@@ -1226,7 +1058,7 @@ const Laminacion = {
             }
 
             // 4. Descontar/reponer tintas
-            await this.descontarTintas(datos);
+            // Nota: tintas se gestionan desde modulo Tintas
         } catch (error) {
             console.warn('Error al descontar inventario de laminacion:', error);
         }
@@ -1425,31 +1257,90 @@ const Laminacion = {
     /**
      * Configura calculo automatico del tiempo de preparacion
      */
-    setupTiempoPreparacion: function() {
-        const horaInicio = document.getElementById('horaInicio');
-        const horaArranque = document.getElementById('horaArranque');
+    // Estado de los 3 temporizadores
+    _timers: {
+        preparacion: { estado: 'pendiente', inicio: null, total: 0, interval: null, pausas: [] },
+        produccion: { estado: 'pendiente', inicio: null, total: 0, interval: null, pausas: [] },
+        desmontaje: { estado: 'pendiente', inicio: null, total: 0, interval: null, pausas: [] }
+    },
 
-        const calcular = () => {
-            const inicio = horaInicio?.value;
-            const arranque = horaArranque?.value;
-            const span = document.getElementById('tiempoPreparacionCalc');
-            if (!span) return;
-
-            if (inicio && arranque) {
-                const [hi, mi] = inicio.split(':').map(Number);
-                const [ha, ma] = arranque.split(':').map(Number);
-                let diffMin = (ha * 60 + ma) - (hi * 60 + mi);
-                if (diffMin < 0) diffMin += 24 * 60;
-                const horas = Math.floor(diffMin / 60);
-                const mins = diffMin % 60;
-                span.textContent = horas > 0 ? `${horas}h ${mins}min` : `${mins} min`;
-            } else {
-                span.textContent = '--';
-            }
-        };
-
-        if (horaInicio) horaInicio.addEventListener('change', calcular);
-        if (horaArranque) horaArranque.addEventListener('change', calcular);
+    initTemporizadores: function() {
+        const self = this;
+        // PREPARACION
+        document.getElementById('btnPrepPlay')?.addEventListener('click', () => self.timerPlay('preparacion'));
+        document.getElementById('btnPrepPause')?.addEventListener('click', () => self.timerPause('preparacion'));
+        document.getElementById('btnPrepStop')?.addEventListener('click', () => self.timerStop('preparacion'));
+        // PRODUCCION
+        document.getElementById('btnProdPlay')?.addEventListener('click', () => { document.getElementById('timerProdPausaForm').style.display='none'; self.timerPlay('produccion'); });
+        document.getElementById('btnProdPause')?.addEventListener('click', () => { document.getElementById('timerProdPausaForm').style.display=''; });
+        document.getElementById('btnProdStop')?.addEventListener('click', () => self.timerStop('produccion'));
+        document.getElementById('btnProdConfirmPause')?.addEventListener('click', () => {
+            const motivo = document.getElementById('timerProdPausaMotivo')?.value;
+            if (!motivo) { alert('Seleccione un motivo'); return; }
+            const obs = document.getElementById('timerProdPausaObs')?.value || '';
+            self.timerPause('produccion', motivo + (obs ? ': ' + obs : ''));
+            document.getElementById('timerProdPausaForm').style.display='none';
+            document.getElementById('timerProdPausaMotivo').value='';
+            document.getElementById('timerProdPausaObs').value='';
+        });
+        document.getElementById('timerProdPausaMotivo')?.addEventListener('change', function() {
+            const o = document.getElementById('timerProdPausaObs');
+            if (o) o.style.display = this.value === 'Otro' ? '' : 'none';
+        });
+        // DESMONTAJE
+        document.getElementById('btnDesmPlay')?.addEventListener('click', () => self.timerPlay('desmontaje'));
+        document.getElementById('btnDesmStop')?.addEventListener('click', () => self.timerStop('desmontaje'));
+    },
+    timerPlay: function(tipo) {
+        const t = this._timers[tipo]; if (t.estado==='completado') return;
+        t.estado='en_progreso'; t.inicio=Date.now(); this.timerUpdateUI(tipo);
+        if (t.interval) clearInterval(t.interval); t.interval=setInterval(()=>this.timerTick(tipo),1000);
+    },
+    timerPause: function(tipo, motivo) {
+        const t = this._timers[tipo]; if (t.estado!=='en_progreso') return;
+        t.total += Date.now()-t.inicio; t.estado='pausado';
+        t.pausas.push({timestamp:new Date().toISOString(), duracion:Date.now()-t.inicio, motivo:motivo||''});
+        if (t.interval){clearInterval(t.interval);t.interval=null;} this.timerUpdateUI(tipo);
+        if (tipo==='produccion') this.renderPausasProduccion();
+    },
+    timerStop: function(tipo) {
+        const t = this._timers[tipo];
+        if (t.estado==='en_progreso') t.total += Date.now()-t.inicio;
+        t.estado='completado'; if(t.interval){clearInterval(t.interval);t.interval=null;} this.timerUpdateUI(tipo);
+        if (tipo==='preparacion' && t.total>3600000) document.getElementById('timerPrepAlerta').style.display='';
+    },
+    timerTick: function(tipo) {
+        const t = this._timers[tipo];
+        const current = t.total + (t.estado==='en_progreso' ? (Date.now()-t.inicio) : 0);
+        const ids = {preparacion:'timerPrepDisplay',produccion:'timerProdDisplay',desmontaje:'timerDesmDisplay'};
+        const el = document.getElementById(ids[tipo]); if(el) el.textContent=this.formatearTiempoMs(current);
+        if (tipo==='preparacion' && current>3600000) document.getElementById('timerPrepAlerta').style.display='';
+    },
+    timerUpdateUI: function(tipo) {
+        const t = this._timers[tipo];
+        const bIds={preparacion:'timerPrepEstado',produccion:'timerProdEstado',desmontaje:'timerDesmEstado'};
+        const b=document.getElementById(bIds[tipo]);
+        if(b){const l={pendiente:'Pendiente',en_progreso:'En progreso',pausado:'Pausado',completado:'Completado'};
+        const c={pendiente:'bg-secondary',en_progreso:'bg-success',pausado:'bg-warning text-dark',completado:'bg-primary'};
+        b.textContent=l[t.estado]||t.estado;b.className='badge '+(c[t.estado]||'bg-secondary');}
+        if(tipo==='preparacion'){const p=document.getElementById('btnPrepPlay'),pa=document.getElementById('btnPrepPause'),s=document.getElementById('btnPrepStop');
+        if(p)p.disabled=t.estado==='en_progreso'||t.estado==='completado';if(pa)pa.disabled=t.estado!=='en_progreso';if(s)s.disabled=t.estado!=='en_progreso'&&t.estado!=='pausado';}
+        if(tipo==='produccion'){const p=document.getElementById('btnProdPlay'),pa=document.getElementById('btnProdPause'),s=document.getElementById('btnProdStop');
+        if(p)p.disabled=t.estado==='en_progreso'||t.estado==='completado';if(pa)pa.disabled=t.estado!=='en_progreso';if(s)s.disabled=t.estado==='pendiente'||t.estado==='completado';}
+        if(tipo==='desmontaje'){const p=document.getElementById('btnDesmPlay'),s=document.getElementById('btnDesmStop');
+        if(p)p.disabled=t.estado==='en_progreso'||t.estado==='completado';if(s)s.disabled=t.estado!=='en_progreso';}
+    },
+    renderPausasProduccion: function() {
+        const c=document.getElementById('timerProdPausas');if(!c)return;
+        const p=this._timers.produccion.pausas;if(!p.length){c.innerHTML='';return;}
+        let h='<div class="small mt-1"><strong>Paradas:</strong><ul class="mb-0" style="padding-left:1.2rem;">';
+        p.forEach(x=>{const hr=new Date(x.timestamp).toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit'});
+        h+=`<li>${hr} - ${x.motivo} <small class="text-muted">(${this.formatearTiempoMs(x.duracion)})</small></li>`;});
+        h+='</ul></div>';c.innerHTML=h;
+    },
+    formatearTiempoMs: function(ms) {
+        const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),ss=s%60;
+        return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
     },
 
     /**

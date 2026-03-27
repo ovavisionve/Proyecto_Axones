@@ -45,7 +45,7 @@ const AdminModule = {
     },
 
     // Cargar configuracion (solo lectura desde CONFIG)
-    cargarConfiguracion() {
+    async cargarConfiguracion() {
         let config = {};
         if (AxonesDB.isReady()) {
             try {
@@ -80,7 +80,7 @@ const AdminModule = {
     },
 
     // Guardar umbrales
-    guardarUmbrales() {
+    async guardarUmbrales() {
         const umbralAdvertencia = parseFloat(document.getElementById('umbralAdvertencia')?.value) || 5;
         const umbralMaximo = parseFloat(document.getElementById('umbralMaximo')?.value) || 6;
 

@@ -255,12 +255,13 @@ const Inventario = {
                         tipo: m.tipo,
                         micras: m.micras,
                         ancho: m.ancho,
-                        kg: m.stock_kg || 0,
+                        kg: m.kg || m.stock_kg || 0,
                         densidad: m.densidad,
                         sku: m.sku,
                         codigoBarra: m.codigo_barras,
-                        producto: m.notas || '',
-                        importado: (m.notas || '').includes('IMPORTADO')
+                        proveedor: m.proveedor || '',
+                        producto: m.producto || m.notas || '',
+                        importado: m.importado || (m.notas || '').includes('IMPORTADO')
                     }));
                     console.log('[Inventario] Cargado desde Supabase:', this.items.length, 'items');
                 } else {
@@ -1347,24 +1348,35 @@ const Inventario = {
         }
 
         const nuevoItem = {
-            id: 'INV' + Date.now(),
             material: document.getElementById('nuevoMaterial').value,
             micras: parseInt(document.getElementById('nuevoMicras').value),
             ancho: parseInt(document.getElementById('nuevoAncho').value),
             kg: parseFloat(document.getElementById('nuevoKg').value),
+            proveedor: document.getElementById('nuevoProveedor').value,
             producto: document.getElementById('nuevoProducto').value,
             importado: document.getElementById('nuevoImportado').checked,
         };
 
-        // Usar InventarioService si esta disponible (resuelve alertas automaticamente)
-        if (typeof InventarioService !== 'undefined') {
-            const resultado = InventarioService.agregarMaterial(nuevoItem);
-            if (resultado.exito) {
-                console.log('Material agregado via InventarioService');
+        if (!nuevoItem.proveedor) {
+            alert('El proveedor es obligatorio');
+            return;
+        }
+
+        // Guardar directamente en Supabase
+        if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+            try {
+                const { data, error } = await AxonesDB.client.from('materiales').insert([nuevoItem]).select();
+                if (error) throw error;
+                if (data && data[0]) nuevoItem.id = data[0].id;
+                console.log('[Inventario] Material guardado en Supabase:', nuevoItem.material);
+            } catch (e) {
+                console.error('[Inventario] Error guardando en Supabase:', e);
+                alert('Error guardando material: ' + e.message);
+                return;
             }
         }
 
-        // Tambien agregar al array local para mantener sincronizado
+        // Agregar al array local
         const existente = this.items.find(i =>
             i.material === nuevoItem.material &&
             i.micras === nuevoItem.micras &&
@@ -1373,11 +1385,11 @@ const Inventario = {
 
         if (existente) {
             existente.kg = (parseFloat(existente.kg) || 0) + nuevoItem.kg;
+            existente.proveedor = nuevoItem.proveedor;
         } else {
             this.items.push(nuevoItem);
         }
 
-        this.saveInventario();
         this.filteredItems = [...this.items];
         this.renderInventario();
         this.updateTotales();
@@ -1386,8 +1398,11 @@ const Inventario = {
         bootstrap.Modal.getInstance(document.getElementById('modalAgregarItem')).hide();
         form.reset();
 
-        // Mostrar mensaje indicando si se resolvieron alertas
-        Axones.showSuccess('Item agregado al inventario');
+        if (typeof Axones !== 'undefined') {
+            Axones.showSuccess('Material agregado al inventario');
+        } else if (typeof showToast === 'function') {
+            showToast('Material agregado al inventario', 'success');
+        }
     },
 
     /**

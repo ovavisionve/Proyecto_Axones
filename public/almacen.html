@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Almacen - Sistema Axones">
+    <title>Almacen - Axones</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#212529">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="src/css/main.css" rel="stylesheet">
+    <style>
+        .despacho-card {
+            border-left: 4px solid #0d6efd;
+            transition: all 0.2s;
+        }
+        .despacho-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .table-almacen th {
+            position: sticky;
+            top: 0;
+            background: #f8f9fa;
+            z-index: 10;
+        }
+        .tipo-entrada { background-color: #d1e7dd; }
+        .tipo-salida { background-color: #f8d7da; }
+        .tipo-despacho { background-color: #cfe2ff; }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="index.html">
+                <i class="bi bi-gear-wide-connected me-2"></i>
+                <span class="fw-bold">AXONES</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarMain">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">
+                            <i class="bi bi-house-door me-1"></i> Inicio
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="bi bi-clipboard-data me-1"></i> Produccion
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="impresion.html"><i class="bi bi-printer me-2"></i>Control de Impresion</a></li>
+                            <li><a class="dropdown-item" href="laminacion.html"><i class="bi bi-layers me-2"></i>Control de Laminacion</a></li>
+                            <li><a class="dropdown-item" href="corte.html"><i class="bi bi-scissors me-2"></i>Control de Corte</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="tintas.html"><i class="bi bi-droplet me-2"></i>Consumo de Tintas</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="bi bi-check2-square me-1"></i> Calidad
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="checklist.html"><i class="bi bi-list-check me-2"></i>Lista de Chequeo</a></li>
+                            <li><a class="dropdown-item" href="certificado.html"><i class="bi bi-award me-2"></i>Certificado de Calidad</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="programacion.html">
+                            <i class="bi bi-list-task me-1"></i> Estado Ordenes
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="etiquetas.html">
+                            <i class="bi bi-tag me-1"></i> Etiquetas
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="inventario.html">
+                            <i class="bi bi-box-seam me-1"></i> Inventario
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="almacen.html">
+                            <i class="bi bi-building me-1"></i> Almacen
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="bi bi-database me-1"></i> Datos Maestros
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="clientes.html"><i class="bi bi-people me-2"></i>Clientes</a></li>
+                            <li><a class="dropdown-item" href="proveedores.html"><i class="bi bi-truck me-2"></i>Proveedores</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="alertas.html">
+                            <i class="bi bi-bell me-1"></i> Alertas
+                            <span class="badge bg-danger ms-1" id="alertasBadge" style="display: none;">0</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="reportes.html">
+                            <i class="bi bi-file-earmark-bar-graph me-1"></i> Reportes
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="chatbot.html">
+                            <i class="bi bi-chat-dots me-1"></i> Chatbot
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="admin.html">
+                            <i class="bi bi-gear me-1"></i> Admin
+                        </a>
+                    </li>
+                </ul>
+                <div class="d-flex align-items-center">
+                    <span class="text-light me-3" id="userInfo">
+                        <i class="bi bi-person-circle me-1"></i>
+                        <span id="userName">Usuario</span>
+                    </span>
+                    <button class="btn btn-outline-light btn-sm" id="btnLogin">
+                        <i class="bi bi-box-arrow-in-right me-1"></i> Ingresar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container-fluid" style="margin-top: 70px;">
+        <!-- Header -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <h4 class="mb-1">
+                            <i class="bi bi-building text-dark me-2"></i>
+                            Almacen
+                        </h4>
+                        <p class="text-muted mb-0 small">
+                            Despacho de materiales, recepcion y trazabilidad de movimientos
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <ul class="nav nav-tabs mb-3" id="almacenTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="tab-despacho-ot" data-bs-toggle="tab" data-bs-target="#panel-despacho-ot" type="button" role="tab">
+                    <i class="bi bi-send me-1"></i> Despacho OT
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-recepcion" data-bs-toggle="tab" data-bs-target="#panel-recepcion" type="button" role="tab">
+                    <i class="bi bi-box-arrow-in-down me-1"></i> Recepcion de Material
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-miscelaneos" data-bs-toggle="tab" data-bs-target="#panel-miscelaneos" type="button" role="tab">
+                    <i class="bi bi-box-arrow-up me-1"></i> Despacho Miscelaneos
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-movimientos" data-bs-toggle="tab" data-bs-target="#panel-movimientos" type="button" role="tab">
+                    <i class="bi bi-arrow-left-right me-1"></i> Movimientos
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="almacenTabContent">
+
+            <!-- Tab 1: Despacho OT -->
+            <div class="tab-pane fade show active" id="panel-despacho-ot" role="tabpanel">
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <h6 class="text-muted mb-2">
+                            <i class="bi bi-clipboard-check me-1"></i> Ordenes de Trabajo Pendientes de Despacho
+                        </h6>
+                    </div>
+                </div>
+
+                <!-- Lista de OTs -->
+                <div class="row" id="listaOTsDespacho">
+                    <div class="col-12">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover table-sm mb-0 table-almacen">
+                                        <thead>
+                                            <tr>
+                                                <th>N° OT</th>
+                                                <th>Cliente</th>
+                                                <th>Producto</th>
+                                                <th>Material</th>
+                                                <th class="text-end">Kg Pedidos</th>
+                                                <th class="text-center">Estado</th>
+                                                <th class="text-center" style="width: 120px;">Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tablaOTsDespacho">
+                                            <tr><td colspan="7" class="text-center text-muted py-3">
+                                                <i class="bi bi-hourglass-split me-1"></i> Cargando ordenes de trabajo...
+                                            </td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Formulario de Despacho (oculto por defecto) -->
+                <div class="row mt-3" id="formDespachoOT" style="display: none;">
+                    <div class="col-md-8 col-lg-6">
+                        <div class="card border-primary shadow-sm">
+                            <div class="card-header bg-primary text-white">
+                                <h6 class="mb-0">
+                                    <i class="bi bi-send me-1"></i> Despachar Material - <span id="despachoOTNumero">--</span>
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <div class="alert alert-info py-2 mb-0 small">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            <strong>Producto:</strong> <span id="despachoProducto">--</span> |
+                                            <strong>Kg Pedidos:</strong> <span id="despachoKgPedidos">--</span> |
+                                            <strong>Material:</strong> <span id="despachoMaterial">--</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold">Kg a Despachar <span class="text-danger">*</span></label>
+                                        <input type="number" class="form-control form-control-sm" id="despachoKg" min="0" step="0.01" required placeholder="0.00">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label small">Observaciones</label>
+                                        <textarea class="form-control form-control-sm" id="despachoObservaciones" rows="2" placeholder="Notas adicionales del despacho..."></textarea>
+                                    </div>
+                                    <div class="col-12 d-flex gap-2">
+                                        <button class="btn btn-primary btn-sm" id="btnGuardarDespachoOT">
+                                            <i class="bi bi-check-lg me-1"></i> Guardar Despacho
+                                        </button>
+                                        <button class="btn btn-outline-secondary btn-sm" id="btnCancelarDespachoOT">
+                                            <i class="bi bi-x-lg me-1"></i> Cancelar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- Fin panel-despacho-ot -->
+
+            <!-- Tab 2: Recepcion de Material -->
+            <div class="tab-pane fade" id="panel-recepcion" role="tabpanel">
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <h6 class="text-muted mb-2">
+                            <i class="bi bi-box-arrow-in-down me-1"></i> Registrar Recepcion de Material
+                        </h6>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-lg-10 col-xl-8">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body">
+                                <form id="formRecepcion">
+                                    <div class="row g-3">
+                                        <!-- Datos del proveedor -->
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-bold">Proveedor <span class="text-danger">*</span></label>
+                                            <input type="text" class="form-control form-control-sm" id="recepcionProveedor" required placeholder="Nombre del proveedor">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-bold">N° Factura</label>
+                                            <input type="text" class="form-control form-control-sm" id="recepcionFactura" placeholder="Numero de factura">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-bold">Fecha Recibido <span class="text-danger">*</span></label>
+                                            <input type="date" class="form-control form-control-sm" id="recepcionFecha" required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-bold">N° Orden de Compra</label>
+                                            <input type="text" class="form-control form-control-sm" id="recepcionOrdenCompra" placeholder="Numero de orden de compra">
+                                        </div>
+
+                                        <!-- Tabla de items recibidos -->
+                                        <div class="col-12">
+                                            <label class="form-label small fw-bold">Items Recibidos</label>
+                                            <div class="table-responsive">
+                                                <table class="table table-bordered table-sm mb-0">
+                                                    <thead class="table-light">
+                                                        <tr>
+                                                            <th>Descripcion / Producto</th>
+                                                            <th style="width: 150px;">Tipo</th>
+                                                            <th style="width: 120px;">Cantidad</th>
+                                                            <th style="width: 110px;">Unidad</th>
+                                                            <th style="width: 50px;"></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="tablaItemsRecepcion">
+                                                        <tr data-row="0">
+                                                            <td><input type="text" class="form-control form-control-sm" name="itemDescripcion" placeholder="Ej: BOPP Normal 20u x 610mm" required></td>
+                                                            <td>
+                                                                <select class="form-select form-select-sm" name="itemTipo" required>
+                                                                    <option value="">Tipo...</option>
+                                                                    <option value="Sustrato">Sustrato</option>
+                                                                    <option value="Tinta">Tinta</option>
+                                                                    <option value="Quimico">Quimico</option>
+                                                                    <option value="Consumible">Consumible</option>
+                                                                    <option value="Otro">Otro</option>
+                                                                </select>
+                                                            </td>
+                                                            <td><input type="number" class="form-control form-control-sm" name="itemCantidad" min="0" step="0.01" placeholder="0" required></td>
+                                                            <td>
+                                                                <select class="form-select form-select-sm" name="itemUnidad" required>
+                                                                    <option value="Kg">Kg</option>
+                                                                    <option value="Lt">Lt</option>
+                                                                    <option value="Unidad">Unidad</option>
+                                                                </select>
+                                                            </td>
+                                                            <td class="text-center align-middle">
+                                                                <button type="button" class="btn btn-outline-danger btn-sm btn-eliminar-item-recepcion" title="Eliminar fila" disabled>
+                                                                    <i class="bi bi-trash"></i>
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="btnAgregarItemRecepcion">
+                                                <i class="bi bi-plus-circle me-1"></i> Agregar item
+                                            </button>
+                                        </div>
+
+                                        <!-- Observaciones -->
+                                        <div class="col-12">
+                                            <label class="form-label small">Observaciones</label>
+                                            <textarea class="form-control form-control-sm" id="recepcionObservaciones" rows="2" placeholder="Notas adicionales de la recepcion..."></textarea>
+                                        </div>
+
+                                        <!-- Boton guardar -->
+                                        <div class="col-12">
+                                            <button type="submit" class="btn btn-success btn-sm" id="btnRegistrarRecepcion">
+                                                <i class="bi bi-check-lg me-1"></i> Registrar Recepcion
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- Fin panel-recepcion -->
+
+            <!-- Tab 3: Despacho Miscelaneos -->
+            <div class="tab-pane fade" id="panel-miscelaneos" role="tabpanel">
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <h6 class="text-muted mb-2">
+                            <i class="bi bi-box-arrow-up me-1"></i> Despacho de Consumibles / Miscelaneos
+                        </h6>
+                        <p class="small text-muted">Para despachar materiales no asociados a una orden de trabajo.</p>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-lg-10 col-xl-8">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body">
+                                <form id="formMiscelaneos">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-bold">Solicitado por <span class="text-danger">*</span></label>
+                                            <input type="text" class="form-control form-control-sm" id="miscSolicitadoPor" required placeholder="Nombre del solicitante">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-bold">Area <span class="text-danger">*</span></label>
+                                            <select class="form-select form-select-sm" id="miscArea" required>
+                                                <option value="">Seleccionar area...</option>
+                                                <option value="Impresion">Impresion</option>
+                                                <option value="Laminacion">Laminacion</option>
+                                                <option value="Corte">Corte</option>
+                                                <option value="Administracion">Administracion</option>
+                                                <option value="Otro">Otro</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- Tabla de items -->
+                                        <div class="col-12">
+                                            <label class="form-label small fw-bold">Items a Despachar</label>
+                                            <div class="table-responsive">
+                                                <table class="table table-bordered table-sm mb-0">
+                                                    <thead class="table-light">
+                                                        <tr>
+                                                            <th>Descripcion</th>
+                                                            <th style="width: 120px;">Cantidad</th>
+                                                            <th style="width: 120px;">Unidad</th>
+                                                            <th style="width: 50px;"></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="tablaItemsMisc">
+                                                        <tr data-row="0">
+                                                            <td><input type="text" class="form-control form-control-sm" name="miscDescripcion" placeholder="Ej: Cinta adhesiva, Guantes..." required></td>
+                                                            <td><input type="number" class="form-control form-control-sm" name="miscCantidad" min="0" step="0.01" placeholder="0" required></td>
+                                                            <td><input type="text" class="form-control form-control-sm" name="miscUnidad" placeholder="Kg, Lt, Und..." required></td>
+                                                            <td class="text-center align-middle">
+                                                                <button type="button" class="btn btn-outline-danger btn-sm btn-eliminar-item-misc" title="Eliminar fila" disabled>
+                                                                    <i class="bi bi-trash"></i>
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="btnAgregarItemMisc">
+                                                <i class="bi bi-plus-circle me-1"></i> Agregar item
+                                            </button>
+                                        </div>
+
+                                        <!-- Observaciones -->
+                                        <div class="col-12">
+                                            <label class="form-label small">Observaciones</label>
+                                            <textarea class="form-control form-control-sm" id="miscObservaciones" rows="2" placeholder="Notas adicionales..."></textarea>
+                                        </div>
+
+                                        <!-- Boton guardar -->
+                                        <div class="col-12">
+                                            <button type="submit" class="btn btn-success btn-sm" id="btnRegistrarMisc">
+                                                <i class="bi bi-check-lg me-1"></i> Registrar Despacho
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- Fin panel-miscelaneos -->
+
+            <!-- Tab 4: Movimientos (Trazabilidad) -->
+            <div class="tab-pane fade" id="panel-movimientos" role="tabpanel">
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <h6 class="text-muted mb-2">
+                            <i class="bi bi-arrow-left-right me-1"></i> Historial de Movimientos
+                        </h6>
+                    </div>
+                </div>
+
+                <!-- Filtros -->
+                <div class="row mb-3 g-2">
+                    <div class="col-md-2">
+                        <label class="form-label small">Fecha Desde</label>
+                        <input type="date" class="form-control form-control-sm" id="movFechaDesde">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Fecha Hasta</label>
+                        <input type="date" class="form-control form-control-sm" id="movFechaHasta">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Tipo</label>
+                        <select class="form-select form-select-sm" id="movFiltroTipo">
+                            <option value="">Todos</option>
+                            <option value="entrada">Entrada</option>
+                            <option value="salida">Salida</option>
+                            <option value="despacho">Despacho</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small">Buscar</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control" id="movBuscar" placeholder="Buscar referencia, producto...">
+                        </div>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button class="btn btn-outline-secondary btn-sm" id="btnLimpiarFiltrosMov">
+                            <i class="bi bi-x-circle me-1"></i> Limpiar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tabla de movimientos -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body p-0">
+                                <div class="table-responsive" style="max-height: 60vh; overflow-y: auto;">
+                                    <table class="table table-hover table-sm mb-0 table-almacen">
+                                        <thead>
+                                            <tr>
+                                                <th>Fecha</th>
+                                                <th class="text-center">Tipo</th>
+                                                <th>Referencia</th>
+                                                <th>Descripcion</th>
+                                                <th class="text-end">Cantidad</th>
+                                                <th>Proveedor / Destino</th>
+                                                <th>Usuario</th>
+                                                <th>Observaciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tablaMovimientos">
+                                            <tr><td colspan="8" class="text-center text-muted py-3">
+                                                <i class="bi bi-hourglass-split me-1"></i> Cargando movimientos...
+                                            </td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- Fin panel-movimientos -->
+
+        </div><!-- Fin tab-content -->
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light border-top py-2 mt-4">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col text-center">
+                    <small class="text-muted">Sistema Axones v1.0 - Almacen</small>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="src/js/utils/config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="src/js/utils/supabase-client.js"></script>
+    <script src="src/js/utils/api.js"></script>
+    <script src="src/js/utils/sync-manager.js"></script>
+    <script src="src/js/utils/sync-realtime.js"></script>
+    <script src="src/js/utils/theme.js"></script>
+    <script src="src/js/utils/auth.js"></script>
+    <script src="src/js/modules/almacen.js"></script>
+    <script src="src/js/utils/demoData.js"></script>
+    <script src="src/js/main.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW:', err));
+        }
+    </script>
+    <script src="src/js/modules/ayuda.js"></script>
+</body>
+</html>

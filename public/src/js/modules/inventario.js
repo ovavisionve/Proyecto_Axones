@@ -1233,7 +1233,7 @@ const Inventario = {
         if (this.filteredItems.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="8" class="text-center text-muted py-4">
+                    <td colspan="9" class="text-center text-muted py-4">
                         <i class="bi bi-inbox display-6 d-block mb-2"></i>
                         No se encontraron items
                     </td>
@@ -1271,6 +1271,7 @@ const Inventario = {
                     <td class="text-center">${item.micras}</td>
                     <td class="text-center">${item.ancho}</td>
                     <td class="text-end fw-bold">${this.formatNumber(item.kg)}</td>
+                    <td>${item.proveedor || '<span class="text-muted">-</span>'}</td>
                     <td>${item.producto || '<span class="text-muted">-</span>'}</td>
                     <td class="text-center">${estadoBadge}</td>
                     <td class="text-center">

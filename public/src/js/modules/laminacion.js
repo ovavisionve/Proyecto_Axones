@@ -859,12 +859,11 @@ const Laminacion = {
             operador: document.getElementById('operador').value,
             ayudante: document.getElementById('ayudante').value,
             supervisor: document.getElementById('supervisor').value,
-            // Tiempos (3 temporizadores)
-            tiempoPreparacion: this._timers.preparacion.total,
-            tiempoProduccion: this._timers.produccion.total + (this._timers.produccion.estado === 'en_progreso' ? (Date.now() - this._timers.produccion.inicio) : 0),
-            tiempoDesmontaje: this._timers.desmontaje.total,
-            paradasProduccion: this._timers.produccion.pausas,
-            motivoPrepRetraso: document.getElementById('timerPrepMotivo')?.value || '',
+            // Tiempos (temporizador de produccion)
+            tiempoTotal: this._timer.inicio ? (Date.now() - this._timer.inicio) : 0,
+            tiempoMuerto: this._timer.tiempoMuerto + (this._timer.estado === 'pausado' && this._timer.pausaInicio ? (Date.now() - this._timer.pausaInicio) : 0),
+            tiempoEfectivo: this._timer.inicio ? Math.max(0, (Date.now() - this._timer.inicio) - this._timer.tiempoMuerto) : 0,
+            paradasProduccion: this._timer.pausas,
 
             bobinasEntrada: bobinasEntrada,
             totalEntrada: parseFloat(document.getElementById('totalEntrada').value) || 0,
@@ -1285,90 +1284,78 @@ const Laminacion = {
     /**
      * Configura calculo automatico del tiempo de preparacion
      */
-    // Estado de los 3 temporizadores
-    _timers: {
-        preparacion: { estado: 'pendiente', inicio: null, total: 0, interval: null, pausas: [] },
-        produccion: { estado: 'pendiente', inicio: null, total: 0, interval: null, pausas: [] },
-        desmontaje: { estado: 'pendiente', inicio: null, total: 0, interval: null, pausas: [] }
-    },
-
+    _timer: { estado: 'pendiente', inicio: null, tiempoMuerto: 0, pausaInicio: null, pausas: [], interval: null },
     initTemporizadores: function() {
         const self = this;
-        // PREPARACION
-        document.getElementById('btnPrepPlay')?.addEventListener('click', () => self.timerPlay('preparacion'));
-        document.getElementById('btnPrepPause')?.addEventListener('click', () => self.timerPause('preparacion'));
-        document.getElementById('btnPrepStop')?.addEventListener('click', () => self.timerStop('preparacion'));
-        // PRODUCCION
-        document.getElementById('btnProdPlay')?.addEventListener('click', () => { document.getElementById('timerProdPausaForm').style.display='none'; self.timerPlay('produccion'); });
-        document.getElementById('btnProdPause')?.addEventListener('click', () => { document.getElementById('timerProdPausaForm').style.display=''; });
-        document.getElementById('btnProdStop')?.addEventListener('click', () => self.timerStop('produccion'));
+        document.getElementById('btnProdPlay')?.addEventListener('click', () => {
+            if (self._timer.estado === 'detenido') return;
+            self._timer.estado = 'corriendo'; self._timer.inicio = self._timer.inicio || Date.now();
+            document.getElementById('timerProdPausaForm').style.display = 'none'; self.timerUpdateUI();
+            if (self._timer.interval) clearInterval(self._timer.interval);
+            self._timer.interval = setInterval(() => self.timerTick(), 1000);
+        });
+        document.getElementById('btnProdPause')?.addEventListener('click', () => {
+            if (self._timer.estado !== 'corriendo') return;
+            self._timer.estado = 'pausado'; self._timer.pausaInicio = Date.now();
+            document.getElementById('timerProdPausaForm').style.display = ''; self.timerUpdateUI();
+        });
         document.getElementById('btnProdConfirmPause')?.addEventListener('click', () => {
             const motivo = document.getElementById('timerProdPausaMotivo')?.value;
             if (!motivo) { alert('Seleccione un motivo'); return; }
             const obs = document.getElementById('timerProdPausaObs')?.value || '';
-            self.timerPause('produccion', motivo + (obs ? ': ' + obs : ''));
-            document.getElementById('timerProdPausaForm').style.display='none';
-            document.getElementById('timerProdPausaMotivo').value='';
-            document.getElementById('timerProdPausaObs').value='';
+            const dur = Date.now() - (self._timer.pausaInicio || Date.now());
+            self._timer.tiempoMuerto += dur;
+            self._timer.pausas.push({ timestamp: new Date(self._timer.pausaInicio).toISOString(), motivo: motivo + (obs ? ': ' + obs : ''), duracion: dur });
+            self._timer.estado = 'corriendo'; self._timer.pausaInicio = null;
+            document.getElementById('timerProdPausaForm').style.display = 'none';
+            document.getElementById('timerProdPausaMotivo').value = ''; document.getElementById('timerProdPausaObs').value = '';
+            self.timerUpdateUI(); self.renderPausasProduccion();
         });
         document.getElementById('timerProdPausaMotivo')?.addEventListener('change', function() {
-            const o = document.getElementById('timerProdPausaObs');
-            if (o) o.style.display = this.value === 'Otro' ? '' : 'none';
+            const o = document.getElementById('timerProdPausaObs'); if (o) o.style.display = this.value === 'Otro' ? '' : 'none';
         });
-        // DESMONTAJE
-        document.getElementById('btnDesmPlay')?.addEventListener('click', () => self.timerPlay('desmontaje'));
-        document.getElementById('btnDesmStop')?.addEventListener('click', () => self.timerStop('desmontaje'));
+        document.getElementById('btnProdStop')?.addEventListener('click', () => {
+            if (self._timer.estado === 'pausado' && self._timer.pausaInicio) {
+                self._timer.tiempoMuerto += Date.now() - self._timer.pausaInicio;
+                self._timer.pausas.push({ timestamp: new Date(self._timer.pausaInicio).toISOString(), motivo: 'Fin', duracion: Date.now() - self._timer.pausaInicio });
+            }
+            self._timer.estado = 'detenido';
+            if (self._timer.interval) { clearInterval(self._timer.interval); self._timer.interval = null; }
+            self.timerTick(); self.timerUpdateUI();
+        });
     },
-    timerPlay: function(tipo) {
-        const t = this._timers[tipo]; if (t.estado==='completado') return;
-        t.estado='en_progreso'; t.inicio=Date.now(); this.timerUpdateUI(tipo);
-        if (t.interval) clearInterval(t.interval); t.interval=setInterval(()=>this.timerTick(tipo),1000);
+    timerTick: function() {
+        const t = this._timer; if (!t.inicio) return;
+        const total = Date.now() - t.inicio;
+        const muerto = t.tiempoMuerto + (t.estado === 'pausado' && t.pausaInicio ? (Date.now() - t.pausaInicio) : 0);
+        const efectivo = Math.max(0, total - muerto);
+        const el = document.getElementById('timerProdDisplay'); if (el) el.textContent = this.formatearTiempoMs(total);
+        const em = document.getElementById('timerMuertoDisplay'); if (em) em.textContent = this.formatearTiempoMs(muerto);
+        const ee = document.getElementById('timerEfectivoDisplay'); if (ee) ee.textContent = this.formatearTiempoMs(efectivo);
+        const ek = document.getElementById('timerKgHora');
+        if (ek && efectivo > 60000) { const p = parseFloat(document.getElementById('pesoTotal')?.value) || 0; ek.textContent = (p / (efectivo / 3600000)).toFixed(0); }
     },
-    timerPause: function(tipo, motivo) {
-        const t = this._timers[tipo]; if (t.estado!=='en_progreso') return;
-        t.total += Date.now()-t.inicio; t.estado='pausado';
-        t.pausas.push({timestamp:new Date().toISOString(), duracion:Date.now()-t.inicio, motivo:motivo||''});
-        if (t.interval){clearInterval(t.interval);t.interval=null;} this.timerUpdateUI(tipo);
-        if (tipo==='produccion') this.renderPausasProduccion();
-    },
-    timerStop: function(tipo) {
-        const t = this._timers[tipo];
-        if (t.estado==='en_progreso') t.total += Date.now()-t.inicio;
-        t.estado='completado'; if(t.interval){clearInterval(t.interval);t.interval=null;} this.timerUpdateUI(tipo);
-        if (tipo==='preparacion' && t.total>3600000) document.getElementById('timerPrepAlerta').style.display='';
-    },
-    timerTick: function(tipo) {
-        const t = this._timers[tipo];
-        const current = t.total + (t.estado==='en_progreso' ? (Date.now()-t.inicio) : 0);
-        const ids = {preparacion:'timerPrepDisplay',produccion:'timerProdDisplay',desmontaje:'timerDesmDisplay'};
-        const el = document.getElementById(ids[tipo]); if(el) el.textContent=this.formatearTiempoMs(current);
-        if (tipo==='preparacion' && current>3600000) document.getElementById('timerPrepAlerta').style.display='';
-    },
-    timerUpdateUI: function(tipo) {
-        const t = this._timers[tipo];
-        const bIds={preparacion:'timerPrepEstado',produccion:'timerProdEstado',desmontaje:'timerDesmEstado'};
-        const b=document.getElementById(bIds[tipo]);
-        if(b){const l={pendiente:'Pendiente',en_progreso:'En progreso',pausado:'Pausado',completado:'Completado'};
-        const c={pendiente:'bg-secondary',en_progreso:'bg-success',pausado:'bg-warning text-dark',completado:'bg-primary'};
-        b.textContent=l[t.estado]||t.estado;b.className='badge '+(c[t.estado]||'bg-secondary');}
-        if(tipo==='preparacion'){const p=document.getElementById('btnPrepPlay'),pa=document.getElementById('btnPrepPause'),s=document.getElementById('btnPrepStop');
-        if(p)p.disabled=t.estado==='en_progreso'||t.estado==='completado';if(pa)pa.disabled=t.estado!=='en_progreso';if(s)s.disabled=t.estado!=='en_progreso'&&t.estado!=='pausado';}
-        if(tipo==='produccion'){const p=document.getElementById('btnProdPlay'),pa=document.getElementById('btnProdPause'),s=document.getElementById('btnProdStop');
-        if(p)p.disabled=t.estado==='en_progreso'||t.estado==='completado';if(pa)pa.disabled=t.estado!=='en_progreso';if(s)s.disabled=t.estado==='pendiente'||t.estado==='completado';}
-        if(tipo==='desmontaje'){const p=document.getElementById('btnDesmPlay'),s=document.getElementById('btnDesmStop');
-        if(p)p.disabled=t.estado==='en_progreso'||t.estado==='completado';if(s)s.disabled=t.estado!=='en_progreso';}
+    timerUpdateUI: function() {
+        const t = this._timer; const b = document.getElementById('timerProdEstado');
+        if (b) { const l = { pendiente: 'Pendiente', corriendo: 'En Produccion', pausado: 'Parada', detenido: 'Detenido' };
+        const c = { pendiente: 'bg-secondary', corriendo: 'bg-success', pausado: 'bg-warning text-dark', detenido: 'bg-primary' };
+        b.textContent = l[t.estado] || t.estado; b.className = 'badge ' + (c[t.estado] || 'bg-secondary'); }
+        const p = document.getElementById('btnProdPlay'), pa = document.getElementById('btnProdPause'), s = document.getElementById('btnProdStop');
+        if (p) p.disabled = t.estado === 'corriendo' || t.estado === 'detenido';
+        if (pa) pa.disabled = t.estado !== 'corriendo';
+        if (s) s.disabled = t.estado === 'pendiente' || t.estado === 'detenido';
     },
     renderPausasProduccion: function() {
-        const c=document.getElementById('timerProdPausas');if(!c)return;
-        const p=this._timers.produccion.pausas;if(!p.length){c.innerHTML='';return;}
-        let h='<div class="small mt-1"><strong>Paradas:</strong><ul class="mb-0" style="padding-left:1.2rem;">';
-        p.forEach(x=>{const hr=new Date(x.timestamp).toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit'});
-        h+=`<li>${hr} - ${x.motivo} <small class="text-muted">(${this.formatearTiempoMs(x.duracion)})</small></li>`;});
-        h+='</ul></div>';c.innerHTML=h;
+        const c = document.getElementById('timerProdPausas'); if (!c) return;
+        const p = this._timer.pausas; if (!p.length) { c.innerHTML = ''; return; }
+        let h = '<div class="small mt-1"><strong>Paradas:</strong><ul class="mb-0" style="padding-left:1.2rem;">';
+        p.forEach(x => { const hr = new Date(x.timestamp).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+        h += `<li>${hr} - ${x.motivo} <small class="text-muted">(${this.formatearTiempoMs(x.duracion)})</small></li>`; });
+        h += '</ul></div>'; c.innerHTML = h;
     },
     formatearTiempoMs: function(ms) {
-        const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),ss=s%60;
-        return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+        const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
     },
 
     /**

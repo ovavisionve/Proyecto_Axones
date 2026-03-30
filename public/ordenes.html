@@ -498,7 +498,23 @@
                                 </div>
                                 <div class="ot-field">
                                     <label class="form-label required-field">Estr. Material</label>
-                                    <input type="text" class="form-control form-control-sm" id="estructuraMaterial" required placeholder="BOPP 20 + CAST 30">
+                                    <input type="text" class="form-control form-control-sm" id="estructuraMaterial" required list="listaEstructuras" placeholder="Ej: BOPP 20 + CAST 30">
+                                    <datalist id="listaEstructuras">
+                                        <option value="BOPP">
+                                        <option value="BOPP + CAST">
+                                        <option value="BOPP + BOPP">
+                                        <option value="BOPP + PEBD">
+                                        <option value="BOPP MATE + CAST">
+                                        <option value="BOPP MATE + PEBD">
+                                        <option value="BOPP + Adhesivo + CAST">
+                                        <option value="BOPP + Adhesivo + PEBD">
+                                        <option value="BOPP MATE + Adhesivo + CAST">
+                                        <option value="PET + Adhesivo + PEBD">
+                                        <option value="PET + BOPP">
+                                        <option value="METAL + PEBD">
+                                        <option value="PERLADO + CAST">
+                                        <option value="Trilaminado BOPP + BOPP + CAST">
+                                    </datalist>
                                 </div>
                             </div>
                             <div class="ot-grid" style="grid-template-columns: 1fr 1fr 1fr;">
@@ -530,24 +546,23 @@
                     <div style="background: #e2efda; padding: 0.15rem 0.3rem; font-size: 0.7rem; font-weight: 700; border-bottom: 1px solid #a8d08d;">
                         <i class="bi bi-1-circle me-1"></i>CAPA 1 - MATERIAL BASE (EXTERIOR)
                     </div>
-                    <div class="ot-grid" style="grid-template-columns: 2fr 1fr 1fr 1fr 1fr 2fr;">
+                    <div class="ot-grid" style="grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 1fr 2fr;">
                         <div class="ot-field">
                             <label class="form-label">Tipo</label>
-                            <select class="form-select form-select-sm" id="fichaTipoMat1">
-                                <option value="">Sel...</option>
-                                <option value="BOPP NORMAL">BOPP NORMAL</option>
-                                <option value="BOPP MATE">BOPP MATE</option>
-                                <option value="BOPP PASTA">BOPP PASTA</option>
-                                <option value="BOPP PERLADO">BOPP PERLADO</option>
-                                <option value="CAST">CAST</option>
-                                <option value="PEBD">PEBD</option>
-                                <option value="PEBD PIGMENT">PEBD PIGMENT</option>
-                                <option value="POLIETILENO">POLIETILENO (PB)</option>
-                                <option value="PERLADO">PERLADO</option>
-                                <option value="METAL">METAL</option>
-                                <option value="PET">PET</option>
-                                <option value="PA">PA (Nylon)</option>
-                            </select>
+                            <input type="text" class="form-control form-control-sm" id="fichaTipoMat1" list="listaMateriales1" placeholder="Escribir o seleccionar...">
+                            <datalist id="listaMateriales1">
+                                <option value="BOPP NORMAL">
+                                <option value="BOPP MATE">
+                                <option value="BOPP PASTA">
+                                <option value="BOPP PERLADO">
+                                <option value="CAST">
+                                <option value="PEBD">
+                                <option value="PEBD PIGMENT">
+                                <option value="PERLADO">
+                                <option value="METAL">
+                                <option value="PET">
+                                <option value="PA (Nylon)">
+                            </datalist>
                         </div>
                         <div class="ot-field">
                             <label class="form-label">Micras</label>
@@ -564,6 +579,14 @@
                         <div class="ot-field">
                             <label class="form-label">Kg Nec.</label>
                             <input type="number" class="form-control form-control-sm" id="fichaKg1" style="background-color: #d4edda; font-weight: bold;" placeholder="Auto">
+                        </div>
+                        <div class="ot-field">
+                            <label class="form-label">Metros</label>
+                            <input type="number" class="form-control form-control-sm" id="fichaMetros1" step="0.01" placeholder="Auto" style="background-color: #d4edda;">
+                        </div>
+                        <div class="ot-field">
+                            <label class="form-label">Kg Disp.</label>
+                            <input type="number" class="form-control form-control-sm" id="fichaKgDisp1" readonly style="background-color: #e9ecef;">
                         </div>
                         <div class="ot-field">
                             <label class="form-label">SKU</label>
@@ -620,24 +643,23 @@
                     <div style="background: #cce5ff; padding: 0.15rem 0.3rem; font-size: 0.7rem; font-weight: 700; border-bottom: 1px solid #9dc3e6;">
                         <i class="bi bi-2-circle me-1"></i>CAPA 2 - MATERIAL INTERIOR (SELLADO)
                     </div>
-                    <div class="ot-grid" style="grid-template-columns: 2fr 1fr 1fr 1fr 1fr 2fr;">
+                    <div class="ot-grid" style="grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 1fr 2fr;">
                         <div class="ot-field">
                             <label class="form-label">Tipo</label>
-                            <select class="form-select form-select-sm" id="fichaTipoMat2">
-                                <option value="">Sel...</option>
-                                <option value="BOPP NORMAL">BOPP NORMAL</option>
-                                <option value="BOPP MATE">BOPP MATE</option>
-                                <option value="BOPP PASTA">BOPP PASTA</option>
-                                <option value="BOPP PERLADO">BOPP PERLADO</option>
-                                <option value="CAST">CAST</option>
-                                <option value="PEBD">PEBD</option>
-                                <option value="PEBD PIGMENT">PEBD PIGMENT</option>
-                                <option value="POLIETILENO">POLIETILENO (PB)</option>
-                                <option value="PERLADO">PERLADO</option>
-                                <option value="METAL">METAL</option>
-                                <option value="PET">PET</option>
-                                <option value="PA">PA (Nylon)</option>
-                            </select>
+                            <input type="text" class="form-control form-control-sm" id="fichaTipoMat2" list="listaMateriales2" placeholder="Escribir o seleccionar...">
+                            <datalist id="listaMateriales2">
+                                <option value="BOPP NORMAL">
+                                <option value="BOPP MATE">
+                                <option value="BOPP PASTA">
+                                <option value="BOPP PERLADO">
+                                <option value="CAST">
+                                <option value="PEBD">
+                                <option value="PEBD PIGMENT">
+                                <option value="PERLADO">
+                                <option value="METAL">
+                                <option value="PET">
+                                <option value="PA (Nylon)">
+                            </datalist>
                         </div>
                         <div class="ot-field">
                             <label class="form-label">Micras</label>
@@ -654,6 +676,14 @@
                         <div class="ot-field">
                             <label class="form-label">Kg Nec.</label>
                             <input type="number" class="form-control form-control-sm" id="fichaKg2" style="background-color: #cce5ff; font-weight: bold;" placeholder="Auto">
+                        </div>
+                        <div class="ot-field">
+                            <label class="form-label">Metros</label>
+                            <input type="number" class="form-control form-control-sm" id="fichaMetros2" step="0.01" placeholder="Auto" style="background-color: #cce5ff;">
+                        </div>
+                        <div class="ot-field">
+                            <label class="form-label">Kg Disp.</label>
+                            <input type="number" class="form-control form-control-sm" id="fichaKgDisp2" readonly style="background-color: #e9ecef;">
                         </div>
                         <div class="ot-field">
                             <label class="form-label">SKU</label>

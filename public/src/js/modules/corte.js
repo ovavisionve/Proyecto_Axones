@@ -1252,7 +1252,7 @@ const Corte = {
 
                         // Update in Supabase
                         if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady() && item.id) {
-                            await AxonesDB.client.from('materiales').update({ kg: item.kg }).eq('id', item.id);
+                            await AxonesDB.client.from('materiales').update({ stock_kg: item.kg }).eq('id', item.id);
                         }
                     }
                 }

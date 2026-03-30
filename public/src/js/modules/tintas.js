@@ -859,7 +859,7 @@ const Tintas = {
             if (archived.tinta_id) {
                 const { error: updateError } = await AxonesDB.client
                     .from('tintas')
-                    .update({ activo: true, stock: archived.stock_final || 0 })
+                    .update({ activo: true, stock_kg: archived.stock_final || 0 })
                     .eq('id', archived.tinta_id);
 
                 if (updateError) {
@@ -871,7 +871,7 @@ const Tintas = {
                             color: archived.color,
                             tipo: archived.tipo,
                             categoria: archived.categoria,
-                            stock: archived.stock_final || 0,
+                            stock_kg: archived.stock_final || 0,
                             proveedor: archived.proveedor,
                             lote: archived.lote,
                             notas: archived.notas,

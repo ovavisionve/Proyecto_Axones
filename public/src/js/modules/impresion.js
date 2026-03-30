@@ -1610,7 +1610,7 @@ const Impresion = {
 
                         // Actualizar en Supabase
                         if (AxonesDB.isReady() && item.id) {
-                            await AxonesDB.client.from('materiales').update({ kg: item.kg }).eq('id', item.id);
+                            await AxonesDB.client.from('materiales').update({ stock_kg: item.kg }).eq('id', item.id);
                         }
                     }
                 }
@@ -1633,7 +1633,7 @@ const Impresion = {
 
                         // Actualizar en Supabase
                         if (AxonesDB.isReady() && item.id) {
-                            await AxonesDB.client.from('materiales').update({ kg: item.kg }).eq('id', item.id);
+                            await AxonesDB.client.from('materiales').update({ stock_kg: item.kg }).eq('id', item.id);
                         }
                         break;
                     }

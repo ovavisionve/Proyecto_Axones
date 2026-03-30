@@ -1094,8 +1094,8 @@
                             </div>
                         </div>
                     </div>
-                    <!-- Fila 2: Ubicacion fotocelda y distancias -->
-                    <div class="ot-grid" style="grid-template-columns: repeat(4, 1fr);">
+                    <!-- Fila 2: Distancias y fotocelda -->
+                    <div class="ot-grid" style="grid-template-columns: repeat(3, 1fr);">
                         <div class="ot-field">
                             <label class="form-label">Ubic. Fotocelda</label>
                             <select class="form-select form-select-sm" id="ubicFotoceldaCorte">
@@ -1115,13 +1115,12 @@
                             <label class="form-label">Dist. Figura Lado Contrario (mm)</label>
                             <input type="text" class="form-control form-control-sm" id="distFiguraContrario" placeholder="20±1">
                         </div>
+                    </div>
+                    <div class="ot-grid" style="grid-template-columns: repeat(3, 1fr);">
                         <div class="ot-field">
                             <label class="form-label">Dist. Figura Lado Fotocelda (mm)</label>
                             <input type="text" class="form-control form-control-sm" id="distFiguraFotocelda" placeholder="30±1">
                         </div>
-                    </div>
-                    <!-- Fila 3: Empalme, bobina, core -->
-                    <div class="ot-grid" style="grid-template-columns: repeat(4, 1fr);">
                         <div class="ot-field">
                             <label class="form-label">Tipo Empalme</label>
                             <select class="form-select form-select-sm" id="tipoEmpalme">
@@ -1137,9 +1136,16 @@
                             <label class="form-label">Max. Empalmes</label>
                             <input type="number" class="form-control form-control-sm" id="maxEmpalmes" min="0">
                         </div>
+                    </div>
+                    <!-- Fila 3: Bobina y Core -->
+                    <div class="ot-grid" style="grid-template-columns: repeat(5, 1fr);">
                         <div class="ot-field">
                             <label class="form-label">Diam. Bobina (mm)</label>
                             <input type="text" class="form-control form-control-sm" id="diametroBobina" placeholder="400 ± 5">
+                        </div>
+                        <div class="ot-field">
+                            <label class="form-label">Ancho Core (mm)</label>
+                            <input type="number" class="form-control form-control-sm" id="anchoCore" step="0.01" title="Se sincroniza con Ancho Corte" style="font-weight:bold;">
                         </div>
                         <div class="ot-field">
                             <label class="form-label">Diam. Core (Plg)</label>
@@ -1149,17 +1155,15 @@
                                 <option value="6">6"</option>
                             </select>
                         </div>
-                    </div>
-                    <!-- Fila 4: Ancho Core, Cant Cores, Kg resumen -->
-                    <div class="ot-grid" style="grid-template-columns: repeat(4, 1fr);">
-                        <div class="ot-field">
-                            <label class="form-label">Ancho Core (mm)</label>
-                            <input type="number" class="form-control form-control-sm" id="anchoCore" step="0.01" title="Se sincroniza con Ancho Corte">
-                        </div>
                         <div class="ot-field">
                             <label class="form-label">Cant. Cores</label>
                             <input type="number" class="form-control form-control-sm" id="cantidadCores" min="1">
                         </div>
+                        <div class="ot-field">
+                            <label class="form-label">Cantidad de Cores</label>
+                            <input type="number" class="form-control form-control-sm" id="cantidadCoresTotal" min="1" placeholder="Total">
+                        </div>
+                    </div>
                         <div class="ot-field">
                             <label class="form-label">Kg Ingresados</label>
                             <input type="number" class="form-control form-control-sm" id="kgIngresadosCorte" step="0.01" style="background-color: #d4edda;" readonly title="Desde pedido">

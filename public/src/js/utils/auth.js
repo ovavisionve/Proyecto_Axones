@@ -32,6 +32,7 @@ const Auth = {
         'nota-entrega.html': 'calidad.ver',
         'clientes.html':     'ordenes.ver',
         'proveedores.html':  'inventario.ver',
+        'almacen.html':      'inventario.ver',
     },
 
     // Mapa de pagina -> permiso para filtrar navbar
@@ -51,6 +52,7 @@ const Auth = {
         'admin.html':        'usuarios.gestionar',
         'clientes.html':     'ordenes.ver',
         'proveedores.html':  'inventario.ver',
+        'almacen.html':      'inventario.ver',
     },
 
     /**

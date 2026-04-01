@@ -167,10 +167,10 @@ const Almacen = {
 
         const items = [];
         document.querySelectorAll('#tablaItemsRecepcion tr').forEach(row => {
-            const desc = row.querySelector('.rec-desc')?.value?.trim();
-            const tipo = row.querySelector('.rec-tipo')?.value;
-            const cant = parseFloat(row.querySelector('.rec-cant')?.value) || 0;
-            const unidad = row.querySelector('.rec-unidad')?.value;
+            const desc = row.querySelector('[name="itemDescripcion"]')?.value?.trim() || row.querySelector('.rec-desc')?.value?.trim();
+            const tipo = row.querySelector('[name="itemTipo"]')?.value || row.querySelector('.rec-tipo')?.value;
+            const cant = parseFloat(row.querySelector('[name="itemCantidad"]')?.value || row.querySelector('.rec-cant')?.value) || 0;
+            const unidad = row.querySelector('[name="itemUnidad"]')?.value || row.querySelector('.rec-unidad')?.value;
             if (desc && cant > 0) items.push({ descripcion: desc, tipo, cantidad: cant, unidad });
         });
         if (items.length === 0) { alert('Agregue al menos un item'); return; }
@@ -226,9 +226,9 @@ const Almacen = {
 
         const items = [];
         document.querySelectorAll('#tablaItemsMisc tr').forEach(row => {
-            const desc = row.querySelector('.misc-desc')?.value?.trim();
-            const cant = parseFloat(row.querySelector('.misc-cant')?.value) || 0;
-            const unidad = row.querySelector('.misc-unidad')?.value || 'Unidad';
+            const desc = row.querySelector('[name="miscDescripcion"]')?.value?.trim() || row.querySelector('.misc-desc')?.value?.trim();
+            const cant = parseFloat(row.querySelector('[name="miscCantidad"]')?.value || row.querySelector('.misc-cant')?.value) || 0;
+            const unidad = row.querySelector('[name="miscUnidad"]')?.value || row.querySelector('.misc-unidad')?.value || 'Unidad';
             if (desc && cant > 0) items.push({ descripcion: desc, cantidad: cant, unidad });
         });
         if (items.length === 0) { alert('Agregue al menos un item'); return; }

@@ -142,19 +142,39 @@ const Almacen = {
     agregarFilaRecepcion: function() {
         const tbody = document.getElementById('tablaItemsRecepcion');
         if (!tbody) return;
+        const n = tbody.querySelectorAll('tr').length;
         const fila = document.createElement('tr');
         fila.innerHTML = `
-            <td><input type="text" class="form-control form-control-sm rec-desc" placeholder="Descripcion" required></td>
-            <td><select class="form-select form-select-sm rec-tipo">
+            <td><select class="form-select form-select-sm rec-tipo" name="itemTipo" onchange="Almacen.onTipoRecepcionChange(this)">
+                <option value="">Tipo...</option>
                 <option value="Sustrato">Sustrato</option><option value="Tinta">Tinta</option>
                 <option value="Quimico">Quimico</option><option value="Consumible">Consumible</option><option value="Otro">Otro</option>
             </select></td>
-            <td><input type="number" class="form-control form-control-sm rec-cant" step="0.01" min="0" required></td>
-            <td><select class="form-select form-select-sm rec-unidad">
+            <td><input type="text" class="form-control form-control-sm rec-desc" name="itemDescripcion" list="listaMaterialesRec_${n}" placeholder="Escribir o seleccionar...">
+                <datalist id="listaMaterialesRec_${n}">
+                    <option value="BOPP NORMAL"><option value="BOPP MATE"><option value="BOPP PASTA">
+                    <option value="BOPP PERLADO"><option value="CAST"><option value="PEBD">
+                    <option value="PEBD PIGMENT"><option value="METAL"><option value="PERLADO">
+                    <option value="PET"><option value="PA (Nylon)">
+                </datalist>
+            </td>
+            <td><input type="number" class="form-control form-control-sm rec-micras" name="itemMicras" step="0.1" placeholder="µ"></td>
+            <td><input type="number" class="form-control form-control-sm rec-ancho" name="itemAncho" step="1" placeholder="mm"></td>
+            <td><input type="number" class="form-control form-control-sm rec-cant" name="itemCantidad" step="0.01" min="0" required placeholder="0"></td>
+            <td><select class="form-select form-select-sm rec-unidad" name="itemUnidad">
                 <option value="Kg">Kg</option><option value="Lt">Lt</option><option value="Unidad">Unidad</option>
             </select></td>
             <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>`;
         tbody.appendChild(fila);
+    },
+
+    onTipoRecepcionChange: function(select) {
+        const row = select.closest('tr');
+        const micrasInput = row.querySelector('.rec-micras');
+        const anchoInput = row.querySelector('.rec-ancho');
+        const isSustrato = select.value === 'Sustrato';
+        if (micrasInput) { micrasInput.style.display = isSustrato ? '' : 'none'; micrasInput.placeholder = isSustrato ? 'µ' : ''; }
+        if (anchoInput) { anchoInput.style.display = isSustrato ? '' : 'none'; anchoInput.placeholder = isSustrato ? 'mm' : ''; }
     },
 
     registrarRecepcion: async function() {
@@ -167,11 +187,18 @@ const Almacen = {
 
         const items = [];
         document.querySelectorAll('#tablaItemsRecepcion tr').forEach(row => {
-            const desc = row.querySelector('[name="itemDescripcion"]')?.value?.trim() || row.querySelector('.rec-desc')?.value?.trim();
-            const tipo = row.querySelector('[name="itemTipo"]')?.value || row.querySelector('.rec-tipo')?.value;
-            const cant = parseFloat(row.querySelector('[name="itemCantidad"]')?.value || row.querySelector('.rec-cant')?.value) || 0;
-            const unidad = row.querySelector('[name="itemUnidad"]')?.value || row.querySelector('.rec-unidad')?.value;
-            if (desc && cant > 0) items.push({ descripcion: desc, tipo, cantidad: cant, unidad });
+            const tipo = row.querySelector('.rec-tipo')?.value || row.querySelector('[name="itemTipo"]')?.value;
+            const desc = row.querySelector('.rec-desc')?.value?.trim() || row.querySelector('[name="itemDescripcion"]')?.value?.trim();
+            const micras = row.querySelector('.rec-micras')?.value || '';
+            const ancho = row.querySelector('.rec-ancho')?.value || '';
+            const cant = parseFloat(row.querySelector('.rec-cant')?.value || row.querySelector('[name="itemCantidad"]')?.value) || 0;
+            const unidad = row.querySelector('.rec-unidad')?.value || row.querySelector('[name="itemUnidad"]')?.value;
+            if (desc && cant > 0) {
+                const descripcionCompleta = tipo === 'Sustrato' && micras && ancho
+                    ? `${desc} ${micras}µ x ${ancho}mm`
+                    : desc;
+                items.push({ descripcion: descripcionCompleta, tipo, cantidad: cant, unidad, material: desc, micras, ancho });
+            }
         });
         if (items.length === 0) { alert('Agregue al menos un item'); return; }
 

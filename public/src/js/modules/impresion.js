@@ -2309,6 +2309,11 @@ const Impresion = {
         data.timer = { ...this._timer, interval: null };
         data.timerDesm = { ...this._timerDesm, interval: null };
 
+        // Guardar OT seleccionada para restaurar
+        if (this.ordenCargada) {
+            data.ordenCargada = this.ordenCargada;
+        }
+
         localStorage.setItem(this.AUTOSAVE_KEY, JSON.stringify(data));
     },
 
@@ -2362,14 +2367,34 @@ const Impresion = {
                     }
                 });
 
-                // Restaurar timer
+                // Restaurar timer de produccion
                 if (data.timer) {
                     this._timer = { ...data.timer, interval: null };
                     if (this._timer.estado === 'corriendo' && this._timer.inicio) {
+                        // Timer estaba corriendo - reanudar el interval
                         this._timer.interval = setInterval(() => this.timerTick(), 1000);
+                    } else if (this._timer.estado === 'pausado' && this._timer.inicio) {
+                        // Timer estaba pausado - reanudar interval (sigue contando tiempo total)
+                        this._timer.interval = setInterval(() => this.timerTick(), 1000);
+                        // Mostrar formulario de pausa si estaba en pausa
+                        const pausaForm = document.getElementById('timerProdPausaForm');
+                        if (pausaForm) pausaForm.style.display = '';
                     }
                     this.timerUpdateUI();
                     this.timerTick();
+                }
+
+                // Restaurar timer de desmontaje
+                if (data.timerDesm) {
+                    this._timerDesm = { ...data.timerDesm, interval: null };
+                    if (this._timerDesm.estado === 'corriendo' && this._timerDesm.inicio) {
+                        this._timerDesm.interval = setInterval(() => {
+                            const el = document.getElementById('timerDesmDisplay');
+                            if (el) el.textContent = this.formatearTiempoMs(Date.now() - this._timerDesm.inicio);
+                        }, 1000);
+                        document.getElementById('btnDesmPlay').disabled = true;
+                        document.getElementById('btnDesmStop').disabled = false;
+                    }
                 }
 
                 console.log('[Impresion] Datos restaurados del autosave');

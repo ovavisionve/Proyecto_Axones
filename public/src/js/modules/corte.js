@@ -1689,7 +1689,16 @@ const Corte = {
             setTimeout(() => {
                 const f = document.getElementById('formCorte'); if (!f) return;
                 Object.entries(data.campos || {}).forEach(([id, v]) => { const el = document.getElementById(id); if (!el) return; if (el.type === 'checkbox' || el.type === 'radio') el.checked = v; else el.value = v; });
-                if (data.timer) { this._timer = { ...data.timer, interval: null }; if (this._timer.estado === 'corriendo' && this._timer.inicio) { this._timer.interval = setInterval(() => this.timerTick(), 1000); } this.timerUpdateUI(); this.timerTick(); }
+                if (data.timer) {
+                    this._timer = { ...data.timer, interval: null };
+                    if ((this._timer.estado === 'corriendo' || this._timer.estado === 'pausado') && this._timer.inicio) {
+                        this._timer.interval = setInterval(() => this.timerTick(), 1000);
+                        if (this._timer.estado === 'pausado') {
+                            const pf = document.getElementById('timerProdPausaForm'); if (pf) pf.style.display = '';
+                        }
+                    }
+                    this.timerUpdateUI(); this.timerTick();
+                }
                 if (typeof showToast === 'function') showToast('Datos recuperados de la sesion anterior', 'info');
             }, 500);
         } catch (e) { localStorage.removeItem(this.AUTOSAVE_KEY); }

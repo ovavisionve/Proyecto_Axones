@@ -48,7 +48,10 @@ const Impresion = {
         // Autosave: restaurar datos si hay sesion guardada
         this.restaurarAutosave();
         // Autosave: guardar cada 10 segundos
-        this._autosaveInterval = setInterval(() => this.autosave(), 10000);
+        this._autosaveInterval = setInterval(() => this.autosave(), 5000);
+        // Autosave: guardar inmediatamente al cerrar/actualizar/bloquear
+        window.addEventListener('beforeunload', () => this.autosave());
+        document.addEventListener('visibilitychange', () => { if (document.hidden) this.autosave(); });
 
         // Escuchar re-sync del cloud para recargar datos
         window.addEventListener('axones-sync', async () => {

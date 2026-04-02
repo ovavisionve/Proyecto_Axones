@@ -44,7 +44,9 @@ const Laminacion = {
 
         // Autosave
         this.restaurarAutosave();
-        this._autosaveInterval = setInterval(() => this.autosave(), 10000);
+        this._autosaveInterval = setInterval(() => this.autosave(), 5000);
+        window.addEventListener('beforeunload', () => this.autosave());
+        document.addEventListener('visibilitychange', () => { if (document.hidden) this.autosave(); });
 
         // Escuchar re-sync del cloud para recargar datos
         window.addEventListener('axones-sync', () => {

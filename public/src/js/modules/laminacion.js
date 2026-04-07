@@ -318,8 +318,73 @@ const Laminacion = {
         document.getElementById('otDensidad').textContent = v(orden.fichaDensidad1);
         document.getElementById('otKgNecesarios').textContent = n(orden.fichaKg1);
 
+        // Cargar acumulado de produccion
+        this.cargarAcumuladoOT(orden);
+
         // Mostrar el resumen
         resumen.classList.add('visible');
+    },
+
+    /**
+     * Carga y muestra el acumulado de produccion de la OT (suma de todos los turnos anteriores)
+     */
+    cargarAcumuladoOT: async function(orden) {
+        const numOT = orden.numeroOrden || orden.nombreOT || orden.ot;
+        const pedidoKg = parseFloat(orden.pedidoKg) || 0;
+        if (!numOT) return;
+
+        document.getElementById('acumuladoOTPanel')?.remove();
+
+        let registros = [];
+        if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+            try {
+                const { data } = await AxonesDB.client.from('produccion_laminacion')
+                    .select('*').eq('numero_ot', numOT).order('created_at', { ascending: false });
+                registros = data || [];
+            } catch (e) { console.warn('[Laminacion] Error cargando acumulado:', e); }
+        }
+
+        const totalPesoSalida = registros.reduce((s, r) => s + (parseFloat(r.peso_total) || 0), 0);
+        const totalScrap = registros.reduce((s, r) => s + (parseFloat(r.total_scrap) || 0), 0);
+        const totalEntrada = registros.reduce((s, r) => s + (parseFloat(r.total_entrada) || 0), 0);
+        const faltante = Math.max(0, pedidoKg - totalPesoSalida);
+        const porcentaje = pedidoKg > 0 ? Math.min(100, (totalPesoSalida / pedidoKg) * 100) : 0;
+        const ultimoRegistro = registros[0];
+
+        let barColor = 'bg-warning';
+        if (porcentaje >= 100) barColor = 'bg-success';
+        else if (porcentaje >= 70) barColor = 'bg-info';
+        else if (porcentaje >= 30) barColor = 'bg-primary';
+
+        const ultimoTexto = ultimoRegistro
+            ? `${ultimoRegistro.fecha || '-'} | Turno: ${ultimoRegistro.turno || '-'} | Operador: ${ultimoRegistro.operador || '-'}`
+            : 'Sin laminacion previa';
+
+        const panelHTML = `
+        <div id="acumuladoOTPanel" class="card border-info mb-3" style="border-width: 2px;">
+            <div class="card-header bg-info text-white py-2">
+                <strong><i class="bi bi-graph-up me-1"></i>ACUMULADO DE LA ORDEN (todos los turnos)</strong>
+            </div>
+            <div class="card-body py-2">
+                <div class="row g-2 mb-2">
+                    <div class="col-md-3"><small class="text-muted d-block">Pedido Total</small><strong style="font-size:1.1rem;">${pedidoKg.toLocaleString('es-VE')} Kg</strong></div>
+                    <div class="col-md-3"><small class="text-muted d-block">Producido</small><strong style="font-size:1.1rem;color:#198754;">${totalPesoSalida.toFixed(1)} Kg</strong></div>
+                    <div class="col-md-3"><small class="text-muted d-block">Falta por Producir</small><strong style="font-size:1.1rem;color:${faltante > 0 ? '#dc3545' : '#198754'};">${faltante.toFixed(1)} Kg</strong></div>
+                    <div class="col-md-3"><small class="text-muted d-block">Registros / Turnos</small><strong style="font-size:1.1rem;">${registros.length}</strong></div>
+                </div>
+                <div class="progress mb-2" style="height:24px;">
+                    <div class="progress-bar ${barColor}" role="progressbar" style="width:${porcentaje}%; font-weight:bold;">${porcentaje.toFixed(1)}% completado</div>
+                </div>
+                <div class="row g-2 small">
+                    <div class="col-md-4"><strong>Total Entrada acumulada:</strong> ${totalEntrada.toFixed(1)} Kg</div>
+                    <div class="col-md-4"><strong>Total Scrap acumulado:</strong> ${totalScrap.toFixed(1)} Kg</div>
+                    <div class="col-md-4"><strong>Ultimo turno:</strong> ${ultimoTexto}</div>
+                </div>
+                ${faltante <= 0 ? '<div class="alert alert-success mt-2 mb-0 py-1 small"><i class="bi bi-check-circle me-1"></i><strong>OT COMPLETADA</strong> - No hace falta seguir produciendo</div>' : ''}
+            </div>
+        </div>`;
+        const form = document.getElementById('formLaminacion');
+        if (form) form.insertAdjacentHTML('beforebegin', panelHTML);
     },
 
     /**

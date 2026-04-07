@@ -3,12 +3,15 @@
 ## Descripcion del Proyecto
 Sistema integral de gestion y control de produccion para **Inversiones Axones 2008, C.A.** - empresa de empaques flexibles plasticos en Venezuela.
 
-**Version:** 1.6.0
-**Ultima actualizacion:** 2026-03-25
+**Version:** 1.7.0
+**Ultima actualizacion:** 2026-04-07
+**Branch principal:** claude/setup-axones-project-Ja8zK
+**Branch de desarrollo activo:** claude/review-consolidate-merge-c6lub
 
-## URLs de Vercel
-- **Desarrollo:** https://proyecto-axones-git-claude-setup-axones-project-ja8zk-ova1.vercel.app/
-- **Produccion:** https://proyecto-axones.vercel.app/ (rama main)
+## URLs de Despliegue
+- **GitHub Pages:** https://ovavisionve.github.io/Proyecto_Axones/
+- **Vercel Dev:** https://proyecto-axones-git-claude-setup-axones-project-ja8zk-ova1.vercel.app/
+- **Vercel Prod:** https://proyecto-axones.vercel.app/ (rama main)
 
 ## Datos de la Empresa
 ```
@@ -39,6 +42,9 @@ public/
 ├── incidencias.html        # Registro de incidencias
 ├── chatbot.html            # Asistente IA (Groq LLaMA)
 ├── admin.html              # Administracion de usuarios
+├── almacen.html            # Modulo Almacen (Despacho OT, Recepcion, Miscelaneos, Movimientos)
+├── clientes.html           # Gestion de clientes
+├── proveedores.html        # Gestion de proveedores
 ├── test-orden.html         # Pruebas de ordenes
 ├── src/js/
 │   ├── main.js             # Punto de entrada principal
@@ -959,4 +965,207 @@ bc34c2f feat: Fase 2 migracion - control-tiempo.js sin localStorage
 6192c7c fix: Clientes y proveedores no persistian - agregar cache localStorage + sync keys
 03cbfc5 docs: Documentar estado completo de Supabase - 19 tablas activas y 4 scripts SQL
 e152d22 feat: Agregar dropdown Datos Maestros (Clientes + Proveedores) al navbar
+```
+
+## ============================================================
+## FASES 15-33: Sesion 2026-03-26 al 2026-04-07
+## ============================================================
+
+### Fase 15: Reportes completo + Etiquetas reescritas
+- reportes.js completo: 5 tabs (Ordenes, Impresion, Laminacion, Corte, Graficos)
+- Modal detalle OT con produccion completa, tiempos, pausas, despachos
+- Tab Graficos con 4 charts Chart.js
+- Export CSV/Excel + Imprimir
+- Fix carga OTs por filtro de fechas
+
+### Fase 16: Area de Corte + Responsive (PR #31)
+- Area de Corte: campos faltantes (Dist Figura, Tipo Empalme Externo/Interno, Ubic Fotocelda Ambas)
+- Figura Embobinado 1-8 con preview SVG visual
+- Diam Core selector 3"/6"
+- Auto-sync Ancho Corte = Ancho Core
+- CSS Responsive tablet (1024px) y mobile (768px) en TODAS las paginas
+- Inputs touch-friendly (min-height 2.4rem tablet, 2.8rem mobile)
+
+### Fase 17: Modal Crear Producto + Figura Embobinado Visual (PR #32)
+- Boton "+" en OT abre modal para crear producto nuevo
+- SKU autogenerado, guardado en Supabase
+- Figura Embobinado con preview SVG en Montaje y Corte
+- Campos calculados (Desarrollo, Ancho Montaje, Pinon) marcados con (auto) + fondo verde
+
+### Fase 18: Alertas de Material Faltante con Email (PR #33-35)
+- verificarYCrearAlertas: revisa Capa 1, Capa 2, capas adicionales y adhesivo
+- crearAlertaSolicitudMaterial: crea alerta detallada en Supabase + email HTML
+- enviarEmailSolicitudMaterial: usa EmailJS, fallback a mailto
+- EmailJS configurado en config.js (EMAILJS_SERVICE_ID, TEMPLATE_ID, PUBLIC_KEY)
+- ALERTAS_EMAIL_ACTIVO=false por defecto (modo pruebas)
+- Destinatarios: gerencia, operaciones, produccion, almacen
+
+### Fase 19: Impresion - Quitar Tintas + Colores/Anilox (PR #36)
+- Eliminar Consumo Tintas, Solventes, Devolucion Tintas (van en modulo Tintas)
+- Cuadro de Colores y Anilox editable (8 posiciones) que se pre-llena desde la OT
+- Observaciones en Devolucion Buena (ej: devolucion por medida)
+- Inventario: tab "Adhesivos" -> "Quimicos", tipo Alcohol/Solvente, columna Proveedor
+
+### Fase 20: 3 Temporizadores en Impresion (PR #37)
+- Temporizador Preparacion (alerta si > 1h con motivo)
+- Temporizador Produccion con paradas obligatorias (motivo predefinido)
+- Temporizador Desmontaje
+- Lista de paradas registradas con hora, motivo y duracion
+
+### Fase 21: Temporizadores Replicados en Laminacion y Corte (PR #38)
+- 3 temporizadores identicos a impresion en laminacion y corte
+- Laminacion: eliminar consumo/devolucion tintas y solventes
+- Laminacion: observaciones en Devolucion Buena
+- ~350 lineas de codigo obsoleto eliminadas
+
+### Fase 22: Cementerio de Tintas Integrado (PR #39)
+- Seccion Cementerio de Tintas dentro del tab Tintas en inventario
+- Filtros por tipo (Laminada/Superficie) y motivo (agotada/vencida/contaminada)
+- Codigo autogenerado: CEM-LAM-xxx / CEM-SUP-xxx
+- Boton restaurar tinta al inventario activo
+- Renombrar Tintas: Laminacion -> Laminada
+
+### Fase 23: Inventario de Bobinas Malas (PR #40)
+- Bobinas rechazadas en impresion/laminacion se guardan automaticamente
+- Tab "Bobinas Malas" en inventario con filtros por proceso/estado
+- Total Kg disponibles para calibrar
+- Boton marcar como usada
+
+### Fase 24: Modulo Tintas Reescrito (PR #41-42)
+- Quitar grillas fijas de colores predefinidos
+- Tabla unificada editable con: Codigo, Color, Proveedor, Tipo (Laminada/Superficie), Fuente (Original/Cementerio), Kg Usado, Kg Restante
+- Selector OT con resumen auto-llenado (eliminar campos manuales Kg/Cliente/Producto/Maquina/Turno/Status)
+- Auto-llenar codigo, proveedor, tipo y fuente al seleccionar tinta del datalist
+- Selector muestra tintas del inventario Y del cementerio (con icono)
+
+### Fase 25: Reordenar Modulos de Produccion (PR #43-46)
+- Temporizadores laminacion identicos a impresion
+- Reordenar impresion segun secuencia Valeria: 2 columnas con orden izq->der
+- Reordenar laminacion: secuencia clara
+- Reordenar corte: quitar restante bobina
+
+### Fase 26: Temporizador Unificado - Reloj Nunca Se Detiene (PR #45-46, #52)
+- Cambio fundamental: al pausar el reloj NO se detiene
+- Pausa solo registra motivo, tiempo sigue corriendo
+- Muestra: Tiempo Total, Tiempo Muerto (suma pausas), Tiempo Efectivo (Total - Muerto)
+- Kg/Hora estimado basado en peso salida y tiempo efectivo
+- Eliminados los 3 temporizadores separados, ahora 1 unificado
+- Replicado en impresion, laminacion y corte
+- Impresion: temporizador Desmontaje simple agregado + "Control de Tiempo" renombrado a "Tiempo de Arranque"
+
+### Fase 27: Reportes Material Rechazado y Tiempos Muertos (PR #49)
+- Tab Material Rechazado: bobinas rechazadas de impresion/laminacion
+- Resumen por proveedor con badges
+- Tab Tiempos Muertos: paradas con motivos
+- Resumen por motivo de parada
+- Total general de tiempo muerto
+
+### Fase 28: Inventario - Persistencia y Reportes (PR #51-60)
+- Inventario: agregar columna Proveedor a tabla materiales
+- Proveedor obligatorio al agregar material
+- Fix critico: usar `stock_kg` en vez de `kg` (columna real de Supabase)
+- editarItem y usarMaterial ahora persisten en Supabase
+- Reportes en inventario: dropdown con Por Material, Por Proveedor, Stock Bajo, CSV, Imprimir
+
+### Fase 29: Modulo Almacen NUEVO (PR #61, #66)
+- Nuevo modulo completo: almacen.html + almacen.js
+- 4 tabs:
+  - **Despacho OT**: lista OTs pendientes, botones despachar, descuenta inventario
+  - **Recepcion**: proveedor (datalist), factura, OC, items dinamicos con tipo
+  - **Despacho Miscelaneos**: consumibles (hojillas, cintas, etc.) por solicitante/area
+  - **Movimientos**: trazabilidad completa con filtros (fecha, tipo, busqueda)
+- Link Almacen agregado al navbar de las 19 paginas
+- Permisos: requiere `inventario.ver` (jefe_almacen, planificador, jefe_operaciones, admin)
+- Movimientos guardados en sync_store key `axones_movimientos_almacen` (max 1000)
+
+### Fase 30: Bug Fixes Criticos de Persistencia (PR #57-58, #62, #67)
+- **Causa raiz #1**: produccion_impresion/laminacion/corte NO tienen columna `datos`
+  - Antes: insert con `{ orden_id, numero_ot, datos: {...} }` fallaba silenciosamente
+  - Ahora: mapea a columnas reales del schema (bobinas_entrada, total_entrada, etc.)
+  - JSON completo va en `observaciones` como backup
+- **Causa raiz #2**: ordenes_trabajo NO tiene columna `datos`
+  - Antes: ordenesHelper.crear/actualizar enviaba `datos: ordenData`, fallaba
+  - Ahora: mapea TODOS los 46+ campos reales (Montaje, Impresion, Laminacion, Corte, Ficha Tecnica)
+- **Causa raiz #3**: Columnas incorrectas en updates
+  - impresion.js, corte.js usaban `kg` -> arreglado a `stock_kg`
+  - tintas.js usaba `stock` -> arreglado a `stock_kg`
+- **admin.js**: cargarConfiguracion y guardarUmbrales no eran async pero usaban await -> arreglado
+
+### Fase 31: Autosave + Sesion Persistente (PR #56, #68, #69)
+- Autoguardado cada 5 segundos en localStorage
+- beforeunload: guarda inmediatamente al actualizar pagina (F5/swipe)
+- visibilitychange: guarda cuando la tablet se bloquea o cambia de app
+- 12 horas de expiracion del autosave
+- Al volver: pregunta si recuperar datos
+- Restaura: OT seleccionada, todos los campos, timer con su tiempo
+- **Sesion persistente del timer**: usa timestamps absolutos
+  - Si tablet bloqueada 30 min, al volver el timer muestra +30 min reales
+  - Estado pausado se restaura mostrando formulario de motivo
+  - Timer desmontaje tambien se restaura
+- Aplicado a impresion, laminacion y corte
+
+### Fase 32: Cambios en OT segun feedback Valeria (PR #63-65)
+- **Estructura Material**: cambiada a datalist con opciones comunes
+- **Ficha Tecnica Capa 1 y 2**:
+  - Tipo: input con datalist (escribir o seleccionar del inventario)
+  - Campos nuevos: Metros, Kg Disponibles
+- **Impresion**: Merma y Metros editables (sin formula)
+- **Laminacion**: Kg Entrada/Salida/Metraje/Merma editables, eliminar Lamina Impresa/Virgen
+- **Corte**: Merma y Metraje editables, reorganizar distancias en filas de 3
+- **Eliminada**: seccion DESCRIPCION MATERIA PRIMA VIRGEN (ya esta en Ficha Tecnica)
+
+### Fase 33: Almacen Recepcion Mejorada (PR #67, #70)
+- Proveedor como datalist con 16 proveedores reales (Siplast, Teleplastic, Favika, ALPHA, etc.)
+- Items recibidos:
+  - Tipo como primera columna (Sustrato/Tinta/Quimico/Consumible/Otro)
+  - Material con datalist de sustratos (BOPP, CAST, PEBD, etc.)
+  - Micras y Ancho solo visibles cuando tipo es Sustrato
+  - Descripcion se arma automaticamente (ej: "BOPP NORMAL 20µ x 610mm")
+- Eliminada fila placeholder que causaba bug "agregue un item"
+- Selectores corregidos: usa `[name="..."]` con fallback a clases CSS
+
+## ============================================================
+## PENDIENTES REPORTADOS POR LUIS Y JEFE DE TURNO (2026-04-07)
+## ============================================================
+
+### CRITICO #1: Almacen Recepcion debe ser por DOCUMENTO no por item
+- Las recepciones deben generar **un correlativo** unico (ej: REC-2026-0001)
+- Una factura = una recepcion con multiples items agrupados
+- Al abrir la factura de Dinastia, debe mostrar TODO lo que llego en esa factura
+- Actualmente cada item se guarda como movimiento individual (mal)
+- Bug: al agregar 4to item se cierra la recepcion sin guardar
+- Bug: al agregar items nuevos esta creando recepciones independientes
+
+### CRITICO #2: Almacen Despacho Miscelaneos - Mismo problema
+- Items se registran como salidas individuales en vez de un solo despacho agrupado
+- Bug: al agregar 3er item se borra lo que se estaba haciendo
+- Necesita correlativo (ej: MISC-2026-0001)
+- Un despacho miscelaneo = un documento con multiples items
+
+### CRITICO #3: Despacho OT debe ser Nota de Despacho completa
+- Actualmente solo: Kg + Observaciones (muy general)
+- Necesita:
+  - Cantidad de bobinas
+  - Cliente (auto desde OT)
+  - Direccion del cliente
+  - Datos del chofer (nombre, cedula, placa vehiculo)
+  - Datos de los responsables que firman el documento
+  - Fecha y hora del despacho
+- Generar documento imprimible tipo "Nota de Despacho" con formato profesional
+- Cada despacho debe tener correlativo (ej: ND-2026-0001)
+
+### IMPORTANTE: Operadores - Ver Acumulado de OT al integrarse en turno
+- El operador que entra a su turno deberia ver:
+  - Cuanto va impreso/laminado/cortado de la OT (acumulado de turnos anteriores)
+  - Cuanto falta para cumplir con el pedido total
+  - Quien fue el ultimo operador
+- Para que sepa cuando parar de producir
+- Esto requiere consolidar registros de produccion por OT
+
+## Ultimos Commits (Sesion 2026-04-07)
+```
+PR #67 - fix: OT no guardaba + Almacen recepcion/miscelaneos + proveedor datalist
+PR #68 - fix: Autosave reforzado - no perder datos al actualizar
+PR #69 - feat: Sesion persistente - timer sigue corriendo al bloquear
+PR #70 - feat: Almacen recepcion con lista de sustratos + micras/ancho
 ```

@@ -145,12 +145,12 @@ const Almacen = {
         const n = tbody.querySelectorAll('tr').length;
         const fila = document.createElement('tr');
         fila.innerHTML = `
-            <td><select class="form-select form-select-sm rec-tipo" name="itemTipo" onchange="Almacen.onTipoRecepcionChange(this)">
+            <td><select class="form-select form-select-sm rec-tipo" onchange="Almacen.onTipoRecepcionChange(this)">
                 <option value="">Tipo...</option>
                 <option value="Sustrato">Sustrato</option><option value="Tinta">Tinta</option>
                 <option value="Quimico">Quimico</option><option value="Consumible">Consumible</option><option value="Otro">Otro</option>
             </select></td>
-            <td><input type="text" class="form-control form-control-sm rec-desc" name="itemDescripcion" list="listaMaterialesRec_${n}" placeholder="Escribir o seleccionar...">
+            <td><input type="text" class="form-control form-control-sm rec-desc" list="listaMaterialesRec_${n}" placeholder="Escribir o seleccionar...">
                 <datalist id="listaMaterialesRec_${n}">
                     <option value="BOPP NORMAL"><option value="BOPP MATE"><option value="BOPP PASTA">
                     <option value="BOPP PERLADO"><option value="CAST"><option value="PEBD">
@@ -158,13 +158,17 @@ const Almacen = {
                     <option value="PET"><option value="PA (Nylon)">
                 </datalist>
             </td>
-            <td><input type="number" class="form-control form-control-sm rec-micras" name="itemMicras" step="0.1" placeholder="µ"></td>
-            <td><input type="number" class="form-control form-control-sm rec-ancho" name="itemAncho" step="1" placeholder="mm"></td>
-            <td><input type="number" class="form-control form-control-sm rec-cant" name="itemCantidad" step="0.01" min="0" required placeholder="0"></td>
-            <td><select class="form-select form-select-sm rec-unidad" name="itemUnidad">
+            <td><input type="number" class="form-control form-control-sm rec-micras" step="0.1" placeholder="µ"></td>
+            <td><input type="number" class="form-control form-control-sm rec-ancho" step="1" placeholder="mm"></td>
+            <td><input type="number" class="form-control form-control-sm rec-cant" step="0.01" min="0" placeholder="0"></td>
+            <td><select class="form-select form-select-sm rec-unidad">
                 <option value="Kg">Kg</option><option value="Lt">Lt</option><option value="Unidad">Unidad</option>
             </select></td>
             <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>`;
+        // Prevenir Enter para que no submitee el form
+        fila.querySelectorAll('input, select').forEach(el => {
+            el.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
+        });
         tbody.appendChild(fila);
     },
 
@@ -175,6 +179,24 @@ const Almacen = {
         const isSustrato = select.value === 'Sustrato';
         if (micrasInput) { micrasInput.style.display = isSustrato ? '' : 'none'; micrasInput.placeholder = isSustrato ? 'µ' : ''; }
         if (anchoInput) { anchoInput.style.display = isSustrato ? '' : 'none'; anchoInput.placeholder = isSustrato ? 'mm' : ''; }
+    },
+
+    /**
+     * Genera correlativo para recepcion: REC-2026-XXXX
+     */
+    generarCorrelativoRecepcion: async function() {
+        const year = new Date().getFullYear();
+        let recepciones = [];
+        if (AxonesDB.isReady()) {
+            try {
+                const { data } = await AxonesDB.client.from('sync_store')
+                    .select('value').eq('key', 'axones_recepciones_almacen').single();
+                recepciones = data?.value ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+            } catch (e) {}
+        }
+        const delAnio = recepciones.filter(r => (r.correlativo || '').startsWith(`REC-${year}-`));
+        const siguiente = delAnio.length + 1;
+        return `REC-${year}-${String(siguiente).padStart(4, '0')}`;
     },
 
     registrarRecepcion: async function() {
@@ -202,33 +224,76 @@ const Almacen = {
         });
         if (items.length === 0) { alert('Agregue al menos un item'); return; }
 
-        for (const item of items) {
-            await this.registrarMovimiento({
-                tipo: 'entrada',
-                referencia: `FAC: ${factura} | OC: ${oc}`,
-                descripcion: `${item.tipo}: ${item.descripcion}`,
-                cantidad: item.cantidad, unidad: item.unidad,
-                proveedor_destino: proveedor,
-                observaciones: obs
-            });
+        // Generar correlativo y armar documento de recepcion
+        const correlativo = await this.generarCorrelativoRecepcion();
+        const recepcion = {
+            id: 'REC_' + Date.now(),
+            correlativo: correlativo,
+            timestamp: new Date().toISOString(),
+            fecha: fecha,
+            proveedor: proveedor,
+            factura: factura,
+            ordenCompra: oc,
+            items: items,
+            totalItems: items.length,
+            totalCantidad: items.reduce((s, i) => s + (parseFloat(i.cantidad) || 0), 0),
+            observaciones: obs,
+            usuario: (typeof Auth !== 'undefined' && Auth.getUser()) ? Auth.getUser().nombre : 'Sistema'
+        };
 
-            if (item.tipo === 'Sustrato' && AxonesDB.isReady()) {
-                try {
-                    const { data: existentes } = await AxonesDB.client.from('materiales')
-                        .select('id, stock_kg, material')
-                        .ilike('material', `%${item.descripcion.split(' ')[0]}%`).limit(1);
-                    if (existentes && existentes[0]) {
-                        const mat = existentes[0];
-                        await AxonesDB.client.from('materiales').update({ stock_kg: (mat.stock_kg || 0) + item.cantidad }).eq('id', mat.id);
-                    }
-                } catch (e) { console.warn('[Almacen] Error actualizando inventario:', e); }
+        // Guardar recepcion completa en sync_store
+        if (AxonesDB.isReady()) {
+            try {
+                const { data: existing } = await AxonesDB.client.from('sync_store')
+                    .select('value').eq('key', 'axones_recepciones_almacen').single();
+                const recepciones = existing?.value ? (typeof existing.value === 'string' ? JSON.parse(existing.value) : existing.value) : [];
+                recepciones.unshift(recepcion);
+                if (recepciones.length > 1000) recepciones.length = 1000;
+                await AxonesDB.client.from('sync_store').upsert({
+                    key: 'axones_recepciones_almacen',
+                    value: JSON.stringify(recepciones),
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'key' });
+            } catch (e) { console.warn('[Almacen] Error guardando recepcion:', e); }
+        }
+
+        // Registrar UN solo movimiento por toda la recepcion
+        await this.registrarMovimiento({
+            tipo: 'entrada',
+            referencia: correlativo,
+            descripcion: `Recepcion ${proveedor} (${items.length} items)`,
+            cantidad: recepcion.totalCantidad,
+            unidad: items[0]?.unidad || 'Kg',
+            proveedor_destino: proveedor,
+            observaciones: `FAC: ${factura} | OC: ${oc}${obs ? ' | ' + obs : ''}`,
+            recepcionId: recepcion.id
+        });
+
+        // Actualizar inventario para items tipo Sustrato
+        if (AxonesDB.isReady()) {
+            for (const item of items) {
+                if (item.tipo === 'Sustrato') {
+                    try {
+                        const { data: existentes } = await AxonesDB.client.from('materiales')
+                            .select('id, stock_kg, material')
+                            .ilike('material', `%${(item.material || item.descripcion).split(' ')[0]}%`).limit(1);
+                        if (existentes && existentes[0]) {
+                            const mat = existentes[0];
+                            await AxonesDB.client.from('materiales').update({ stock_kg: (mat.stock_kg || 0) + item.cantidad }).eq('id', mat.id);
+                        }
+                    } catch (e) { console.warn('[Almacen] Error actualizando inventario:', e); }
+                }
             }
         }
 
         document.getElementById('formRecepcion')?.reset();
         document.getElementById('tablaItemsRecepcion').innerHTML = '';
         this.setDefaultDates();
-        if (typeof showToast === 'function') showToast(`Recepcion registrada: ${items.length} items de ${proveedor}`, 'success');
+        if (typeof showToast === 'function') {
+            showToast(`Recepcion ${correlativo} registrada: ${items.length} items de ${proveedor}`, 'success');
+        } else {
+            alert(`Recepcion ${correlativo} registrada: ${items.length} items de ${proveedor}`);
+        }
     },
 
     // ==================== TAB 3: MISCELANEOS ====================
@@ -238,11 +303,33 @@ const Almacen = {
         if (!tbody) return;
         const fila = document.createElement('tr');
         fila.innerHTML = `
-            <td><input type="text" class="form-control form-control-sm misc-desc" placeholder="Ej: Hojillas, cinta..." required></td>
-            <td><input type="number" class="form-control form-control-sm misc-cant" step="0.01" min="0" required></td>
+            <td><input type="text" class="form-control form-control-sm misc-desc" placeholder="Ej: Hojillas, cinta..."></td>
+            <td><input type="number" class="form-control form-control-sm misc-cant" step="0.01" min="0" placeholder="0"></td>
             <td><input type="text" class="form-control form-control-sm misc-unidad" value="Unidad"></td>
             <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>`;
+        // Prevenir Enter para que no submitee el form
+        fila.querySelectorAll('input, select').forEach(el => {
+            el.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
+        });
         tbody.appendChild(fila);
+    },
+
+    /**
+     * Genera correlativo para despacho miscelaneo: MISC-2026-XXXX
+     */
+    generarCorrelativoMisc: async function() {
+        const year = new Date().getFullYear();
+        let despachos = [];
+        if (AxonesDB.isReady()) {
+            try {
+                const { data } = await AxonesDB.client.from('sync_store')
+                    .select('value').eq('key', 'axones_miscelaneos_almacen').single();
+                despachos = data?.value ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+            } catch (e) {}
+        }
+        const delAnio = despachos.filter(d => (d.correlativo || '').startsWith(`MISC-${year}-`));
+        const siguiente = delAnio.length + 1;
+        return `MISC-${year}-${String(siguiente).padStart(4, '0')}`;
     },
 
     registrarMiscelaneo: async function() {
@@ -253,27 +340,65 @@ const Almacen = {
 
         const items = [];
         document.querySelectorAll('#tablaItemsMisc tr').forEach(row => {
-            const desc = row.querySelector('[name="miscDescripcion"]')?.value?.trim() || row.querySelector('.misc-desc')?.value?.trim();
-            const cant = parseFloat(row.querySelector('[name="miscCantidad"]')?.value || row.querySelector('.misc-cant')?.value) || 0;
-            const unidad = row.querySelector('[name="miscUnidad"]')?.value || row.querySelector('.misc-unidad')?.value || 'Unidad';
+            const desc = row.querySelector('.misc-desc')?.value?.trim() || row.querySelector('[name="miscDescripcion"]')?.value?.trim();
+            const cant = parseFloat(row.querySelector('.misc-cant')?.value || row.querySelector('[name="miscCantidad"]')?.value) || 0;
+            const unidad = row.querySelector('.misc-unidad')?.value || row.querySelector('[name="miscUnidad"]')?.value || 'Unidad';
             if (desc && cant > 0) items.push({ descripcion: desc, cantidad: cant, unidad });
         });
         if (items.length === 0) { alert('Agregue al menos un item'); return; }
 
-        for (const item of items) {
-            await this.registrarMovimiento({
-                tipo: 'salida',
-                referencia: `MISC - ${area}`,
-                descripcion: `Consumible: ${item.descripcion}`,
-                cantidad: item.cantidad, unidad: item.unidad,
-                proveedor_destino: `${solicitadoPor} (${area})`,
-                observaciones: obs
-            });
+        // Generar correlativo y armar documento
+        const correlativo = await this.generarCorrelativoMisc();
+        const despacho = {
+            id: 'MISC_' + Date.now(),
+            correlativo: correlativo,
+            timestamp: new Date().toISOString(),
+            fecha: new Date().toISOString().split('T')[0],
+            solicitadoPor: solicitadoPor,
+            area: area,
+            items: items,
+            totalItems: items.length,
+            observaciones: obs,
+            usuario: (typeof Auth !== 'undefined' && Auth.getUser()) ? Auth.getUser().nombre : 'Sistema'
+        };
+
+        // Guardar en sync_store
+        if (AxonesDB.isReady()) {
+            try {
+                const { data: existing } = await AxonesDB.client.from('sync_store')
+                    .select('value').eq('key', 'axones_miscelaneos_almacen').single();
+                const despachos = existing?.value ? (typeof existing.value === 'string' ? JSON.parse(existing.value) : existing.value) : [];
+                despachos.unshift(despacho);
+                if (despachos.length > 1000) despachos.length = 1000;
+                await AxonesDB.client.from('sync_store').upsert({
+                    key: 'axones_miscelaneos_almacen',
+                    value: JSON.stringify(despachos),
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'key' });
+            } catch (e) { console.warn('[Almacen] Error guardando misc:', e); }
         }
+
+        // Registrar UN solo movimiento por todo el despacho
+        const totalCantidad = items.reduce((s, i) => s + (parseFloat(i.cantidad) || 0), 0);
+        const itemsTexto = items.map(i => `${i.descripcion} (${i.cantidad} ${i.unidad})`).join(', ');
+        await this.registrarMovimiento({
+            tipo: 'salida',
+            referencia: correlativo,
+            descripcion: `Despacho miscelaneo (${items.length} items): ${itemsTexto}`,
+            cantidad: totalCantidad,
+            unidad: items[0]?.unidad || 'Unidad',
+            proveedor_destino: `${solicitadoPor} (${area})`,
+            observaciones: obs,
+            despachoId: despacho.id
+        });
 
         document.getElementById('formMiscelaneos')?.reset();
         document.getElementById('tablaItemsMisc').innerHTML = '';
-        if (typeof showToast === 'function') showToast(`Despacho miscelaneo: ${items.length} items para ${solicitadoPor}`, 'success');
+        if (typeof showToast === 'function') {
+            showToast(`Despacho ${correlativo} registrado: ${items.length} items para ${solicitadoPor}`, 'success');
+        } else {
+            alert(`Despacho ${correlativo} registrado: ${items.length} items para ${solicitadoPor}`);
+        }
     },
 
     // ==================== TAB 4: MOVIMIENTOS ====================
@@ -343,18 +468,139 @@ const Almacen = {
         }
 
         const tc = { entrada: 'bg-success', salida: 'bg-danger', ajuste: 'bg-warning text-dark', devolucion: 'bg-info' };
-        tbody.innerHTML = movs.slice(0, 200).map(m => `
-            <tr>
+        tbody.innerHTML = movs.slice(0, 200).map(m => {
+            const esRec = (m.referencia || '').startsWith('REC-') && m.recepcionId;
+            const esMisc = (m.referencia || '').startsWith('MISC-') && m.despachoId;
+            const clickable = esRec || esMisc;
+            const onclick = esRec ? `Almacen.verDetalleRecepcion('${m.recepcionId}')` :
+                            esMisc ? `Almacen.verDetalleMisc('${m.despachoId}')` : '';
+            const cursor = clickable ? 'cursor:pointer;' : '';
+            const hint = clickable ? '<i class="bi bi-eye ms-1 text-primary"></i>' : '';
+            return `
+            <tr style="${cursor}" ${clickable ? `onclick="${onclick}"` : ''}>
                 <td>${m.fecha || '-'}</td>
                 <td><span class="badge ${tc[m.tipo] || 'bg-secondary'}">${(m.tipo || '').toUpperCase()}</span></td>
-                <td>${m.referencia || '-'}</td>
+                <td><strong>${m.referencia || '-'}</strong>${hint}</td>
                 <td>${m.descripcion || '-'}</td>
                 <td class="text-end fw-bold">${m.cantidad || 0} ${m.unidad || 'Kg'}</td>
                 <td>${m.proveedor_destino || '-'}</td>
                 <td>${m.usuario || '-'}</td>
                 <td><small>${m.observaciones || '-'}</small></td>
-            </tr>
-        `).join('');
+            </tr>`;
+        }).join('');
+    },
+
+    /**
+     * Muestra modal con detalle de una recepcion (todos los items)
+     */
+    verDetalleRecepcion: async function(recepcionId) {
+        if (!AxonesDB.isReady()) return;
+        try {
+            const { data } = await AxonesDB.client.from('sync_store')
+                .select('value').eq('key', 'axones_recepciones_almacen').single();
+            const recepciones = data?.value ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+            const rec = recepciones.find(r => r.id === recepcionId);
+            if (!rec) { alert('Recepcion no encontrada'); return; }
+            this.mostrarModalDetalle({
+                titulo: `Recepcion ${rec.correlativo}`,
+                tipo: 'recepcion',
+                datos: rec
+            });
+        } catch (e) { console.warn('Error cargando detalle:', e); }
+    },
+
+    /**
+     * Muestra modal con detalle de un despacho miscelaneo
+     */
+    verDetalleMisc: async function(despachoId) {
+        if (!AxonesDB.isReady()) return;
+        try {
+            const { data } = await AxonesDB.client.from('sync_store')
+                .select('value').eq('key', 'axones_miscelaneos_almacen').single();
+            const despachos = data?.value ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+            const desp = despachos.find(d => d.id === despachoId);
+            if (!desp) { alert('Despacho no encontrado'); return; }
+            this.mostrarModalDetalle({
+                titulo: `Despacho Miscelaneo ${desp.correlativo}`,
+                tipo: 'misc',
+                datos: desp
+            });
+        } catch (e) { console.warn('Error cargando detalle:', e); }
+    },
+
+    /**
+     * Renderiza un modal con el detalle de una recepcion o despacho
+     */
+    mostrarModalDetalle: function({ titulo, tipo, datos }) {
+        // Eliminar modal previo si existe
+        document.getElementById('modalDetalleAlmacen')?.remove();
+
+        const isRec = tipo === 'recepcion';
+        const headerInfo = isRec ? `
+            <div class="row g-2 mb-3">
+                <div class="col-md-4"><small class="text-muted d-block">Proveedor</small><strong>${datos.proveedor || '-'}</strong></div>
+                <div class="col-md-2"><small class="text-muted d-block">Factura</small><strong>${datos.factura || '-'}</strong></div>
+                <div class="col-md-2"><small class="text-muted d-block">Orden Compra</small><strong>${datos.ordenCompra || '-'}</strong></div>
+                <div class="col-md-2"><small class="text-muted d-block">Fecha</small><strong>${datos.fecha || '-'}</strong></div>
+                <div class="col-md-2"><small class="text-muted d-block">Usuario</small><strong>${datos.usuario || '-'}</strong></div>
+            </div>` : `
+            <div class="row g-2 mb-3">
+                <div class="col-md-4"><small class="text-muted d-block">Solicitado por</small><strong>${datos.solicitadoPor || '-'}</strong></div>
+                <div class="col-md-3"><small class="text-muted d-block">Area</small><strong>${datos.area || '-'}</strong></div>
+                <div class="col-md-3"><small class="text-muted d-block">Fecha</small><strong>${datos.fecha || '-'}</strong></div>
+                <div class="col-md-2"><small class="text-muted d-block">Usuario</small><strong>${datos.usuario || '-'}</strong></div>
+            </div>`;
+
+        const itemsHTML = (datos.items || []).map((item, i) => {
+            if (isRec) {
+                return `<tr>
+                    <td>${i + 1}</td>
+                    <td><span class="badge bg-info">${item.tipo || '-'}</span></td>
+                    <td>${item.descripcion || '-'}</td>
+                    <td class="text-end">${item.cantidad || 0}</td>
+                    <td>${item.unidad || '-'}</td>
+                </tr>`;
+            } else {
+                return `<tr>
+                    <td>${i + 1}</td>
+                    <td>${item.descripcion || '-'}</td>
+                    <td class="text-end">${item.cantidad || 0}</td>
+                    <td>${item.unidad || '-'}</td>
+                </tr>`;
+            }
+        }).join('');
+
+        const headerCols = isRec ? '<th>#</th><th>Tipo</th><th>Descripcion</th><th class="text-end">Cantidad</th><th>Unidad</th>'
+                                 : '<th>#</th><th>Descripcion</th><th class="text-end">Cantidad</th><th>Unidad</th>';
+
+        const modalHTML = `
+        <div class="modal fade" id="modalDetalleAlmacen" tabindex="-1">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header bg-${isRec ? 'success' : 'primary'} text-white py-2">
+                        <h6 class="modal-title"><i class="bi bi-${isRec ? 'box-arrow-in-down' : 'send'} me-2"></i>${titulo}</h6>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        ${headerInfo}
+                        <h6 class="mt-3 mb-2">Items (${datos.totalItems || datos.items?.length || 0})</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-light"><tr>${headerCols}</tr></thead>
+                                <tbody>${itemsHTML}</tbody>
+                            </table>
+                        </div>
+                        ${datos.observaciones ? `<div class="alert alert-light mt-2"><strong>Observaciones:</strong> ${datos.observaciones}</div>` : ''}
+                    </div>
+                    <div class="modal-footer py-1">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+                        <button type="button" class="btn btn-primary btn-sm" onclick="window.print()"><i class="bi bi-printer me-1"></i>Imprimir</button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        new bootstrap.Modal(document.getElementById('modalDetalleAlmacen')).show();
     }
 };
 

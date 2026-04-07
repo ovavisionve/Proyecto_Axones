@@ -36,7 +36,8 @@ const Almacen = {
 
     setupEvents: function() {
         // Despacho OT
-        document.getElementById('btnGuardarDespachoOT')?.addEventListener('click', () => this.guardarDespachoOT());
+        document.getElementById('btnGuardarDespachoOT')?.addEventListener('click', () => this.guardarDespachoOT(false));
+        document.getElementById('btnImprimirDespachoOT')?.addEventListener('click', () => this.guardarDespachoOT(true));
         document.getElementById('btnCancelarDespachoOT')?.addEventListener('click', () => this.cancelarDespacho());
         // Recepcion
         document.getElementById('btnAgregarItemRecepcion')?.addEventListener('click', () => this.agregarFilaRecepcion());
@@ -87,31 +88,143 @@ const Almacen = {
         if (!form) return;
         form.style.display = '';
         form.dataset.otId = otId;
+
+        // Datos de la OT (read-only)
         document.getElementById('despachoOTNumero').textContent = ot.numeroOrden || ot.nombreOT || '';
         document.getElementById('despachoProducto').textContent = ot.producto || '-';
         document.getElementById('despachoKgPedidos').textContent = (ot.pedidoKg || 0) + ' Kg';
         document.getElementById('despachoMaterial').textContent = ot.tipoMaterial || '-';
-        document.getElementById('despachoKg').value = '';
-        document.getElementById('despachoObservaciones').value = '';
-        document.getElementById('despachoKg').focus();
+
+        // Auto-llenar datos del cliente
+        document.getElementById('despachoCliente').value = ot.cliente || '';
+        document.getElementById('despachoClienteRif').value = ot.clienteRif || ot.rifCliente || '';
+        document.getElementById('despachoClienteTelefono').value = ot.clienteTelefono || '';
+        document.getElementById('despachoDireccion').value = ot.clienteDireccion || ot.direccionCliente || '';
+
+        // Limpiar campos
+        ['despachoBobinas', 'despachoKg', 'despachoPaletas', 'despachoChoferNombre',
+         'despachoChoferCedula', 'despachoPlaca', 'despachoTransporte',
+         'despachoDespachadoPor', 'despachoVerificadoPor', 'despachoAutorizadoPor',
+         'despachoObservaciones'].forEach(id => {
+            const el = document.getElementById(id); if (el) el.value = '';
+        });
+
+        // Fecha por defecto: hoy
+        document.getElementById('despachoFecha').value = new Date().toISOString().split('T')[0];
+
+        // Generar correlativo preview
+        this.generarCorrelativoND().then(corr => {
+            document.getElementById('despachoCorrelativo').textContent = corr + ' (preview)';
+        });
+
+        document.getElementById('despachoBobinas').focus();
+        // Scroll al formulario
+        form.scrollIntoView({ behavior: 'smooth', block: 'start' });
     },
 
-    guardarDespachoOT: async function() {
+    /**
+     * Genera correlativo para nota de despacho: ND-2026-XXXX
+     */
+    generarCorrelativoND: async function() {
+        const year = new Date().getFullYear();
+        let despachos = [];
+        if (AxonesDB.isReady()) {
+            try {
+                const { data } = await AxonesDB.client.from('sync_store')
+                    .select('value').eq('key', 'axones_notas_despacho').single();
+                despachos = data?.value ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+            } catch (e) {}
+        }
+        const delAnio = despachos.filter(d => (d.correlativo || '').startsWith(`ND-${year}-`));
+        const siguiente = delAnio.length + 1;
+        return `ND-${year}-${String(siguiente).padStart(4, '0')}`;
+    },
+
+    guardarDespachoOT: async function(imprimir) {
         const form = document.getElementById('formDespachoOT');
         const otId = form?.dataset.otId;
-        const kg = parseFloat(document.getElementById('despachoKg')?.value) || 0;
-        const obs = document.getElementById('despachoObservaciones')?.value || '';
-        if (!otId || kg <= 0) { alert('Ingrese los Kg a despachar'); return; }
+        if (!otId) { alert('No hay OT seleccionada'); return; }
         const ot = this.ordenes.find(o => o.id === otId);
         if (!ot) return;
 
+        // Recopilar datos
+        const bobinas = parseInt(document.getElementById('despachoBobinas')?.value) || 0;
+        const kg = parseFloat(document.getElementById('despachoKg')?.value) || 0;
+        const paletas = parseInt(document.getElementById('despachoPaletas')?.value) || 0;
+        const fecha = document.getElementById('despachoFecha')?.value || new Date().toISOString().split('T')[0];
+        const direccion = document.getElementById('despachoDireccion')?.value?.trim();
+        const choferNombre = document.getElementById('despachoChoferNombre')?.value?.trim();
+        const choferCedula = document.getElementById('despachoChoferCedula')?.value?.trim();
+
+        // Validaciones
+        if (bobinas <= 0) { alert('Indique la cantidad de bobinas'); return; }
+        if (kg <= 0) { alert('Indique los Kg totales'); return; }
+        if (!direccion) { alert('La direccion del cliente es obligatoria'); return; }
+        if (!choferNombre) { alert('El nombre del chofer es obligatorio'); return; }
+        if (!choferCedula) { alert('La cedula del chofer es obligatoria'); return; }
+
+        // Generar correlativo
+        const correlativo = await this.generarCorrelativoND();
+
+        const nota = {
+            id: 'ND_' + Date.now(),
+            correlativo: correlativo,
+            timestamp: new Date().toISOString(),
+            fecha: fecha,
+            // Datos OT
+            otId: otId,
+            otNumero: ot.numeroOrden || ot.nombreOT || '',
+            producto: ot.producto || '',
+            material: ot.tipoMaterial || '',
+            kgPedidos: ot.pedidoKg || 0,
+            // Cliente
+            cliente: document.getElementById('despachoCliente')?.value?.trim() || ot.cliente || '',
+            clienteRif: document.getElementById('despachoClienteRif')?.value?.trim() || '',
+            clienteTelefono: document.getElementById('despachoClienteTelefono')?.value?.trim() || '',
+            direccion: direccion,
+            // Material despachado
+            bobinas: bobinas,
+            kg: kg,
+            paletas: paletas,
+            // Chofer
+            choferNombre: choferNombre,
+            choferCedula: choferCedula,
+            placa: document.getElementById('despachoPlaca')?.value?.trim() || '',
+            transporte: document.getElementById('despachoTransporte')?.value?.trim() || '',
+            // Responsables
+            despachadoPor: document.getElementById('despachoDespachadoPor')?.value?.trim() || '',
+            verificadoPor: document.getElementById('despachoVerificadoPor')?.value?.trim() || '',
+            autorizadoPor: document.getElementById('despachoAutorizadoPor')?.value?.trim() || '',
+            observaciones: document.getElementById('despachoObservaciones')?.value?.trim() || '',
+            usuario: (typeof Auth !== 'undefined' && Auth.getUser()) ? Auth.getUser().nombre : 'Sistema'
+        };
+
+        // Guardar la nota completa en sync_store
+        if (AxonesDB.isReady()) {
+            try {
+                const { data: existing } = await AxonesDB.client.from('sync_store')
+                    .select('value').eq('key', 'axones_notas_despacho').single();
+                const notas = existing?.value ? (typeof existing.value === 'string' ? JSON.parse(existing.value) : existing.value) : [];
+                notas.unshift(nota);
+                if (notas.length > 1000) notas.length = 1000;
+                await AxonesDB.client.from('sync_store').upsert({
+                    key: 'axones_notas_despacho',
+                    value: JSON.stringify(notas),
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'key' });
+            } catch (e) { console.warn('[Almacen] Error guardando ND:', e); }
+        }
+
+        // Registrar movimiento
         await this.registrarMovimiento({
             tipo: 'salida',
-            referencia: ot.numeroOrden || ot.nombreOT || '',
-            descripcion: `Despacho OT: ${ot.tipoMaterial || ot.producto || ''} para ${ot.cliente || ''}`,
-            cantidad: kg, unidad: 'Kg',
-            proveedor_destino: ot.cliente || '',
-            observaciones: obs
+            referencia: correlativo,
+            descripcion: `Despacho OT ${nota.otNumero}: ${bobinas} bobinas (${kg} Kg) para ${nota.cliente}`,
+            cantidad: kg,
+            unidad: 'Kg',
+            proveedor_destino: nota.cliente,
+            observaciones: `Chofer: ${choferNombre} (${choferCedula}) ${nota.placa ? '- ' + nota.placa : ''}`,
+            notaDespachoId: nota.id
         });
 
         // Descontar del inventario
@@ -122,14 +235,137 @@ const Almacen = {
                     .gt('stock_kg', 0).order('stock_kg', { ascending: false }).limit(1);
                 if (materiales && materiales[0]) {
                     const mat = materiales[0];
-                    const nuevoStock = Math.max(0, (mat.stock_kg || 0) - kg);
-                    await AxonesDB.client.from('materiales').update({ stock_kg: nuevoStock }).eq('id', mat.id);
+                    await AxonesDB.client.from('materiales').update({ stock_kg: Math.max(0, (mat.stock_kg || 0) - kg) }).eq('id', mat.id);
                 }
             } catch (e) { console.warn('[Almacen] Error descontando:', e); }
         }
 
         form.style.display = 'none';
-        if (typeof showToast === 'function') showToast(`Despachados ${kg} Kg para ${ot.numeroOrden || ''}`, 'success');
+        if (typeof showToast === 'function') {
+            showToast(`Nota de despacho ${correlativo} guardada`, 'success');
+        } else {
+            alert(`Nota de despacho ${correlativo} guardada`);
+        }
+
+        // Si solicito imprimir, abrir ventana
+        if (imprimir) this.imprimirNotaDespacho(nota);
+    },
+
+    /**
+     * Genera ventana imprimible con la nota de despacho
+     */
+    imprimirNotaDespacho: function(nota) {
+        const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>${nota.correlativo}</title>
+<style>
+body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; color: #333; }
+.header { text-align: center; border-bottom: 3px solid #0d6efd; padding-bottom: 10px; margin-bottom: 20px; }
+.header h1 { margin: 0; color: #0d6efd; font-size: 24px; }
+.header h2 { margin: 5px 0; font-size: 16px; }
+.header p { margin: 2px 0; font-size: 11px; }
+.correlativo { background: #fff3cd; padding: 8px; border: 2px solid #ffc107; text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 15px; }
+table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 12px; }
+table th, table td { border: 1px solid #999; padding: 6px 8px; text-align: left; }
+table th { background: #f0f0f0; font-weight: bold; width: 30%; }
+.section-title { background: #0d6efd; color: white; padding: 5px 8px; font-size: 12px; font-weight: bold; margin-top: 15px; margin-bottom: 0; }
+.firmas { display: flex; justify-content: space-between; margin-top: 50px; }
+.firma { width: 30%; text-align: center; }
+.firma-line { border-top: 1px solid #333; padding-top: 5px; font-size: 11px; }
+.firma-name { font-weight: bold; font-size: 11px; }
+.footer { margin-top: 30px; text-align: center; font-size: 10px; color: #666; border-top: 1px solid #ccc; padding-top: 10px; }
+@media print { body { padding: 10px; } .no-print { display: none; } }
+</style></head><body>
+<div class="header">
+    <h1>NOTA DE DESPACHO</h1>
+    <h2>INVERSIONES AXONES 2008, C.A.</h2>
+    <p>RIF: J-40081341-7 | Calle Parcelamiento Industrial Guere, local 35, sector La Julia, Turmero, Aragua</p>
+    <p>Telefono: 0424-316.96.12 | axones2008@gmail.com</p>
+</div>
+
+<div class="correlativo">N° ${nota.correlativo}</div>
+
+<div class="section-title">DATOS DEL CLIENTE</div>
+<table>
+    <tr><th>Cliente</th><td>${nota.cliente || '-'}</td></tr>
+    <tr><th>RIF</th><td>${nota.clienteRif || '-'}</td></tr>
+    <tr><th>Telefono</th><td>${nota.clienteTelefono || '-'}</td></tr>
+    <tr><th>Direccion de Entrega</th><td>${nota.direccion || '-'}</td></tr>
+</table>
+
+<div class="section-title">DATOS DE LA ORDEN</div>
+<table>
+    <tr><th>OT N°</th><td>${nota.otNumero || '-'}</td></tr>
+    <tr><th>Producto</th><td>${nota.producto || '-'}</td></tr>
+    <tr><th>Material</th><td>${nota.material || '-'}</td></tr>
+    <tr><th>Fecha de Despacho</th><td>${nota.fecha || '-'}</td></tr>
+</table>
+
+<div class="section-title">MATERIAL DESPACHADO</div>
+<table>
+    <tr><th>Cantidad de Bobinas</th><td><strong>${nota.bobinas || 0}</strong></td></tr>
+    <tr><th>Kg Totales</th><td><strong>${nota.kg || 0} Kg</strong></td></tr>
+    <tr><th>N° Paletas</th><td>${nota.paletas || 0}</td></tr>
+</table>
+
+<div class="section-title">DATOS DEL TRANSPORTE</div>
+<table>
+    <tr><th>Chofer</th><td>${nota.choferNombre || '-'}</td></tr>
+    <tr><th>Cedula</th><td>${nota.choferCedula || '-'}</td></tr>
+    <tr><th>Placa Vehiculo</th><td>${nota.placa || '-'}</td></tr>
+    <tr><th>Empresa Transporte</th><td>${nota.transporte || '-'}</td></tr>
+</table>
+
+${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="font-size:12px;padding:8px;background:#f8f9fa;border:1px solid #ddd;">${nota.observaciones}</p>` : ''}
+
+<div class="firmas">
+    <div class="firma">
+        <div class="firma-line">
+            <div class="firma-name">${nota.despachadoPor || ''}</div>
+            <div>Despachado por</div>
+        </div>
+    </div>
+    <div class="firma">
+        <div class="firma-line">
+            <div class="firma-name">${nota.verificadoPor || ''}</div>
+            <div>Verificado por</div>
+        </div>
+    </div>
+    <div class="firma">
+        <div class="firma-line">
+            <div class="firma-name">${nota.autorizadoPor || ''}</div>
+            <div>Autorizado por</div>
+        </div>
+    </div>
+</div>
+
+<div class="firmas" style="margin-top: 60px;">
+    <div class="firma" style="width: 60%;">
+        <div class="firma-line">
+            <div class="firma-name">${nota.choferNombre || ''} - C.I: ${nota.choferCedula || ''}</div>
+            <div>Recibido por (Chofer)</div>
+        </div>
+    </div>
+    <div class="firma">
+        <div class="firma-line">
+            <div>Sello / Fecha</div>
+        </div>
+    </div>
+</div>
+
+<div class="footer">
+    Sistema Axones - Generado el ${new Date().toLocaleString('es-VE')} por ${nota.usuario || 'Sistema'}
+</div>
+
+<div class="no-print" style="text-align:center;margin-top:20px;">
+    <button onclick="window.print()" style="padding:10px 20px;font-size:14px;background:#0d6efd;color:white;border:none;border-radius:4px;cursor:pointer;">Imprimir</button>
+    <button onclick="window.close()" style="padding:10px 20px;font-size:14px;background:#6c757d;color:white;border:none;border-radius:4px;cursor:pointer;margin-left:10px;">Cerrar</button>
+</div>
+
+</body></html>`;
+        const w = window.open('', '_blank', 'width=900,height=700');
+        w.document.write(html);
+        w.document.close();
+        setTimeout(() => w.print(), 300);
     },
 
     cancelarDespacho: function() {
@@ -471,9 +707,11 @@ const Almacen = {
         tbody.innerHTML = movs.slice(0, 200).map(m => {
             const esRec = (m.referencia || '').startsWith('REC-') && m.recepcionId;
             const esMisc = (m.referencia || '').startsWith('MISC-') && m.despachoId;
-            const clickable = esRec || esMisc;
+            const esND = (m.referencia || '').startsWith('ND-') && m.notaDespachoId;
+            const clickable = esRec || esMisc || esND;
             const onclick = esRec ? `Almacen.verDetalleRecepcion('${m.recepcionId}')` :
-                            esMisc ? `Almacen.verDetalleMisc('${m.despachoId}')` : '';
+                            esMisc ? `Almacen.verDetalleMisc('${m.despachoId}')` :
+                            esND ? `Almacen.verDetalleND('${m.notaDespachoId}')` : '';
             const cursor = clickable ? 'cursor:pointer;' : '';
             const hint = clickable ? '<i class="bi bi-eye ms-1 text-primary"></i>' : '';
             return `
@@ -507,6 +745,21 @@ const Almacen = {
                 datos: rec
             });
         } catch (e) { console.warn('Error cargando detalle:', e); }
+    },
+
+    /**
+     * Muestra detalle de una nota de despacho (re-imprimir)
+     */
+    verDetalleND: async function(notaId) {
+        if (!AxonesDB.isReady()) return;
+        try {
+            const { data } = await AxonesDB.client.from('sync_store')
+                .select('value').eq('key', 'axones_notas_despacho').single();
+            const notas = data?.value ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+            const nota = notas.find(n => n.id === notaId);
+            if (!nota) { alert('Nota de despacho no encontrada'); return; }
+            this.imprimirNotaDespacho(nota);
+        } catch (e) { console.warn('Error cargando nota:', e); }
     },
 
     /**

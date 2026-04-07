@@ -224,17 +224,19 @@
                     </div>
                 </div>
 
-                <!-- Formulario de Despacho (oculto por defecto) -->
+                <!-- Formulario de Nota de Despacho (oculto por defecto) -->
                 <div class="row mt-3" id="formDespachoOT" style="display: none;">
-                    <div class="col-md-8 col-lg-6">
+                    <div class="col-12">
                         <div class="card border-primary shadow-sm">
-                            <div class="card-header bg-primary text-white">
+                            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                                 <h6 class="mb-0">
-                                    <i class="bi bi-send me-1"></i> Despachar Material - <span id="despachoOTNumero">--</span>
+                                    <i class="bi bi-file-earmark-text me-1"></i> Nota de Despacho - OT <span id="despachoOTNumero">--</span>
                                 </h6>
+                                <span class="badge bg-light text-primary" id="despachoCorrelativo">ND-XXXX-XXXX</span>
                             </div>
                             <div class="card-body">
                                 <div class="row g-3">
+                                    <!-- Datos de la OT (read-only) -->
                                     <div class="col-12">
                                         <div class="alert alert-info py-2 mb-0 small">
                                             <i class="bi bi-info-circle me-1"></i>
@@ -243,19 +245,94 @@
                                             <strong>Material:</strong> <span id="despachoMaterial">--</span>
                                         </div>
                                     </div>
+
+                                    <!-- Datos del Cliente -->
+                                    <div class="col-12"><h6 class="text-primary border-bottom pb-1 mb-2"><i class="bi bi-building me-1"></i>Datos del Cliente</h6></div>
                                     <div class="col-md-6">
-                                        <label class="form-label small fw-bold">Kg a Despachar <span class="text-danger">*</span></label>
+                                        <label class="form-label small fw-bold">Cliente</label>
+                                        <input type="text" class="form-control form-control-sm" id="despachoCliente" readonly>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small">RIF</label>
+                                        <input type="text" class="form-control form-control-sm" id="despachoClienteRif" readonly>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small">Telefono</label>
+                                        <input type="text" class="form-control form-control-sm" id="despachoClienteTelefono">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label small">Direccion de Entrega <span class="text-danger">*</span></label>
+                                        <textarea class="form-control form-control-sm" id="despachoDireccion" rows="2" required placeholder="Direccion completa del cliente..."></textarea>
+                                    </div>
+
+                                    <!-- Cantidad despachada -->
+                                    <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-1 mb-2"><i class="bi bi-box-seam me-1"></i>Material Despachado</h6></div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small fw-bold">Cantidad de Bobinas <span class="text-danger">*</span></label>
+                                        <input type="number" class="form-control form-control-sm" id="despachoBobinas" min="0" step="1" required placeholder="0">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small fw-bold">Kg Totales <span class="text-danger">*</span></label>
                                         <input type="number" class="form-control form-control-sm" id="despachoKg" min="0" step="0.01" required placeholder="0.00">
                                     </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small">N° Paletas</label>
+                                        <input type="number" class="form-control form-control-sm" id="despachoPaletas" min="0" step="1" placeholder="0">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small">Fecha Despacho</label>
+                                        <input type="date" class="form-control form-control-sm" id="despachoFecha">
+                                    </div>
+
+                                    <!-- Datos del Chofer -->
+                                    <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-1 mb-2"><i class="bi bi-truck me-1"></i>Datos del Chofer y Vehiculo</h6></div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small fw-bold">Nombre del Chofer <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control form-control-sm" id="despachoChoferNombre" required placeholder="Nombre completo">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small fw-bold">Cedula <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control form-control-sm" id="despachoChoferCedula" required placeholder="V-12345678">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label small fw-bold">Placa Vehiculo</label>
+                                        <input type="text" class="form-control form-control-sm" id="despachoPlaca" placeholder="ABC-123">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small">Empresa Transporte</label>
+                                        <input type="text" class="form-control form-control-sm" id="despachoTransporte" placeholder="Opcional">
+                                    </div>
+
+                                    <!-- Responsables / Firmas -->
+                                    <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-1 mb-2"><i class="bi bi-pen me-1"></i>Responsables</h6></div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small">Despachado por</label>
+                                        <input type="text" class="form-control form-control-sm" id="despachoDespachadoPor" placeholder="Nombre del despachador">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small">Verificado por</label>
+                                        <input type="text" class="form-control form-control-sm" id="despachoVerificadoPor" placeholder="Nombre del verificador">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small">Autorizado por</label>
+                                        <input type="text" class="form-control form-control-sm" id="despachoAutorizadoPor" placeholder="Nombre del autorizador">
+                                    </div>
+
+                                    <!-- Observaciones -->
                                     <div class="col-12">
                                         <label class="form-label small">Observaciones</label>
                                         <textarea class="form-control form-control-sm" id="despachoObservaciones" rows="2" placeholder="Notas adicionales del despacho..."></textarea>
                                     </div>
-                                    <div class="col-12 d-flex gap-2">
-                                        <button class="btn btn-primary btn-sm" id="btnGuardarDespachoOT">
-                                            <i class="bi bi-check-lg me-1"></i> Guardar Despacho
+
+                                    <!-- Botones -->
+                                    <div class="col-12 d-flex gap-2 mt-3">
+                                        <button class="btn btn-primary" id="btnGuardarDespachoOT">
+                                            <i class="bi bi-check-lg me-1"></i> Guardar Nota de Despacho
                                         </button>
-                                        <button class="btn btn-outline-secondary btn-sm" id="btnCancelarDespachoOT">
+                                        <button class="btn btn-success" id="btnImprimirDespachoOT">
+                                            <i class="bi bi-printer me-1"></i> Guardar e Imprimir
+                                        </button>
+                                        <button class="btn btn-outline-secondary" id="btnCancelarDespachoOT">
                                             <i class="bi bi-x-lg me-1"></i> Cancelar
                                         </button>
                                     </div>

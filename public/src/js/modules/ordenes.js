@@ -606,13 +606,7 @@ const Ordenes = {
         if (sustratosSelect) {
             sustratosSelect.addEventListener('change', () => this.onSustratoChange());
         }
-        if (kgIngresado) {
-            kgIngresado.addEventListener('input', () => this.calcularMetros());
-            kgIngresado.addEventListener('input', () => this.calcularMerma());
-        }
-        if (kgSalida) {
-            kgSalida.addEventListener('input', () => this.calcularMerma());
-        }
+        // Nota: calcularMetros y calcularMerma eliminados - Merma y Metros son editables manualmente
 
         // Verificar inventario al seleccionar material
         const tipoMaterial = document.getElementById('tipoMaterial');
@@ -634,11 +628,7 @@ const Ordenes = {
         // FICHA TECNICA - Event listeners
         this.setupFichaTecnicaEvents();
 
-        // Calcular metros/bobina cuando cambia peso bobina
-        const pesoBobinaInput = document.getElementById('pesoBobina');
-        if (pesoBobinaInput) {
-            pesoBobinaInput.addEventListener('input', () => this.calcularMetrosBobina());
-        }
+        // Nota: calcularMetrosBobina eliminado - metros/bobina se escribe manualmente
 
         // Ancho Corte Final -> Ancho Core auto-sync
         const anchoCorteFinalInput = document.getElementById('anchoCorteFinal');
@@ -726,6 +716,82 @@ const Ordenes = {
         if (btnGuardarNuevoProducto) {
             btnGuardarNuevoProducto.addEventListener('click', () => this.crearNuevoProducto());
         }
+
+        // Generar estructura automaticamente desde ficha tecnica
+        const btnGenerarEstructura = document.getElementById('btnGenerarEstructura');
+        if (btnGenerarEstructura) {
+            btnGenerarEstructura.addEventListener('click', () => this.generarEstructuraDesdeFichaTecnica());
+        }
+    },
+
+    /**
+     * Genera la estructura del material leyendo la ficha tecnica
+     * Formato: "BOPP NORMAL 560 X 25 µ (430 Kg) + CAST 560 X 25 µ (430 Kg)"
+     */
+    generarEstructuraDesdeFichaTecnica: function() {
+        const capas = [];
+
+        // Capa 1
+        const tipo1 = document.getElementById('fichaTipoMat1')?.value;
+        if (tipo1) {
+            const ancho1 = document.getElementById('fichaAncho1')?.value || '';
+            const micras1 = document.getElementById('fichaMicras1')?.value || '';
+            const kg1 = document.getElementById('fichaKg1')?.value || '';
+            const partes = [tipo1];
+            if (ancho1) partes.push(`${ancho1} X`);
+            if (micras1) partes.push(`${micras1} µ`);
+            let linea = partes.join(' ');
+            if (kg1) linea += ` (${parseFloat(kg1).toFixed(0)} Kg)`;
+            capas.push(linea);
+        }
+
+        // Adhesivo (solo si tiene tipo)
+        const adhesivo = document.getElementById('fichaTipoAdhesivo')?.value;
+        const kgAdh = document.getElementById('fichaKgAdhesivo')?.value || '';
+        if (adhesivo) {
+            let lineaAdh = `+ Adhesivo ${adhesivo}`;
+            if (kgAdh) lineaAdh += ` (${parseFloat(kgAdh).toFixed(1)} Kg)`;
+            capas.push(lineaAdh);
+        }
+
+        // Capa 2
+        const tipo2 = document.getElementById('fichaTipoMat2')?.value;
+        if (tipo2) {
+            const ancho2 = document.getElementById('fichaAncho2')?.value || '';
+            const micras2 = document.getElementById('fichaMicras2')?.value || '';
+            const kg2 = document.getElementById('fichaKg2')?.value || '';
+            const partes = [tipo2];
+            if (ancho2) partes.push(`${ancho2} X`);
+            if (micras2) partes.push(`${micras2} µ`);
+            let linea = partes.join(' ');
+            if (kg2) linea += ` (${parseFloat(kg2).toFixed(0)} Kg)`;
+            capas.push('+ ' + linea);
+        }
+
+        // Capas adicionales (3+)
+        for (let i = 3; i <= 10; i++) {
+            const tipo = document.getElementById(`fichaTipoMat${i}`)?.value;
+            if (tipo) {
+                const ancho = document.getElementById(`fichaAncho${i}`)?.value || '';
+                const micras = document.getElementById(`fichaMicras${i}`)?.value || '';
+                const kg = document.getElementById(`fichaKg${i}`)?.value || '';
+                const partes = [tipo];
+                if (ancho) partes.push(`${ancho} X`);
+                if (micras) partes.push(`${micras} µ`);
+                let linea = partes.join(' ');
+                if (kg) linea += ` (${parseFloat(kg).toFixed(0)} Kg)`;
+                capas.push('+ ' + linea);
+            }
+        }
+
+        if (capas.length === 0) {
+            alert('Primero llena la Ficha Tecnica (Capa 1, Capa 2, etc.)');
+            return;
+        }
+
+        const estructuraTxt = capas.join('\n');
+        const input = document.getElementById('estructuraMaterial');
+        if (input) input.value = estructuraTxt;
     },
 
     /**

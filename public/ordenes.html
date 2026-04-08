@@ -497,24 +497,11 @@
                                     <datalist id="listaTintasColor"></datalist>
                                 </div>
                                 <div class="ot-field">
-                                    <label class="form-label required-field">Estr. Material</label>
-                                    <input type="text" class="form-control form-control-sm" id="estructuraMaterial" required list="listaEstructuras" placeholder="Ej: BOPP 20 + CAST 30">
-                                    <datalist id="listaEstructuras">
-                                        <option value="BOPP">
-                                        <option value="BOPP + CAST">
-                                        <option value="BOPP + BOPP">
-                                        <option value="BOPP + PEBD">
-                                        <option value="BOPP MATE + CAST">
-                                        <option value="BOPP MATE + PEBD">
-                                        <option value="BOPP + Adhesivo + CAST">
-                                        <option value="BOPP + Adhesivo + PEBD">
-                                        <option value="BOPP MATE + Adhesivo + CAST">
-                                        <option value="PET + Adhesivo + PEBD">
-                                        <option value="PET + BOPP">
-                                        <option value="METAL + PEBD">
-                                        <option value="PERLADO + CAST">
-                                        <option value="Trilaminado BOPP + BOPP + CAST">
-                                    </datalist>
+                                    <label class="form-label required-field">Estructura del Material</label>
+                                    <textarea class="form-control form-control-sm" id="estructuraMaterial" required rows="3" placeholder="Ej:&#10;BOPP 560 X 25 µ (430 Kg) +&#10;CAST 560 X 25 µ (430 Kg)" style="font-family: monospace; font-size: 0.75rem;"></textarea>
+                                    <button type="button" class="btn btn-outline-success btn-sm mt-1" id="btnGenerarEstructura" style="font-size:0.65rem; padding:0.1rem 0.4rem;" title="Generar automaticamente desde Ficha Tecnica">
+                                        <i class="bi bi-magic me-1"></i>Auto desde Ficha Tecnica
+                                    </button>
                                 </div>
                             </div>
                             <div class="ot-grid" style="grid-template-columns: 1fr 1fr 1fr;">
@@ -539,7 +526,7 @@
             <!-- FICHA TECNICA - Definicion de estructura del producto -->
             <div class="ot-section">
                 <div class="section-header header-green">
-                    <i class="bi bi-file-earmark-text me-1"></i>FICHA TECNICA - Estructura del Producto
+                    <i class="bi bi-file-earmark-text me-1"></i>FICHA TECNICA - Material para Corrida
                 </div>
                 <div class="section-body" style="border-color: #a8d08d;">
                     <!-- Capa 1 -->
@@ -776,17 +763,11 @@
                         <div class="ot-field">
                             <label class="form-label">Figura Embobinado Impresion</label>
                             <div class="d-flex align-items-center gap-1 flex-1" style="min-width:0;">
-                                <select class="form-select form-select-sm" id="figuraEmbobinadoMontaje" style="width: 50px; flex-shrink: 0;">
-                                    <option value="">-</option>
-                                    <option value="1">1</option>
-                                    <option value="2">2</option>
-                                    <option value="3">3</option>
-                                    <option value="4">4</option>
-                                    <option value="5">5</option>
-                                    <option value="6">6</option>
-                                    <option value="7">7</option>
-                                    <option value="8">8</option>
-                                </select>
+                                <input type="text" class="form-control form-control-sm" id="figuraEmbobinadoMontaje" list="listaFigEmbMontaje" placeholder="1-8 o libre" style="width: 80px; flex-shrink: 0;">
+                                <datalist id="listaFigEmbMontaje">
+                                    <option value="1"><option value="2"><option value="3"><option value="4">
+                                    <option value="5"><option value="6"><option value="7"><option value="8">
+                                </datalist>
                                 <div id="figuraEmbobinadoMontajePreview" class="figura-embobinado-preview" title="Vista previa"></div>
                             </div>
                         </div>
@@ -823,8 +804,8 @@
                     <i class="bi bi-printer me-1"></i>AREA DE IMPRESION
                 </div>
                 <div class="section-body">
-                    <!-- Fila 1: PIÑON (DIENTES) | LINEA DE CORTE | Kg INGRESADO | Kg SALIDA | FIGURA EMB (como Excel filas 15-16) -->
-                    <div class="ot-grid" style="grid-template-columns: 1fr 1fr 1fr 1fr 1fr;">
+                    <!-- Fila unica: Pinon | Linea de Corte | Kg Ingresado | Kg Salida | Merma | Metros -->
+                    <div class="ot-grid" style="grid-template-columns: repeat(6, 1fr);">
                         <div class="ot-field">
                             <label class="form-label">Pinon (Dientes)</label>
                             <input type="number" class="form-control form-control-sm" id="pinonImpDisplay" readonly title="Desde Montaje">
@@ -848,19 +829,6 @@
                             <input type="number" class="form-control form-control-sm" id="kgSalidaImp" step="0.01">
                         </div>
                         <div class="ot-field">
-                            <label class="form-label">Figura Emb.</label>
-                            <input type="text" class="form-control form-control-sm" id="figEmbImpDisplay" readonly>
-                        </div>
-                    </div>
-                    <!-- Fila 2: SUSTRATOS VIRGEN | MERMA | METROS (como Excel filas 17-18) -->
-                    <div class="ot-grid" style="grid-template-columns: 2fr 1fr 1fr;">
-                        <div class="ot-field">
-                            <label class="form-label">Sustratos Virgen</label>
-                            <select class="form-select form-select-sm" id="sustratosVirgen">
-                                <option value="">Seleccionar del inventario...</option>
-                            </select>
-                        </div>
-                        <div class="ot-field">
                             <label class="form-label">Merma (%)</label>
                             <input type="number" class="form-control form-control-sm" id="mermaImp" step="0.01">
                         </div>
@@ -869,12 +837,13 @@
                             <input type="number" class="form-control form-control-sm" id="metrosImp" step="0.01">
                         </div>
                     </div>
-                    <!-- Campos ocultos para calculos -->
+                    <!-- Campos ocultos para compatibilidad JS (eliminados de UI - info en Ficha Tecnica) -->
+                    <input type="hidden" id="sustratosVirgen">
+                    <input type="hidden" id="figEmbImpDisplay">
                     <input type="hidden" id="sustratosVirgenAncho">
                     <input type="hidden" id="sustratosVirgenMicraje">
                     <input type="hidden" id="sustratosVirgenTipo">
                     <input type="hidden" id="sustratosVirgenDensidad">
-                    <small class="text-muted" id="sustratosVirgenInfo" style="display:none;"></small>
 
                     <!-- Tabla de Tintas (8 posiciones) -->
                     <div style="background: #f0c040; padding: 0.15rem 0.3rem; font-size: 0.7rem; font-weight: 700; border: 1px solid #999; border-bottom: none; margin-top: 0.2rem;">
@@ -1079,17 +1048,11 @@
                         <div class="ot-field">
                             <label class="form-label">Figura Embobinado</label>
                             <div class="d-flex align-items-center gap-1 flex-1" style="min-width:0;">
-                                <select class="form-select form-select-sm" id="orientacionEmbalaje" style="width: 50px; flex-shrink: 0;">
-                                    <option value="">-</option>
-                                    <option value="1">1</option>
-                                    <option value="2">2</option>
-                                    <option value="3">3</option>
-                                    <option value="4">4</option>
-                                    <option value="5">5</option>
-                                    <option value="6">6</option>
-                                    <option value="7">7</option>
-                                    <option value="8">8</option>
-                                </select>
+                                <input type="text" class="form-control form-control-sm" id="orientacionEmbalaje" list="listaFigEmbCorte" placeholder="1-8 o libre" style="width: 80px; flex-shrink: 0;">
+                                <datalist id="listaFigEmbCorte">
+                                    <option value="1"><option value="2"><option value="3"><option value="4">
+                                    <option value="5"><option value="6"><option value="7"><option value="8">
+                                </datalist>
                                 <div id="figuraEmbobinadoPreview" class="figura-embobinado-preview" title="Vista previa de figura de embobinado"></div>
                             </div>
                         </div>

@@ -1496,6 +1496,26 @@ const Laminacion = {
             label.appendChild(wrapper);
         }
 
+        // Inyectar flechitas en bobinas virgen (bobVirg1-bobVirg14)
+        for (let i = 1; i <= 14; i++) {
+            const input = document.getElementById('bobVirg' + i);
+            if (!input) continue;
+            const label = input.previousElementSibling;
+            if (!label || label.querySelector('.bobina-arrow')) continue;
+            const wrapper = document.createElement('span');
+            wrapper.className = 'bobina-label-wrapper';
+            wrapper.innerHTML = label.innerHTML;
+            const arrow = document.createElement('i');
+            arrow.className = 'bi bi-caret-down-fill bobina-arrow';
+            arrow.dataset.tipo = 'virgen';
+            arrow.dataset.bobina = 'bobVirg' + i;
+            arrow.dataset.numero = i;
+            arrow.title = 'Etiqueta bobina virgen ' + i;
+            wrapper.appendChild(arrow);
+            label.innerHTML = '';
+            label.appendChild(wrapper);
+        }
+
         // Inyectar flechitas en bobinas de salida (bobSal1-bobSal22)
         for (let i = 1; i <= 22; i++) {
             const input = document.getElementById('bobSal' + i);
@@ -1524,9 +1544,9 @@ const Laminacion = {
             const bobinaId = arrow.dataset.bobina;
             const numero = arrow.dataset.numero;
 
-            if (tipo === 'entrada') {
+            if (tipo === 'entrada' || tipo === 'virgen') {
                 document.getElementById('etqEntBobinaId').value = bobinaId;
-                document.getElementById('etqEntNumero').textContent = numero;
+                document.getElementById('etqEntNumero').textContent = numero + (tipo === 'virgen' ? ' (Virgen)' : '');
                 const data = self.etiquetasData.entrada[bobinaId] || {};
                 entradaFields.forEach(f => {
                     const el = document.getElementById('etqEnt' + f);

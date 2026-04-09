@@ -2055,9 +2055,10 @@ const Impresion = {
             if (o) o.style.display = this.value === 'Otro' ? '' : 'none';
         });
 
-        // Fin de Turno - para el timer, guarda el turno
-        document.getElementById('btnProdStop')?.addEventListener('click', () => {
-            if (!confirm('¿Confirma fin de turno? Se guardara el registro del turno actual.')) return;
+        // Fin de Turno - guarda registro del turno y limpia para el siguiente
+        document.getElementById('btnProdStop')?.addEventListener('click', async () => {
+            if (!confirm('¿Confirma fin de turno?\n\nSe guardara el registro de este turno y se limpiara el formulario para el siguiente turno.')) return;
+            // Cerrar pausa si hay
             if (self._timer.estado === 'pausado' && self._timer.pausaInicio) {
                 self._timer.tiempoMuerto += Date.now() - self._timer.pausaInicio;
                 self._timer.pausas.push({ timestamp: new Date(self._timer.pausaInicio).toISOString(), motivo: 'Fin de turno', duracion: Date.now() - self._timer.pausaInicio });
@@ -2066,10 +2067,52 @@ const Impresion = {
             if (self._timer.interval) { clearInterval(self._timer.interval); self._timer.interval = null; }
             self.timerTick();
             self.timerUpdateUI();
-            // Habilitar boton Finalizar Orden
-            const btnFinalizar = document.getElementById('btnFinalizarOrden');
-            if (btnFinalizar) btnFinalizar.disabled = false;
-            if (typeof showToast === 'function') showToast('Turno finalizado. Puede guardar o finalizar la orden.', 'info');
+
+            // GUARDAR el turno automaticamente
+            try {
+                const datos = self.recopilarDatos();
+                await self.guardarLocal(datos);
+                await self.descontarInventario(datos);
+                await self.registrarBobinasMalas(datos);
+                self.limpiarAutosave();
+                if (typeof showToast === 'function') showToast('Turno guardado exitosamente. Formulario listo para el siguiente turno.', 'success');
+            } catch (e) {
+                console.error('[Impresion] Error guardando turno:', e);
+                alert('Error al guardar el turno: ' + e.message);
+                return;
+            }
+
+            // Limpiar formulario PERO mantener la OT seleccionada
+            const ordenCargadaBackup = self.ordenCargada;
+            const form = document.getElementById('formImpresion');
+            if (form) {
+                // Limpiar solo inputs del formulario, no el selector de OT
+                form.querySelectorAll('input[type=number], input[type=text], textarea').forEach(el => {
+                    if (el.id !== 'ordenTrabajo') el.value = '';
+                });
+                form.querySelectorAll('input[type=radio], input[type=checkbox]').forEach(el => el.checked = false);
+                ['totalMaterialEntrada', 'totalScrap', 'pesoTotal', 'numBobinas'].forEach(id => {
+                    const el = document.getElementById(id); if (el) el.value = '';
+                });
+            }
+
+            // Resetear timer para el nuevo turno
+            self._timer = { estado: 'pendiente', inicio: null, tiempoMuerto: 0, pausaInicio: null, pausas: [], interval: null };
+            self.timerUpdateUI();
+            const timerDisplay = document.getElementById('timerProdDisplay');
+            if (timerDisplay) timerDisplay.textContent = '00:00:00';
+            const muertoDisplay = document.getElementById('timerMuertoDisplay');
+            if (muertoDisplay) muertoDisplay.textContent = '00:00:00';
+            const efectivoDisplay = document.getElementById('timerEfectivoDisplay');
+            if (efectivoDisplay) efectivoDisplay.textContent = '00:00:00';
+
+            // Restaurar OT y recargar acumulado
+            self.ordenCargada = ordenCargadaBackup;
+            if (ordenCargadaBackup) await self.cargarAcumuladoOT(ordenCargadaBackup);
+
+            // Ocultar seccion finalizar si estaba visible
+            const secFin = document.getElementById('seccionFinalizarOrden');
+            if (secFin) secFin.style.display = 'none';
         });
 
         // Finalizar Orden - muestra devolucion + desmontaje

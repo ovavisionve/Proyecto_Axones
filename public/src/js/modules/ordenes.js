@@ -686,6 +686,14 @@ const Ordenes = {
         // Cargar sustratos virgen del inventario
         this.cargarSustratosVirgen();
 
+        // Recargar sustrato virgen al hacer click (por si no cargo al inicio)
+        const selectSustrato = document.getElementById('sustratosVirgen');
+        if (selectSustrato) {
+            selectSustrato.addEventListener('focus', () => {
+                if (selectSustrato.options.length <= 1) this.cargarSustratosVirgen();
+            });
+        }
+
         // Calcular metros cuando cambia sustrato o kg ingresado
         const sustratosSelect = document.getElementById('sustratosVirgen');
         const kgIngresado = document.getElementById('kgIngresadoImp');
@@ -1032,15 +1040,26 @@ const Ordenes = {
     /**
      * Carga sustratos virgen desde el inventario
      */
-    cargarSustratosVirgen: function() {
+    cargarSustratosVirgen: async function() {
         const select = document.getElementById('sustratosVirgen');
         if (!select) return;
 
-        // Limpiar opciones excepto la primera
-        select.innerHTML = '<option value="">Seleccionar del inventario...</option>';
+        select.innerHTML = '<option value="">Cargando inventario...</option>';
 
-        // Usar inventario ya cargado desde Supabase
-        const inventario = this.inventario || [];
+        // Si inventario local vacio, cargar directo de Supabase
+        let inventario = this.inventario || [];
+        if (inventario.length === 0 && typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+            try {
+                const materialesDB = await AxonesDB.materiales.listar({ ordenar: 'material', ascendente: true });
+                inventario = materialesDB.map(m => ({
+                    id: m.id, material: m.material, micras: m.micras, ancho: m.ancho,
+                    kg: m.stock_kg || 0, sku: m.sku, densidad: m.densidad
+                }));
+                this.inventario = inventario;
+            } catch (e) { console.warn('[OT] Error cargando inventario para sustrato:', e); }
+        }
+
+        select.innerHTML = '<option value="">Seleccionar del inventario...</option>';
 
         // Filtrar solo sustratos y agregar al select
         inventario.forEach(item => {

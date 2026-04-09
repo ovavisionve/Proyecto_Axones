@@ -421,7 +421,8 @@
                                 <div class="d-flex flex-column gap-1">
                                     <button type="button" class="btn btn-success" id="btnProdPlay"><i class="bi bi-play-fill me-1"></i> Iniciar</button>
                                     <button type="button" class="btn btn-warning" id="btnProdPause" disabled><i class="bi bi-pause-fill me-1"></i> Pausar</button>
-                                    <button type="button" class="btn btn-danger" id="btnProdStop" disabled><i class="bi bi-stop-fill me-1"></i> Detener</button>
+                                    <button type="button" class="btn btn-outline-danger" id="btnProdStop" title="Fin de turno" disabled><i class="bi bi-stop-fill me-1"></i> Fin de Turno</button>
+                                    <button type="button" class="btn btn-danger" id="btnFinalizarOrden" title="Finalizar esta orden" disabled><i class="bi bi-flag-fill me-1"></i> Finalizar Orden</button>
                                 </div>
                             </div>
                             <div class="row g-2 mt-2">
@@ -687,7 +688,73 @@
                                 <input type="number" class="form-control form-control-sm" id="metraje" step="0.01" min="0">
                             </div>
                         </div>
+                        <!-- Boton Trilaminado -->
+                        <div class="mt-2">
+                            <button type="button" class="btn btn-outline-info btn-sm" id="btnTrilaminado" onclick="document.getElementById('seccionTrilaminado').style.display = document.getElementById('seccionTrilaminado').style.display === 'none' ? '' : 'none';">
+                                <i class="bi bi-layers me-1"></i> Trilaminado (agregar 2da pasada)
+                            </button>
+                        </div>
                     </div>
+
+                    <!-- Seccion Trilaminado (oculta por defecto) -->
+                    <div id="seccionTrilaminado" style="display:none;">
+                        <div class="form-section" style="border-left: 3px solid #0dcaf0;">
+                            <div class="form-section-title" style="border-color: #0dcaf0;">
+                                <i class="bi bi-box me-1"></i> Ingreso Bobinas Virgen - 2da Pasada (Kg)
+                            </div>
+                            <div class="row g-1">
+                                <div class="col"><span class="bobina-label">1</span><input type="number" class="form-control form-control-sm bobina-input tri-virgen" id="triVirg1" step="0.01" min="0"></div>
+                                <div class="col"><span class="bobina-label">2</span><input type="number" class="form-control form-control-sm bobina-input tri-virgen" id="triVirg2" step="0.01" min="0"></div>
+                                <div class="col"><span class="bobina-label">3</span><input type="number" class="form-control form-control-sm bobina-input tri-virgen" id="triVirg3" step="0.01" min="0"></div>
+                                <div class="col"><span class="bobina-label">4</span><input type="number" class="form-control form-control-sm bobina-input tri-virgen" id="triVirg4" step="0.01" min="0"></div>
+                                <div class="col"><span class="bobina-label">5</span><input type="number" class="form-control form-control-sm bobina-input tri-virgen" id="triVirg5" step="0.01" min="0"></div>
+                                <div class="col"><span class="bobina-label">6</span><input type="number" class="form-control form-control-sm bobina-input tri-virgen" id="triVirg6" step="0.01" min="0"></div>
+                                <div class="col"><span class="bobina-label">7</span><input type="number" class="form-control form-control-sm bobina-input tri-virgen" id="triVirg7" step="0.01" min="0"></div>
+                            </div>
+                            <div class="row g-1 mt-2">
+                                <div class="col-8"></div>
+                                <div class="col-4">
+                                    <span class="bobina-label fw-bold">TOTAL VIRGEN 2</span>
+                                    <input type="text" class="form-control form-control-sm bobina-input total-highlight" id="totalTriVirgen" readonly>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-section" style="border-left: 3px solid #0dcaf0;">
+                            <div class="form-section-title" style="border-color: #0dcaf0;">
+                                <i class="bi bi-collection me-1"></i> Bobinas de Salida (Trilaminadas) - Kg
+                            </div>
+                            <div class="row g-1">
+                                <div class="col-6">
+                                    <div class="row g-1">
+                                        <div class="col-4"><span class="bobina-label">1</span><input type="number" class="form-control form-control-sm bobina-input tri-salida" id="triSal1" step="0.01" min="0"></div>
+                                        <div class="col-4"><span class="bobina-label">2</span><input type="number" class="form-control form-control-sm bobina-input tri-salida" id="triSal2" step="0.01" min="0"></div>
+                                        <div class="col-4"><span class="bobina-label">3</span><input type="number" class="form-control form-control-sm bobina-input tri-salida" id="triSal3" step="0.01" min="0"></div>
+                                        <div class="col-4"><span class="bobina-label">4</span><input type="number" class="form-control form-control-sm bobina-input tri-salida" id="triSal4" step="0.01" min="0"></div>
+                                        <div class="col-4"><span class="bobina-label">5</span><input type="number" class="form-control form-control-sm bobina-input tri-salida" id="triSal5" step="0.01" min="0"></div>
+                                        <div class="col-4"><span class="bobina-label">6</span><input type="number" class="form-control form-control-sm bobina-input tri-salida" id="triSal6" step="0.01" min="0"></div>
+                                        <div class="col-4"><span class="bobina-label">7</span><input type="number" class="form-control form-control-sm bobina-input tri-salida" id="triSal7" step="0.01" min="0"></div>
+                                        <div class="col-4"><span class="bobina-label">8</span><input type="number" class="form-control form-control-sm bobina-input tri-salida" id="triSal8" step="0.01" min="0"></div>
+                                        <div class="col-4"><span class="bobina-label">9</span><input type="number" class="form-control form-control-sm bobina-input tri-salida" id="triSal9" step="0.01" min="0"></div>
+                                        <div class="col-4"><span class="bobina-label">10</span><input type="number" class="form-control form-control-sm bobina-input tri-salida" id="triSal10" step="0.01" min="0"></div>
+                                        <div class="col-4"><span class="bobina-label">11</span><input type="number" class="form-control form-control-sm bobina-input tri-salida" id="triSal11" step="0.01" min="0"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row g-2 mt-2">
+                                <div class="col-3">
+                                    <label class="form-label small">N Bobinas Tri</label>
+                                    <input type="text" class="form-control form-control-sm total-highlight" id="numBobinasTri" readonly>
+                                </div>
+                                <div class="col-3">
+                                    <label class="form-label small">Peso Total Tri (Kg)</label>
+                                    <input type="text" class="form-control form-control-sm total-highlight" id="pesoTotalTri" readonly>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ====== SECCION FINALIZAR ORDEN (oculta hasta tocar Finalizar Orden) ====== -->
+                    <div id="seccionFinalizarOrden" style="display:none;">
 
                     <!-- Resumen de Devolucion -->
                     <div class="form-section">
@@ -821,6 +888,8 @@
                             <small class="text-muted"><i class="bi bi-check-circle me-1"></i>La devolucion buena se repone al inventario al guardar</small>
                         </div>
                     </div>
+
+                    </div><!-- Fin seccionFinalizarOrden -->
 
                     <!-- Observaciones -->
                     <div class="form-section">

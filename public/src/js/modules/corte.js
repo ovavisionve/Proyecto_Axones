@@ -1615,14 +1615,71 @@ const Corte = {
         document.getElementById('timerProdPausaMotivo')?.addEventListener('change', function() {
             const o = document.getElementById('timerProdPausaObs'); if (o) o.style.display = this.value === 'Otro' ? '' : 'none';
         });
-        document.getElementById('btnProdStop')?.addEventListener('click', () => {
+        // Fin de Turno - guarda registro del turno y limpia para el siguiente
+        document.getElementById('btnProdStop')?.addEventListener('click', async () => {
+            if (!confirm('¿Confirma fin de turno?\n\nSe guardara el registro de este turno y se limpiara el formulario para el siguiente turno.')) return;
+            // Cerrar pausa si hay
             if (self._timer.estado === 'pausado' && self._timer.pausaInicio) {
                 self._timer.tiempoMuerto += Date.now() - self._timer.pausaInicio;
-                self._timer.pausas.push({ timestamp: new Date(self._timer.pausaInicio).toISOString(), motivo: 'Fin', duracion: Date.now() - self._timer.pausaInicio });
+                self._timer.pausas.push({ timestamp: new Date(self._timer.pausaInicio).toISOString(), motivo: 'Fin de turno', duracion: Date.now() - self._timer.pausaInicio });
             }
             self._timer.estado = 'detenido';
             if (self._timer.interval) { clearInterval(self._timer.interval); self._timer.interval = null; }
             self.timerTick(); self.timerUpdateUI();
+
+            // GUARDAR el turno automaticamente
+            try {
+                const datos = self.recopilarDatos();
+                await self.guardarLocal(datos);
+                await self.descontarInventario(datos);
+                self.limpiarAutosave();
+                if (typeof showToast === 'function') showToast('Turno guardado exitosamente. Formulario listo para el siguiente turno.', 'success');
+            } catch (e) {
+                console.error('[Corte] Error guardando turno:', e);
+                alert('Error al guardar el turno: ' + e.message);
+                return;
+            }
+
+            // Limpiar formulario PERO mantener la OT seleccionada
+            const ordenCargadaBackup = self.ordenCargada;
+            const form = document.getElementById('formCorte');
+            if (form) {
+                form.querySelectorAll('input[type=number], input[type=text], textarea').forEach(el => {
+                    if (el.id !== 'ordenTrabajo') el.value = '';
+                });
+                form.querySelectorAll('input[type=radio], input[type=checkbox]').forEach(el => el.checked = false);
+                ['totalMaterialEntrada', 'totalScrap', 'pesoTotal', 'numBobinas'].forEach(id => {
+                    const el = document.getElementById(id); if (el) el.value = '';
+                });
+            }
+
+            // Resetear timer para el nuevo turno
+            self._timer = { estado: 'pendiente', inicio: null, tiempoMuerto: 0, pausaInicio: null, pausas: [], interval: null };
+            self.timerUpdateUI();
+            const timerDisplay = document.getElementById('timerProdDisplay');
+            if (timerDisplay) timerDisplay.textContent = '00:00:00';
+            const muertoDisplay = document.getElementById('timerMuertoDisplay');
+            if (muertoDisplay) muertoDisplay.textContent = '00:00:00';
+            const efectivoDisplay = document.getElementById('timerEfectivoDisplay');
+            if (efectivoDisplay) efectivoDisplay.textContent = '00:00:00';
+
+            // Restaurar OT y recargar acumulado
+            self.ordenCargada = ordenCargadaBackup;
+            if (ordenCargadaBackup) await self.cargarAcumuladoOT(ordenCargadaBackup);
+
+            // Ocultar seccion finalizar si estaba visible
+            const secFin = document.getElementById('seccionFinalizarOrden');
+            if (secFin) secFin.style.display = 'none';
+        });
+
+        // Finalizar Orden - muestra resumen de produccion
+        document.getElementById('btnFinalizarOrden')?.addEventListener('click', () => {
+            const seccion = document.getElementById('seccionFinalizarOrden');
+            if (seccion) {
+                seccion.style.display = '';
+                seccion.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            if (typeof showToast === 'function') showToast('Revise el resumen de produccion para finalizar la orden.', 'info');
         });
     },
     timerTick: function() {
@@ -1645,6 +1702,8 @@ const Corte = {
         if (p) p.disabled = t.estado === 'corriendo' || t.estado === 'detenido';
         if (pa) pa.disabled = t.estado !== 'corriendo';
         if (s) s.disabled = t.estado === 'pendiente' || t.estado === 'detenido';
+        const finalizar = document.getElementById('btnFinalizarOrden');
+        if (finalizar) finalizar.disabled = t.estado === 'pendiente';
     },
     renderPausasProduccion: function() {
         const c = document.getElementById('timerProdPausas'); if (!c) return;

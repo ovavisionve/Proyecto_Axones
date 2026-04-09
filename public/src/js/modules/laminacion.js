@@ -929,9 +929,9 @@ const Laminacion = {
             // Datos de produccion (llenados por el operador)
             turno: turnoSeleccionado ? turnoSeleccionado.value : '',
             grupo: document.querySelector('input[name="grupo"]:checked')?.value || '',
-            operador: document.getElementById('operador').value,
-            ayudante: document.getElementById('ayudante').value,
-            supervisor: document.getElementById('supervisor').value,
+            operador: document.getElementById('operador')?.value || '',
+            ayudante: document.getElementById('ayudante')?.value || '',
+            supervisor: document.getElementById('supervisor')?.value || '',
             // Tiempos (temporizador de produccion)
             tiempoTotal: this._timer.inicio ? (Date.now() - this._timer.inicio) : 0,
             tiempoMuerto: this._timer.tiempoMuerto + (this._timer.estado === 'pausado' && this._timer.pausaInicio ? (Date.now() - this._timer.pausaInicio) : 0),
@@ -939,7 +939,7 @@ const Laminacion = {
             paradasProduccion: this._timer.pausas,
 
             bobinasEntrada: bobinasEntrada,
-            totalEntrada: parseFloat(document.getElementById('totalEntrada').value) || 0,
+            totalEntrada: parseFloat(document.getElementById('totalEntrada')?.value) || 0,
 
             // Devolucion de material
             devolucionBuenaKg: parseFloat(document.getElementById('devolucionBuenaKg')?.value) || 0,
@@ -958,32 +958,30 @@ const Laminacion = {
             totalConsumidoVirgen: parseFloat(document.getElementById('totalConsumidoVirgen')?.textContent) || 0,
 
             // Adhesivo
-            adhesivoEntrada: parseFloat(document.getElementById('adhesivoEntrada').value) || 0,
-            adhesivoSobro: parseFloat(document.getElementById('adhesivoSobro').value) || 0,
-            consumoAdhesivo: parseFloat(document.getElementById('consumoAdhesivo').textContent) || 0,
-            catalizadorEntrada: parseFloat(document.getElementById('catalizadorEntrada').value) || 0,
-            catalizadorSobro: parseFloat(document.getElementById('catalizadorSobro').value) || 0,
-            consumoCatalizador: parseFloat(document.getElementById('consumoCatalizador').textContent) || 0,
-            acetatoEntrada: parseFloat(document.getElementById('acetatoEntrada').value) || 0,
-            acetatoSobro: parseFloat(document.getElementById('acetatoSobro').value) || 0,
-            consumoAcetato: parseFloat(document.getElementById('consumoAcetato').textContent) || 0,
+            adhesivoEntrada: parseFloat(document.getElementById('adhesivoEntrada')?.value) || 0,
+            adhesivoSobro: parseFloat(document.getElementById('adhesivoSobro')?.value) || 0,
+            consumoAdhesivo: parseFloat(document.getElementById('consumoAdhesivo')?.textContent) || 0,
+            catalizadorEntrada: parseFloat(document.getElementById('catalizadorEntrada')?.value) || 0,
+            catalizadorSobro: parseFloat(document.getElementById('catalizadorSobro')?.value) || 0,
+            consumoCatalizador: parseFloat(document.getElementById('consumoCatalizador')?.textContent) || 0,
+            acetatoEntrada: parseFloat(document.getElementById('acetatoEntrada')?.value) || 0,
+            acetatoSobro: parseFloat(document.getElementById('acetatoSobro')?.value) || 0,
+            consumoAcetato: parseFloat(document.getElementById('consumoAcetato')?.textContent) || 0,
 
             bobinasSalida: bobinasSalida,
-            numBobinas: parseInt(document.getElementById('numBobinas').value) || 0,
-            pesoTotal: parseFloat(document.getElementById('pesoTotal').value) || 0,
-            merma: parseFloat(document.getElementById('merma').value) || 0,
-            metraje: parseFloat(document.getElementById('metraje').value) || 0,
+            numBobinas: parseInt(document.getElementById('numBobinas')?.value) || 0,
+            pesoTotal: parseFloat(document.getElementById('pesoTotal')?.value) || 0,
+            merma: parseFloat(document.getElementById('merma')?.value) || 0,
+            metraje: parseFloat(document.getElementById('metraje')?.value) || 0,
 
             scrapTransparente: parseFloat(document.getElementById('scrapTransparente')?.value) || 0,
             scrapImpreso: parseFloat(document.getElementById('scrapImpreso')?.value) || 0,
             scrapLaminado: parseFloat(document.getElementById('scrapLaminado')?.value) || 0,
-            totalScrap: parseFloat(document.getElementById('totalScrap').value) || 0,
-            porcentajeRefil: parseFloat(document.getElementById('porcentajeRefil').value) || 0,
+            totalScrap: parseFloat(document.getElementById('totalScrap')?.value) || 0,
+            porcentajeRefil: parseFloat(document.getElementById('porcentajeRefil')?.value) || 0,
 
-            // Nota: Consumo tintas/solventes se gestiona desde modulo Tintas
-
-            motivosParadas: document.getElementById('motivosParadas').value,
-            observaciones: document.getElementById('observaciones').value,
+            motivosParadas: document.getElementById('motivosParadas')?.value || '',
+            observaciones: document.getElementById('observaciones')?.value || '',
 
             // Etiquetas de bobinas
             etiquetasEntrada: this.etiquetasData.entrada,

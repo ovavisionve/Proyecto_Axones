@@ -556,12 +556,20 @@ const Corte = {
             if (peso > 0 || bobinas > 0) paletasConDatos++;
         });
 
+        // Contar bobinas de entrada usadas (las que tienen valor > 0)
+        let bobinasEntradaUsadas = 0;
+        document.querySelectorAll('.bobina-entrada').forEach(input => {
+            if (parseFloat(input.value) > 0) bobinasEntradaUsadas++;
+        });
+
         // Actualizar campos de resumen
+        const numBobinasEntrada = document.getElementById('numBobinasEntrada');
         const numBobinasSalida = document.getElementById('numBobinasSalida');
         const numRollosSalida = document.getElementById('numRollosSalida');
         const pesoTotalSalida = document.getElementById('pesoTotalSalida');
         const numPaletas = document.getElementById('numPaletas');
 
+        if (numBobinasEntrada) numBobinasEntrada.value = bobinasEntradaUsadas;
         if (numBobinasSalida) numBobinasSalida.value = bobinasSalida;
         if (numRollosSalida) numRollosSalida.value = rollosSalida;
         if (pesoTotalSalida) pesoTotalSalida.value = pesoSalida.toFixed(2);
@@ -1178,10 +1186,9 @@ const Corte = {
 
             // Datos de produccion (llenados por el operador)
             turno: turnoSeleccionado ? turnoSeleccionado.value : '',
-            operador: document.getElementById('operador').value,
-            ayudante: document.getElementById('ayudante').value,
-            supervisor: document.getElementById('supervisor').value,
-            // Tiempos (temporizador de produccion)
+            operador: document.getElementById('operador')?.value || '',
+            ayudante: document.getElementById('ayudante')?.value || '',
+            supervisor: document.getElementById('supervisor')?.value || '',
             tiempoTotal: this._timer.inicio ? (Date.now() - this._timer.inicio) : 0,
             tiempoMuerto: this._timer.tiempoMuerto + (this._timer.estado === 'pausado' && this._timer.pausaInicio ? (Date.now() - this._timer.pausaInicio) : 0),
             tiempoEfectivo: this._timer.inicio ? Math.max(0, (Date.now() - this._timer.inicio) - this._timer.tiempoMuerto) : 0,
@@ -1189,26 +1196,26 @@ const Corte = {
             fecha: new Date().toISOString().split('T')[0],
 
             bobinasEntrada: bobinasEntrada,
-            totalEntrada: parseFloat(document.getElementById('totalEntrada').value) || 0,
+            totalEntrada: parseFloat(document.getElementById('totalEntrada')?.value) || 0,
 
-            // Restante de bobinas
             bobinasRestante: bobinasRestante,
             totalRestante: parseFloat(document.getElementById('totalRestante')?.value) || 0,
             totalConsumido: parseFloat(document.getElementById('totalConsumido')?.textContent) || 0,
 
             paletas: paletas,
-            numPaletas: parseInt(document.getElementById('numPaletas').value) || 0,
-            numBobinasSalida: parseInt(document.getElementById('numBobinasSalida').value) || 0,
-            pesoTotalSalida: parseFloat(document.getElementById('pesoTotalSalida').value) || 0,
-            merma: parseFloat(document.getElementById('merma').value) || 0,
+            numPaletas: parseInt(document.getElementById('numPaletas')?.value) || 0,
+            numBobinasSalida: parseInt(document.getElementById('numBobinasSalida')?.value) || 0,
+            numBobinasEntrada: parseInt(document.getElementById('numBobinasEntrada')?.value) || 0,
+            pesoTotalSalida: parseFloat(document.getElementById('pesoTotalSalida')?.value) || 0,
+            merma: parseFloat(document.getElementById('merma')?.value) || 0,
 
-            scrapRefile: parseFloat(document.getElementById('scrapRefile').value) || 0,
-            scrapImpreso: parseFloat(document.getElementById('scrapImpreso').value) || 0,
-            totalScrap: parseFloat(document.getElementById('totalScrap').value) || 0,
-            porcentajeRefil: parseFloat(document.getElementById('porcentajeRefil').value) || 0,
+            scrapRefile: parseFloat(document.getElementById('scrapRefile')?.value) || 0,
+            scrapImpreso: parseFloat(document.getElementById('scrapImpreso')?.value) || 0,
+            totalScrap: parseFloat(document.getElementById('totalScrap')?.value) || 0,
+            porcentajeRefil: parseFloat(document.getElementById('porcentajeRefil')?.value) || 0,
 
-            motivosParadas: document.getElementById('motivosParadas').value,
-            observaciones: document.getElementById('observaciones').value,
+            motivosParadas: document.getElementById('motivosParadas')?.value || '',
+            observaciones: document.getElementById('observaciones')?.value || '',
 
             // Etiquetas de bobinas de entrada
             etiquetasEntrada: this.etiquetasData.entrada,

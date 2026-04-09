@@ -1089,20 +1089,31 @@ const Ordenes = {
 
         if (tipoMat1) {
             tipoMat1.addEventListener('change', () => {
-                const densidad = this.DENSIDADES[tipoMat1.value] || 0.90;
-                const densidadInput = document.getElementById('fichaDensidad1');
-                if (densidadInput) densidadInput.value = densidad;
+                this.cargarSkusPorTipo('fichaSku1', tipoMat1.value);
+            });
+            // Tambien escuchar input para datalist
+            tipoMat1.addEventListener('input', () => {
                 this.cargarSkusPorTipo('fichaSku1', tipoMat1.value);
             });
         }
 
         if (tipoMat2) {
             tipoMat2.addEventListener('change', () => {
-                const densidad = this.DENSIDADES[tipoMat2.value] || 0.90;
-                const densidadInput = document.getElementById('fichaDensidad2');
-                if (densidadInput) densidadInput.value = densidad;
                 this.cargarSkusPorTipo('fichaSku2', tipoMat2.value);
             });
+            tipoMat2.addEventListener('input', () => {
+                this.cargarSkusPorTipo('fichaSku2', tipoMat2.value);
+            });
+        }
+
+        // Al seleccionar un SKU -> pre-llenar micras, ancho, densidad, kg disponibles
+        const fichaSku1 = document.getElementById('fichaSku1');
+        if (fichaSku1) {
+            fichaSku1.addEventListener('change', () => this.onFichaSkuChange(1));
+        }
+        const fichaSku2 = document.getElementById('fichaSku2');
+        if (fichaSku2) {
+            fichaSku2.addEventListener('change', () => this.onFichaSkuChange(2));
         }
 
         // Recalcular cuando cambian los valores
@@ -1228,6 +1239,37 @@ const Ordenes = {
     /**
      * Carga SKUs del inventario filtrados por tipo de material
      */
+    /**
+     * Cuando se selecciona un SKU, pre-llena micras, ancho, densidad, kg disponibles
+     */
+    onFichaSkuChange: function(numCapa) {
+        const select = document.getElementById(`fichaSku${numCapa}`);
+        if (!select || !select.value) return;
+
+        const opt = select.selectedOptions[0];
+        if (!opt) return;
+
+        const micras = opt.dataset.micras;
+        const ancho = opt.dataset.ancho;
+        const kg = opt.dataset.kg;
+
+        // Buscar el item completo en inventario para obtener densidad
+        const item = this.inventario.find(i => (i.sku || i.id) === select.value);
+        const densidad = item ? (item.densidad || this.obtenerDensidadMaterial(item.material || item.tipo)) : '';
+
+        // Pre-llenar campos
+        const setVal = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+        setVal(`fichaMicras${numCapa}`, micras);
+        setVal(`fichaAncho${numCapa}`, ancho);
+        if (densidad) setVal(`fichaDensidad${numCapa}`, densidad);
+
+        // Kg Disponibles (si existe el campo)
+        const kgDispEl = document.getElementById(`fichaKgDisp${numCapa}`);
+        if (kgDispEl && kg) kgDispEl.value = kg;
+
+        console.log(`[FichaTecnica] SKU ${select.value} seleccionado: micras=${micras}, ancho=${ancho}, densidad=${densidad}, kg=${kg}`);
+    },
+
     cargarSkusPorTipo: function(selectId, tipoMaterial) {
         const select = document.getElementById(selectId);
         if (!select || !tipoMaterial) return;

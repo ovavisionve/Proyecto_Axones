@@ -505,20 +505,66 @@ ${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="
             recepcionId: recepcion.id
         });
 
-        // Actualizar inventario para items tipo Sustrato
+        // Actualizar inventario para TODOS los tipos de items
         if (AxonesDB.isReady()) {
             for (const item of items) {
-                if (item.tipo === 'Sustrato') {
-                    try {
-                        const { data: existentes } = await AxonesDB.client.from('materiales')
-                            .select('id, stock_kg, material')
-                            .ilike('material', `%${(item.material || item.descripcion).split(' ')[0]}%`).limit(1);
-                        if (existentes && existentes[0]) {
-                            const mat = existentes[0];
-                            await AxonesDB.client.from('materiales').update({ stock_kg: (mat.stock_kg || 0) + item.cantidad }).eq('id', mat.id);
+                try {
+                    if (item.tipo === 'Sustrato') {
+                        // Buscar material por descripcion completa o por las primeras palabras
+                        const desc = item.material || item.descripcion || '';
+                        const palabras = desc.split(' ').filter(Boolean);
+                        let encontrado = false;
+
+                        // Intentar busqueda exacta primero
+                        if (item.micras && item.ancho) {
+                            const { data } = await AxonesDB.client.from('materiales')
+                                .select('id, stock_kg, material')
+                                .ilike('material', `%${palabras[0]}%`)
+                                .eq('micras', parseFloat(item.micras))
+                                .eq('ancho', parseFloat(item.ancho))
+                                .limit(1);
+                            if (data && data[0]) {
+                                await AxonesDB.client.from('materiales').update({ stock_kg: (data[0].stock_kg || 0) + item.cantidad }).eq('id', data[0].id);
+                                encontrado = true;
+                                console.log(`[Almacen] Inventario +${item.cantidad} Kg a ${data[0].material}`);
+                            }
                         }
-                    } catch (e) { console.warn('[Almacen] Error actualizando inventario:', e); }
-                }
+
+                        // Si no encontro por exacta, buscar por nombre
+                        if (!encontrado && palabras.length > 0) {
+                            const { data } = await AxonesDB.client.from('materiales')
+                                .select('id, stock_kg, material')
+                                .ilike('material', `%${palabras[0]}%`)
+                                .order('stock_kg', { ascending: false })
+                                .limit(1);
+                            if (data && data[0]) {
+                                await AxonesDB.client.from('materiales').update({ stock_kg: (data[0].stock_kg || 0) + item.cantidad }).eq('id', data[0].id);
+                                console.log(`[Almacen] Inventario +${item.cantidad} Kg a ${data[0].material} (por nombre)`);
+                            }
+                        }
+                    } else if (item.tipo === 'Tinta') {
+                        // Buscar tinta por nombre
+                        const { data } = await AxonesDB.client.from('tintas')
+                            .select('id, stock_kg, nombre')
+                            .ilike('nombre', `%${(item.descripcion || '').split(' ')[0]}%`)
+                            .limit(1);
+                        if (data && data[0]) {
+                            await AxonesDB.client.from('tintas').update({ stock_kg: (data[0].stock_kg || 0) + item.cantidad }).eq('id', data[0].id);
+                            console.log(`[Almacen] Tinta +${item.cantidad} a ${data[0].nombre}`);
+                        }
+                    } else if (item.tipo === 'Quimico') {
+                        // Buscar quimico/adhesivo por nombre
+                        const { data } = await AxonesDB.client.from('adhesivos')
+                            .select('id, stock_kg, nombre')
+                            .ilike('nombre', `%${(item.descripcion || '').split(' ')[0]}%`)
+                            .limit(1);
+                        if (data && data[0]) {
+                            await AxonesDB.client.from('adhesivos').update({ stock_kg: (data[0].stock_kg || 0) + item.cantidad }).eq('id', data[0].id);
+                            console.log(`[Almacen] Quimico +${item.cantidad} a ${data[0].nombre}`);
+                        }
+                    }
+                    // Consumibles y Otros no actualizan inventario (no tienen tabla)
+                } catch (e) { console.warn(`[Almacen] Error actualizando inventario para ${item.descripcion}:`, e); }
             }
         }
 
@@ -704,21 +750,19 @@ ${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="
         }
 
         const tc = { entrada: 'bg-success', salida: 'bg-danger', ajuste: 'bg-warning text-dark', devolucion: 'bg-info' };
-        tbody.innerHTML = movs.slice(0, 200).map(m => {
+        tbody.innerHTML = movs.slice(0, 200).map((m, idx) => {
             const esRec = (m.referencia || '').startsWith('REC-') && m.recepcionId;
             const esMisc = (m.referencia || '').startsWith('MISC-') && m.despachoId;
             const esND = (m.referencia || '').startsWith('ND-') && m.notaDespachoId;
-            const clickable = esRec || esMisc || esND;
             const onclick = esRec ? `Almacen.verDetalleRecepcion('${m.recepcionId}')` :
                             esMisc ? `Almacen.verDetalleMisc('${m.despachoId}')` :
-                            esND ? `Almacen.verDetalleND('${m.notaDespachoId}')` : '';
-            const cursor = clickable ? 'cursor:pointer;' : '';
-            const hint = clickable ? '<i class="bi bi-eye ms-1 text-primary"></i>' : '';
+                            esND ? `Almacen.verDetalleND('${m.notaDespachoId}')` :
+                            `Almacen.verDetalleMovimiento(${idx})`;
             return `
-            <tr style="${cursor}" ${clickable ? `onclick="${onclick}"` : ''}>
+            <tr style="cursor:pointer;" onclick="${onclick}">
                 <td>${m.fecha || '-'}</td>
                 <td><span class="badge ${tc[m.tipo] || 'bg-secondary'}">${(m.tipo || '').toUpperCase()}</span></td>
-                <td><strong>${m.referencia || '-'}</strong>${hint}</td>
+                <td><strong>${m.referencia || '-'}</strong> <i class="bi bi-eye ms-1 text-primary"></i></td>
                 <td>${m.descripcion || '-'}</td>
                 <td class="text-end fw-bold">${m.cantidad || 0} ${m.unidad || 'Kg'}</td>
                 <td>${m.proveedor_destino || '-'}</td>
@@ -726,11 +770,55 @@ ${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="
                 <td><small>${m.observaciones || '-'}</small></td>
             </tr>`;
         }).join('');
+
+        // Guardar movimientos filtrados para acceso por indice
+        this._movimientosFiltrados = movs;
     },
 
     /**
      * Muestra modal con detalle de una recepcion (todos los items)
      */
+    /**
+     * Muestra detalle de un movimiento generico (sin recepcion/despacho asociado)
+     */
+    verDetalleMovimiento: function(idx) {
+        const m = (this._movimientosFiltrados || [])[idx];
+        if (!m) return;
+
+        document.getElementById('modalDetalleAlmacen')?.remove();
+
+        const tc = { entrada: 'bg-success', salida: 'bg-danger', ajuste: 'bg-warning text-dark' };
+        const html = `
+        <div class="modal fade" id="modalDetalleAlmacen" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header py-2">
+                        <h6 class="modal-title"><i class="bi bi-file-text me-2"></i>Detalle del Movimiento</h6>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row g-2">
+                            <div class="col-6"><small class="text-muted d-block">Fecha</small><strong>${m.fecha || '-'}</strong></div>
+                            <div class="col-6"><small class="text-muted d-block">Tipo</small><span class="badge ${tc[m.tipo] || 'bg-secondary'}">${(m.tipo || '').toUpperCase()}</span></div>
+                            <div class="col-6"><small class="text-muted d-block">Referencia</small><strong>${m.referencia || '-'}</strong></div>
+                            <div class="col-6"><small class="text-muted d-block">Cantidad</small><strong>${m.cantidad || 0} ${m.unidad || 'Kg'}</strong></div>
+                            <div class="col-12"><small class="text-muted d-block">Descripcion</small><strong>${m.descripcion || '-'}</strong></div>
+                            <div class="col-6"><small class="text-muted d-block">Proveedor / Destino</small><strong>${m.proveedor_destino || '-'}</strong></div>
+                            <div class="col-6"><small class="text-muted d-block">Usuario</small><strong>${m.usuario || '-'}</strong></div>
+                            ${m.observaciones ? `<div class="col-12"><small class="text-muted d-block">Observaciones</small><p class="mb-0">${m.observaciones}</p></div>` : ''}
+                            <div class="col-12"><small class="text-muted d-block">Hora</small>${m.timestamp ? new Date(m.timestamp).toLocaleString('es-VE') : '-'}</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer py-1">
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+        new bootstrap.Modal(document.getElementById('modalDetalleAlmacen')).show();
+    },
+
     verDetalleRecepcion: async function(recepcionId) {
         if (!AxonesDB.isReady()) return;
         try {

@@ -1484,15 +1484,15 @@ const Impresion = {
             // Datos de produccion (llenados por el operador)
             turno: turnoSeleccionado ? turnoSeleccionado.value : '',
             grupo: document.querySelector('input[name="grupo"]:checked')?.value || '',
-            operador: document.getElementById('operador').value,
-            ayudante: document.getElementById('ayudante').value,
-            supervisor: document.getElementById('supervisor').value,
-            horaInicio: document.getElementById('horaInicio').value,
-            horaArranque: document.getElementById('horaArranque').value,
+            operador: document.getElementById('operador')?.value || '',
+            ayudante: document.getElementById('ayudante')?.value || '',
+            supervisor: document.getElementById('supervisor')?.value || '',
+            horaInicio: document.getElementById('horaInicio')?.value || '',
+            horaArranque: document.getElementById('horaArranque')?.value || '',
 
             // Material de entrada
             materialesEntrada: materialesEntrada,
-            totalMaterialEntrada: parseFloat(document.getElementById('totalMaterialEntrada').value) || 0,
+            totalMaterialEntrada: parseFloat(document.getElementById('totalMaterialEntrada')?.value) || 0,
 
             // Devolucion
             devolucionBuenaKg: parseFloat(document.getElementById('devolucionBuenaKg')?.value) || 0,
@@ -1504,16 +1504,16 @@ const Impresion = {
             totalConsumido: parseFloat(document.getElementById('totalConsumido')?.textContent) || 0,
 
             // Pesaje
-            numPesaje: document.getElementById('numPesaje').value,
-            pesajeApertura: document.getElementById('pesajeApertura').value,
-            pesajeCierre: document.getElementById('pesajeCierre').value,
+            numPesaje: document.getElementById('numPesaje')?.value || '',
+            pesajeApertura: document.getElementById('pesajeApertura')?.value || '',
+            pesajeCierre: document.getElementById('pesajeCierre')?.value || '',
 
             // Bobinas de salida
             bobinasSalida: bobinasSalida,
-            numBobinas: parseInt(document.getElementById('numBobinas').value) || 0,
-            pesoTotal: parseFloat(document.getElementById('pesoTotal').value) || 0,
-            merma: parseFloat(document.getElementById('merma').value) || 0,
-            metraje: parseFloat(document.getElementById('metraje').value) || 0,
+            numBobinas: parseInt(document.getElementById('numBobinas')?.value) || 0,
+            pesoTotal: parseFloat(document.getElementById('pesoTotal')?.value) || 0,
+            merma: parseFloat(document.getElementById('merma')?.value) || 0,
+            metraje: parseFloat(document.getElementById('metraje')?.value) || 0,
 
             // Scrap (Transparente + Impreso)
             scrapTransparente: parseFloat(document.getElementById('scrapTransparente')?.value) || 0,
@@ -1532,8 +1532,8 @@ const Impresion = {
             coloresAnilox: this.recopilarColoresAnilox(),
 
             // Paradas y observaciones
-            motivosParadas: document.getElementById('motivosParadas').value,
-            observaciones: document.getElementById('observaciones').value,
+            motivosParadas: document.getElementById('motivosParadas')?.value || '',
+            observaciones: document.getElementById('observaciones')?.value || '',
 
             // Etiquetas de bobinas
             etiquetasEntrada: this.etiquetasData.entrada,

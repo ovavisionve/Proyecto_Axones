@@ -576,7 +576,8 @@
                                 <div class="d-flex flex-column gap-1">
                                     <button type="button" class="btn btn-success" id="btnProdPlay" title="Iniciar"><i class="bi bi-play-fill me-1"></i> Iniciar</button>
                                     <button type="button" class="btn btn-warning" id="btnProdPause" title="Pausa (registrar parada)" disabled><i class="bi bi-pause-fill me-1"></i> Pausar</button>
-                                    <button type="button" class="btn btn-danger" id="btnProdStop" title="Detener" disabled><i class="bi bi-stop-fill me-1"></i> Detener</button>
+                                    <button type="button" class="btn btn-outline-danger" id="btnProdStop" title="Fin de turno" disabled><i class="bi bi-stop-fill me-1"></i> Fin de Turno</button>
+                                    <button type="button" class="btn btn-danger" id="btnFinalizarOrden" title="Finalizar esta orden" disabled><i class="bi bi-flag-fill me-1"></i> Finalizar Orden</button>
                                 </div>
                             </div>
                             <!-- Tiempo Muerto y Efectivo -->
@@ -621,7 +622,7 @@
                     <!-- Ingreso de Material (Laminas) -->
                     <div class="form-section">
                         <div class="form-section-title">
-                            <i class="bi bi-box-seam me-1"></i> Ingreso de Material (Laminas) - Kg
+                            <i class="bi bi-box-seam me-1"></i> Ingreso de Material Virgen por Bobina (Transparente) - Kg
                         </div>
                         <div class="row g-1">
                             <!-- Fila 1: 1-7 -->
@@ -839,6 +840,9 @@
                         </div>
                     </div>
 
+                    <!-- ====== SECCION FINALIZAR ORDEN (oculta hasta tocar Finalizar Orden) ====== -->
+                    <div id="seccionFinalizarOrden" style="display:none;">
+
                     <!-- Resumen de Devolucion -->
                     <div class="form-section">
                         <div class="form-section-title">
@@ -987,6 +991,8 @@
                             </div>
                         </div>
                     </div>
+
+                    </div><!-- Fin seccionFinalizarOrden -->
 
                     <!-- Observaciones -->
                     <div class="form-section">

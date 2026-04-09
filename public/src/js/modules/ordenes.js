@@ -187,11 +187,61 @@ const Ordenes = {
                 });
             });
         }
+        // Autosave OT no terminada
+        this.restaurarAutosaveOT();
+        setInterval(() => this.autosaveOT(), 5000);
+        window.addEventListener('beforeunload', () => this.autosaveOT());
+        document.addEventListener('visibilitychange', () => { if (document.hidden) this.autosaveOT(); });
     },
 
-    /**
-     * Espera a que AxonesSync termine la descarga inicial (max 5 segundos)
-     */
+    AUTOSAVE_OT_KEY: 'axones_autosave_ot',
+
+    autosaveOT: function() {
+        const form = document.getElementById('formOrdenTrabajo');
+        if (!form) return;
+        const numOT = document.getElementById('numeroOrden')?.value;
+        if (!numOT) return;
+        // Solo guardar si hay al menos un campo con datos
+        const cliente = document.getElementById('cliente')?.value;
+        const producto = document.getElementById('producto')?.value;
+        if (!cliente && !producto) return;
+
+        const data = { timestamp: Date.now(), campos: {} };
+        form.querySelectorAll('input, select, textarea').forEach(el => {
+            if (el.id && el.type !== 'hidden') {
+                data.campos[el.id] = el.type === 'checkbox' || el.type === 'radio' ? el.checked : el.value;
+            }
+        });
+        localStorage.setItem(this.AUTOSAVE_OT_KEY, JSON.stringify(data));
+    },
+
+    restaurarAutosaveOT: function() {
+        const saved = localStorage.getItem(this.AUTOSAVE_OT_KEY);
+        if (!saved) return;
+        try {
+            const data = JSON.parse(saved);
+            if (Date.now() - data.timestamp > 12 * 60 * 60 * 1000) { localStorage.removeItem(this.AUTOSAVE_OT_KEY); return; }
+            const hace = Math.floor((Date.now() - data.timestamp) / 60000);
+            const numOT = data.campos?.numeroOrden || 'OT en progreso';
+            if (!confirm(`Se encontro una OT sin guardar (${numOT}, hace ${hace} min).\n\n¿Desea recuperarla?`)) {
+                localStorage.removeItem(this.AUTOSAVE_OT_KEY);
+                return;
+            }
+            const form = document.getElementById('formOrdenTrabajo');
+            if (!form) return;
+            Object.entries(data.campos || {}).forEach(([id, v]) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (el.type === 'checkbox' || el.type === 'radio') el.checked = v;
+                else el.value = v;
+            });
+            if (typeof showToast === 'function') showToast('OT recuperada', 'info');
+        } catch (e) { localStorage.removeItem(this.AUTOSAVE_OT_KEY); }
+    },
+
+    limpiarAutosaveOT: function() {
+        localStorage.removeItem(this.AUTOSAVE_OT_KEY);
+    },
     _esperarSync: async function() {
         if (typeof AxonesSync !== 'undefined' && AxonesSync._isReady && AxonesSync._isReady()) {
             return; // Ya esta listo
@@ -2181,6 +2231,9 @@ const Ordenes = {
 
         // Verificar inventario
         this.verificarYCrearAlertas(ordenData);
+
+        // Limpiar autosave
+        this.limpiarAutosaveOT();
 
         // Mostrar mensaje de exito
         if (typeof Axones !== 'undefined') {

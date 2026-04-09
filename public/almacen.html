@@ -265,21 +265,52 @@
                                         <textarea class="form-control form-control-sm" id="despachoDireccion" rows="2" required placeholder="Direccion completa del cliente..."></textarea>
                                     </div>
 
-                                    <!-- Cantidad despachada -->
-                                    <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-1 mb-2"><i class="bi bi-box-seam me-1"></i>Material Despachado</h6></div>
-                                    <div class="col-md-3">
-                                        <label class="form-label small fw-bold">Cantidad de Bobinas <span class="text-danger">*</span></label>
-                                        <input type="number" class="form-control form-control-sm" id="despachoBobinas" min="0" step="1" required placeholder="0">
+                                    <!-- Material Despachado: Paletas dinamicas -->
+                                    <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-1 mb-2"><i class="bi bi-box-seam me-1"></i>Material Despachado (por paleta)</h6></div>
+                                    <div class="col-12">
+                                        <!-- Despachos previos de esta OT -->
+                                        <div id="despachoPreviosInfo" class="alert alert-info py-1 small mb-2" style="display:none;">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            <strong>Despachos previos:</strong> <span id="despachoPreviosKg">0</span> Kg despachados |
+                                            <strong>Faltante:</strong> <span id="despachoFaltanteKg">0</span> Kg
+                                        </div>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-bordered mb-1">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th style="width:15%;">Paleta</th>
+                                                        <th style="width:25%;">N° Bobinas</th>
+                                                        <th style="width:25%;">Kg Total</th>
+                                                        <th style="width:5%;"></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="tablaPaletasDespacho">
+                                                    <tr data-paleta="1">
+                                                        <td class="fw-bold text-center">1</td>
+                                                        <td><input type="number" class="form-control form-control-sm desp-bobinas" min="0" step="1" placeholder="0" onchange="Almacen.calcularTotalesDespacho()"></td>
+                                                        <td><input type="number" class="form-control form-control-sm desp-kg" min="0" step="0.01" placeholder="0.00" onchange="Almacen.calcularTotalesDespacho()"></td>
+                                                        <td></td>
+                                                    </tr>
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr class="table-primary">
+                                                        <td class="fw-bold text-end">Total:</td>
+                                                        <td class="fw-bold" id="despTotalBobinas">0</td>
+                                                        <td class="fw-bold" id="despTotalKg">0.00</td>
+                                                        <td></td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                        <button type="button" class="btn btn-outline-primary btn-sm mb-2" onclick="Almacen.agregarPaletaDespacho()">
+                                            <i class="bi bi-plus-circle me-1"></i>Agregar paleta
+                                        </button>
+                                        <!-- Campos hidden para compatibilidad -->
+                                        <input type="hidden" id="despachoBobinas">
+                                        <input type="hidden" id="despachoKg">
+                                        <input type="hidden" id="despachoPaletas">
                                     </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label small fw-bold">Kg Totales <span class="text-danger">*</span></label>
-                                        <input type="number" class="form-control form-control-sm" id="despachoKg" min="0" step="0.01" required placeholder="0.00">
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label small">N° Paletas</label>
-                                        <input type="number" class="form-control form-control-sm" id="despachoPaletas" min="0" step="1" placeholder="0">
-                                    </div>
-                                    <div class="col-md-3">
+                                    <div class="col-md-6">
                                         <label class="form-label small">Fecha Despacho</label>
                                         <input type="date" class="form-control form-control-sm" id="despachoFecha">
                                     </div>

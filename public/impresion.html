@@ -920,18 +920,18 @@
                         </div>
                     </div>
 
-                    <!-- Scrap (Refil) -->
+                    <!-- Scrap (por turno) -->
                     <div class="form-section">
                         <div class="form-section-title">
-                            <i class="bi bi-recycle me-1"></i> Scrap / Refil (Kg)
+                            <i class="bi bi-recycle me-1"></i> Scrap del Turno (Kg)
                         </div>
                         <div class="row g-2">
                             <div class="col-4">
-                                <label class="form-label small">Transparente</label>
+                                <label class="form-label small">Transparente (Kg)</label>
                                 <input type="number" class="form-control form-control-sm scrap-input" id="scrapTransparente" step="0.01" min="0" value="0">
                             </div>
                             <div class="col-4">
-                                <label class="form-label small">Impreso</label>
+                                <label class="form-label small">Impreso (Kg)</label>
                                 <input type="number" class="form-control form-control-sm scrap-input" id="scrapImpreso" step="0.01" min="0" value="0">
                             </div>
                             <div class="col-4">
@@ -939,17 +939,7 @@
                                 <input type="text" class="form-control form-control-sm total-highlight" id="totalScrap" readonly>
                             </div>
                         </div>
-                        <div class="row g-2 mt-1">
-                            <div class="col-6">
-                                <label class="form-label small">% Refil</label>
-                                <input type="text" class="form-control form-control-sm total-highlight" id="porcentajeRefil" readonly>
-                            </div>
-                            <div class="col-6">
-                                <div id="indicadorRefil" class="alert alert-secondary py-1 px-2 mb-0 small text-center">
-                                    <i class="bi bi-dash-circle me-1"></i> Sin datos
-                                </div>
-                            </div>
-                        </div>
+                        <input type="hidden" id="porcentajeRefil">
                     </div>
 
                     <!-- Resumen de Pesaje -->

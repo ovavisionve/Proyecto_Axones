@@ -778,6 +778,20 @@ const Ordenes = {
         if (supDiv) supDiv.style.display = tipo === 'superficie' ? '' : 'none';
         if (revDiv) revDiv.style.display = tipo === 'reverso' ? '' : 'none';
 
+        // Laminacion: si es superficie no aplica -> gris
+        const seccionesLam = document.querySelectorAll('[data-seccion="laminacion"]');
+        seccionesLam.forEach(el => {
+            if (tipo === 'superficie') {
+                el.style.opacity = '0.4';
+                el.style.pointerEvents = 'none';
+                el.title = 'No aplica para impresion de superficie';
+            } else {
+                el.style.opacity = '1';
+                el.style.pointerEvents = '';
+                el.title = '';
+            }
+        });
+
         this.actualizarEstructuraMaterial();
     },
 

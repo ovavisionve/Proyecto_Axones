@@ -719,6 +719,7 @@ const Ordenes = {
 
         // Cargar sustratos virgen del inventario
         this.cargarSustratosVirgen();
+        this.cargarSustratosVirgenLam();
 
         // Recargar sustrato virgen al hacer click (por si no cargo al inicio)
         const selectSustrato = document.getElementById('sustratosVirgen');
@@ -1131,34 +1132,64 @@ const Ordenes = {
 
     _sustratoLamCount: 1,
 
-    agregarSustratoVirgenLam: function() {
+    agregarSustratoVirgenLam: async function() {
         this._sustratoLamCount++;
         const n = this._sustratoLamCount;
         const container = document.getElementById('contenedorSustratosVirgenLam');
         if (!container) return;
+
+        // Asegurar que el inventario esta cargado
+        await this.cargarSustratosVirgenLam();
         const primerSelect = document.getElementById('sustratosVirgenLam1');
         const opciones = primerSelect ? primerSelect.innerHTML : '<option value="">Seleccionar...</option>';
+
         const div = document.createElement('div');
-        div.className = 'd-flex gap-1 mb-1';
+        div.className = 'row g-2 mb-2';
         div.dataset.sustratoLam = n;
         div.innerHTML = `
-            <select class="form-select form-select-sm sustrato-select-lam" style="flex:3;">${opciones}</select>
-            <input type="text" class="form-control form-control-sm" placeholder="Kg" style="flex:1;">
-            <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('[data-sustrato-lam]').remove()" style="flex-shrink:0;"><i class="bi bi-x"></i></button>
+            <div class="col-md-7">
+                <label class="form-label small">Sustrato ${n}</label>
+                <select class="form-select form-select-sm sustrato-select-lam">${opciones}</select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">Kg a utilizar</label>
+                <input type="text" class="form-control form-control-sm" placeholder="Kg">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('[data-sustrato-lam]').remove()"><i class="bi bi-x"></i> Quitar</button>
+            </div>
         `;
         container.appendChild(div);
     },
 
     cargarSustratosVirgenLam: async function() {
         const select = document.getElementById('sustratosVirgenLam1');
-        if (!select) return;
-        // Reutilizar inventario ya cargado
-        await this.cargarSustratosVirgen();
-        // Copiar opciones del select principal al de laminacion
-        const selectPrincipal = document.getElementById('sustratosVirgen');
-        if (selectPrincipal && select.options.length <= 1) {
-            select.innerHTML = selectPrincipal.innerHTML;
+        if (!select || select.options.length > 1) return;
+
+        select.innerHTML = '<option value="">Cargando...</option>';
+
+        // Cargar inventario si no está cargado
+        let inventario = this.inventario || [];
+        if (inventario.length === 0 && typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+            try {
+                const materialesDB = await AxonesDB.materiales.listar({ ordenar: 'material', ascendente: true });
+                inventario = materialesDB.map(m => ({
+                    id: m.id, material: m.material, micras: m.micras, ancho: m.ancho,
+                    kg: m.stock_kg || 0, sku: m.sku
+                }));
+                this.inventario = inventario;
+            } catch (e) {}
         }
+
+        select.innerHTML = '<option value="">Seleccionar del inventario...</option>';
+        inventario.forEach(item => {
+            if (item.material) {
+                const option = document.createElement('option');
+                option.value = JSON.stringify({ sku: item.sku || item.id, material: item.material, ancho: item.ancho, micraje: item.micras, kg: item.kg });
+                option.textContent = `${item.sku || ''} - ${item.material} ${item.ancho}mm x ${item.micras}mic (${item.kg || 0} kg)`;
+                select.appendChild(option);
+            }
+        });
     },
 
     cargarSustratosVirgen: async function() {

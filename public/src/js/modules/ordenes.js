@@ -453,7 +453,7 @@ const Ordenes = {
      * Genera un numero de orden automatico correlativo
      * Formato: OT-YYYY-XXXX donde XXXX es el siguiente numero disponible
      */
-    generarNumeroOrden: function() {
+    generarNumeroOrden: async function() {
         const numeroOrden = document.getElementById('numeroOrden');
         if (!numeroOrden) return;
 
@@ -462,20 +462,42 @@ const Ordenes = {
 
         const year = new Date().getFullYear();
 
-        // Buscar el ultimo numero usado en este año
+        // Buscar el ultimo numero: primero en Supabase (fuente de verdad), luego en local
         let maxNum = 0;
-        this.ordenes.forEach(orden => {
-            if (orden.numeroOrden) {
-                const match = orden.numeroOrden.match(/OT-(\d{4})-(\d+)/);
-                if (match && parseInt(match[1]) === year) {
-                    const num = parseInt(match[2]);
-                    if (num > maxNum) maxNum = num;
+
+        // 1. Consultar Supabase directamente
+        if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+            try {
+                const { data } = await AxonesDB.client.from('ordenes_trabajo')
+                    .select('numero_ot')
+                    .like('numero_ot', `OT-${year}-%`)
+                    .order('numero_ot', { ascending: false })
+                    .limit(1);
+                if (data && data[0]) {
+                    const match = data[0].numero_ot.match(/OT-(\d{4})-(\d+)/);
+                    if (match) maxNum = parseInt(match[2]);
                 }
+            } catch (e) {
+                console.warn('Error consultando ultimo correlativo:', e);
             }
-        });
+        }
+
+        // 2. Fallback: buscar en array local
+        if (maxNum === 0) {
+            this.ordenes.forEach(orden => {
+                if (orden.numeroOrden) {
+                    const match = orden.numeroOrden.match(/OT-(\d{4})-(\d+)/);
+                    if (match && parseInt(match[1]) === year) {
+                        const num = parseInt(match[2]);
+                        if (num > maxNum) maxNum = num;
+                    }
+                }
+            });
+        }
 
         const nextNum = maxNum + 1;
         numeroOrden.value = `OT-${year}-${String(nextNum).padStart(4, '0')}`;
+        console.log(`[OT] Correlativo generado: OT-${year}-${String(nextNum).padStart(4, '0')} (max encontrado: ${maxNum})`);
     },
 
     /**

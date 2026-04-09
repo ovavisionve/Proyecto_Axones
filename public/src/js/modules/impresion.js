@@ -2055,17 +2055,31 @@ const Impresion = {
             if (o) o.style.display = this.value === 'Otro' ? '' : 'none';
         });
 
-        // Detener
+        // Fin de Turno - para el timer, guarda el turno
         document.getElementById('btnProdStop')?.addEventListener('click', () => {
-            // Si estaba pausado, registrar ultima pausa
+            if (!confirm('¿Confirma fin de turno? Se guardara el registro del turno actual.')) return;
             if (self._timer.estado === 'pausado' && self._timer.pausaInicio) {
                 self._timer.tiempoMuerto += Date.now() - self._timer.pausaInicio;
-                self._timer.pausas.push({ timestamp: new Date(self._timer.pausaInicio).toISOString(), motivo: 'Fin de produccion', duracion: Date.now() - self._timer.pausaInicio });
+                self._timer.pausas.push({ timestamp: new Date(self._timer.pausaInicio).toISOString(), motivo: 'Fin de turno', duracion: Date.now() - self._timer.pausaInicio });
             }
             self._timer.estado = 'detenido';
             if (self._timer.interval) { clearInterval(self._timer.interval); self._timer.interval = null; }
-            self.timerTick(); // ultima actualizacion
+            self.timerTick();
             self.timerUpdateUI();
+            // Habilitar boton Finalizar Orden
+            const btnFinalizar = document.getElementById('btnFinalizarOrden');
+            if (btnFinalizar) btnFinalizar.disabled = false;
+            if (typeof showToast === 'function') showToast('Turno finalizado. Puede guardar o finalizar la orden.', 'info');
+        });
+
+        // Finalizar Orden - muestra devolucion + desmontaje
+        document.getElementById('btnFinalizarOrden')?.addEventListener('click', () => {
+            const seccion = document.getElementById('seccionFinalizarOrden');
+            if (seccion) {
+                seccion.style.display = '';
+                seccion.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            if (typeof showToast === 'function') showToast('Complete la devolucion y el desmontaje para finalizar la orden.', 'info');
         });
 
         // --- DESMONTAJE (simple play/stop) ---
@@ -2129,6 +2143,8 @@ const Impresion = {
         if (play) play.disabled = t.estado === 'corriendo' || t.estado === 'detenido';
         if (pause) pause.disabled = t.estado !== 'corriendo';
         if (stop) stop.disabled = t.estado === 'pendiente' || t.estado === 'detenido';
+        const finalizar = document.getElementById('btnFinalizarOrden');
+        if (finalizar) finalizar.disabled = t.estado === 'pendiente';
     },
 
     renderPausasProduccion: function() {

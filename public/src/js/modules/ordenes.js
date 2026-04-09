@@ -739,10 +739,22 @@ const Ordenes = {
             btnGuardarNuevoProducto.addEventListener('click', () => this.crearNuevoProducto());
         }
 
-        // Generar estructura automaticamente desde ficha tecnica
-        const btnGenerarEstructura = document.getElementById('btnGenerarEstructura');
-        if (btnGenerarEstructura) {
-            btnGenerarEstructura.addEventListener('click', () => this.generarEstructuraDesdeFichaTecnica());
+        // Estructura del material: logica de tipo impresion
+        const estructuraRevSelect = document.getElementById('estructuraMaterialRev');
+        if (estructuraRevSelect) {
+            estructuraRevSelect.addEventListener('change', () => {
+                const detalle = document.getElementById('estructuraMaterialRevDetalle');
+                if (detalle) detalle.style.display = estructuraRevSelect.value === 'otro' ? '' : 'none';
+                this.actualizarEstructuraMaterial();
+            });
+        }
+        const estructuraSup = document.getElementById('estructuraMaterialSup');
+        if (estructuraSup) {
+            estructuraSup.addEventListener('input', () => this.actualizarEstructuraMaterial());
+        }
+        const estructuraRevDetalle = document.getElementById('estructuraMaterialRevDetalle');
+        if (estructuraRevDetalle) {
+            estructuraRevDetalle.addEventListener('input', () => this.actualizarEstructuraMaterial());
         }
     },
 
@@ -750,6 +762,46 @@ const Ordenes = {
      * Genera la estructura del material leyendo la ficha tecnica
      * Formato: "BOPP NORMAL 560 X 25 µ (430 Kg) + CAST 560 X 25 µ (430 Kg)"
      */
+    /**
+     * Muestra/oculta campos segun tipo de impresion seleccionado
+     */
+    onTipoImpresionEstructura: function() {
+        const tipo = document.getElementById('tipoImpresionEstructura')?.value;
+        const supDiv = document.getElementById('estructuraSuperficie');
+        const revDiv = document.getElementById('estructuraReverso');
+
+        if (supDiv) supDiv.style.display = tipo === 'superficie' ? '' : 'none';
+        if (revDiv) revDiv.style.display = tipo === 'reverso' ? '' : 'none';
+
+        this.actualizarEstructuraMaterial();
+    },
+
+    /**
+     * Actualiza el campo hidden estructuraMaterial basado en lo seleccionado
+     */
+    actualizarEstructuraMaterial: function() {
+        const tipo = document.getElementById('tipoImpresionEstructura')?.value;
+        const hidden = document.getElementById('estructuraMaterial');
+        if (!hidden) return;
+
+        if (tipo === 'superficie') {
+            hidden.value = document.getElementById('estructuraMaterialSup')?.value || '';
+        } else if (tipo === 'reverso') {
+            const estructura = document.getElementById('estructuraMaterialRev')?.value || '';
+            if (estructura === 'otro') {
+                hidden.value = document.getElementById('estructuraMaterialRevDetalle')?.value || '';
+            } else if (estructura === 'bilaminado') {
+                hidden.value = 'Bilaminado (2 capas + adhesivo)';
+            } else if (estructura === 'trilaminado') {
+                hidden.value = 'Trilaminado (3 capas + adhesivo)';
+            } else {
+                hidden.value = estructura;
+            }
+        } else {
+            hidden.value = '';
+        }
+    },
+
     generarEstructuraDesdeFichaTecnica: function() {
         const capas = [];
 

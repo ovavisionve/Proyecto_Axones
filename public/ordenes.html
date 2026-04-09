@@ -497,11 +497,36 @@
                                     <datalist id="listaTintasColor"></datalist>
                                 </div>
                                 <div class="ot-field">
+                                    <label class="form-label required-field">Tipo Impresion</label>
+                                    <select class="form-select form-select-sm" id="tipoImpresionEstructura" onchange="Ordenes.onTipoImpresionEstructura()">
+                                        <option value="">Seleccionar...</option>
+                                        <option value="superficie">Superficie (1 capa)</option>
+                                        <option value="reverso">Reverso (laminado)</option>
+                                    </select>
+                                </div>
+                                <div class="ot-field">
                                     <label class="form-label required-field">Estructura del Material</label>
-                                    <input type="text" class="form-control form-control-sm" id="estructuraMaterial" placeholder="Ej: BOPP 560 X 25 + CAST 560 X 25">
-                                    <button type="button" class="btn btn-outline-secondary btn-sm mt-1" id="btnGenerarEstructura" style="font-size:0.6rem; padding:0.1rem 0.3rem;" title="Opcional: genera automaticamente desde Ficha Tecnica">
-                                        <i class="bi bi-magic me-1"></i>Auto desde Ficha Tecnica
-                                    </button>
+                                    <!-- Si es superficie: solo 1 capa -->
+                                    <div id="estructuraSuperficie" style="display:none;">
+                                        <input type="text" class="form-control form-control-sm" id="estructuraMaterialSup" placeholder="Ej: BOPP 560 X 25 µ" list="listaMatSup">
+                                        <datalist id="listaMatSup">
+                                            <option value="BOPP NORMAL"><option value="BOPP MATE"><option value="BOPP PASTA">
+                                            <option value="BOPP PERLADO"><option value="CAST"><option value="PEBD">
+                                            <option value="PET"><option value="METAL"><option value="PERLADO">
+                                        </datalist>
+                                    </div>
+                                    <!-- Si es reverso: 3 opciones de estructura -->
+                                    <div id="estructuraReverso" style="display:none;">
+                                        <select class="form-select form-select-sm" id="estructuraMaterialRev">
+                                            <option value="">Seleccionar estructura...</option>
+                                            <option value="bilaminado">Bilaminado (2 capas + adhesivo)</option>
+                                            <option value="trilaminado">Trilaminado (3 capas + adhesivo)</option>
+                                            <option value="otro">Otro (escribir)</option>
+                                        </select>
+                                        <input type="text" class="form-control form-control-sm mt-1" id="estructuraMaterialRevDetalle" placeholder="Ej: BOPP 25µ + Adh + CAST 25µ" style="display:none;">
+                                    </div>
+                                    <!-- Campo real que se envia (hidden) -->
+                                    <input type="hidden" id="estructuraMaterial">
                                 </div>
                             </div>
                             <div class="ot-grid" style="grid-template-columns: 1fr 1fr 1fr;">

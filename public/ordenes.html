@@ -852,21 +852,6 @@
                                     <label class="form-label">Observaciones</label>
                                     <input type="text" class="form-control form-control-sm" id="obsLaminacion">
                                 </div>
-                                <!-- Sustratos Virgen para Laminacion -->
-                                <div class="ot-field" style="grid-column: 1 / -1;">
-                                    <label class="form-label fw-bold" style="font-size:0.7rem;"><i class="bi bi-box-seam me-1"></i>Sustratos Virgen a Utilizar</label>
-                                    <div id="contenedorSustratosVirgenLam">
-                                        <div class="d-flex gap-1 mb-1" data-sustrato-lam="1">
-                                            <select class="form-select form-select-sm sustrato-select-lam" id="sustratosVirgenLam1" style="flex:3;">
-                                                <option value="">Seleccionar del inventario...</option>
-                                            </select>
-                                            <input type="text" class="form-control form-control-sm" id="kgUtilizarLam1" placeholder="Kg" style="flex:1;">
-                                        </div>
-                                    </div>
-                                    <button type="button" class="btn btn-outline-primary btn-sm" id="btnAgregarSustratoVirgenLam" style="font-size:0.6rem;">
-                                        <i class="bi bi-plus-circle me-1"></i>Agregar otro sustrato
-                                    </button>
-                                </div>
                             </div>
                         </div>
                         <!-- Columna derecha: produccion + materiales -->
@@ -931,6 +916,32 @@
                             </table>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Sustratos Virgen para Laminacion -->
+            <div class="ot-section">
+                <div class="section-header" style="background: #d4c5f9;">
+                    <i class="bi bi-box-seam me-1"></i>SUSTRATOS VIRGEN A UTILIZAR (LAMINACION)
+                </div>
+                <div class="section-body">
+                    <div id="contenedorSustratosVirgenLam">
+                        <div class="row g-2 mb-2" data-sustrato-lam="1">
+                            <div class="col-md-8">
+                                <label class="form-label small">Sustrato 1</label>
+                                <select class="form-select form-select-sm sustrato-select-lam" id="sustratosVirgenLam1">
+                                    <option value="">Seleccionar del inventario...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small">Kg a utilizar</label>
+                                <input type="text" class="form-control form-control-sm" id="kgUtilizarLam1" placeholder="Ej: 430">
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="btnAgregarSustratoVirgenLam">
+                        <i class="bi bi-plus-circle me-1"></i>Agregar otro sustrato
+                    </button>
                 </div>
             </div>
 

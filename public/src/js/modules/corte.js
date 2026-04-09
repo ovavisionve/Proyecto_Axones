@@ -1055,7 +1055,10 @@ const Corte = {
     /**
      * Guarda el registro
      */
+    _guardando: false,
     guardar: async function() {
+        if (this._guardando) return;
+        this._guardando = true;
         // Validacion personalizada
         const errores = this.validarCamposRequeridos();
         if (errores.length > 0) {
@@ -1107,6 +1110,7 @@ const Corte = {
             console.error('Error guardando registro:', error);
             Axones.showWarning('Error al guardar: ' + error.message);
         } finally {
+            this._guardando = false;
             if (btnGuardar) {
                 btnGuardar.disabled = false;
                 btnGuardar.innerHTML = btnText;

@@ -1348,7 +1348,13 @@ const Impresion = {
     /**
      * Guarda el registro
      */
+    _guardando: false,
+
     guardar: async function() {
+        // Prevenir doble guardado
+        if (this._guardando) return;
+        this._guardando = true;
+
         // Validacion personalizada
         const errores = this.validarCamposRequeridos();
         if (errores.length > 0) {
@@ -1363,11 +1369,13 @@ const Impresion = {
             return;
         }
 
-        // Mostrar indicador de carga
+        // Deshabilitar AMBOS botones de guardar
         const btnGuardar = document.getElementById('btnGuardar');
+        const btnGuardarBottom = document.getElementById('btnGuardarBottom');
         const btnText = btnGuardar ? btnGuardar.innerHTML : '';
+        if (btnGuardar) btnGuardar.disabled = true;
+        if (btnGuardarBottom) btnGuardarBottom.disabled = true;
         if (btnGuardar) {
-            btnGuardar.disabled = true;
             btnGuardar.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
         }
 
@@ -1396,11 +1404,10 @@ const Impresion = {
             console.error('Error guardando registro:', error);
             this.mostrarToast('Error al guardar: ' + error.message, 'danger');
         } finally {
-            // Restaurar boton
-            if (btnGuardar) {
-                btnGuardar.disabled = false;
-                btnGuardar.innerHTML = btnText;
-            }
+            // Restaurar botones
+            this._guardando = false;
+            if (btnGuardar) { btnGuardar.disabled = false; btnGuardar.innerHTML = btnText; }
+            if (btnGuardarBottom) { btnGuardarBottom.disabled = false; }
         }
     },
 

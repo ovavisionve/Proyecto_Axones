@@ -289,22 +289,80 @@ const AxonesDB = {
 
                 // Reconstruir objetos camelCase desde datos JSONB
                 return (data || []).map(row => {
-                    const orden = row.datos && Object.keys(row.datos).length > 0
-                        ? { ...row.datos }
-                        : {};
-                    // Siempre usar los campos canonicos de Supabase
-                    orden.id = row.id;
-                    orden.numeroOrden = row.numero_ot || orden.numeroOrden;
-                    orden.estadoOrden = row.estado || orden.estadoOrden || 'pendiente';
-                    orden.cliente = row.cliente_nombre || orden.cliente;
-                    orden.producto = row.producto || orden.producto;
-                    orden.pedidoKg = row.pedido_kg || orden.pedidoKg;
-                    orden.prioridad = row.prioridad || orden.prioridad || 'normal';
-                    orden.fechaEntrega = row.fecha_entrega || orden.fechaEntrega;
-                    orden.fechaInicio = row.fecha_inicio || orden.fechaInicio;
-                    orden.created_at = row.created_at;
-                    orden.updated_at = row.updated_at;
-                    return orden;
+                    // Mapear columnas Supabase -> campos JS (camelCase)
+                    const obs = row.observaciones_generales || '';
+                    let extra = {};
+                    // Si observaciones tiene JSON backup, extraer campos extra
+                    if (obs && obs.startsWith('{')) { try { extra = JSON.parse(obs); } catch(e) {} }
+
+                    return {
+                        ...extra,
+                        id: row.id,
+                        numeroOrden: row.numero_ot,
+                        estadoOrden: row.estado || 'pendiente',
+                        cliente: row.cliente_nombre,
+                        producto: row.producto,
+                        pedidoKg: row.pedido_kg,
+                        cpe: row.cpe,
+                        codigoBarra: row.codigo_barra,
+                        estructuraMaterial: row.estructura_material,
+                        prioridad: row.prioridad || 'normal',
+                        tipoMaterial: row.tipo_material,
+                        micrasMaterial: row.micras_material,
+                        anchoMaterial: row.ancho_material,
+                        fechaInicio: row.fecha_inicio,
+                        fechaEntrega: row.fecha_entrega,
+                        observacionesGenerales: typeof obs === 'string' && !obs.startsWith('{') ? obs : (extra.observacionesGenerales || ''),
+                        // Montaje
+                        frecuencia: row.frecuencia,
+                        anchoCorte: row.ancho_corte,
+                        anchoMontaje: row.ancho_montaje,
+                        numBandas: row.num_bandas,
+                        numRepeticion: row.num_repeticion,
+                        figuraEmbobinadoMontaje: row.figura_embobinado_montaje,
+                        tipoImpresion: row.tipo_impresion,
+                        desarrollo: row.desarrollo,
+                        numColores: row.num_colores,
+                        obsMontaje: row.obs_montaje,
+                        // Impresion
+                        pinon: row.pinon,
+                        lineaCorte: row.linea_corte,
+                        kgIngresadoImp: row.kg_ingresado_imp,
+                        kgSalidaImp: row.kg_salida_imp,
+                        mermaImp: row.merma_imp,
+                        metrosImp: row.metros_imp,
+                        // Laminacion
+                        figuraEmbobinadoLam: row.figura_embobinado_lam,
+                        gramajeAdhesivo: row.gramaje_adhesivo,
+                        relacionMezcla: row.relacion_mezcla,
+                        obsLaminacion: row.obs_laminacion,
+                        adhesivoKg: row.adhesivo_kg,
+                        catalizadorKg: row.catalizador_kg,
+                        // Corte
+                        anchoCorteFinal: row.ancho_corte_final,
+                        orientacionEmbalaje: row.orientacion_embalaje,
+                        tipoEmpalme: row.tipo_empalme,
+                        maxEmpalmes: row.max_empalmes,
+                        pesoBobina: row.peso_bobina,
+                        metrosBobina: row.metros_bobina,
+                        diametroCore: row.diametro_core,
+                        cantidadCores: row.cantidad_cores,
+                        // Ficha Tecnica
+                        fichaTipoMat1: row.ficha_tipo_mat1,
+                        fichaMicras1: row.ficha_micras1,
+                        fichaDensidad1: row.ficha_densidad1,
+                        fichaKg1: row.ficha_kg1,
+                        fichaSku1: row.ficha_sku1,
+                        fichaAncho1: row.ficha_ancho1,
+                        fichaTipoMat2: row.ficha_tipo_mat2,
+                        fichaMicras2: row.ficha_micras2,
+                        fichaDensidad2: row.ficha_densidad2,
+                        fichaKg2: row.ficha_kg2,
+                        fichaSku2: row.ficha_sku2,
+                        // Meta
+                        created_at: row.created_at,
+                        updated_at: row.updated_at,
+                    };
                 });
             } catch (e) {
                 console.error('Error cargando ordenes:', e);

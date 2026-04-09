@@ -548,22 +548,6 @@ const Ordenes = {
         numeroOrden.value = `OT-${year}-${String(nextNum).padStart(4, '0')}`;
         console.log(`[OT] Correlativo final: OT-${year}-${String(nextNum).padStart(4, '0')}`);
     },
-        if (maxNum === 0) {
-            this.ordenes.forEach(orden => {
-                if (orden.numeroOrden) {
-                    const match = orden.numeroOrden.match(/OT-(\d{4})-(\d+)/);
-                    if (match && parseInt(match[1]) === year) {
-                        const num = parseInt(match[2]);
-                        if (num > maxNum) maxNum = num;
-                    }
-                }
-            });
-        }
-
-        const nextNum = maxNum + 1;
-        numeroOrden.value = `OT-${year}-${String(nextNum).padStart(4, '0')}`;
-        console.log(`[OT] Correlativo generado: OT-${year}-${String(nextNum).padStart(4, '0')} (max encontrado: ${maxNum})`);
-    },
 
     /**
      * Carga ordenes desde Supabase (fuente unica de verdad)

@@ -1363,9 +1363,6 @@ const Impresion = {
             return;
         }
 
-        // Recopilar datos
-        const datos = this.recopilarDatos();
-
         // Mostrar indicador de carga
         const btnGuardar = document.getElementById('btnGuardar');
         const btnText = btnGuardar ? btnGuardar.innerHTML : '';
@@ -1375,6 +1372,9 @@ const Impresion = {
         }
 
         try {
+            // Recopilar datos
+            const datos = this.recopilarDatos();
+
             // Guardar en Supabase
             await this.guardarLocal(datos);
 
@@ -1444,7 +1444,7 @@ const Impresion = {
         // Obtener materiales de entrada
         const materialesEntrada = [];
         for (let i = 1; i <= 26; i++) {
-            const valor = parseFloat(document.getElementById('mat' + i).value) || 0;
+            const valor = parseFloat(document.getElementById('mat' + i)?.value) || 0;
             if (valor > 0) {
                 materialesEntrada.push({ posicion: i, peso: valor });
             }
@@ -1456,7 +1456,7 @@ const Impresion = {
         // Obtener bobinas de salida
         const bobinasSalida = [];
         for (let i = 1; i <= 22; i++) {
-            const valor = parseFloat(document.getElementById('bob' + i).value) || 0;
+            const valor = parseFloat(document.getElementById('bob' + i)?.value) || 0;
             if (valor > 0) {
                 bobinasSalida.push({ posicion: i, peso: valor });
             }
@@ -2069,17 +2069,25 @@ const Impresion = {
             self.timerUpdateUI();
 
             // GUARDAR el turno automaticamente
+            let guardadoOk = false;
             try {
                 const datos = self.recopilarDatos();
-                await self.guardarLocal(datos);
-                await self.descontarInventario(datos);
-                await self.registrarBobinasMalas(datos);
-                self.limpiarAutosave();
-                if (typeof showToast === 'function') showToast('Turno guardado exitosamente. Formulario listo para el siguiente turno.', 'success');
+                if (datos) {
+                    await self.guardarLocal(datos);
+                    try { await self.descontarInventario(datos); } catch(e2) { console.warn('Error descontando inv:', e2); }
+                    try { await self.registrarBobinasMalas(datos); } catch(e3) { console.warn('Error bobinas malas:', e3); }
+                    self.limpiarAutosave();
+                    guardadoOk = true;
+                    if (typeof showToast === 'function') showToast('Turno guardado exitosamente.', 'success');
+                }
             } catch (e) {
                 console.error('[Impresion] Error guardando turno:', e);
-                alert('Error al guardar el turno: ' + e.message);
-                return;
+                alert('Error al guardar el turno: ' + (e.message || e));
+            }
+
+            if (!guardadoOk) {
+                // Restaurar timer si fallo
+                if (typeof showToast === 'function') showToast('Error al guardar pero el turno se detuvo. Intente guardar manualmente.', 'danger');
             }
 
             // Limpiar formulario PERO mantener la OT seleccionada

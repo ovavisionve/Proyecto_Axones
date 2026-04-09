@@ -829,8 +829,8 @@
                     <i class="bi bi-printer me-1"></i>AREA DE IMPRESION
                 </div>
                 <div class="section-body">
-                    <!-- Fila 1: Pinon | Linea de Corte | Sustrato Virgen | Figura Embobinado -->
-                    <div class="ot-grid" style="grid-template-columns: 1fr 1fr 2fr 1fr;">
+                    <!-- Fila 1: Pinon | Linea Corte | Sustrato Virgen | Kg a utilizar | Figura Emb -->
+                    <div class="ot-grid" style="grid-template-columns: 1fr 1fr 2fr 1fr 1fr;">
                         <div class="ot-field">
                             <label class="form-label">Pinon (Dientes)</label>
                             <input type="number" class="form-control form-control-sm" id="pinonImpDisplay" step="1" placeholder="Ej: 840">
@@ -847,7 +847,13 @@
                         </div>
                         <div class="ot-field">
                             <label class="form-label">Sustrato Virgen</label>
-                            <input type="text" class="form-control form-control-sm" id="sustratosVirgen" placeholder="Ej: BOPP MATE 470mm x 20mic">
+                            <select class="form-select form-select-sm" id="sustratosVirgen">
+                                <option value="">Seleccionar del inventario...</option>
+                            </select>
+                        </div>
+                        <div class="ot-field">
+                            <label class="form-label">Kg a utilizar</label>
+                            <input type="text" class="form-control form-control-sm" id="kgUtilizarImp" placeholder="Ej: 430">
                         </div>
                         <div class="ot-field">
                             <label class="form-label">Figura Emb.</label>

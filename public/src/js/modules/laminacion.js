@@ -803,7 +803,11 @@ const Laminacion = {
     /**
      * Guarda el registro
      */
+    _guardando: false,
     guardar: async function() {
+        if (this._guardando) return;
+        this._guardando = true;
+        try {
         // Validacion personalizada
         const errores = this.validarCamposRequeridos();
         if (errores.length > 0) {
@@ -859,7 +863,9 @@ const Laminacion = {
                 btnGuardar.disabled = false;
                 btnGuardar.innerHTML = btnText;
             }
+            this._guardando = false;
         }
+        } catch(e) { this._guardando = false; throw e; }
     },
 
     /**

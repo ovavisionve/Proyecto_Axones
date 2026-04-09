@@ -894,7 +894,6 @@
                                         <th>COLOR</th>
                                         <th>ANILOX</th>
                                         <th>VISC (seg)</th>
-                                        <th>%</th>
                                         <th>OBSERVACIONES</th>
                                     </tr>
                                 </thead>
@@ -904,7 +903,6 @@
                                         <td><input type="text" class="form-control form-control-sm" id="tinta1Color" list="listaTintasColor"></td>
                                         <td><input type="text" class="form-control form-control-sm" id="tinta1Anilox"></td>
                                         <td><input type="number" class="form-control form-control-sm" id="tinta1Visc" step="0.1"></td>
-                                        <td><input type="number" class="form-control form-control-sm" id="tinta1Pct" step="0.1"></td>
                                         <td><input type="text" class="form-control form-control-sm" id="tinta1Obs"></td>
                                     </tr>
                                     <tr>
@@ -912,7 +910,6 @@
                                         <td><input type="text" class="form-control form-control-sm" id="tinta2Color" list="listaTintasColor"></td>
                                         <td><input type="text" class="form-control form-control-sm" id="tinta2Anilox"></td>
                                         <td><input type="number" class="form-control form-control-sm" id="tinta2Visc" step="0.1"></td>
-                                        <td><input type="number" class="form-control form-control-sm" id="tinta2Pct" step="0.1"></td>
                                         <td><input type="text" class="form-control form-control-sm" id="tinta2Obs"></td>
                                     </tr>
                                     <tr>
@@ -920,7 +917,6 @@
                                         <td><input type="text" class="form-control form-control-sm" id="tinta3Color" list="listaTintasColor"></td>
                                         <td><input type="text" class="form-control form-control-sm" id="tinta3Anilox"></td>
                                         <td><input type="number" class="form-control form-control-sm" id="tinta3Visc" step="0.1"></td>
-                                        <td><input type="number" class="form-control form-control-sm" id="tinta3Pct" step="0.1"></td>
                                         <td><input type="text" class="form-control form-control-sm" id="tinta3Obs"></td>
                                     </tr>
                                     <tr>
@@ -928,7 +924,6 @@
                                         <td><input type="text" class="form-control form-control-sm" id="tinta4Color" list="listaTintasColor"></td>
                                         <td><input type="text" class="form-control form-control-sm" id="tinta4Anilox"></td>
                                         <td><input type="number" class="form-control form-control-sm" id="tinta4Visc" step="0.1"></td>
-                                        <td><input type="number" class="form-control form-control-sm" id="tinta4Pct" step="0.1"></td>
                                         <td><input type="text" class="form-control form-control-sm" id="tinta4Obs"></td>
                                     </tr>
                                     <tr>
@@ -936,7 +931,6 @@
                                         <td><input type="text" class="form-control form-control-sm" id="tinta5Color" list="listaTintasColor"></td>
                                         <td><input type="text" class="form-control form-control-sm" id="tinta5Anilox"></td>
                                         <td><input type="number" class="form-control form-control-sm" id="tinta5Visc" step="0.1"></td>
-                                        <td><input type="number" class="form-control form-control-sm" id="tinta5Pct" step="0.1"></td>
                                         <td><input type="text" class="form-control form-control-sm" id="tinta5Obs"></td>
                                     </tr>
                                     <tr>
@@ -944,7 +938,6 @@
                                         <td><input type="text" class="form-control form-control-sm" id="tinta6Color" list="listaTintasColor"></td>
                                         <td><input type="text" class="form-control form-control-sm" id="tinta6Anilox"></td>
                                         <td><input type="number" class="form-control form-control-sm" id="tinta6Visc" step="0.1"></td>
-                                        <td><input type="number" class="form-control form-control-sm" id="tinta6Pct" step="0.1"></td>
                                         <td><input type="text" class="form-control form-control-sm" id="tinta6Obs"></td>
                                     </tr>
                                     <tr>
@@ -952,7 +945,6 @@
                                         <td><input type="text" class="form-control form-control-sm" id="tinta7Color" list="listaTintasColor"></td>
                                         <td><input type="text" class="form-control form-control-sm" id="tinta7Anilox"></td>
                                         <td><input type="number" class="form-control form-control-sm" id="tinta7Visc" step="0.1"></td>
-                                        <td><input type="number" class="form-control form-control-sm" id="tinta7Pct" step="0.1"></td>
                                         <td><input type="text" class="form-control form-control-sm" id="tinta7Obs"></td>
                                     </tr>
                                     <tr>
@@ -960,7 +952,6 @@
                                         <td><input type="text" class="form-control form-control-sm" id="tinta8Color" list="listaTintasColor"></td>
                                         <td><input type="text" class="form-control form-control-sm" id="tinta8Anilox"></td>
                                         <td><input type="number" class="form-control form-control-sm" id="tinta8Visc" step="0.1"></td>
-                                        <td><input type="number" class="form-control form-control-sm" id="tinta8Pct" step="0.1"></td>
                                         <td><input type="text" class="form-control form-control-sm" id="tinta8Obs"></td>
                                     </tr>
                                 </tbody>
@@ -971,7 +962,7 @@
             </div>
 
             <!-- AREA DE LAMINACION (Excel filas 29-36: campos izq + tabla materiales der) -->
-            <div class="ot-section">
+            <div class="ot-section" data-seccion="laminacion">
                 <div class="section-header">
                     <i class="bi bi-layers me-1"></i>AREA DE LAMINACION
                 </div>
@@ -1010,7 +1001,7 @@
                         </div>
                         <!-- Columna derecha: produccion + materiales -->
                         <div>
-                            <div class="ot-grid" style="grid-template-columns: 1fr 1fr;">
+                            <div class="ot-grid" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
                                 <div class="ot-field">
                                     <label class="form-label">Kg Entrada</label>
                                     <input type="number" class="form-control form-control-sm" id="kgEntradaLam" step="0.01">
@@ -1024,8 +1015,27 @@
                                     <input type="number" class="form-control form-control-sm" id="metrajeLam" step="0.01">
                                 </div>
                                 <div class="ot-field">
-                                    <label class="form-label">Merma (%)</label>
+                                    <label class="form-label">Merma</label>
                                     <input type="number" class="form-control form-control-sm" id="mermaLam" step="0.01">
+                                </div>
+                            </div>
+                            <!-- Fila extra para trilaminado -->
+                            <div class="ot-grid" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                                <div class="ot-field">
+                                    <label class="form-label">Kg Entrada 2 <small class="text-muted">(trilam.)</small></label>
+                                    <input type="number" class="form-control form-control-sm" id="kgEntradaLam2" step="0.01">
+                                </div>
+                                <div class="ot-field">
+                                    <label class="form-label">Kg Salida 2 <small class="text-muted">(trilam.)</small></label>
+                                    <input type="number" class="form-control form-control-sm" id="kgSalidaLam2" step="0.01">
+                                </div>
+                                <div class="ot-field">
+                                    <label class="form-label">Metraje 2</label>
+                                    <input type="number" class="form-control form-control-sm" id="metrajeLam2" step="0.01">
+                                </div>
+                                <div class="ot-field">
+                                    <label class="form-label">Merma 2</label>
+                                    <input type="number" class="form-control form-control-sm" id="mermaLam2" step="0.01">
                                 </div>
                             </div>
                             <table class="table table-bordered table-tintas mb-0">
@@ -1121,20 +1131,10 @@
                             <label class="form-label">Dist. Figura Lado Fotocelda (mm)</label>
                             <input type="text" class="form-control form-control-sm" id="distFiguraFotocelda" placeholder="30±1">
                         </div>
+                        <input type="hidden" id="tipoEmpalme">
                         <div class="ot-field">
-                            <label class="form-label">Tipo Empalme</label>
-                            <select class="form-select form-select-sm" id="tipoEmpalme">
-                                <option value="">-</option>
-                                <option value="Externo">Externo</option>
-                                <option value="Interno">Interno</option>
-                                <option value="Bandera">Bandera</option>
-                                <option value="Inline">Inline</option>
-                                <option value="Ninguno">Ninguno</option>
-                            </select>
-                        </div>
-                        <div class="ot-field">
-                            <label class="form-label">Max. Empalmes</label>
-                            <input type="number" class="form-control form-control-sm" id="maxEmpalmes" min="0">
+                            <label class="form-label">Max. Empates</label>
+                            <input type="number" class="form-control form-control-sm" id="maxEmpalmes" min="0" value="1">
                         </div>
                     </div>
                     <!-- Fila 3: Bobina y Core -->
@@ -1158,10 +1158,6 @@
                         <div class="ot-field">
                             <label class="form-label">Cant. Cores</label>
                             <input type="number" class="form-control form-control-sm" id="cantidadCores" min="1">
-                        </div>
-                        <div class="ot-field">
-                            <label class="form-label">Cantidad de Cores</label>
-                            <input type="number" class="form-control form-control-sm" id="cantidadCoresTotal" min="1" placeholder="Total">
                         </div>
                     </div>
                         <div class="ot-field">

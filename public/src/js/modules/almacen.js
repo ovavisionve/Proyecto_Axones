@@ -387,12 +387,7 @@ ${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="
                 <option value="Quimico">Quimico</option><option value="Consumible">Consumible</option><option value="Otro">Otro</option>
             </select></td>
             <td><input type="text" class="form-control form-control-sm rec-desc" list="listaMaterialesRec_${n}" placeholder="Escribir o seleccionar...">
-                <datalist id="listaMaterialesRec_${n}">
-                    <option value="BOPP NORMAL"><option value="BOPP MATE"><option value="BOPP PASTA">
-                    <option value="BOPP PERLADO"><option value="CAST"><option value="PEBD">
-                    <option value="PEBD PIGMENT"><option value="METAL"><option value="PERLADO">
-                    <option value="PET"><option value="PA (Nylon)">
-                </datalist>
+                <datalist id="listaMaterialesRec_${n}"></datalist>
             </td>
             <td><input type="number" class="form-control form-control-sm rec-micras" step="0.1" placeholder="µ"></td>
             <td><input type="number" class="form-control form-control-sm rec-ancho" step="1" placeholder="mm"></td>
@@ -408,13 +403,48 @@ ${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="
         tbody.appendChild(fila);
     },
 
-    onTipoRecepcionChange: function(select) {
+    onTipoRecepcionChange: async function(select) {
         const row = select.closest('tr');
         const micrasInput = row.querySelector('.rec-micras');
         const anchoInput = row.querySelector('.rec-ancho');
-        const isSustrato = select.value === 'Sustrato';
-        if (micrasInput) { micrasInput.style.display = isSustrato ? '' : 'none'; micrasInput.placeholder = isSustrato ? 'µ' : ''; }
-        if (anchoInput) { anchoInput.style.display = isSustrato ? '' : 'none'; anchoInput.placeholder = isSustrato ? 'mm' : ''; }
+        const descInput = row.querySelector('.rec-desc');
+        const datalist = descInput ? document.getElementById(descInput.getAttribute('list')) : null;
+        const tipo = select.value;
+        const isSustrato = tipo === 'Sustrato';
+
+        if (micrasInput) { micrasInput.style.display = isSustrato ? '' : 'none'; }
+        if (anchoInput) { anchoInput.style.display = isSustrato ? '' : 'none'; }
+
+        // Cargar opciones del inventario segun tipo
+        if (!datalist || !tipo) return;
+        datalist.innerHTML = '';
+
+        if (!AxonesDB.isReady()) return;
+
+        try {
+            if (tipo === 'Sustrato') {
+                const { data } = await AxonesDB.client.from('materiales').select('material, micras, ancho, stock_kg, sku').order('material');
+                const unicos = new Set();
+                (data || []).forEach(m => {
+                    const nombre = m.material || '';
+                    if (!unicos.has(nombre)) {
+                        unicos.add(nombre);
+                        datalist.innerHTML += `<option value="${nombre}">`;
+                    }
+                });
+            } else if (tipo === 'Tinta') {
+                const { data } = await AxonesDB.client.from('tintas').select('nombre, tipo, stock_kg').eq('activo', true).order('nombre');
+                (data || []).forEach(t => {
+                    datalist.innerHTML += `<option value="${t.nombre || ''} (${t.tipo || ''})">`;
+                });
+            } else if (tipo === 'Quimico') {
+                const { data } = await AxonesDB.client.from('adhesivos').select('nombre, tipo, stock_kg').order('nombre');
+                (data || []).forEach(a => {
+                    datalist.innerHTML += `<option value="${a.nombre || ''}">`;
+                });
+            }
+            // Consumible y Otro: no tienen tabla, el usuario escribe libre
+        } catch (e) { console.warn('[Almacen] Error cargando inventario para tipo:', e); }
     },
 
     /**
@@ -510,57 +540,56 @@ ${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="
             for (const item of items) {
                 try {
                     if (item.tipo === 'Sustrato') {
-                        // Buscar material por descripcion completa o por las primeras palabras
                         const desc = item.material || item.descripcion || '';
-                        const palabras = desc.split(' ').filter(Boolean);
                         let encontrado = false;
 
-                        // Intentar busqueda exacta primero
+                        // Buscar por nombre exacto + micras + ancho
                         if (item.micras && item.ancho) {
                             const { data } = await AxonesDB.client.from('materiales')
-                                .select('id, stock_kg, material')
-                                .ilike('material', `%${palabras[0]}%`)
-                                .eq('micras', parseFloat(item.micras))
-                                .eq('ancho', parseFloat(item.ancho))
-                                .limit(1);
+                                .select('id, stock_kg').ilike('material', `%${desc}%`)
+                                .eq('micras', parseFloat(item.micras)).eq('ancho', parseFloat(item.ancho)).limit(1);
                             if (data && data[0]) {
                                 await AxonesDB.client.from('materiales').update({ stock_kg: (data[0].stock_kg || 0) + item.cantidad }).eq('id', data[0].id);
                                 encontrado = true;
-                                console.log(`[Almacen] Inventario +${item.cantidad} Kg a ${data[0].material}`);
                             }
                         }
-
-                        // Si no encontro por exacta, buscar por nombre
-                        if (!encontrado && palabras.length > 0) {
+                        // Buscar por nombre
+                        if (!encontrado) {
                             const { data } = await AxonesDB.client.from('materiales')
-                                .select('id, stock_kg, material')
-                                .ilike('material', `%${palabras[0]}%`)
-                                .order('stock_kg', { ascending: false })
-                                .limit(1);
+                                .select('id, stock_kg').ilike('material', `%${desc.split(' ')[0]}%`)
+                                .order('stock_kg', { ascending: false }).limit(1);
                             if (data && data[0]) {
                                 await AxonesDB.client.from('materiales').update({ stock_kg: (data[0].stock_kg || 0) + item.cantidad }).eq('id', data[0].id);
-                                console.log(`[Almacen] Inventario +${item.cantidad} Kg a ${data[0].material} (por nombre)`);
+                                encontrado = true;
                             }
                         }
+                        // CREAR si no existe
+                        if (!encontrado) {
+                            await AxonesDB.client.from('materiales').insert({
+                                material: desc, micras: parseFloat(item.micras) || null,
+                                ancho: parseFloat(item.ancho) || null, stock_kg: item.cantidad, activo: true
+                            });
+                            console.log(`[Almacen] Nuevo material creado: ${desc}`);
+                        }
                     } else if (item.tipo === 'Tinta') {
-                        // Buscar tinta por nombre
+                        const nombre = (item.descripcion || '').split('(')[0].trim();
                         const { data } = await AxonesDB.client.from('tintas')
-                            .select('id, stock_kg, nombre')
-                            .ilike('nombre', `%${(item.descripcion || '').split(' ')[0]}%`)
-                            .limit(1);
+                            .select('id, stock_kg').ilike('nombre', `%${nombre}%`).limit(1);
                         if (data && data[0]) {
                             await AxonesDB.client.from('tintas').update({ stock_kg: (data[0].stock_kg || 0) + item.cantidad }).eq('id', data[0].id);
-                            console.log(`[Almacen] Tinta +${item.cantidad} a ${data[0].nombre}`);
+                        } else {
+                            await AxonesDB.client.from('tintas').insert({ nombre: nombre, stock_kg: item.cantidad, activo: true });
+                            console.log(`[Almacen] Nueva tinta creada: ${nombre}`);
                         }
                     } else if (item.tipo === 'Quimico') {
-                        // Buscar quimico/adhesivo por nombre
+                        const nombre = item.descripcion || '';
                         const { data } = await AxonesDB.client.from('adhesivos')
-                            .select('id, stock_kg, nombre')
-                            .ilike('nombre', `%${(item.descripcion || '').split(' ')[0]}%`)
-                            .limit(1);
+                            .select('id, stock_kg').ilike('nombre', `%${nombre.split(' ')[0]}%`).limit(1);
                         if (data && data[0]) {
                             await AxonesDB.client.from('adhesivos').update({ stock_kg: (data[0].stock_kg || 0) + item.cantidad }).eq('id', data[0].id);
-                            console.log(`[Almacen] Quimico +${item.cantidad} a ${data[0].nombre}`);
+                        } else {
+                            await AxonesDB.client.from('adhesivos').insert({ nombre: nombre, stock_kg: item.cantidad, activo: true });
+                            console.log(`[Almacen] Nuevo quimico creado: ${nombre}`);
                         }
                     }
                     // Consumibles y Otros no actualizan inventario (no tienen tabla)

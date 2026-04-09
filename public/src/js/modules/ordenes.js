@@ -49,6 +49,7 @@ const Ordenes = {
         lineaCorte: 'lineaCorte',
         // ELIMINADOS: ubicFotoceldaImp, gramajeTinta (segun feedback equipo Axones)
         sustratosVirgen: 'sustratosVirgen',
+        kgUtilizarImp: 'kgUtilizarImp',
         kgIngresadoImp: 'kgIngresadoImp',
         kgSalidaImp: 'kgSalidaImp',
         mermaImp: 'mermaImp',
@@ -461,11 +462,9 @@ const Ordenes = {
         if (numeroOrden.value && this.ordenActual) return;
 
         const year = new Date().getFullYear();
-
-        // Buscar el ultimo numero: primero en Supabase (fuente de verdad), luego en local
         let maxNum = 0;
 
-        // 1. Consultar Supabase directamente - obtener TODAS las OTs y buscar el max
+        // 1. Consultar Supabase directamente
         if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
             try {
                 const { data, error } = await AxonesDB.client.from('ordenes_trabajo')
@@ -480,14 +479,75 @@ const Ordenes = {
                             }
                         }
                     });
-                    console.log(`[OT] Supabase tiene ${data.length} OTs, max correlativo del ${year}: ${maxNum}`);
+                    console.log(`[OT] Supabase: ${data.length} OTs, max correlativo ${year}: ${maxNum}`);
+                } else {
+                    console.warn('[OT] Error en query Supabase:', error);
                 }
             } catch (e) {
-                console.warn('Error consultando ultimo correlativo:', e);
+                console.warn('[OT] Error consultando Supabase:', e);
+            }
+        } else {
+            console.warn('[OT] AxonesDB no ready, esperando...');
+            // Intentar inicializar y reintentar
+            if (typeof AxonesDB !== 'undefined') {
+                try {
+                    await AxonesDB.init();
+                    const { data } = await AxonesDB.client.from('ordenes_trabajo').select('numero_ot');
+                    if (data) {
+                        data.forEach(ot => {
+                            if (ot.numero_ot) {
+                                const match = ot.numero_ot.match(/OT-(\d{4})-(\d+)/);
+                                if (match && parseInt(match[1]) === year) {
+                                    const num = parseInt(match[2]);
+                                    if (num > maxNum) maxNum = num;
+                                }
+                            }
+                        });
+                        console.log(`[OT] Supabase (reintento): max correlativo ${year}: ${maxNum}`);
+                    }
+                } catch (e) { console.warn('[OT] Reintento fallo:', e); }
             }
         }
 
-        // 2. Fallback: buscar en array local
+        // 2. Fallback: buscar en array local (this.ordenes)
+        if (maxNum === 0 && this.ordenes.length > 0) {
+            this.ordenes.forEach(orden => {
+                const numOT = orden.numeroOrden || orden.nombreOT || orden.numero_ot || '';
+                const match = numOT.match(/OT-(\d{4})-(\d+)/);
+                if (match && parseInt(match[1]) === year) {
+                    const num = parseInt(match[2]);
+                    if (num > maxNum) maxNum = num;
+                }
+            });
+            console.log(`[OT] Array local: ${this.ordenes.length} OTs, max: ${maxNum}`);
+        }
+
+        // 3. Fallback: sync_store
+        if (maxNum === 0 && typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+            try {
+                const { data } = await AxonesDB.client.from('sync_store')
+                    .select('value').eq('key', 'axones_ordenes_trabajo').single();
+                if (data?.value) {
+                    const ordenes = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+                    if (Array.isArray(ordenes)) {
+                        ordenes.forEach(o => {
+                            const numOT = o.numeroOrden || o.nombreOT || '';
+                            const match = numOT.match(/OT-(\d{4})-(\d+)/);
+                            if (match && parseInt(match[1]) === year) {
+                                const num = parseInt(match[2]);
+                                if (num > maxNum) maxNum = num;
+                            }
+                        });
+                        console.log(`[OT] sync_store: ${ordenes.length} OTs, max: ${maxNum}`);
+                    }
+                }
+            } catch (e) {}
+        }
+
+        const nextNum = maxNum + 1;
+        numeroOrden.value = `OT-${year}-${String(nextNum).padStart(4, '0')}`;
+        console.log(`[OT] Correlativo final: OT-${year}-${String(nextNum).padStart(4, '0')}`);
+    },
         if (maxNum === 0) {
             this.ordenes.forEach(orden => {
                 if (orden.numeroOrden) {

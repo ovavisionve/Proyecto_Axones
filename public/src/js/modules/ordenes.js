@@ -158,7 +158,7 @@ const Ordenes = {
         this.setupEventListeners();
         await this.cargarClientes();
         this.setFechaActual();
-        this.generarNumeroOrden();
+        await this.generarNumeroOrden();
 
         // Inicializar memoria de clientes desde ordenes existentes
         if (typeof ClienteMemoria !== 'undefined') {
@@ -166,7 +166,7 @@ const Ordenes = {
         }
 
         // Cargar productos del inventario en el selector
-        this.cargarProductosDelInventario();
+        // Nota: cargarProductosDelInventario desactivado - producto es texto libre
 
         // Cargar colores de tintas del inventario en datalist
         this.cargarTintasColor();
@@ -465,17 +465,22 @@ const Ordenes = {
         // Buscar el ultimo numero: primero en Supabase (fuente de verdad), luego en local
         let maxNum = 0;
 
-        // 1. Consultar Supabase directamente
+        // 1. Consultar Supabase directamente - obtener TODAS las OTs y buscar el max
         if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
             try {
-                const { data } = await AxonesDB.client.from('ordenes_trabajo')
-                    .select('numero_ot')
-                    .like('numero_ot', `OT-${year}-%`)
-                    .order('numero_ot', { ascending: false })
-                    .limit(1);
-                if (data && data[0]) {
-                    const match = data[0].numero_ot.match(/OT-(\d{4})-(\d+)/);
-                    if (match) maxNum = parseInt(match[2]);
+                const { data, error } = await AxonesDB.client.from('ordenes_trabajo')
+                    .select('numero_ot');
+                if (!error && data) {
+                    data.forEach(ot => {
+                        if (ot.numero_ot) {
+                            const match = ot.numero_ot.match(/OT-(\d{4})-(\d+)/);
+                            if (match && parseInt(match[1]) === year) {
+                                const num = parseInt(match[2]);
+                                if (num > maxNum) maxNum = num;
+                            }
+                        }
+                    });
+                    console.log(`[OT] Supabase tiene ${data.length} OTs, max correlativo del ${year}: ${maxNum}`);
                 }
             } catch (e) {
                 console.warn('Error consultando ultimo correlativo:', e);
@@ -773,30 +778,36 @@ const Ordenes = {
         if (supDiv) supDiv.style.display = tipo === 'superficie' ? '' : 'none';
         if (revDiv) revDiv.style.display = tipo === 'reverso' ? '' : 'none';
 
+        // Laminacion: si es superficie no aplica -> gris
+        const seccionesLam = document.querySelectorAll('[data-seccion="laminacion"]');
+        seccionesLam.forEach(el => {
+            if (tipo === 'superficie') {
+                el.style.opacity = '0.4';
+                el.style.pointerEvents = 'none';
+                el.title = 'No aplica para impresion de superficie';
+            } else {
+                el.style.opacity = '1';
+                el.style.pointerEvents = '';
+                el.title = '';
+            }
+        });
+
         this.actualizarEstructuraMaterial();
     },
 
-    /**
-     * Actualiza el campo hidden estructuraMaterial basado en lo seleccionado
-     */
     actualizarEstructuraMaterial: function() {
         const tipo = document.getElementById('tipoImpresionEstructura')?.value;
         const hidden = document.getElementById('estructuraMaterial');
         if (!hidden) return;
 
         if (tipo === 'superficie') {
-            hidden.value = document.getElementById('estructuraMaterialSup')?.value || '';
+            hidden.value = document.getElementById('estructuraCapa1')?.value || '';
         } else if (tipo === 'reverso') {
-            const estructura = document.getElementById('estructuraMaterialRev')?.value || '';
-            if (estructura === 'otro') {
-                hidden.value = document.getElementById('estructuraMaterialRevDetalle')?.value || '';
-            } else if (estructura === 'bilaminado') {
-                hidden.value = 'Bilaminado (2 capas + adhesivo)';
-            } else if (estructura === 'trilaminado') {
-                hidden.value = 'Trilaminado (3 capas + adhesivo)';
-            } else {
-                hidden.value = estructura;
-            }
+            const c1 = document.getElementById('estructuraCapa1Rev')?.value || '';
+            const c2 = document.getElementById('estructuraCapa2Rev')?.value || '';
+            const c3 = document.getElementById('estructuraCapa3Rev')?.value || '';
+            const capas = [c1, c2, c3].filter(Boolean);
+            hidden.value = capas.join(' + ');
         } else {
             hidden.value = '';
         }

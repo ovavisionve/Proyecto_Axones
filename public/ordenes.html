@@ -407,7 +407,7 @@
         </div>
 
         <!-- Work Order Form -->
-        <form id="formOrdenTrabajo">
+        <form id="formOrdenTrabajo" onsubmit="return false;" onkeydown="if(event.key==='Enter' && event.target.tagName!=='TEXTAREA') event.preventDefault();">
             <!-- ENCABEZADO OT -->
             <div class="ot-section">
                 <div class="section-header text-center" style="font-size: 1rem; padding: 0.3rem;">

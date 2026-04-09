@@ -487,48 +487,51 @@
                             <div class="ot-grid" style="grid-template-columns: 2fr 1fr;">
                                 <div class="ot-field">
                                     <label class="form-label required-field">Producto</label>
-                                    <div class="d-flex gap-1 flex-1" style="min-width:0;">
-                                        <input type="text" class="form-control form-control-sm" id="producto" required placeholder="Nombre del producto...">
-                                        <button type="button" class="btn btn-success btn-sm" id="btnCrearProducto" data-bs-toggle="modal" data-bs-target="#modalCrearProducto" title="Crear nuevo producto" style="flex-shrink:0; font-size:0.75rem; padding:0.15rem 0.4rem;">
-                                            <i class="bi bi-plus-lg"></i>
-                                        </button>
-                                    </div>
-                                    <datalist id="listaProductos"></datalist>
+                                    <input type="text" class="form-control form-control-sm" id="producto" required placeholder="Nombre del producto..." autocomplete="off">
                                     <datalist id="listaTintasColor"></datalist>
                                 </div>
                                 <div class="ot-field">
                                     <label class="form-label required-field">Tipo Impresion</label>
                                     <select class="form-select form-select-sm" id="tipoImpresionEstructura" onchange="Ordenes.onTipoImpresionEstructura()">
                                         <option value="">Seleccionar...</option>
-                                        <option value="superficie">Superficie (1 capa)</option>
-                                        <option value="reverso">Reverso (laminado)</option>
+                                        <option value="superficie">Superficie</option>
+                                        <option value="reverso">Reverso</option>
                                     </select>
                                 </div>
-                                <div class="ot-field">
-                                    <label class="form-label required-field">Estructura del Material</label>
-                                    <!-- Si es superficie: solo 1 capa -->
-                                    <div id="estructuraSuperficie" style="display:none;">
-                                        <input type="text" class="form-control form-control-sm" id="estructuraMaterialSup" placeholder="Ej: BOPP 560 X 25 µ" list="listaMatSup">
-                                        <datalist id="listaMatSup">
-                                            <option value="BOPP NORMAL"><option value="BOPP MATE"><option value="BOPP PASTA">
-                                            <option value="BOPP PERLADO"><option value="CAST"><option value="PEBD">
-                                            <option value="PET"><option value="METAL"><option value="PERLADO">
-                                        </datalist>
+                            </div>
+                            <!-- Estructura: Superficie = 1 capa -->
+                            <div id="estructuraSuperficie" style="display:none;">
+                                <div class="ot-grid" style="grid-template-columns: 1fr;">
+                                    <div class="ot-field">
+                                        <label class="form-label">Estructura (1 capa)</label>
+                                        <input type="text" class="form-control form-control-sm" id="estructuraCapa1" list="listaMatCapas" placeholder="Ej: BOPP NORMAL">
                                     </div>
-                                    <!-- Si es reverso: 3 opciones de estructura -->
-                                    <div id="estructuraReverso" style="display:none;">
-                                        <select class="form-select form-select-sm" id="estructuraMaterialRev">
-                                            <option value="">Seleccionar estructura...</option>
-                                            <option value="bilaminado">Bilaminado (2 capas + adhesivo)</option>
-                                            <option value="trilaminado">Trilaminado (3 capas + adhesivo)</option>
-                                            <option value="otro">Otro (escribir)</option>
-                                        </select>
-                                        <input type="text" class="form-control form-control-sm mt-1" id="estructuraMaterialRevDetalle" placeholder="Ej: BOPP 25µ + Adh + CAST 25µ" style="display:none;">
-                                    </div>
-                                    <!-- Campo real que se envia (hidden) -->
-                                    <input type="hidden" id="estructuraMaterial">
                                 </div>
                             </div>
+                            <!-- Estructura: Reverso = hasta 3 capas -->
+                            <div id="estructuraReverso" style="display:none;">
+                                <div class="ot-grid" style="grid-template-columns: 1fr 1fr 1fr;">
+                                    <div class="ot-field">
+                                        <label class="form-label">Capa 1</label>
+                                        <input type="text" class="form-control form-control-sm" id="estructuraCapa1Rev" list="listaMatCapas" placeholder="Ej: BOPP NORMAL">
+                                    </div>
+                                    <div class="ot-field">
+                                        <label class="form-label">Capa 2</label>
+                                        <input type="text" class="form-control form-control-sm" id="estructuraCapa2Rev" list="listaMatCapas" placeholder="Ej: CAST">
+                                    </div>
+                                    <div class="ot-field">
+                                        <label class="form-label">Capa 3 (opcional)</label>
+                                        <input type="text" class="form-control form-control-sm" id="estructuraCapa3Rev" list="listaMatCapas" placeholder="Ej: PEBD">
+                                    </div>
+                                </div>
+                            </div>
+                            <datalist id="listaMatCapas">
+                                <option value="BOPP NORMAL"><option value="BOPP MATE"><option value="BOPP PASTA">
+                                <option value="BOPP PERLADO"><option value="CAST"><option value="PEBD">
+                                <option value="PEBD PIGMENT"><option value="PET"><option value="METAL">
+                                <option value="PERLADO"><option value="PA (Nylon)">
+                            </datalist>
+                            <input type="hidden" id="estructuraMaterial">
                             <div class="ot-grid" style="grid-template-columns: 1fr 1fr 1fr;">
                                 <div class="ot-field">
                                     <label class="form-label">C.P.E.</label>
@@ -803,10 +806,7 @@
                     </div>
                     <!-- Campos adicionales no en Excel pero existentes en el sistema -->
                     <div class="ot-grid" style="grid-template-columns: 1fr 1fr 2fr;">
-                        <div class="ot-field">
-                            <label class="form-label">Pinon <small class="text-muted">(auto)</small></label>
-                            <input type="number" class="form-control form-control-sm" id="pinon" readonly title="Auto: Desarrollo / 5" style="background-color: #d4edda;">
-                        </div>
+                        <input type="hidden" id="pinon">
                         <div class="ot-field" id="planchasContainer" style="display: none;">
                             <label class="form-label">Planchas</label>
                             <select class="form-select form-select-sm" id="planchas">
@@ -829,11 +829,11 @@
                     <i class="bi bi-printer me-1"></i>AREA DE IMPRESION
                 </div>
                 <div class="section-body">
-                    <!-- Fila unica: Pinon | Linea de Corte | Kg Ingresado | Kg Salida | Merma | Metros -->
-                    <div class="ot-grid" style="grid-template-columns: repeat(6, 1fr);">
+                    <!-- Fila 1: Pinon | Linea de Corte | Sustrato Virgen | Figura Embobinado -->
+                    <div class="ot-grid" style="grid-template-columns: 1fr 1fr 2fr 1fr;">
                         <div class="ot-field">
                             <label class="form-label">Pinon (Dientes)</label>
-                            <input type="number" class="form-control form-control-sm" id="pinonImpDisplay" readonly title="Desde Montaje">
+                            <input type="number" class="form-control form-control-sm" id="pinonImpDisplay" step="1" placeholder="Ej: 840">
                         </div>
                         <div class="ot-field">
                             <label class="form-label">Linea de Corte</label>
@@ -846,6 +846,21 @@
                             </select>
                         </div>
                         <div class="ot-field">
+                            <label class="form-label">Sustrato Virgen</label>
+                            <input type="text" class="form-control form-control-sm" id="sustratosVirgen" placeholder="Ej: BOPP MATE 470mm x 20mic">
+                        </div>
+                        <div class="ot-field">
+                            <label class="form-label">Figura Emb.</label>
+                            <input type="text" class="form-control form-control-sm" id="figEmbImpDisplay" list="listaFigEmbImp" placeholder="1-8">
+                            <datalist id="listaFigEmbImp">
+                                <option value="1"><option value="2"><option value="3"><option value="4">
+                                <option value="5"><option value="6"><option value="7"><option value="8">
+                            </datalist>
+                        </div>
+                    </div>
+                    <!-- Fila 2: Kg Ingresado | Kg Salida | Merma | Metros -->
+                    <div class="ot-grid" style="grid-template-columns: repeat(4, 1fr);">
+                        <div class="ot-field">
                             <label class="form-label">Kg Ingresado</label>
                             <input type="number" class="form-control form-control-sm" id="kgIngresadoImp" step="0.01">
                         </div>
@@ -854,7 +869,7 @@
                             <input type="number" class="form-control form-control-sm" id="kgSalidaImp" step="0.01">
                         </div>
                         <div class="ot-field">
-                            <label class="form-label">Merma (%)</label>
+                            <label class="form-label">Merma</label>
                             <input type="number" class="form-control form-control-sm" id="mermaImp" step="0.01">
                         </div>
                         <div class="ot-field">
@@ -862,9 +877,6 @@
                             <input type="number" class="form-control form-control-sm" id="metrosImp" step="0.01">
                         </div>
                     </div>
-                    <!-- Campos ocultos para compatibilidad JS (eliminados de UI - info en Ficha Tecnica) -->
-                    <input type="hidden" id="sustratosVirgen">
-                    <input type="hidden" id="figEmbImpDisplay">
                     <input type="hidden" id="sustratosVirgenAncho">
                     <input type="hidden" id="sustratosVirgenMicraje">
                     <input type="hidden" id="sustratosVirgenTipo">

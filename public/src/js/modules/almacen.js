@@ -81,7 +81,7 @@ const Almacen = {
         }).join('');
     },
 
-    mostrarFormDespacho: function(otId) {
+    mostrarFormDespacho: async function(otId) {
         const ot = this.ordenes.find(o => o.id === otId);
         if (!ot) return;
         const form = document.getElementById('formDespachoOT');
@@ -95,11 +95,25 @@ const Almacen = {
         document.getElementById('despachoKgPedidos').textContent = (ot.pedidoKg || 0) + ' Kg';
         document.getElementById('despachoMaterial').textContent = ot.tipoMaterial || '-';
 
-        // Auto-llenar datos del cliente
+        // Auto-llenar datos del cliente desde Supabase
         document.getElementById('despachoCliente').value = ot.cliente || '';
         document.getElementById('despachoClienteRif').value = ot.clienteRif || ot.rifCliente || '';
-        document.getElementById('despachoClienteTelefono').value = ot.clienteTelefono || '';
-        document.getElementById('despachoDireccion').value = ot.clienteDireccion || ot.direccionCliente || '';
+        document.getElementById('despachoClienteTelefono').value = '';
+        document.getElementById('despachoDireccion').value = '';
+
+        // Buscar datos completos del cliente en Supabase
+        if (ot.cliente && AxonesDB.isReady()) {
+            try {
+                const { data: clientes } = await AxonesDB.client.from('clientes')
+                    .select('*').ilike('nombre', `%${ot.cliente}%`).limit(1);
+                if (clientes && clientes[0]) {
+                    const cli = clientes[0];
+                    document.getElementById('despachoClienteRif').value = cli.rif || ot.clienteRif || '';
+                    document.getElementById('despachoClienteTelefono').value = cli.telefono || '';
+                    document.getElementById('despachoDireccion').value = cli.direccion || '';
+                }
+            } catch (e) { console.warn('[Almacen] Error cargando datos cliente:', e); }
+        }
 
         // Limpiar campos
         ['despachoBobinas', 'despachoKg', 'despachoPaletas', 'despachoChoferNombre',
@@ -321,19 +335,19 @@ ${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="
     <div class="firma">
         <div class="firma-line">
             <div class="firma-name">${nota.despachadoPor || ''}</div>
-            <div>Despachado por</div>
+            <div>Autorizado por</div>
         </div>
     </div>
     <div class="firma">
         <div class="firma-line">
             <div class="firma-name">${nota.verificadoPor || ''}</div>
-            <div>Verificado por</div>
+            <div>Despachado por</div>
         </div>
     </div>
     <div class="firma">
         <div class="firma-line">
             <div class="firma-name">${nota.autorizadoPor || ''}</div>
-            <div>Autorizado por</div>
+            <div>Recibido por</div>
         </div>
     </div>
 </div>
@@ -527,7 +541,7 @@ ${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="
         await this.registrarMovimiento({
             tipo: 'entrada',
             referencia: correlativo,
-            descripcion: `Recepcion ${proveedor} (${items.length} items)`,
+            descripcion: `Recepcion ${proveedor}: ${items.map(i => `${i.descripcion} (${i.cantidad} ${i.unidad})`).join(', ')}`,
             cantidad: recepcion.totalCantidad,
             unidad: items[0]?.unidad || 'Kg',
             proveedor_destino: proveedor,
@@ -616,7 +630,9 @@ ${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="
         fila.innerHTML = `
             <td><input type="text" class="form-control form-control-sm misc-desc" placeholder="Ej: Hojillas, cinta..."></td>
             <td><input type="number" class="form-control form-control-sm misc-cant" step="0.01" min="0" placeholder="0"></td>
-            <td><input type="text" class="form-control form-control-sm misc-unidad" value="Unidad"></td>
+            <td><select class="form-select form-select-sm misc-unidad">
+                <option value="Unidad">Unidad</option><option value="Kg">Kg</option><option value="Lt">Lt</option><option value="Rollo">Rollo</option><option value="Caja">Caja</option><option value="Par">Par</option>
+            </select></td>
             <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>`;
         // Prevenir Enter para que no submitee el form
         fila.querySelectorAll('input, select').forEach(el => {
@@ -839,6 +855,7 @@ ${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="
                         </div>
                     </div>
                     <div class="modal-footer py-1">
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="const b=document.querySelector('#modalDetalleAlmacen .modal-body');if(b){const w=window.open('','_blank');w.document.write('<html><head><title>Detalle Movimiento</title><link href=\\'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css\\' rel=\\'stylesheet\\'></head><body class=\\'p-3\\'>'+b.innerHTML+'</body></html>');w.document.close();setTimeout(()=>w.print(),300);}"><i class="bi bi-printer me-1"></i>Imprimir</button>
                         <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
                     </div>
                 </div>
@@ -964,7 +981,7 @@ ${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="
                     </div>
                     <div class="modal-footer py-1">
                         <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
-                        <button type="button" class="btn btn-primary btn-sm" onclick="window.print()"><i class="bi bi-printer me-1"></i>Imprimir</button>
+                        <button type="button" class="btn btn-primary btn-sm" onclick="const b=document.querySelector('#modalDetalleAlmacen .modal-body');if(b){const w=window.open('','_blank');w.document.write('<html><head><title>Detalle</title><link href=\\'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css\\' rel=\\'stylesheet\\'></head><body class=\\'p-3\\'>'+b.innerHTML+'</body></html>');w.document.close();setTimeout(()=>w.print(),300);}"><i class="bi bi-printer me-1"></i>Imprimir</button>
                     </div>
                 </div>
             </div>

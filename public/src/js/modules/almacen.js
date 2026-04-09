@@ -115,8 +115,24 @@ const Almacen = {
             } catch (e) { console.warn('[Almacen] Error cargando datos cliente:', e); }
         }
 
+        // Resetear paletas a solo 1
+        this._paletaCount = 1;
+        const tbodyPaletas = document.getElementById('tablaPaletasDespacho');
+        if (tbodyPaletas) {
+            tbodyPaletas.innerHTML = `<tr data-paleta="1">
+                <td class="fw-bold text-center">1</td>
+                <td><input type="number" class="form-control form-control-sm desp-bobinas" min="0" step="1" placeholder="0" onchange="Almacen.calcularTotalesDespacho()"></td>
+                <td><input type="number" class="form-control form-control-sm desp-kg" min="0" step="0.01" placeholder="0.00" onchange="Almacen.calcularTotalesDespacho()"></td>
+                <td></td>
+            </tr>`;
+        }
+        this.calcularTotalesDespacho();
+
+        // Cargar despachos previos de esta OT
+        await this.cargarDespachosPrevios(ot.numeroOrden || ot.nombreOT, ot.pedidoKg);
+
         // Limpiar campos
-        ['despachoBobinas', 'despachoKg', 'despachoPaletas', 'despachoChoferNombre',
+        ['despachoChoferNombre',
          'despachoChoferCedula', 'despachoPlaca', 'despachoTransporte',
          'despachoDespachadoPor', 'despachoVerificadoPor', 'despachoAutorizadoPor',
          'despachoObservaciones'].forEach(id => {
@@ -161,17 +177,27 @@ const Almacen = {
         const ot = this.ordenes.find(o => o.id === otId);
         if (!ot) return;
 
-        // Recopilar datos
+        // Recalcular totales
+        this.calcularTotalesDespacho();
+
+        // Recopilar paletas
+        const paletasDetalle = [];
+        document.querySelectorAll('#tablaPaletasDespacho tr').forEach((row, i) => {
+            const bob = parseInt(row.querySelector('.desp-bobinas')?.value) || 0;
+            const kg = parseFloat(row.querySelector('.desp-kg')?.value) || 0;
+            if (bob > 0 || kg > 0) paletasDetalle.push({ paleta: i + 1, bobinas: bob, kg: kg });
+        });
+
         const bobinas = parseInt(document.getElementById('despachoBobinas')?.value) || 0;
         const kg = parseFloat(document.getElementById('despachoKg')?.value) || 0;
-        const paletas = parseInt(document.getElementById('despachoPaletas')?.value) || 0;
+        const paletas = paletasDetalle.length;
         const fecha = document.getElementById('despachoFecha')?.value || new Date().toISOString().split('T')[0];
         const direccion = document.getElementById('despachoDireccion')?.value?.trim();
         const choferNombre = document.getElementById('despachoChoferNombre')?.value?.trim();
         const choferCedula = document.getElementById('despachoChoferCedula')?.value?.trim();
 
         // Validaciones
-        if (bobinas <= 0) { alert('Indique la cantidad de bobinas'); return; }
+        if (paletasDetalle.length === 0) { alert('Agregue al menos una paleta con bobinas y Kg'); return; }
         if (kg <= 0) { alert('Indique los Kg totales'); return; }
         if (!direccion) { alert('La direccion del cliente es obligatoria'); return; }
         if (!choferNombre) { alert('El nombre del chofer es obligatorio'); return; }
@@ -200,6 +226,7 @@ const Almacen = {
             bobinas: bobinas,
             kg: kg,
             paletas: paletas,
+            paletasDetalle: paletasDetalle,
             // Chofer
             choferNombre: choferNombre,
             choferCedula: choferCedula,
@@ -315,11 +342,17 @@ table th { background: #f0f0f0; font-weight: bold; width: 30%; }
 </table>
 
 <div class="section-title">MATERIAL DESPACHADO</div>
+${(nota.paletasDetalle && nota.paletasDetalle.length > 0) ? `
+<table>
+    <tr><th>Paleta</th><th>Bobinas</th><th>Kg</th></tr>
+    ${nota.paletasDetalle.map(p => `<tr><td>${p.paleta}</td><td>${p.bobinas}</td><td>${p.kg} Kg</td></tr>`).join('')}
+    <tr style="background:#e9ecef;font-weight:bold;"><td>TOTAL</td><td>${nota.bobinas || 0}</td><td>${nota.kg || 0} Kg</td></tr>
+</table>` : `
 <table>
     <tr><th>Cantidad de Bobinas</th><td><strong>${nota.bobinas || 0}</strong></td></tr>
     <tr><th>Kg Totales</th><td><strong>${nota.kg || 0} Kg</strong></td></tr>
     <tr><th>N° Paletas</th><td>${nota.paletas || 0}</td></tr>
-</table>
+</table>`}
 
 <div class="section-title">DATOS DEL TRANSPORTE</div>
 <table>
@@ -380,6 +413,64 @@ ${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="
         w.document.write(html);
         w.document.close();
         setTimeout(() => w.print(), 300);
+    },
+
+    _paletaCount: 1,
+
+    agregarPaletaDespacho: function() {
+        this._paletaCount++;
+        const n = this._paletaCount;
+        const tbody = document.getElementById('tablaPaletasDespacho');
+        if (!tbody) return;
+        const fila = document.createElement('tr');
+        fila.dataset.paleta = n;
+        fila.innerHTML = `
+            <td class="fw-bold text-center">${n}</td>
+            <td><input type="number" class="form-control form-control-sm desp-bobinas" min="0" step="1" placeholder="0" onchange="Almacen.calcularTotalesDespacho()"></td>
+            <td><input type="number" class="form-control form-control-sm desp-kg" min="0" step="0.01" placeholder="0.00" onchange="Almacen.calcularTotalesDespacho()"></td>
+            <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove();Almacen.calcularTotalesDespacho();"><i class="bi bi-x"></i></button></td>
+        `;
+        tbody.appendChild(fila);
+    },
+
+    calcularTotalesDespacho: function() {
+        let totalBob = 0, totalKg = 0, numPaletas = 0;
+        document.querySelectorAll('#tablaPaletasDespacho tr').forEach(row => {
+            const bob = parseInt(row.querySelector('.desp-bobinas')?.value) || 0;
+            const kg = parseFloat(row.querySelector('.desp-kg')?.value) || 0;
+            totalBob += bob;
+            totalKg += kg;
+            if (bob > 0 || kg > 0) numPaletas++;
+        });
+        const elBob = document.getElementById('despTotalBobinas');
+        const elKg = document.getElementById('despTotalKg');
+        if (elBob) elBob.textContent = totalBob;
+        if (elKg) elKg.textContent = totalKg.toFixed(2);
+        // Actualizar campos hidden
+        document.getElementById('despachoBobinas').value = totalBob;
+        document.getElementById('despachoKg').value = totalKg;
+        document.getElementById('despachoPaletas').value = numPaletas;
+    },
+
+    cargarDespachosPrevios: async function(otNumero, pedidoKg) {
+        const infoDiv = document.getElementById('despachoPreviosInfo');
+        if (!infoDiv || !AxonesDB.isReady()) return;
+
+        try {
+            const { data } = await AxonesDB.client.from('sync_store')
+                .select('value').eq('key', 'axones_notas_despacho').single();
+            const notas = data?.value ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : [];
+            const previos = notas.filter(n => n.otNumero === otNumero);
+            const kgDespachados = previos.reduce((s, n) => s + (parseFloat(n.kg) || 0), 0);
+
+            if (previos.length > 0) {
+                infoDiv.style.display = '';
+                document.getElementById('despachoPreviosKg').textContent = kgDespachados.toFixed(1);
+                document.getElementById('despachoFaltanteKg').textContent = Math.max(0, (parseFloat(pedidoKg) || 0) - kgDespachados).toFixed(1);
+            } else {
+                infoDiv.style.display = 'none';
+            }
+        } catch (e) {}
     },
 
     cancelarDespacho: function() {

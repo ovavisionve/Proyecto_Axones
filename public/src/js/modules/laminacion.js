@@ -871,7 +871,7 @@ const Laminacion = {
         // Obtener bobinas de entrada
         const bobinasEntrada = [];
         for (let i = 1; i <= 14; i++) {
-            const valor = parseFloat(document.getElementById('bobEnt' + i).value) || 0;
+            const valor = parseFloat(document.getElementById('bobEnt' + i)?.value) || 0;
             if (valor > 0) {
                 bobinasEntrada.push({ posicion: i, peso: valor });
             }
@@ -901,7 +901,7 @@ const Laminacion = {
         // Obtener bobinas de salida
         const bobinasSalida = [];
         for (let i = 1; i <= 22; i++) {
-            const valor = parseFloat(document.getElementById('bobSal' + i).value) || 0;
+            const valor = parseFloat(document.getElementById('bobSal' + i)?.value) || 0;
             if (valor > 0) {
                 bobinasSalida.push({ posicion: i, peso: valor });
             }

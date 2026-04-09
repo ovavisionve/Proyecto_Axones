@@ -419,7 +419,8 @@
                         <div class="d-flex flex-column gap-1">
                             <button type="button" class="btn btn-success" id="btnProdPlay"><i class="bi bi-play-fill me-1"></i> Iniciar</button>
                             <button type="button" class="btn btn-warning" id="btnProdPause" disabled><i class="bi bi-pause-fill me-1"></i> Pausar</button>
-                            <button type="button" class="btn btn-danger" id="btnProdStop" disabled><i class="bi bi-stop-fill me-1"></i> Detener</button>
+                            <button type="button" class="btn btn-outline-danger" id="btnProdStop" title="Fin de turno" disabled><i class="bi bi-stop-fill me-1"></i> Fin de Turno</button>
+                            <button type="button" class="btn btn-danger" id="btnFinalizarOrden" title="Finalizar esta orden" disabled><i class="bi bi-flag-fill me-1"></i> Finalizar Orden</button>
                         </div>
                     </div>
                     <div class="row g-2 mt-2">
@@ -668,6 +669,9 @@
                 <textarea class="form-control form-control-sm" id="observaciones" rows="3" placeholder="Observaciones adicionales..."></textarea>
             </div>
 
+            <!-- ====== SECCION FINALIZAR ORDEN (oculta hasta tocar Finalizar Orden) ====== -->
+            <div id="seccionFinalizarOrden" style="display:none;">
+
             <!-- 9. RESUMEN DE PRODUCCION -->
             <div class="form-section" style="background: #f0fff4;">
                 <div class="form-section-title">
@@ -704,6 +708,8 @@
                     </table>
                 </div>
             </div>
+
+            </div><!-- Fin seccionFinalizarOrden -->
 
             <!-- Boton Guardar al fondo del formulario -->
             <div class="text-center my-3 no-print">

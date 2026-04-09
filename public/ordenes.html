@@ -852,6 +852,21 @@
                                     <label class="form-label">Observaciones</label>
                                     <input type="text" class="form-control form-control-sm" id="obsLaminacion">
                                 </div>
+                                <!-- Sustratos Virgen para Laminacion -->
+                                <div class="ot-field" style="grid-column: 1 / -1;">
+                                    <label class="form-label fw-bold" style="font-size:0.7rem;"><i class="bi bi-box-seam me-1"></i>Sustratos Virgen a Utilizar</label>
+                                    <div id="contenedorSustratosVirgenLam">
+                                        <div class="d-flex gap-1 mb-1" data-sustrato-lam="1">
+                                            <select class="form-select form-select-sm sustrato-select-lam" id="sustratosVirgenLam1" style="flex:3;">
+                                                <option value="">Seleccionar del inventario...</option>
+                                            </select>
+                                            <input type="text" class="form-control form-control-sm" id="kgUtilizarLam1" placeholder="Kg" style="flex:1;">
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-outline-primary btn-sm" id="btnAgregarSustratoVirgenLam" style="font-size:0.6rem;">
+                                        <i class="bi bi-plus-circle me-1"></i>Agregar otro sustrato
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         <!-- Columna derecha: produccion + materiales -->

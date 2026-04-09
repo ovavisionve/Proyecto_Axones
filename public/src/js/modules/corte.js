@@ -556,12 +556,20 @@ const Corte = {
             if (peso > 0 || bobinas > 0) paletasConDatos++;
         });
 
+        // Contar bobinas de entrada usadas (las que tienen valor > 0)
+        let bobinasEntradaUsadas = 0;
+        document.querySelectorAll('.bobina-entrada').forEach(input => {
+            if (parseFloat(input.value) > 0) bobinasEntradaUsadas++;
+        });
+
         // Actualizar campos de resumen
+        const numBobinasEntrada = document.getElementById('numBobinasEntrada');
         const numBobinasSalida = document.getElementById('numBobinasSalida');
         const numRollosSalida = document.getElementById('numRollosSalida');
         const pesoTotalSalida = document.getElementById('pesoTotalSalida');
         const numPaletas = document.getElementById('numPaletas');
 
+        if (numBobinasEntrada) numBobinasEntrada.value = bobinasEntradaUsadas;
         if (numBobinasSalida) numBobinasSalida.value = bobinasSalida;
         if (numRollosSalida) numRollosSalida.value = rollosSalida;
         if (pesoTotalSalida) pesoTotalSalida.value = pesoSalida.toFixed(2);

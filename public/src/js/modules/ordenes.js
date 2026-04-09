@@ -694,6 +694,9 @@ const Ordenes = {
             });
         }
 
+        // Boton agregar otro sustrato virgen
+        document.getElementById('btnAgregarSustratoVirgen')?.addEventListener('click', () => this.agregarSustratoVirgen());
+
         // Calcular metros cuando cambia sustrato o kg ingresado
         const sustratosSelect = document.getElementById('sustratosVirgen');
         const kgIngresado = document.getElementById('kgIngresadoImp');
@@ -1040,6 +1043,49 @@ const Ordenes = {
     /**
      * Carga sustratos virgen desde el inventario
      */
+    _sustratoCount: 1,
+
+    agregarSustratoVirgen: function() {
+        this._sustratoCount++;
+        const n = this._sustratoCount;
+        const container = document.getElementById('contenedorSustratosVirgen');
+        if (!container) return;
+
+        // Copiar opciones del primer select
+        const primerSelect = document.getElementById('sustratosVirgen');
+        const opciones = primerSelect ? primerSelect.innerHTML : '<option value="">Seleccionar...</option>';
+
+        const div = document.createElement('div');
+        div.className = 'ot-grid';
+        div.style.gridTemplateColumns = '3fr 1fr auto';
+        div.dataset.sustrato = n;
+        div.innerHTML = `
+            <div class="ot-field">
+                <label class="form-label">Sustrato ${n}</label>
+                <select class="form-select form-select-sm sustrato-select">${opciones}</select>
+            </div>
+            <div class="ot-field">
+                <label class="form-label">Kg a utilizar</label>
+                <input type="text" class="form-control form-control-sm" placeholder="Kg">
+            </div>
+            <div class="ot-field" style="align-self: end;">
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('[data-sustrato]').remove()"><i class="bi bi-x"></i></button>
+            </div>
+        `;
+
+        // Recargar opciones al hacer focus
+        const newSelect = div.querySelector('select');
+        if (newSelect) {
+            newSelect.addEventListener('focus', () => {
+                if (newSelect.options.length <= 1 && primerSelect) {
+                    newSelect.innerHTML = primerSelect.innerHTML;
+                }
+            });
+        }
+
+        container.appendChild(div);
+    },
+
     cargarSustratosVirgen: async function() {
         const select = document.getElementById('sustratosVirgen');
         if (!select) return;

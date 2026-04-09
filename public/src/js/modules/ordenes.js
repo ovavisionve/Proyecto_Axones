@@ -731,6 +731,15 @@ const Ordenes = {
         // Boton agregar otro sustrato virgen
         document.getElementById('btnAgregarSustratoVirgen')?.addEventListener('click', () => this.agregarSustratoVirgen());
 
+        // Sustratos virgen laminacion
+        document.getElementById('btnAgregarSustratoVirgenLam')?.addEventListener('click', () => this.agregarSustratoVirgenLam());
+        const selectSustratoLam = document.getElementById('sustratosVirgenLam1');
+        if (selectSustratoLam) {
+            selectSustratoLam.addEventListener('focus', () => {
+                if (selectSustratoLam.options.length <= 1) this.cargarSustratosVirgenLam();
+            });
+        }
+
         // Calcular metros cuando cambia sustrato o kg ingresado
         const sustratosSelect = document.getElementById('sustratosVirgen');
         const kgIngresado = document.getElementById('kgIngresadoImp');
@@ -1118,6 +1127,38 @@ const Ordenes = {
         }
 
         container.appendChild(div);
+    },
+
+    _sustratoLamCount: 1,
+
+    agregarSustratoVirgenLam: function() {
+        this._sustratoLamCount++;
+        const n = this._sustratoLamCount;
+        const container = document.getElementById('contenedorSustratosVirgenLam');
+        if (!container) return;
+        const primerSelect = document.getElementById('sustratosVirgenLam1');
+        const opciones = primerSelect ? primerSelect.innerHTML : '<option value="">Seleccionar...</option>';
+        const div = document.createElement('div');
+        div.className = 'd-flex gap-1 mb-1';
+        div.dataset.sustratoLam = n;
+        div.innerHTML = `
+            <select class="form-select form-select-sm sustrato-select-lam" style="flex:3;">${opciones}</select>
+            <input type="text" class="form-control form-control-sm" placeholder="Kg" style="flex:1;">
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('[data-sustrato-lam]').remove()" style="flex-shrink:0;"><i class="bi bi-x"></i></button>
+        `;
+        container.appendChild(div);
+    },
+
+    cargarSustratosVirgenLam: async function() {
+        const select = document.getElementById('sustratosVirgenLam1');
+        if (!select) return;
+        // Reutilizar inventario ya cargado
+        await this.cargarSustratosVirgen();
+        // Copiar opciones del select principal al de laminacion
+        const selectPrincipal = document.getElementById('sustratosVirgen');
+        if (selectPrincipal && select.options.length <= 1) {
+            select.innerHTML = selectPrincipal.innerHTML;
+        }
     },
 
     cargarSustratosVirgen: async function() {

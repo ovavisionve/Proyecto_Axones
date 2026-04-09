@@ -928,6 +928,7 @@ const Laminacion = {
 
             // Datos de produccion (llenados por el operador)
             turno: turnoSeleccionado ? turnoSeleccionado.value : '',
+            grupo: document.querySelector('input[name="grupo"]:checked')?.value || '',
             operador: document.getElementById('operador').value,
             ayudante: document.getElementById('ayudante').value,
             supervisor: document.getElementById('supervisor').value,

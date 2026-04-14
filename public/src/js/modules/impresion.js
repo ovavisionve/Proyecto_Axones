@@ -221,6 +221,14 @@ const Impresion = {
         // Pre-llenar colores y anilox desde la OT
         this.preLlenarColoresDesdeOT(orden);
 
+        // Fase 3: Renderizar selector de bobinas individuales (si disponible)
+        if (typeof BobinasSelector !== 'undefined') {
+            BobinasSelector.renderIn('bobinasSelectorContainer', {
+                numeroOT: orden.numeroOrden || orden.ot,
+                fase: 'impresion'
+            });
+        }
+
         // Actualizar badge
         const badge = document.getElementById('estadoOT');
         if (badge) {
@@ -1582,6 +1590,14 @@ const Impresion = {
                     registrado_por_nombre: datos.registradoPorNombre || ''
                 });
                 console.log('[Impresion] Registro guardado en Supabase');
+
+                // Fase 3: Procesar bobinas seleccionadas (marcar como consumidas)
+                if (typeof BobinasSelector !== 'undefined' && BobinasSelector.getSeleccionadas) {
+                    try {
+                        const res = await BobinasSelector.procesarSeleccion({ marcarConsumida: true });
+                        if (res.asignadas > 0) console.log(`[Impresion] ${res.asignadas} bobinas marcadas como consumidas`);
+                    } catch(e) { console.warn('[Impresion] Error procesando bobinas:', e); }
+                }
             } catch (e) {
                 console.error('[Impresion] Error guardando en Supabase:', e);
                 alert('Error al guardar: ' + e.message);

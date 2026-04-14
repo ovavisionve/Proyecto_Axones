@@ -33,6 +33,7 @@ const Auth = {
         'clientes.html':     'ordenes.ver',
         'proveedores.html':  'inventario.ver',
         'almacen.html':      'inventario.ver',
+        'solicitud-despacho.html': null,
     },
 
     // Mapa de pagina -> permiso para filtrar navbar

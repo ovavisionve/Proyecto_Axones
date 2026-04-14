@@ -284,19 +284,18 @@
                                             <table class="table table-sm table-bordered mb-1">
                                                 <thead class="table-light">
                                                     <tr>
-                                                        <th style="width:15%;">Paleta</th>
-                                                        <th style="width:25%;">N° Bobinas</th>
-                                                        <th style="width:25%;">Kg Total</th>
-                                                        <th style="width:5%;"></th>
+                                                        <th style="width:8%;" class="text-center"><input type="checkbox" class="form-check-input" id="checkAllPaletas" checked title="Seleccionar todas"></th>
+                                                        <th style="width:10%;">Paleta</th>
+                                                        <th style="width:20%;">N° Bobinas</th>
+                                                        <th style="width:20%;">Kg Total</th>
+                                                        <th>Origen</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody id="tablaPaletasDespacho">
-                                                    <tr data-paleta="1">
-                                                        <td class="fw-bold text-center">1</td>
-                                                        <td><input type="number" class="form-control form-control-sm desp-bobinas" min="0" step="1" placeholder="0" onchange="Almacen.calcularTotalesDespacho()"></td>
-                                                        <td><input type="number" class="form-control form-control-sm desp-kg" min="0" step="0.01" placeholder="0.00" onchange="Almacen.calcularTotalesDespacho()"></td>
-                                                        <td></td>
-                                                    </tr>
+                                                    <!-- Se llena desde JS con paletas de corte -->
+                                                    <tr><td colspan="5" class="text-center text-muted py-2">
+                                                        <i class="bi bi-hourglass-split me-1"></i> Seleccione una OT para cargar paletas de corte
+                                                    </td></tr>
                                                 </tbody>
                                                 <tfoot>
                                                     <tr class="table-primary">

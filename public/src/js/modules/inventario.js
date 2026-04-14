@@ -146,6 +146,7 @@ const Inventario = {
             this.renderTintas();
             this.renderAdhesivos();
             this.renderBobinasMalas();
+            this.renderMiscelaneos();
             this.updateTotales();
             this.updateCounts();
             this.setFechaActualizacion();
@@ -894,6 +895,59 @@ const Inventario = {
     },
 
     /**
+     * Renderiza la tabla de miscelaneos desde movimientos de almacen
+     */
+    renderMiscelaneos: async function() {
+        const tbody = document.getElementById('tablaMiscelaneos');
+        if (!tbody) return;
+
+        let miscelaneos = [];
+        try {
+            if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+                const { data } = await AxonesDB.client.from('sync_store')
+                    .select('valor').eq('clave', 'axones_inventario_miscelaneos').maybeSingle();
+                miscelaneos = data?.valor ? JSON.parse(data.valor) : [];
+            }
+            if (miscelaneos.length === 0) {
+                miscelaneos = JSON.parse(localStorage.getItem('axones_inventario_miscelaneos') || '[]');
+            }
+        } catch(e) { console.warn('Error cargando miscelaneos:', e); }
+
+        const busq = (document.getElementById('buscarMiscelaneo')?.value || '').toLowerCase();
+        if (busq) miscelaneos = miscelaneos.filter(m =>
+            (m.descripcion || '').toLowerCase().includes(busq)
+        );
+
+        const countEl = document.getElementById('countMiscelaneos');
+        if (countEl) countEl.textContent = miscelaneos.length;
+        const totalEl = document.getElementById('totalItemsMisc');
+        if (totalEl) totalEl.textContent = miscelaneos.length;
+
+        if (miscelaneos.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-3">
+                <i class="bi bi-inbox me-1"></i> No hay miscelaneos registrados. Use Recepcion en Almacen para agregar.
+            </td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = miscelaneos.map(m => `
+            <tr>
+                <td>${m.descripcion || '-'}</td>
+                <td class="text-end">${m.cantidad || 0}</td>
+                <td>${m.unidad || 'Unidad'}</td>
+                <td>${m.ultimaEntrada || '-'}</td>
+                <td>${m.ultimaSalida || '-'}</td>
+            </tr>`).join('');
+
+        // Setup search filter
+        const buscarEl = document.getElementById('buscarMiscelaneo');
+        if (buscarEl && !buscarEl._listener) {
+            buscarEl._listener = true;
+            buscarEl.addEventListener('input', () => this.renderMiscelaneos());
+        }
+    },
+
+    /**
      * Obtiene color para icono de tinta
      */
     getColorTinta: function(nombre) {
@@ -1365,11 +1419,8 @@ const Inventario = {
                     <td>${item.producto || '<span class="text-muted">-</span>'}</td>
                     <td class="text-center">${estadoBadge}</td>
                     <td class="text-center">
-                        <button class="btn btn-sm btn-outline-primary" onclick="Inventario.editarItem('${item.id}')" title="Editar">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-success" onclick="Inventario.usarMaterial('${item.id}')" title="Usar en OT">
-                            <i class="bi bi-box-arrow-right"></i>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="Inventario.verDetalle('${item.id}')" title="Ver detalle">
+                            <i class="bi bi-eye"></i>
                         </button>
                     </td>
                 </tr>
@@ -1514,6 +1565,24 @@ const Inventario = {
     /**
      * Editar un item del inventario
      */
+    verDetalle: function(id) {
+        const item = this.items.find(i => i.id === id);
+        if (!item) return;
+        const info = [
+            `Material: ${item.material || '-'}`,
+            `Tipo: ${item.tipo || '-'}`,
+            `Micras: ${item.micras || '-'}`,
+            `Ancho: ${item.ancho || '-'} mm`,
+            `Stock: ${item.kg || 0} Kg`,
+            `Proveedor: ${item.proveedor || '-'}`,
+            `SKU: ${item.sku || '-'}`,
+            `Producto: ${item.producto || '-'}`,
+            '',
+            'Para modificar stock, use Recepcion en Almacen.'
+        ].join('\n');
+        alert(info);
+    },
+
     editarItem: async function(id) {
         const item = this.items.find(i => i.id === id);
         if (!item) return;

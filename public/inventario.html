@@ -242,6 +242,12 @@
                             <span class="badge bg-warning text-dark ms-1" id="countMiscelaneos">0</span>
                         </button>
                     </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tab-bobinas-individuales" data-bs-toggle="tab" data-bs-target="#panel-bobinas-individuales" type="button" role="tab">
+                            <i class="bi bi-upc-scan me-1"></i> Bobinas Individuales
+                            <span class="badge bg-info ms-1" id="countBobinasInd">0</span>
+                        </button>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -776,6 +782,86 @@
                 </div>
             </div>
 
+            <!-- Panel Bobinas Individuales -->
+            <div class="tab-pane fade" id="panel-bobinas-individuales" role="tabpanel">
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <h6 class="text-muted mb-2">
+                            <i class="bi bi-upc-scan me-1"></i> Bobinas como Entidades Unicas
+                        </h6>
+                        <p class="small text-muted">Cada bobina tiene codigo unico, peso, proveedor y estado. Se registran al recibir materia prima. <strong>Requiere migracion SQL 006.</strong></p>
+                    </div>
+                </div>
+                <!-- Filtros -->
+                <div class="row mb-2 g-2">
+                    <div class="col-md-2">
+                        <select class="form-select form-select-sm" id="filtroBobEstado">
+                            <option value="">Todos los estados</option>
+                            <option value="disponible" selected>Disponibles</option>
+                            <option value="reservada">Reservadas</option>
+                            <option value="en_uso">En uso</option>
+                            <option value="consumida">Consumidas</option>
+                            <option value="rechazada">Rechazadas</option>
+                            <option value="despachada">Despachadas</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select form-select-sm" id="filtroBobTipo">
+                            <option value="">Todos los tipos</option>
+                            <option value="sustrato" selected>Sustratos</option>
+                            <option value="tinta">Tintas</option>
+                            <option value="quimico">Quimicos</option>
+                            <option value="producto_terminado">Producto Terminado</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" class="form-control form-control-sm" id="filtroBobBusqueda" placeholder="Buscar codigo, material, proveedor...">
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-sm btn-outline-primary" id="btnRefreshBobinas">
+                            <i class="bi bi-arrow-clockwise me-1"></i> Actualizar
+                        </button>
+                        <button class="btn btn-sm btn-outline-success" id="btnExportBobinas">
+                            <i class="bi bi-download me-1"></i> Exportar CSV
+                        </button>
+                    </div>
+                    <div class="col-md-2 text-end">
+                        <span class="badge bg-info">Total Kg: <span id="totalKgBobinasInd">0</span></span>
+                    </div>
+                </div>
+
+                <!-- Tabla -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-sm mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Codigo</th>
+                                        <th>Tipo</th>
+                                        <th>Material</th>
+                                        <th class="text-end">Micras</th>
+                                        <th class="text-end">Ancho</th>
+                                        <th class="text-end">Kg Actual</th>
+                                        <th>Proveedor</th>
+                                        <th>OC / Lote</th>
+                                        <th>OT Asig.</th>
+                                        <th class="text-center">Estado</th>
+                                        <th class="text-center">Fecha</th>
+                                        <th class="text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaBobinasIndividuales">
+                                    <tr><td colspan="12" class="text-center text-muted py-4">
+                                        <i class="bi bi-info-circle me-1"></i> Aun no hay bobinas registradas. Al recibir material en Recepcion, marque "Generar bobinas individuales" para poblar esta tabla.
+                                    </td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div><!-- Fin tab-content -->
     </main>
 
@@ -863,6 +949,7 @@
     <script src="src/js/utils/config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="src/js/utils/supabase-client.js"></script>
+    <script src="src/js/utils/bobinas-service.js"></script>
     <script src="src/js/utils/api.js"></script>
     <script src="src/js/utils/sync-manager.js"></script>
     <script src="src/js/utils/sync-realtime.js"></script>

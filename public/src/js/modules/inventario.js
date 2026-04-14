@@ -147,6 +147,7 @@ const Inventario = {
             this.renderAdhesivos();
             this.renderBobinasMalas();
             this.renderMiscelaneos();
+            this.renderBobinasIndividuales();
             this.updateTotales();
             this.updateCounts();
             this.setFechaActualizacion();
@@ -897,6 +898,161 @@ const Inventario = {
     /**
      * Renderiza la tabla de miscelaneos desde movimientos de almacen
      */
+    /**
+     * Renderiza la tabla de bobinas individuales (desde tabla bobinas)
+     */
+    renderBobinasIndividuales: async function() {
+        const tbody = document.getElementById('tablaBobinasIndividuales');
+        if (!tbody) return;
+
+        if (typeof BobinasService === 'undefined' || !AxonesDB.isReady()) {
+            tbody.innerHTML = `<tr><td colspan="12" class="text-center text-muted py-4">
+                <i class="bi bi-exclamation-triangle me-1"></i> Servicio de bobinas no disponible. Ejecute la migracion SQL 006.
+            </td></tr>`;
+            return;
+        }
+
+        const filtroEstado = document.getElementById('filtroBobEstado')?.value || '';
+        const filtroTipo = document.getElementById('filtroBobTipo')?.value || '';
+        const busqueda = (document.getElementById('filtroBobBusqueda')?.value || '').toLowerCase();
+
+        let bobinas = [];
+        try {
+            bobinas = await BobinasService.listar({
+                estado: filtroEstado || undefined,
+                tipo: filtroTipo || undefined,
+                limit: 500,
+            });
+        } catch(e) {
+            console.warn('Bobinas individuales: tabla no existe?', e);
+            tbody.innerHTML = `<tr><td colspan="12" class="text-center text-warning py-4">
+                <i class="bi bi-exclamation-triangle me-1"></i> La tabla <code>bobinas</code> no existe en Supabase. Ejecute <code>supabase/migration-006-bobinas.sql</code>.
+            </td></tr>`;
+            return;
+        }
+
+        if (busqueda) {
+            bobinas = bobinas.filter(b =>
+                (b.codigo || '').toLowerCase().includes(busqueda) ||
+                (b.material || '').toLowerCase().includes(busqueda) ||
+                (b.proveedor || '').toLowerCase().includes(busqueda) ||
+                (b.orden_trabajo || '').toLowerCase().includes(busqueda)
+            );
+        }
+
+        // Totales
+        const countEl = document.getElementById('countBobinasInd');
+        if (countEl) countEl.textContent = bobinas.length;
+        const totalKg = bobinas.reduce((s, b) => s + (parseFloat(b.peso_actual_kg) || 0), 0);
+        const totalKgEl = document.getElementById('totalKgBobinasInd');
+        if (totalKgEl) totalKgEl.textContent = totalKg.toFixed(2);
+
+        if (bobinas.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="12" class="text-center text-muted py-4">
+                <i class="bi bi-inbox me-1"></i> No hay bobinas ${filtroEstado || ''} ${filtroTipo || ''}. ${busqueda ? '(Filtro: "' + busqueda + '")' : ''}
+            </td></tr>`;
+            return;
+        }
+
+        const badge = {
+            disponible: 'bg-success',
+            reservada: 'bg-info',
+            en_uso: 'bg-primary',
+            consumida: 'bg-secondary',
+            rechazada: 'bg-danger',
+            devuelta: 'bg-warning text-dark',
+            despachada: 'bg-dark',
+            muerta: 'bg-danger',
+        };
+
+        tbody.innerHTML = bobinas.map(b => `
+            <tr>
+                <td><code>${b.codigo || '-'}</code></td>
+                <td><small>${b.tipo || '-'}</small></td>
+                <td>${b.material || '-'}</td>
+                <td class="text-end">${b.micras || '-'}</td>
+                <td class="text-end">${b.ancho_mm || '-'}</td>
+                <td class="text-end fw-bold">${(parseFloat(b.peso_actual_kg) || 0).toFixed(2)}</td>
+                <td><small>${b.proveedor || '-'}</small></td>
+                <td><small>${b.orden_compra || b.referencia_proveedor || '-'}</small></td>
+                <td><small>${b.orden_trabajo || '-'}</small></td>
+                <td class="text-center"><span class="badge ${badge[b.estado] || 'bg-secondary'}">${b.estado}</span></td>
+                <td class="text-center"><small>${b.fecha_recepcion || '-'}</small></td>
+                <td class="text-center">
+                    <button class="btn btn-sm btn-outline-info" onclick="Inventario.verBobinaDetalle('${b.id}')" title="Ver historial">
+                        <i class="bi bi-clock-history"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+
+        // Setup filters (solo una vez)
+        ['filtroBobEstado', 'filtroBobTipo'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el && !el._listener) {
+                el._listener = true;
+                el.addEventListener('change', () => this.renderBobinasIndividuales());
+            }
+        });
+        const buscar = document.getElementById('filtroBobBusqueda');
+        if (buscar && !buscar._listener) {
+            buscar._listener = true;
+            buscar.addEventListener('input', () => this.renderBobinasIndividuales());
+        }
+        const btnRefresh = document.getElementById('btnRefreshBobinas');
+        if (btnRefresh && !btnRefresh._listener) {
+            btnRefresh._listener = true;
+            btnRefresh.addEventListener('click', () => this.renderBobinasIndividuales());
+        }
+        const btnExport = document.getElementById('btnExportBobinas');
+        if (btnExport && !btnExport._listener) {
+            btnExport._listener = true;
+            btnExport.addEventListener('click', () => this.exportarBobinasCSV(bobinas));
+        }
+    },
+
+    /** Muestra detalle/historial de una bobina */
+    verBobinaDetalle: async function(id) {
+        if (typeof BobinasService === 'undefined') return;
+        const b = await BobinasService.obtener(id);
+        if (!b) { alert('Bobina no encontrada'); return; }
+        const historial = await BobinasService.historialBobina(id);
+
+        const info = [
+            `Codigo: ${b.codigo}`,
+            `Material: ${b.material || '-'} ${b.micras || ''}µ x ${b.ancho_mm || '-'}mm`,
+            `Peso Inicial: ${b.peso_inicial_kg} Kg | Actual: ${b.peso_actual_kg} Kg`,
+            `Proveedor: ${b.proveedor || '-'}`,
+            `OC: ${b.orden_compra || '-'} | Lote: ${b.referencia_proveedor || '-'}`,
+            `Estado: ${b.estado}`,
+            `OT Asignada: ${b.orden_trabajo || '-'}`,
+            `Fecha recepcion: ${b.fecha_recepcion}`,
+            '',
+            `--- HISTORIAL (${historial.length} eventos) ---`,
+            ...historial.slice(0, 10).map(h =>
+                `${new Date(h.timestamp).toLocaleString('es-VE')} | ${h.evento} | ${h.estado_anterior || '-'} -> ${h.estado_nuevo || '-'}`
+            )
+        ].join('\n');
+        alert(info);
+    },
+
+    /** Exporta bobinas filtradas a CSV */
+    exportarBobinasCSV: function(bobinas) {
+        const headers = ['Codigo', 'Tipo', 'Material', 'Micras', 'Ancho', 'Peso Actual', 'Peso Inicial', 'Proveedor', 'OC', 'Lote', 'OT', 'Estado', 'Fecha Recepcion'];
+        const rows = bobinas.map(b => [
+            b.codigo, b.tipo, b.material, b.micras, b.ancho_mm,
+            b.peso_actual_kg, b.peso_inicial_kg, b.proveedor,
+            b.orden_compra, b.referencia_proveedor, b.orden_trabajo,
+            b.estado, b.fecha_recepcion
+        ]);
+        const csv = [headers, ...rows].map(r => r.map(c => `"${c || ''}"`).join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `bobinas-${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+    },
+
     renderMiscelaneos: async function() {
         const tbody = document.getElementById('tablaMiscelaneos');
         if (!tbody) return;

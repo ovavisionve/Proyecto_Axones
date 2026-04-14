@@ -446,6 +446,22 @@
                                             <input type="text" class="form-control form-control-sm" id="recepcionOrdenCompra" placeholder="Numero de orden de compra">
                                         </div>
 
+                                        <!-- Opcion bobinas individuales -->
+                                        <div class="col-12">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="recepcionGenerarBobinas">
+                                                <label class="form-check-label small" for="recepcionGenerarBobinas">
+                                                    <strong>Generar bobinas individuales</strong>
+                                                    <small class="text-muted">(para sustratos - crea N bobinas con codigo unico y trazabilidad por bobina)</small>
+                                                </label>
+                                            </div>
+                                            <div class="alert alert-info py-1 px-2 mt-2 small" id="bobinasInfoBox" style="display:none;">
+                                                <i class="bi bi-info-circle me-1"></i>
+                                                Por cada sustrato, agregue una columna <strong>N° Bobinas</strong> que indique cuantas bobinas fisicas llegaron.
+                                                El sistema dividira el peso total entre las bobinas.
+                                            </div>
+                                        </div>
+
                                         <!-- Tabla de items recibidos -->
                                         <div class="col-12">
                                             <label class="form-label small fw-bold">Items Recibidos</label>
@@ -670,6 +686,7 @@
     <script src="src/js/utils/config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="src/js/utils/supabase-client.js"></script>
+    <script src="src/js/utils/bobinas-service.js"></script>
     <script src="src/js/utils/api.js"></script>
     <script src="src/js/utils/sync-manager.js"></script>
     <script src="src/js/utils/sync-realtime.js"></script>

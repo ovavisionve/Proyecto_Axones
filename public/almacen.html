@@ -100,6 +100,11 @@
                             <i class="bi bi-cart-plus me-1"></i> Solicitudes
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="despacho.html">
+                            <i class="bi bi-truck me-1"></i> Despacho
+                        </a>
+                    </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
                             <i class="bi bi-database me-1"></i> Datos Maestros
@@ -108,6 +113,8 @@
                             <li><a class="dropdown-item" href="clientes.html"><i class="bi bi-people me-2"></i>Clientes</a></li>
                             <li><a class="dropdown-item" href="proveedores.html"><i class="bi bi-truck me-2"></i>Proveedores</a></li>
                             <li><a class="dropdown-item" href="productos.html"><i class="bi bi-box me-2"></i>Productos</a></li>
+                            <li><a class="dropdown-item" href="ordenes.html"><i class="bi bi-clipboard-check me-2"></i>Ordenes de Clientes</a></li>
+                            <li><a class="dropdown-item" href="ordenes-compra.html"><i class="bi bi-cart-check me-2"></i>Ordenes de Compra</a></li>
                         </ul>
                     </li>
                     <li class="nav-item">
@@ -164,15 +171,23 @@
             </div>
         </div>
 
+        <!-- Aviso de reorganizacion -->
+        <div class="alert alert-info py-2 mb-3">
+            <i class="bi bi-info-circle me-1"></i>
+            <strong>Reorganizacion:</strong> La funcion de Despacho se movio a
+            <a href="despacho.html" class="alert-link">Despacho</a>. La Recepcion ahora es opcion dentro de
+            <a href="inventario.html" class="alert-link">Inventario</a>. Este modulo se mantiene por compatibilidad.
+        </div>
+
         <!-- Tabs -->
         <ul class="nav nav-tabs mb-3" id="almacenTabs" role="tablist">
             <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="tab-despacho-ot" data-bs-toggle="tab" data-bs-target="#panel-despacho-ot" type="button" role="tab">
-                    <i class="bi bi-send me-1"></i> Despacho OT
+                <button class="nav-link" id="tab-despacho-ot" data-bs-toggle="tab" data-bs-target="#panel-despacho-ot" type="button" role="tab">
+                    <i class="bi bi-send me-1"></i> Despacho OT <small class="text-muted">(legacy)</small>
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-recepcion" data-bs-toggle="tab" data-bs-target="#panel-recepcion" type="button" role="tab">
+                <button class="nav-link active" id="tab-recepcion" data-bs-toggle="tab" data-bs-target="#panel-recepcion" type="button" role="tab">
                     <i class="bi bi-box-arrow-in-down me-1"></i> Recepcion de Material
                 </button>
             </li>
@@ -191,7 +206,7 @@
         <div class="tab-content" id="almacenTabContent">
 
             <!-- Tab 1: Despacho OT -->
-            <div class="tab-pane fade show active" id="panel-despacho-ot" role="tabpanel">
+            <div class="tab-pane fade" id="panel-despacho-ot" role="tabpanel">
                 <div class="row mb-3">
                     <div class="col-12">
                         <h6 class="text-muted mb-2">
@@ -380,7 +395,7 @@
             </div><!-- Fin panel-despacho-ot -->
 
             <!-- Tab 2: Recepcion de Material -->
-            <div class="tab-pane fade" id="panel-recepcion" role="tabpanel">
+            <div class="tab-pane fade show active" id="panel-recepcion" role="tabpanel">
                 <div class="row mb-3">
                     <div class="col-12">
                         <h6 class="text-muted mb-2">

@@ -1394,8 +1394,31 @@ const Impresion = {
             // Guardar en Supabase
             await this.guardarLocal(datos);
 
-            // Descontar material del inventario automaticamente
-            await this.descontarInventario(datos);
+            // Descontar material del inventario (preciso via InventarioDescuentos)
+            if (typeof InventarioDescuentos !== 'undefined' && this.ordenCargada) {
+                const cantidadKg = parseFloat(datos.totalMaterialEntrada) || 0;
+                if (cantidadKg > 0) {
+                    await InventarioDescuentos.descontar({
+                        numeroOT: datos.ordenTrabajo,
+                        fase: 'impresion',
+                        cantidadKg,
+                        orden: this.ordenCargada,
+                    });
+                }
+                // Reponer devolucion buena
+                const devBuena = parseFloat(datos.devolucionBuenaKg) || 0;
+                if (devBuena > 0) {
+                    await InventarioDescuentos.reponer({
+                        numeroOT: datos.ordenTrabajo,
+                        fase: 'impresion',
+                        cantidadKg: devBuena,
+                        orden: this.ordenCargada,
+                    });
+                }
+            } else {
+                // Fallback al descontarInventario heuristico si InventarioDescuentos no cargo
+                await this.descontarInventario(datos);
+            }
 
             // Registrar bobinas rechazadas en inventario de bobinas malas
             await this.registrarBobinasMalas(datos);

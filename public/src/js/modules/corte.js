@@ -1100,8 +1100,21 @@ const Corte = {
             this.limpiarAutosave();
             this.mostrarToast('Registro de corte guardado', 'success');
 
-            // Descontar material del inventario
-            await this.descontarInventario(datos);
+            // Descontar material del inventario (preciso via InventarioDescuentos)
+            if (typeof InventarioDescuentos !== 'undefined' && this.ordenCargada) {
+                const cantidadKg = parseFloat(datos.totalEntrada) || 0;
+                if (cantidadKg > 0) {
+                    await InventarioDescuentos.descontar({
+                        numeroOT: datos.ordenTrabajo,
+                        fase: 'corte',
+                        cantidadKg,
+                        orden: this.ordenCargada,
+                    });
+                }
+            } else {
+                // Fallback
+                await this.descontarInventario(datos);
+            }
 
             // Registrar producto terminado en inventario
             await this.registrarProductoTerminado(datos);

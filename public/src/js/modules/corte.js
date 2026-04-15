@@ -1297,6 +1297,11 @@ const Corte = {
                 });
                 console.log('[Corte] Registro guardado en Supabase');
 
+                // Fase 5: Verificar alertas inteligentes
+                if (typeof AlertasEngine !== 'undefined') {
+                    AlertasEngine.verificarMerma(datos, 'corte').catch(e => console.warn(e));
+                }
+
                 // Fase 3: Procesar bobinas seleccionadas
                 if (typeof BobinasSelector !== 'undefined' && BobinasSelector.getSeleccionadas) {
                     try {

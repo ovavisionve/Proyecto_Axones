@@ -1081,6 +1081,11 @@ const Laminacion = {
                 });
                 console.log('[Laminacion] Registro guardado en Supabase');
 
+                // Fase 5: Verificar alertas inteligentes
+                if (typeof AlertasEngine !== 'undefined') {
+                    AlertasEngine.verificarMerma(datos, 'laminacion').catch(e => console.warn(e));
+                }
+
                 // Fase 3: Procesar bobinas seleccionadas
                 if (typeof BobinasSelector !== 'undefined' && BobinasSelector.getSeleccionadas) {
                     try {

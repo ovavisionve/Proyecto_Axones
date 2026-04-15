@@ -254,8 +254,11 @@
                                 <input type="date" class="form-control form-control-sm" id="fecha" required>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label small">Orden de Trabajo</label>
-                                <input type="text" class="form-control form-control-sm" id="ordenTrabajo" required placeholder="N° OT">
+                                <label class="form-label small">Orden de Trabajo <span class="text-danger">*</span></label>
+                                <select class="form-select form-select-sm" id="ordenTrabajo" required>
+                                    <option value="">-- Seleccionar OT --</option>
+                                </select>
+                                <small class="text-muted">Al seleccionar, se auto-llenan los datos del cliente, producto y produccion.</small>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label small">Lote</label>
@@ -408,14 +411,24 @@
 
                     <!-- Botones -->
                     <div class="row g-2">
-                        <div class="col-6">
+                        <div class="col-4">
                             <button type="button" class="btn w-100" style="background-color: #20c997; color: white;" onclick="Certificado.generarPreview()">
                                 <i class="bi bi-eye me-1"></i> Vista Previa
                             </button>
                         </div>
-                        <div class="col-6">
+                        <div class="col-4">
+                            <button type="button" class="btn btn-primary w-100" onclick="Certificado.descargarPDF()">
+                                <i class="bi bi-download me-1"></i> Descargar PDF
+                            </button>
+                        </div>
+                        <div class="col-4">
                             <button type="button" class="btn btn-success w-100" onclick="Certificado.imprimir()">
                                 <i class="bi bi-printer me-1"></i> Imprimir
+                            </button>
+                        </div>
+                        <div class="col-12 mt-2">
+                            <button type="button" class="btn btn-outline-secondary btn-sm w-100" onclick="Certificado.guardar()">
+                                <i class="bi bi-save me-1"></i> Guardar en Historial
                             </button>
                         </div>
                     </div>

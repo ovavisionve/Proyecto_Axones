@@ -112,8 +112,8 @@ const MovimientosOrden = {
         try {
             if (AxonesDB.isReady()) {
                 const { data } = await AxonesDB.client.from('sync_store')
-                    .select('valor').eq('clave', 'axones_montajes').maybeSingle();
-                const montajes = data?.valor ? JSON.parse(data.valor) : [];
+                    .select('value').eq('key', 'axones_montajes').maybeSingle();
+                const montajes = data?.value ? JSON.parse(data.value) : [];
                 montajes.filter(m => m.otNumero === numOT).forEach(m => {
                     movs.push({
                         fase: 'montaje',
@@ -141,7 +141,7 @@ const MovimientosOrden = {
                 const { data } = await AxonesDB.client.from(tabla).select('*').eq('numero_ot', numOT);
                 (data || []).forEach(r => {
                     const entrada = parseFloat(r.total_entrada) || 0;
-                    const salida = parseFloat(r.peso_total_salida || r.total_salida) || 0;
+                    const salida = parseFloat(r.peso_total_salida || r.peso_total || r.total_salida) || 0;
                     const merma = parseFloat(r.merma) || 0;
                     const pct = entrada > 0 ? ((merma / entrada) * 100).toFixed(1) : '0';
                     movs.push({
@@ -168,8 +168,8 @@ const MovimientosOrden = {
         // 4. Consumo de tintas
         try {
             const { data } = await AxonesDB.client.from('sync_store')
-                .select('valor').eq('clave', 'axones_consumo_tintas').maybeSingle();
-            const consumos = data?.valor ? JSON.parse(data.valor) : [];
+                .select('value').eq('key', 'axones_consumo_tintas').maybeSingle();
+            const consumos = data?.value ? JSON.parse(data.value) : [];
             consumos.filter(c => c.ordenTrabajo === numOT).forEach(c => {
                 movs.push({
                     fase: 'impresion',
@@ -187,8 +187,8 @@ const MovimientosOrden = {
         // 5. Despachos
         try {
             const { data } = await AxonesDB.client.from('sync_store')
-                .select('valor').eq('clave', 'axones_notas_despacho').maybeSingle();
-            const notas = data?.valor ? JSON.parse(data.valor) : [];
+                .select('value').eq('key', 'axones_notas_despacho').maybeSingle();
+            const notas = data?.value ? JSON.parse(data.value) : [];
             notas.filter(n => n.otNumero === numOT).forEach(n => {
                 movs.push({
                     fase: 'despacho',
@@ -238,7 +238,7 @@ const MovimientosOrden = {
         prod.forEach(m => {
             const r = m._registro;
             const entrada = parseFloat(r.total_entrada) || 0;
-            const salida = parseFloat(r.peso_total_salida || r.total_salida) || 0;
+            const salida = parseFloat(r.peso_total_salida || r.peso_total || r.total_salida) || 0;
             const merma = parseFloat(r.merma) || 0;
             if (m.fase === 'impresion') materialUsado += entrada;
             if (m.fase === 'corte') productoTerminado += salida;
@@ -267,7 +267,7 @@ const MovimientosOrden = {
         const filas = fases.map(fase => {
             const items = movs.filter(m => m.fase === fase && m._tipo === 'produccion');
             const entrada = items.reduce((s, m) => s + (parseFloat(m._registro?.total_entrada) || 0), 0);
-            const salida = items.reduce((s, m) => s + (parseFloat(m._registro?.peso_total_salida || m._registro?.total_salida) || 0), 0);
+            const salida = items.reduce((s, m) => s + (parseFloat(m._registro?.peso_total_salida || m._registro?.peso_total || m._registro?.total_salida) || 0), 0);
             const merma = items.reduce((s, m) => s + (parseFloat(m._registro?.merma) || 0), 0);
             const pct = entrada > 0 ? ((merma / entrada) * 100).toFixed(1) + '%' : '-';
             const count = movs.filter(m => m.fase === fase).length;

@@ -261,8 +261,8 @@ const AlertasEngine = {
     analizarMontajesLentos: async function() {
         try {
             const { data } = await AxonesDB.client.from('sync_store')
-                .select('valor').eq('clave', 'axones_montajes').maybeSingle();
-            const montajes = data?.valor ? JSON.parse(data.valor) : [];
+                .select('value').eq('key', 'axones_montajes').maybeSingle();
+            const montajes = data?.value ? JSON.parse(data.value) : [];
             const recientes = montajes.filter(m => {
                 const hace24h = Date.now() - 24*60*60*1000;
                 return m.superoUmbral && new Date(m.fechaFin).getTime() > hace24h;
@@ -330,8 +330,8 @@ const AlertasEngine = {
 
             // Cargar notas de despacho
             const { data: stdata } = await AxonesDB.client.from('sync_store')
-                .select('valor').eq('clave', 'axones_notas_despacho').maybeSingle();
-            const notas = stdata?.valor ? JSON.parse(stdata.valor) : [];
+                .select('value').eq('key', 'axones_notas_despacho').maybeSingle();
+            const notas = stdata?.value ? JSON.parse(stdata.value) : [];
             const otsDespachadas = new Set(notas.map(n => n.otNumero));
 
             // OTs con corte pero sin despacho

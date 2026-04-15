@@ -93,8 +93,8 @@ const ReportesMensuales = {
         if (!AxonesDB.isReady()) return [];
         try {
             const { data } = await AxonesDB.client.from('sync_store')
-                .select('valor').eq('clave', clave).maybeSingle();
-            return data?.valor ? JSON.parse(data.valor) : [];
+                .select('value').eq('key', clave).maybeSingle();
+            return data?.value ? JSON.parse(data.value) : [];
         } catch(e) { return []; }
     },
 
@@ -187,7 +187,7 @@ const ReportesMensuales = {
             'OT': r.numero_ot || '',
             'Operador': r.operador || '',
             'Kg Entrada': (parseFloat(r.total_entrada) || 0).toFixed(2),
-            'Kg Salida': (parseFloat(r.peso_total_salida || r.total_salida) || 0).toFixed(2),
+            'Kg Salida': (parseFloat(r.peso_total_salida || r.peso_total || r.total_salida) || 0).toFixed(2),
             'Merma (Kg)': (parseFloat(r.merma) || 0).toFixed(2),
             '% Merma': this._calcMermaPct(r),
             'Scrap': (parseFloat(r.total_scrap || r.scrap_refile) || 0).toFixed(2),
@@ -202,11 +202,11 @@ const ReportesMensuales = {
         const resumen = [
             { Fase: 'Impresion', 'Num Registros': impF.length,
               'Total Kg Entrada': this._sum(impF, 'total_entrada'),
-              'Total Kg Salida': this._sum(impF, 'peso_total_salida') || this._sum(impF, 'total_salida'),
+              'Total Kg Salida': this._sum(impF, 'peso_total_salida') || this._sum(impF, 'peso_total'),
               'Total Merma': this._sum(impF, 'merma') },
             { Fase: 'Laminacion', 'Num Registros': lamF.length,
               'Total Kg Entrada': this._sum(lamF, 'total_entrada'),
-              'Total Kg Salida': this._sum(lamF, 'peso_total_salida') || this._sum(lamF, 'total_salida'),
+              'Total Kg Salida': this._sum(lamF, 'peso_total_salida') || this._sum(lamF, 'peso_total'),
               'Total Merma': this._sum(lamF, 'merma') },
             { Fase: 'Corte', 'Num Registros': corF.length,
               'Total Kg Entrada': this._sum(corF, 'total_entrada'),
@@ -257,7 +257,7 @@ const ReportesMensuales = {
             const ot = r.numero_ot || 'SIN_OT';
             if (!porOT[ot]) porOT[ot] = { ot, entrada: 0, salida: 0, merma: 0, scrap: 0, registros: 0 };
             porOT[ot].entrada += parseFloat(r.total_entrada) || 0;
-            porOT[ot].salida += parseFloat(r.peso_total_salida || r.total_salida) || 0;
+            porOT[ot].salida += parseFloat(r.peso_total_salida || r.peso_total || r.total_salida) || 0;
             porOT[ot].merma += parseFloat(r.merma) || 0;
             porOT[ot].scrap += parseFloat(r.total_scrap || r.scrap_refile) || 0;
             porOT[ot].registros++;
@@ -440,13 +440,13 @@ const ReportesMensuales = {
         impF.forEach(r => {
             const o = ensure(r.numero_ot || 'SIN_OT');
             o.kgImp += parseFloat(r.total_entrada) || 0;
-            o.salImp += parseFloat(r.peso_total_salida || r.total_salida) || 0;
+            o.salImp += parseFloat(r.peso_total_salida || r.peso_total || r.total_salida) || 0;
             o.mermaImp += parseFloat(r.merma) || 0;
         });
         lamF.forEach(r => {
             const o = ensure(r.numero_ot || 'SIN_OT');
             o.kgLam += parseFloat(r.total_entrada) || 0;
-            o.salLam += parseFloat(r.peso_total_salida || r.total_salida) || 0;
+            o.salLam += parseFloat(r.peso_total_salida || r.peso_total || r.total_salida) || 0;
             o.mermaLam += parseFloat(r.merma) || 0;
         });
         corF.forEach(r => {
@@ -502,7 +502,7 @@ const ReportesMensuales = {
             const t = r.turno || 'SIN';
             if (!porTurno[t]) porTurno[t] = { turno: turnos[t] || t, registros: 0, kgSalida: 0, merma: 0 };
             porTurno[t].registros++;
-            porTurno[t].kgSalida += parseFloat(r.peso_total_salida || r.total_salida) || 0;
+            porTurno[t].kgSalida += parseFloat(r.peso_total_salida || r.peso_total || r.total_salida) || 0;
             porTurno[t].merma += parseFloat(r.merma) || 0;
         });
         const filasTurno = Object.values(porTurno).map(t => ({
@@ -519,7 +519,7 @@ const ReportesMensuales = {
             const m = r.maquina || 'SIN';
             if (!porMaq[m]) porMaq[m] = { maquina: m, fase: r._fase, registros: 0, kgSalida: 0, merma: 0, horas: 0 };
             porMaq[m].registros++;
-            porMaq[m].kgSalida += parseFloat(r.peso_total_salida || r.total_salida) || 0;
+            porMaq[m].kgSalida += parseFloat(r.peso_total_salida || r.peso_total || r.total_salida) || 0;
             porMaq[m].merma += parseFloat(r.merma) || 0;
             // Horas aproximadas desde observaciones (si tienen timer data)
         });
@@ -539,7 +539,7 @@ const ReportesMensuales = {
             const o = r.operador || 'SIN';
             if (!porOp[o]) porOp[o] = { operador: o, registros: 0, kgSalida: 0, merma: 0 };
             porOp[o].registros++;
-            porOp[o].kgSalida += parseFloat(r.peso_total_salida || r.total_salida) || 0;
+            porOp[o].kgSalida += parseFloat(r.peso_total_salida || r.peso_total || r.total_salida) || 0;
             porOp[o].merma += parseFloat(r.merma) || 0;
         });
         const filasOp = Object.values(porOp)

@@ -76,17 +76,45 @@ const AlertasEngine = {
                 .gte('created_at', hace24h).limit(1);
             if (existentes && existentes.length > 0) return null;
 
-            const { data } = await AxonesDB.client.from('alertas').insert({
+            // Mapear nivel (usado en UI) al campo correcto segun estructura de tabla
+            const payload = {
                 tipo: alerta.tipo || 'warning',
                 titulo: alerta.titulo,
                 mensaje: alerta.mensaje,
-                modulo: alerta.modulo || 'alertas-engine',
                 created_at: new Date().toISOString(),
-            }).select().single();
+            };
+            // Campos opcionales (requieren migration-008)
+            if (alerta.modulo !== undefined) payload.modulo = alerta.modulo;
+            if (alerta.nivel !== undefined) payload.nivel = alerta.nivel;
+            if (alerta.referencia !== undefined) payload.referencia = alerta.referencia;
+
+            let data;
+            try {
+                const res = await AxonesDB.client.from('alertas').insert(payload).select().single();
+                data = res.data;
+            } catch(errChk) {
+                // Fallback si BD no tiene migration-008: reintentar con payload minimo
+                if (errChk?.code === '23514' || errChk?.code === 'PGRST204' || errChk?.message?.includes('check constraint') || errChk?.message?.includes('column')) {
+                    console.warn('[AlertasEngine] Usando fallback (ejecute migration-008-hardening.sql)');
+                    // Mapear tipo->general, poner nivel correctamente, quitar columnas no existentes
+                    const nivelMap = { danger: 'danger', critical: 'danger', error: 'danger', warning: 'warning', info: 'info', success: 'success' };
+                    const fallback = {
+                        tipo: 'general',
+                        nivel: nivelMap[payload.tipo] || 'warning',
+                        titulo: payload.titulo,
+                        mensaje: payload.mensaje,
+                        created_at: payload.created_at,
+                    };
+                    const res2 = await AxonesDB.client.from('alertas').insert(fallback).select().single();
+                    data = res2.data;
+                } else {
+                    throw errChk;
+                }
+            }
             console.log('[AlertasEngine] Alerta creada:', alerta.titulo);
             return data;
         } catch(e) {
-            console.warn('[AlertasEngine] Error creando alerta:', e);
+            console.warn('[AlertasEngine] Error creando alerta:', e.message);
             return null;
         }
     },
@@ -333,21 +361,28 @@ const AlertasEngine = {
     // ============================================================
     contarPendientes: async function() {
         if (!AxonesDB.isReady()) return 0;
+        // Intentar con columna resuelta (requiere migration-008)
         try {
+            const { count, error } = await AxonesDB.client.from('alertas')
+                .select('*', { count: 'exact', head: true })
+                .or('resuelta.is.null,resuelta.eq.false');
+            if (!error) return count || 0;
+        } catch(e) {}
+        // Fallback: contar todas no leidas (campo leida siempre existe)
+        try {
+            const { count, error } = await AxonesDB.client.from('alertas')
+                .select('*', { count: 'exact', head: true })
+                .eq('leida', false);
+            if (!error) return count || 0;
+        } catch(e) {}
+        // Ultimo recurso: ultimas 24h
+        try {
+            const hace24h = new Date(Date.now() - 24*60*60*1000).toISOString();
             const { count } = await AxonesDB.client.from('alertas')
                 .select('*', { count: 'exact', head: true })
-                .is('resuelta', null);
+                .gte('created_at', hace24h);
             return count || 0;
-        } catch(e) {
-            // Fallback: contar todas creadas en ultimas 24h
-            try {
-                const hace24h = new Date(Date.now() - 24*60*60*1000).toISOString();
-                const { count } = await AxonesDB.client.from('alertas')
-                    .select('*', { count: 'exact', head: true })
-                    .gte('created_at', hace24h);
-                return count || 0;
-            } catch(e2) { return 0; }
-        }
+        } catch(e2) { return 0; }
     },
 
     /** Actualiza el badge de alertas en el navbar */

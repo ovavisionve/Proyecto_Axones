@@ -39,9 +39,43 @@ const Almacen = {
         document.getElementById('btnGuardarDespachoOT')?.addEventListener('click', () => this.guardarDespachoOT(false));
         document.getElementById('btnImprimirDespachoOT')?.addEventListener('click', () => this.guardarDespachoOT(true));
         document.getElementById('btnCancelarDespachoOT')?.addEventListener('click', () => this.cancelarDespacho());
+        // Seleccionar/deseleccionar todas las paletas
+        document.getElementById('checkAllPaletas')?.addEventListener('change', (e) => {
+            document.querySelectorAll('.desp-paleta-check').forEach(cb => cb.checked = e.target.checked);
+            this.calcularTotalesDespacho();
+        });
+        // Delegacion para checkboxes de paletas individuales
+        document.getElementById('tablaPaletasDespacho')?.addEventListener('change', (e) => {
+            if (e.target.classList.contains('desp-paleta-check')) this.calcularTotalesDespacho();
+        });
         // Recepcion
         document.getElementById('btnAgregarItemRecepcion')?.addEventListener('click', () => this.agregarFilaRecepcion());
         document.getElementById('formRecepcion')?.addEventListener('submit', (e) => { e.preventDefault(); this.registrarRecepcion(); });
+        // Toggle columnas de bobinas individuales
+        document.getElementById('recepcionGenerarBobinas')?.addEventListener('change', (e) => {
+            const show = e.target.checked;
+            document.getElementById('bobinasInfoBox').style.display = show ? '' : 'none';
+            document.querySelectorAll('.col-rec-nbobinas, .col-rec-reflote').forEach(td => {
+                td.style.display = show ? '' : 'none';
+            });
+            // Header columns
+            const thead = document.querySelector('#tablaItemsRecepcion')?.closest('table')?.querySelector('thead tr');
+            if (thead && show && !thead.querySelector('.th-nbobinas')) {
+                const thNB = document.createElement('th');
+                thNB.className = 'th-nbobinas';
+                thNB.textContent = 'N° Bob';
+                thNB.style.width = '80px';
+                thead.insertBefore(thNB, thead.lastElementChild);
+                const thRL = document.createElement('th');
+                thRL.className = 'th-reflote';
+                thRL.textContent = 'Lote';
+                thRL.style.width = '100px';
+                thead.insertBefore(thRL, thead.lastElementChild);
+            } else if (thead && !show) {
+                thead.querySelector('.th-nbobinas')?.remove();
+                thead.querySelector('.th-reflote')?.remove();
+            }
+        });
         // Miscelaneos
         document.getElementById('btnAgregarItemMisc')?.addEventListener('click', () => this.agregarFilaMiscelaneo());
         document.getElementById('formMiscelaneos')?.addEventListener('submit', (e) => { e.preventDefault(); this.registrarMiscelaneo(); });
@@ -115,15 +149,72 @@ const Almacen = {
             } catch (e) { console.warn('[Almacen] Error cargando datos cliente:', e); }
         }
 
-        // Resetear paletas a solo 1
-        this._paletaCount = 1;
+        // Cargar paletas desde produccion_corte para esta OT
+        this._paletaCount = 0;
         const tbodyPaletas = document.getElementById('tablaPaletasDespacho');
-        if (tbodyPaletas) {
+        if (tbodyPaletas) tbodyPaletas.innerHTML = '';
+
+        try {
+            if (AxonesDB.isReady()) {
+                const numOT = ot.numeroOrden || ot.nombreOT || '';
+                const { data: registrosCorte } = await AxonesDB.client.from('produccion_corte')
+                    .select('*').eq('numero_ot', numOT);
+
+                if (registrosCorte && registrosCorte.length > 0) {
+                    // Extraer paletas de todos los registros de corte
+                    let paletaNum = 0;
+                    registrosCorte.forEach(reg => {
+                        let paletas = reg.paletas || [];
+                        // Si paletas es string JSON, parsear
+                        if (typeof paletas === 'string') { try { paletas = JSON.parse(paletas); } catch(e) { paletas = []; } }
+                        // Si observaciones tiene datos completos
+                        if (paletas.length === 0 && reg.observaciones) {
+                            try {
+                                const obs = JSON.parse(reg.observaciones);
+                                paletas = obs.paletas || [];
+                            } catch(e) {}
+                        }
+                        paletas.forEach(pal => {
+                            paletaNum++;
+                            const numBob = pal.totalBobinas || pal.bobinas?.length || 0;
+                            const pesoTotal = pal.pesoTotal || 0;
+                            if (tbodyPaletas && pesoTotal > 0) {
+                                const tr = document.createElement('tr');
+                                tr.dataset.paleta = paletaNum;
+                                tr.dataset.corteId = reg.id || '';
+                                tr.innerHTML = `
+                                    <td class="text-center">
+                                        <input type="checkbox" class="form-check-input desp-paleta-check" checked>
+                                    </td>
+                                    <td class="fw-bold text-center">${paletaNum}</td>
+                                    <td><input type="number" class="form-control form-control-sm desp-bobinas" value="${numBob}" onchange="Almacen.calcularTotalesDespacho()"></td>
+                                    <td><input type="number" class="form-control form-control-sm desp-kg" value="${pesoTotal.toFixed(2)}" step="0.01" onchange="Almacen.calcularTotalesDespacho()"></td>
+                                    <td><small class="text-muted">Corte ${reg.fecha || ''} - ${reg.turno || ''}</small></td>`;
+                                tbodyPaletas.appendChild(tr);
+                            }
+                        });
+                    });
+                    this._paletaCount = paletaNum;
+
+                    // Agregar nota informativa
+                    if (paletaNum > 0 && tbodyPaletas) {
+                        const info = document.createElement('tr');
+                        info.innerHTML = `<td colspan="5" class="text-info small"><i class="bi bi-info-circle me-1"></i>Paletas cargadas desde Corte. Desmarca las que no desea despachar.</td>`;
+                        tbodyPaletas.appendChild(info);
+                    }
+                }
+            }
+        } catch(e) { console.warn('[Almacen] Error cargando paletas de corte:', e); }
+
+        // Si no hay paletas de corte, mostrar fila manual
+        if (this._paletaCount === 0 && tbodyPaletas) {
+            this._paletaCount = 1;
             tbodyPaletas.innerHTML = `<tr data-paleta="1">
+                <td class="text-center"><input type="checkbox" class="form-check-input desp-paleta-check" checked></td>
                 <td class="fw-bold text-center">1</td>
                 <td><input type="number" class="form-control form-control-sm desp-bobinas" min="0" step="1" placeholder="0" onchange="Almacen.calcularTotalesDespacho()"></td>
                 <td><input type="number" class="form-control form-control-sm desp-kg" min="0" step="0.01" placeholder="0.00" onchange="Almacen.calcularTotalesDespacho()"></td>
-                <td></td>
+                <td><small class="text-muted">Manual</small></td>
             </tr>`;
         }
         this.calcularTotalesDespacho();
@@ -180,12 +271,16 @@ const Almacen = {
         // Recalcular totales
         this.calcularTotalesDespacho();
 
-        // Recopilar paletas
+        // Recopilar solo paletas seleccionadas (checkbox marcado)
         const paletasDetalle = [];
-        document.querySelectorAll('#tablaPaletasDespacho tr').forEach((row, i) => {
+        document.querySelectorAll('#tablaPaletasDespacho tr[data-paleta]').forEach((row) => {
+            const check = row.querySelector('.desp-paleta-check');
+            if (check && !check.checked) return;
             const bob = parseInt(row.querySelector('.desp-bobinas')?.value) || 0;
             const kg = parseFloat(row.querySelector('.desp-kg')?.value) || 0;
-            if (bob > 0 || kg > 0) paletasDetalle.push({ paleta: i + 1, bobinas: bob, kg: kg });
+            const numPal = parseInt(row.dataset.paleta) || 0;
+            const corteId = row.dataset.corteId || '';
+            if (bob > 0 || kg > 0) paletasDetalle.push({ paleta: numPal, bobinas: bob, kg, origenCorte: corteId });
         });
 
         const bobinas = parseInt(document.getElementById('despachoBobinas')?.value) || 0;
@@ -425,17 +520,21 @@ ${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="
         const fila = document.createElement('tr');
         fila.dataset.paleta = n;
         fila.innerHTML = `
+            <td class="text-center"><input type="checkbox" class="form-check-input desp-paleta-check" checked></td>
             <td class="fw-bold text-center">${n}</td>
             <td><input type="number" class="form-control form-control-sm desp-bobinas" min="0" step="1" placeholder="0" onchange="Almacen.calcularTotalesDespacho()"></td>
             <td><input type="number" class="form-control form-control-sm desp-kg" min="0" step="0.01" placeholder="0.00" onchange="Almacen.calcularTotalesDespacho()"></td>
-            <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove();Almacen.calcularTotalesDespacho();"><i class="bi bi-x"></i></button></td>
+            <td><small class="text-muted">Manual</small> <button type="button" class="btn btn-sm btn-outline-danger ms-1" onclick="this.closest('tr').remove();Almacen.calcularTotalesDespacho();"><i class="bi bi-x"></i></button></td>
         `;
         tbody.appendChild(fila);
     },
 
     calcularTotalesDespacho: function() {
         let totalBob = 0, totalKg = 0, numPaletas = 0;
-        document.querySelectorAll('#tablaPaletasDespacho tr').forEach(row => {
+        document.querySelectorAll('#tablaPaletasDespacho tr[data-paleta]').forEach(row => {
+            // Solo contar paletas con checkbox marcado
+            const check = row.querySelector('.desp-paleta-check');
+            if (check && !check.checked) return;
             const bob = parseInt(row.querySelector('.desp-bobinas')?.value) || 0;
             const kg = parseFloat(row.querySelector('.desp-kg')?.value) || 0;
             totalBob += bob;
@@ -447,9 +546,12 @@ ${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="
         if (elBob) elBob.textContent = totalBob;
         if (elKg) elKg.textContent = totalKg.toFixed(2);
         // Actualizar campos hidden
-        document.getElementById('despachoBobinas').value = totalBob;
-        document.getElementById('despachoKg').value = totalKg;
-        document.getElementById('despachoPaletas').value = numPaletas;
+        const dBob = document.getElementById('despachoBobinas');
+        if (dBob) dBob.value = totalBob;
+        const dKg = document.getElementById('despachoKg');
+        if (dKg) dKg.value = totalKg;
+        const dPal = document.getElementById('despachoPaletas');
+        if (dPal) dPal.value = numPaletas;
     },
 
     cargarDespachosPrevios: async function(otNumero, pedidoKg) {
@@ -483,6 +585,7 @@ ${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="
     agregarFilaRecepcion: function() {
         const tbody = document.getElementById('tablaItemsRecepcion');
         if (!tbody) return;
+        const generarBob = document.getElementById('recepcionGenerarBobinas')?.checked;
         const n = tbody.querySelectorAll('tr').length;
         const fila = document.createElement('tr');
         fila.innerHTML = `
@@ -500,8 +603,13 @@ ${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="
             <td><select class="form-select form-select-sm rec-unidad">
                 <option value="Kg">Kg</option><option value="Lt">Lt</option><option value="Unidad">Unidad</option>
             </select></td>
+            <td class="col-rec-nbobinas" style="display:${generarBob ? '' : 'none'}">
+                <input type="number" class="form-control form-control-sm rec-nbobinas" min="1" step="1" placeholder="N° bobinas" title="Cuantas bobinas fisicas llegaron">
+            </td>
+            <td class="col-rec-reflote" style="display:${generarBob ? '' : 'none'}">
+                <input type="text" class="form-control form-control-sm rec-reflote" placeholder="Lote/Ref" title="Referencia del proveedor">
+            </td>
             <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>`;
-        // Prevenir Enter para que no submitee el form
         fila.querySelectorAll('input, select').forEach(el => {
             el.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
         });
@@ -578,6 +686,7 @@ ${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="
         const obs = document.getElementById('recepcionObservaciones')?.value?.trim() || '';
         if (!proveedor) { alert('El proveedor es obligatorio'); return; }
 
+        const generarBobinas = document.getElementById('recepcionGenerarBobinas')?.checked;
         const items = [];
         document.querySelectorAll('#tablaItemsRecepcion tr').forEach(row => {
             const tipo = row.querySelector('.rec-tipo')?.value || row.querySelector('[name="itemTipo"]')?.value;
@@ -586,11 +695,17 @@ ${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="
             const ancho = row.querySelector('.rec-ancho')?.value || '';
             const cant = parseFloat(row.querySelector('.rec-cant')?.value || row.querySelector('[name="itemCantidad"]')?.value) || 0;
             const unidad = row.querySelector('.rec-unidad')?.value || row.querySelector('[name="itemUnidad"]')?.value;
+            const nBobinas = parseInt(row.querySelector('.rec-nbobinas')?.value) || 0;
+            const refLote = row.querySelector('.rec-reflote')?.value?.trim() || '';
             if (desc && cant > 0) {
                 const descripcionCompleta = tipo === 'Sustrato' && micras && ancho
                     ? `${desc} ${micras}µ x ${ancho}mm`
                     : desc;
-                items.push({ descripcion: descripcionCompleta, tipo, cantidad: cant, unidad, material: desc, micras, ancho });
+                items.push({
+                    descripcion: descripcionCompleta, tipo, cantidad: cant, unidad,
+                    material: desc, micras, ancho,
+                    nBobinas, refLote
+                });
             }
         });
         if (items.length === 0) { alert('Agregue al menos un item'); return; }
@@ -702,13 +817,49 @@ ${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="
             }
         }
 
+        // Generar bobinas individuales si esta activo el flag
+        let bobinasCreadas = 0;
+        if (generarBobinas && typeof BobinasService !== 'undefined' && AxonesDB.isReady()) {
+            for (const item of items) {
+                if (item.nBobinas > 0) {
+                    const tipoBobina = {
+                        'Sustrato': 'sustrato',
+                        'Tinta': 'tinta',
+                        'Quimico': 'quimico'
+                    }[item.tipo] || 'sustrato';
+
+                    const pesoPorBobina = item.cantidad / item.nBobinas;
+                    try {
+                        const lote = await BobinasService.crearLote({
+                            tipo: tipoBobina,
+                            material: item.material,
+                            micras: parseFloat(item.micras) || null,
+                            ancho_mm: parseFloat(item.ancho) || null,
+                            peso_inicial_kg: pesoPorBobina,
+                            proveedor: proveedor,
+                            orden_compra: oc,
+                            referencia_proveedor: item.refLote,
+                            factura_recepcion: factura,
+                            fecha_recepcion: fecha,
+                            observaciones: `Recepcion ${correlativo}`,
+                        }, item.nBobinas);
+                        bobinasCreadas += lote.length;
+                        console.log(`[Almacen] ${lote.length} bobinas creadas para ${item.descripcion}`);
+                    } catch(e) {
+                        console.warn(`[Almacen] Error creando bobinas para ${item.descripcion}:`, e);
+                    }
+                }
+            }
+        }
+
         document.getElementById('formRecepcion')?.reset();
         document.getElementById('tablaItemsRecepcion').innerHTML = '';
         this.setDefaultDates();
+        const bobinasMsg = bobinasCreadas > 0 ? ` | ${bobinasCreadas} bobinas individuales generadas` : '';
         if (typeof showToast === 'function') {
-            showToast(`Recepcion ${correlativo} registrada: ${items.length} items de ${proveedor}`, 'success');
+            showToast(`Recepcion ${correlativo} registrada: ${items.length} items de ${proveedor}${bobinasMsg}`, 'success');
         } else {
-            alert(`Recepcion ${correlativo} registrada: ${items.length} items de ${proveedor}`);
+            alert(`Recepcion ${correlativo} registrada: ${items.length} items de ${proveedor}${bobinasMsg}`);
         }
     },
 

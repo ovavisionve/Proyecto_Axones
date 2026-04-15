@@ -84,10 +84,18 @@ const ReportesModule = {
             el.classList.toggle('active', el.dataset.tab === tab);
         });
         const tg = document.getElementById('tabGraficos');
+        const tm = document.getElementById('tabMensuales');
         const tc = document.getElementById('tabContent');
-        if (tg) tg.style.display = tab === 'graficos' ? 'block' : 'none';
-        if (tc) tc.style.display = tab === 'graficos' ? 'none' : 'block';
-        this.renderTab();
+        const esGraficos = tab === 'graficos';
+        const esMensuales = tab === 'mensuales';
+        if (tg) tg.style.display = esGraficos ? 'block' : 'none';
+        if (tm) tm.style.display = esMensuales ? 'block' : 'none';
+        if (tc) tc.style.display = (esGraficos || esMensuales) ? 'none' : 'block';
+        if (esMensuales && typeof ReportesMensuales !== 'undefined') {
+            ReportesMensuales.init();
+        } else {
+            this.renderTab();
+        }
     },
 
     getFiltros: function() {

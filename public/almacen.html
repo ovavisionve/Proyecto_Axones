@@ -59,6 +59,7 @@
                             <i class="bi bi-clipboard-data me-1"></i> Produccion
                         </a>
                         <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="montaje.html"><i class="bi bi-puzzle me-2"></i>Montaje</a></li>
                             <li><a class="dropdown-item" href="impresion.html"><i class="bi bi-printer me-2"></i>Control de Impresion</a></li>
                             <li><a class="dropdown-item" href="laminacion.html"><i class="bi bi-layers me-2"></i>Control de Laminacion</a></li>
                             <li><a class="dropdown-item" href="corte.html"><i class="bi bi-scissors me-2"></i>Control de Corte</a></li>
@@ -95,6 +96,16 @@
                             <i class="bi bi-building me-1"></i> Almacen
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="solicitud-despacho.html">
+                            <i class="bi bi-cart-plus me-1"></i> Solicitudes
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="despacho.html">
+                            <i class="bi bi-truck me-1"></i> Despacho
+                        </a>
+                    </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
                             <i class="bi bi-database me-1"></i> Datos Maestros
@@ -102,6 +113,9 @@
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="clientes.html"><i class="bi bi-people me-2"></i>Clientes</a></li>
                             <li><a class="dropdown-item" href="proveedores.html"><i class="bi bi-truck me-2"></i>Proveedores</a></li>
+                            <li><a class="dropdown-item" href="productos.html"><i class="bi bi-box me-2"></i>Productos</a></li>
+                            <li><a class="dropdown-item" href="ordenes.html"><i class="bi bi-clipboard-check me-2"></i>Ordenes de Clientes</a></li>
+                            <li><a class="dropdown-item" href="ordenes-compra.html"><i class="bi bi-cart-check me-2"></i>Ordenes de Compra</a></li>
                         </ul>
                     </li>
                     <li class="nav-item">
@@ -158,15 +172,23 @@
             </div>
         </div>
 
+        <!-- Aviso de reorganizacion -->
+        <div class="alert alert-info py-2 mb-3">
+            <i class="bi bi-info-circle me-1"></i>
+            <strong>Reorganizacion:</strong> La funcion de Despacho se movio a
+            <a href="despacho.html" class="alert-link">Despacho</a>. La Recepcion ahora es opcion dentro de
+            <a href="inventario.html" class="alert-link">Inventario</a>. Este modulo se mantiene por compatibilidad.
+        </div>
+
         <!-- Tabs -->
         <ul class="nav nav-tabs mb-3" id="almacenTabs" role="tablist">
             <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="tab-despacho-ot" data-bs-toggle="tab" data-bs-target="#panel-despacho-ot" type="button" role="tab">
-                    <i class="bi bi-send me-1"></i> Despacho OT
+                <button class="nav-link" id="tab-despacho-ot" data-bs-toggle="tab" data-bs-target="#panel-despacho-ot" type="button" role="tab">
+                    <i class="bi bi-send me-1"></i> Despacho OT <small class="text-muted">(legacy)</small>
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-recepcion" data-bs-toggle="tab" data-bs-target="#panel-recepcion" type="button" role="tab">
+                <button class="nav-link active" id="tab-recepcion" data-bs-toggle="tab" data-bs-target="#panel-recepcion" type="button" role="tab">
                     <i class="bi bi-box-arrow-in-down me-1"></i> Recepcion de Material
                 </button>
             </li>
@@ -185,7 +207,7 @@
         <div class="tab-content" id="almacenTabContent">
 
             <!-- Tab 1: Despacho OT -->
-            <div class="tab-pane fade show active" id="panel-despacho-ot" role="tabpanel">
+            <div class="tab-pane fade" id="panel-despacho-ot" role="tabpanel">
                 <div class="row mb-3">
                     <div class="col-12">
                         <h6 class="text-muted mb-2">
@@ -278,19 +300,18 @@
                                             <table class="table table-sm table-bordered mb-1">
                                                 <thead class="table-light">
                                                     <tr>
-                                                        <th style="width:15%;">Paleta</th>
-                                                        <th style="width:25%;">N° Bobinas</th>
-                                                        <th style="width:25%;">Kg Total</th>
-                                                        <th style="width:5%;"></th>
+                                                        <th style="width:8%;" class="text-center"><input type="checkbox" class="form-check-input" id="checkAllPaletas" checked title="Seleccionar todas"></th>
+                                                        <th style="width:10%;">Paleta</th>
+                                                        <th style="width:20%;">N° Bobinas</th>
+                                                        <th style="width:20%;">Kg Total</th>
+                                                        <th>Origen</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody id="tablaPaletasDespacho">
-                                                    <tr data-paleta="1">
-                                                        <td class="fw-bold text-center">1</td>
-                                                        <td><input type="number" class="form-control form-control-sm desp-bobinas" min="0" step="1" placeholder="0" onchange="Almacen.calcularTotalesDespacho()"></td>
-                                                        <td><input type="number" class="form-control form-control-sm desp-kg" min="0" step="0.01" placeholder="0.00" onchange="Almacen.calcularTotalesDespacho()"></td>
-                                                        <td></td>
-                                                    </tr>
+                                                    <!-- Se llena desde JS con paletas de corte -->
+                                                    <tr><td colspan="5" class="text-center text-muted py-2">
+                                                        <i class="bi bi-hourglass-split me-1"></i> Seleccione una OT para cargar paletas de corte
+                                                    </td></tr>
                                                 </tbody>
                                                 <tfoot>
                                                     <tr class="table-primary">
@@ -375,7 +396,7 @@
             </div><!-- Fin panel-despacho-ot -->
 
             <!-- Tab 2: Recepcion de Material -->
-            <div class="tab-pane fade" id="panel-recepcion" role="tabpanel">
+            <div class="tab-pane fade show active" id="panel-recepcion" role="tabpanel">
                 <div class="row mb-3">
                     <div class="col-12">
                         <h6 class="text-muted mb-2">
@@ -424,6 +445,22 @@
                                         <div class="col-md-6">
                                             <label class="form-label small fw-bold">N° Orden de Compra</label>
                                             <input type="text" class="form-control form-control-sm" id="recepcionOrdenCompra" placeholder="Numero de orden de compra">
+                                        </div>
+
+                                        <!-- Opcion bobinas individuales -->
+                                        <div class="col-12">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="recepcionGenerarBobinas">
+                                                <label class="form-check-label small" for="recepcionGenerarBobinas">
+                                                    <strong>Generar bobinas individuales</strong>
+                                                    <small class="text-muted">(para sustratos - crea N bobinas con codigo unico y trazabilidad por bobina)</small>
+                                                </label>
+                                            </div>
+                                            <div class="alert alert-info py-1 px-2 mt-2 small" id="bobinasInfoBox" style="display:none;">
+                                                <i class="bi bi-info-circle me-1"></i>
+                                                Por cada sustrato, agregue una columna <strong>N° Bobinas</strong> que indique cuantas bobinas fisicas llegaron.
+                                                El sistema dividira el peso total entre las bobinas.
+                                            </div>
                                         </div>
 
                                         <!-- Tabla de items recibidos -->
@@ -650,6 +687,7 @@
     <script src="src/js/utils/config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="src/js/utils/supabase-client.js"></script>
+    <script src="src/js/utils/bobinas-service.js"></script>
     <script src="src/js/utils/api.js"></script>
     <script src="src/js/utils/sync-manager.js"></script>
     <script src="src/js/utils/sync-realtime.js"></script>

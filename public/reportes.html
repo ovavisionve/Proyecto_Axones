@@ -17,6 +17,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SheetJS para exportar Excel real -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <link href="src/css/main.css" rel="stylesheet">
     <style>
         .report-tab { cursor: pointer; transition: all 0.2s; }
@@ -59,6 +61,7 @@
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"><i class="bi bi-clipboard-data me-1"></i> Produccion</a>
                         <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="montaje.html"><i class="bi bi-puzzle me-2"></i>Montaje</a></li>
                             <li><a class="dropdown-item" href="impresion.html"><i class="bi bi-printer me-2"></i>Impresion</a></li>
                             <li><a class="dropdown-item" href="laminacion.html"><i class="bi bi-layers me-2"></i>Laminacion</a></li>
                             <li><a class="dropdown-item" href="corte.html"><i class="bi bi-scissors me-2"></i>Corte</a></li>
@@ -78,12 +81,20 @@
                         </ul>
                     </li>
                     <li class="nav-item"><a class="nav-link" href="inventario.html"><i class="bi bi-box-seam me-1"></i> Inventario</a></li>
-                    <li class="nav-item"><a class="nav-link" href="almacen.html"><i class="bi bi-building me-1"></i> Almacen</a></li>
+                    <li class="nav-item"><a class="nav-link" href="solicitud-despacho.html"><i class="bi bi-cart-plus me-1"></i> Solicitudes</a></li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="despacho.html">
+                            <i class="bi bi-truck me-1"></i> Despacho
+                        </a>
+                    </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"><i class="bi bi-database me-1"></i> Datos Maestros</a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="clientes.html"><i class="bi bi-people me-2"></i>Clientes</a></li>
                             <li><a class="dropdown-item" href="proveedores.html"><i class="bi bi-truck me-2"></i>Proveedores</a></li>
+                            <li><a class="dropdown-item" href="productos.html"><i class="bi bi-box me-2"></i>Productos</a></li>
+                            <li><a class="dropdown-item" href="ordenes.html"><i class="bi bi-clipboard-check me-2"></i>Ordenes de Clientes</a></li>
+                            <li><a class="dropdown-item" href="ordenes-compra.html"><i class="bi bi-cart-check me-2"></i>Ordenes de Compra</a></li>
                         </ul>
                     </li>
                     <li class="nav-item"><a class="nav-link" href="alertas.html"><i class="bi bi-bell me-1"></i> Alertas <span class="badge bg-danger ms-1" id="alertasBadge" style="display: none;">0</span></a></li>
@@ -159,6 +170,11 @@
             <li class="nav-item">
                 <a class="nav-link" href="#" data-tab="graficos" onclick="ReportesModule.cambiarTab('graficos', event)">
                     <i class="bi bi-graph-up me-1"></i>Graficos
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link text-success fw-bold" href="#" data-tab="mensuales" onclick="ReportesModule.cambiarTab('mensuales', event)">
+                    <i class="bi bi-file-earmark-excel me-1"></i>Reportes Descargables
                 </a>
             </li>
         </ul>
@@ -274,6 +290,188 @@
                 </div>
             </div>
         </div>
+
+        <!-- Reportes Mensuales Descargables -->
+        <div id="tabMensuales" style="display:none;">
+            <div class="alert alert-info py-2 mb-3">
+                <i class="bi bi-info-circle me-1"></i>
+                Reportes descargables en Excel y PDF. Seleccione el periodo y haga click en el boton del reporte deseado.
+            </div>
+
+            <!-- Selector de periodo -->
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body py-3">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label small">Periodo rapido</label>
+                            <select class="form-select form-select-sm" id="periodoRapido" onchange="ReportesMensuales.setPeriodoRapido(this.value)">
+                                <option value="">-- Seleccionar --</option>
+                                <option value="hoy">Hoy</option>
+                                <option value="semana">Esta semana</option>
+                                <option value="mes" selected>Este mes</option>
+                                <option value="mes_anterior">Mes anterior</option>
+                                <option value="trimestre">Este trimestre</option>
+                                <option value="año">Este año</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Desde</label>
+                            <input type="date" class="form-control form-control-sm" id="repDesde">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Hasta</label>
+                            <input type="date" class="form-control form-control-sm" id="repHasta">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <!-- Produccion General del Mes -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="card border-primary shadow-sm h-100">
+                        <div class="card-body">
+                            <h6 class="text-primary"><i class="bi bi-clipboard-data me-1"></i>Produccion General</h6>
+                            <p class="small text-muted mb-2">Consolidado de impresion, laminacion y corte en el periodo. Kg producidos, OTs, merma.</p>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-sm btn-outline-success" onclick="ReportesMensuales.produccionGeneral('xlsx')">
+                                    <i class="bi bi-file-earmark-excel me-1"></i>Descargar Excel
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="ReportesMensuales.produccionGeneral('pdf')">
+                                    <i class="bi bi-file-earmark-pdf me-1"></i>PDF Imprimible
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Merma del Mes + por Orden -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="card border-warning shadow-sm h-100">
+                        <div class="card-body">
+                            <h6 class="text-warning"><i class="bi bi-percent me-1"></i>Merma</h6>
+                            <p class="small text-muted mb-2">Merma del mes total y desglosada por orden. Identifica OTs con merma elevada.</p>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-sm btn-outline-success" onclick="ReportesMensuales.merma('xlsx')">
+                                    <i class="bi bi-file-earmark-excel me-1"></i>Descargar Excel
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="ReportesMensuales.merma('pdf')">
+                                    <i class="bi bi-file-earmark-pdf me-1"></i>PDF Imprimible
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Despachos del Mes -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="card border-success shadow-sm h-100">
+                        <div class="card-body">
+                            <h6 class="text-success"><i class="bi bi-truck me-1"></i>Despachos</h6>
+                            <p class="small text-muted mb-2">Notas de entrega del mes. Cliente, OT, Kg, chofer, paletas, fechas.</p>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-sm btn-outline-success" onclick="ReportesMensuales.despachos('xlsx')">
+                                    <i class="bi bi-file-earmark-excel me-1"></i>Descargar Excel
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="ReportesMensuales.despachos('pdf')">
+                                    <i class="bi bi-file-earmark-pdf me-1"></i>PDF Imprimible
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Consumo de Tintas -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="card border-info shadow-sm h-100">
+                        <div class="card-body">
+                            <h6 class="text-info"><i class="bi bi-droplet me-1"></i>Consumo de Tintas</h6>
+                            <p class="small text-muted mb-2">Consumo mensual y por orden. Detalle de tintas laminacion vs superficie.</p>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-sm btn-outline-success" onclick="ReportesMensuales.consumoTintas('xlsx')">
+                                    <i class="bi bi-file-earmark-excel me-1"></i>Descargar Excel
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="ReportesMensuales.consumoTintas('pdf')">
+                                    <i class="bi bi-file-earmark-pdf me-1"></i>PDF Imprimible
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Material por Orden -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="card border-secondary shadow-sm h-100">
+                        <div class="card-body">
+                            <h6 class="text-secondary"><i class="bi bi-box-seam me-1"></i>Material por Orden</h6>
+                            <p class="small text-muted mb-2">Resumen del material consumido en cada OT (todas las fases). Total por orden.</p>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-sm btn-outline-success" onclick="ReportesMensuales.materialPorOrden('xlsx')">
+                                    <i class="bi bi-file-earmark-excel me-1"></i>Descargar Excel
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="ReportesMensuales.materialPorOrden('pdf')">
+                                    <i class="bi bi-file-earmark-pdf me-1"></i>PDF Imprimible
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rendimiento Turnos y Maquinas -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="card border-dark shadow-sm h-100">
+                        <div class="card-body">
+                            <h6 class="text-dark"><i class="bi bi-speedometer2 me-1"></i>Rendimiento Turnos y Maquinas</h6>
+                            <p class="small text-muted mb-2">Produccion por turno, utilizacion real de maquina vs tiempo disponible.</p>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-sm btn-outline-success" onclick="ReportesMensuales.rendimiento('xlsx')">
+                                    <i class="bi bi-file-earmark-excel me-1"></i>Descargar Excel
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="ReportesMensuales.rendimiento('pdf')">
+                                    <i class="bi bi-file-earmark-pdf me-1"></i>PDF Imprimible
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bobinas Rechazadas -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="card border-danger shadow-sm h-100">
+                        <div class="card-body">
+                            <h6 class="text-danger"><i class="bi bi-x-octagon me-1"></i>Bobinas Rechazadas</h6>
+                            <p class="small text-muted mb-2">Inventario de bobinas rechazadas. Proveedor, motivo, Kg.</p>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-sm btn-outline-success" onclick="ReportesMensuales.bobinasRechazadas('xlsx')">
+                                    <i class="bi bi-file-earmark-excel me-1"></i>Descargar Excel
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="ReportesMensuales.bobinasRechazadas('pdf')">
+                                    <i class="bi bi-file-earmark-pdf me-1"></i>PDF Imprimible
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Movimientos de Inventario -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="card border-info shadow-sm h-100">
+                        <div class="card-body">
+                            <h6 class="text-info"><i class="bi bi-arrow-left-right me-1"></i>Movimientos de Inventario</h6>
+                            <p class="small text-muted mb-2">Todas las entradas y salidas del almacen en el periodo.</p>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-sm btn-outline-success" onclick="ReportesMensuales.movimientos('xlsx')">
+                                    <i class="bi bi-file-earmark-excel me-1"></i>Descargar Excel
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="ReportesMensuales.movimientos('pdf')">
+                                    <i class="bi bi-file-earmark-pdf me-1"></i>PDF Imprimible
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </main>
 
     <!-- Modal Detalle OT -->
@@ -331,6 +529,7 @@
     <script src="src/js/main.js"></script>
     <script src="src/js/utils/theme.js"></script>
     <script src="src/js/modules/reportes.js"></script>
+    <script src="src/js/modules/reportes-mensuales.js"></script>
     <script src="src/js/modules/ayuda.js"></script>
 </body>
 </html>

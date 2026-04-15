@@ -136,6 +136,7 @@
                             <i class="bi bi-clipboard-data me-1"></i> Produccion
                         </a>
                         <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="montaje.html"><i class="bi bi-puzzle me-2"></i>Montaje</a></li>
                             <li><a class="dropdown-item" href="impresion.html"><i class="bi bi-printer me-2"></i>Control de Impresion</a></li>
                             <li><a class="dropdown-item" href="laminacion.html"><i class="bi bi-layers me-2"></i>Control de Laminacion</a></li>
                             <li><a class="dropdown-item" href="corte.html"><i class="bi bi-scissors me-2"></i>Control de Corte</a></li>
@@ -168,8 +169,13 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="almacen.html">
-                            <i class="bi bi-building me-1"></i> Almacen
+                        <a class="nav-link" href="solicitud-despacho.html">
+                            <i class="bi bi-cart-plus me-1"></i> Solicitudes
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="despacho.html">
+                            <i class="bi bi-truck me-1"></i> Despacho
                         </a>
                     </li>
                     <li class="nav-item dropdown">
@@ -179,6 +185,9 @@
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="clientes.html"><i class="bi bi-people me-2"></i>Clientes</a></li>
                             <li><a class="dropdown-item" href="proveedores.html"><i class="bi bi-truck me-2"></i>Proveedores</a></li>
+                            <li><a class="dropdown-item" href="productos.html"><i class="bi bi-box me-2"></i>Productos</a></li>
+                            <li><a class="dropdown-item" href="ordenes.html"><i class="bi bi-clipboard-check me-2"></i>Ordenes de Clientes</a></li>
+                            <li><a class="dropdown-item" href="ordenes-compra.html"><i class="bi bi-cart-check me-2"></i>Ordenes de Compra</a></li>
                         </ul>
                     </li>
                     <li class="nav-item">
@@ -308,14 +317,41 @@
                                         <span class="badge bg-secondary d-block py-2" id="consumoEstadoOT">Sin OT</span>
                                     </div>
                                 </div>
-                                <!-- Resumen auto-llenado desde OT (read-only) -->
+                                <!-- Resumen OT tipo spreadsheet (como impresion/laminacion/corte) -->
                                 <div id="resumenOTTintas" style="display:none;" class="mt-2">
-                                    <div class="row g-1" style="font-size:0.8rem;">
-                                        <div class="col-6"><strong>Cliente:</strong> <span id="consumoCliente">-</span></div>
-                                        <div class="col-6"><strong>Producto:</strong> <span id="consumoProducto">-</span></div>
-                                        <div class="col-4"><strong>Maquina:</strong> <span id="consumoMaquina">-</span></div>
-                                        <div class="col-4"><strong>Pedido:</strong> <span id="consumoKg">-</span> Kg</div>
-                                        <div class="col-4"><strong>Material:</strong> <span id="consumoMaterial">-</span></div>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-bordered mb-0" style="font-size:0.8rem;">
+                                            <tbody>
+                                                <tr class="table-light">
+                                                    <th style="width:25%">Cliente</th>
+                                                    <td id="consumoCliente">-</td>
+                                                    <th style="width:25%">RIF</th>
+                                                    <td id="consumoRIF">-</td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Producto</th>
+                                                    <td id="consumoProducto">-</td>
+                                                    <th>CPE / SKU</th>
+                                                    <td id="consumoCPE">-</td>
+                                                </tr>
+                                                <tr class="table-light">
+                                                    <th>Material</th>
+                                                    <td id="consumoMaterial">-</td>
+                                                    <th>Estructura</th>
+                                                    <td id="consumoEstructura">-</td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Maquina</th>
+                                                    <td id="consumoMaquina">-</td>
+                                                    <th>Kg Pedidos</th>
+                                                    <td><strong id="consumoKg">-</strong> Kg</td>
+                                                </tr>
+                                                <tr class="table-light">
+                                                    <th>Colores</th>
+                                                    <td colspan="3" id="consumoColores">-</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
                             </div>
@@ -334,8 +370,7 @@
                                                 <th style="width:17%">Proveedor</th>
                                                 <th style="width:12%">Tipo</th>
                                                 <th style="width:10%">Fuente</th>
-                                                <th style="width:10%">Kg Usado</th>
-                                                <th style="width:10%">Kg Rest.</th>
+                                                <th style="width:12%">Kg Usado</th>
                                                 <th style="width:3%"></th>
                                             </tr>
                                         </thead>
@@ -344,7 +379,6 @@
                                             <tr style="background: #e9d5ff;">
                                                 <td colspan="5" class="fw-bold text-end">Total:</td>
                                                 <td class="fw-bold" id="totalTintasUsadas">0.00</td>
-                                                <td class="fw-bold" id="totalTintasRestante">0.00</td>
                                                 <td></td>
                                             </tr>
                                         </tfoot>
@@ -352,6 +386,39 @@
                                 </div>
                                 <button type="button" class="btn btn-sm btn-outline-primary" id="btnAgregarTintaConsumo">
                                     <i class="bi bi-plus-circle me-1"></i>Agregar tinta
+                                </button>
+                            </div>
+
+                            <!-- Devolucion de Tintas -->
+                            <div class="form-section">
+                                <div class="form-section-title" style="border-color: #198754;">
+                                    <i class="bi bi-arrow-return-left me-1"></i> Devolucion de Tintas (Kg)
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered mb-1">
+                                        <thead style="background: #d1e7dd;">
+                                            <tr>
+                                                <th style="width:18%">Codigo</th>
+                                                <th style="width:22%">Color</th>
+                                                <th style="width:17%">Proveedor</th>
+                                                <th style="width:12%">Tipo</th>
+                                                <th style="width:10%">Fuente</th>
+                                                <th style="width:12%">Kg Devuelto</th>
+                                                <th style="width:3%"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="bodyDevolucionTintas"></tbody>
+                                        <tfoot>
+                                            <tr style="background: #d1e7dd;">
+                                                <td colspan="5" class="fw-bold text-end">Total Devolucion:</td>
+                                                <td class="fw-bold" id="totalTintasDevueltas">0.00</td>
+                                                <td></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-success" id="btnAgregarTintaDevolucion">
+                                    <i class="bi bi-plus-circle me-1"></i>Agregar devolucion
                                 </button>
                             </div>
                         </div>
@@ -437,10 +504,7 @@
                             Originales <span class="badge badge-original ms-1" id="countOriginales">0</span>
                         </button>
                         <button class="btn btn-sm btn-outline-warning filter-btn" data-filter="solventada">
-                            Solventadas <span class="badge badge-solventada ms-1" id="countSolventadas">0</span>
-                        </button>
-                        <button class="btn btn-sm btn-outline-primary filter-btn" data-filter="arreglada">
-                            Arregladas <span class="badge badge-arreglada ms-1" id="countArregladas">0</span>
+                            Solventadas/Arregladas <span class="badge badge-solventada ms-1" id="countSolventadas">0</span>
                         </button>
                     </div>
                     <div class="d-flex gap-2">
@@ -611,8 +675,7 @@
                             <label class="form-label small">Categoria</label>
                             <select class="form-select form-select-sm" id="tintaCategoria">
                                 <option value="original">Original</option>
-                                <option value="solventada">Solventada</option>
-                                <option value="arreglada">Arreglada</option>
+                                <option value="solventada">Solventada / Arreglada</option>
                             </select>
                         </div>
                         <div class="col-6">

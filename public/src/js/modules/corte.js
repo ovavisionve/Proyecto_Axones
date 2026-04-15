@@ -823,6 +823,14 @@ const Corte = {
         const form = document.getElementById('formCorte');
         if (form) form.style.display = '';
 
+        // Fase 3: Selector de bobinas individuales (si disponible)
+        if (typeof BobinasSelector !== 'undefined' && document.getElementById('bobinasSelectorContainer')) {
+            BobinasSelector.renderIn('bobinasSelectorContainer', {
+                numeroOT: orden.numeroOrden || orden.ot,
+                fase: 'corte'
+            });
+        }
+
         // Actualizar badge
         const badge = document.getElementById('estadoOT');
         if (badge) {
@@ -1288,6 +1296,14 @@ const Corte = {
                     registrado_por_nombre: datos.registradoPorNombre || ''
                 });
                 console.log('[Corte] Registro guardado en Supabase');
+
+                // Fase 3: Procesar bobinas seleccionadas
+                if (typeof BobinasSelector !== 'undefined' && BobinasSelector.getSeleccionadas) {
+                    try {
+                        const res = await BobinasSelector.procesarSeleccion({ marcarConsumida: true });
+                        if (res.asignadas > 0) console.log(`[Corte] ${res.asignadas} bobinas procesadas`);
+                    } catch(e) { console.warn('[Corte] Error procesando bobinas:', e); }
+                }
             }
         } catch (error) {
             console.error('[Corte] Error guardando en Supabase:', error);

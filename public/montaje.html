@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Montaje - Axones</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#212529">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="src/css/main.css" rel="stylesheet">
+    <style>
+        .timer-display { font-family: 'Courier New', monospace; font-size: 2.5rem; font-weight: bold; color: #0d6efd; }
+        .timer-card { background: linear-gradient(135deg, #e9d5ff, #fef3c7); }
+        .alert-montaje-slow { background: #fff3cd; border-left: 4px solid #dc3545; padding: 10px; }
+        @media (max-width: 1024px) { input, select, textarea { min-height: 2.4rem; font-size: 0.95rem; } }
+        @media (max-width: 768px) { input, select, textarea { min-height: 2.8rem; font-size: 1rem; } }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="index.html">
+                <i class="bi bi-gear-wide-connected me-2"></i>
+                <span class="fw-bold">AXONES</span>
+                <span class="badge bg-warning text-dark ms-2">Montaje</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarMain">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item"><a class="nav-link" href="index.html"><i class="bi bi-house-door me-1"></i> Inicio</a></li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle active" href="#" data-bs-toggle="dropdown"><i class="bi bi-clipboard-data me-1"></i> Produccion</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item active" href="montaje.html"><i class="bi bi-puzzle me-2"></i>Montaje</a></li>
+                            <li><a class="dropdown-item" href="impresion.html"><i class="bi bi-printer me-2"></i>Impresion</a></li>
+                            <li><a class="dropdown-item" href="laminacion.html"><i class="bi bi-layers me-2"></i>Laminacion</a></li>
+                            <li><a class="dropdown-item" href="corte.html"><i class="bi bi-scissors me-2"></i>Corte</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="tintas.html"><i class="bi bi-droplet me-2"></i>Tintas</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item"><a class="nav-link" href="inventario.html"><i class="bi bi-box-seam me-1"></i> Inventario</a></li>
+                    <li class="nav-item"><a class="nav-link" href="solicitud-despacho.html"><i class="bi bi-cart-plus me-1"></i> Solicitudes</a></li>
+                    <li class="nav-item"><a class="nav-link" href="despacho.html"><i class="bi bi-truck me-1"></i> Despacho</a></li>
+                    <li class="nav-item"><a class="nav-link" href="programacion.html"><i class="bi bi-kanban me-1"></i> Programacion</a></li>
+                </ul>
+                <div class="d-flex align-items-center">
+                    <span class="text-light me-3" id="userInfo"><span id="userName">Usuario</span></span>
+                    <button class="btn btn-outline-light btn-sm" onclick="Auth.logout()">
+                        <i class="bi bi-box-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container-fluid" style="margin-top: 70px;">
+        <div class="row mb-3">
+            <div class="col">
+                <h4><i class="bi bi-puzzle text-warning me-2"></i>Area de Montaje</h4>
+                <small class="text-muted">Montaje de cliche y preparacion del cilindro de impresion</small>
+            </div>
+        </div>
+
+        <!-- Selector de OT -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold">Orden de Trabajo</label>
+                        <select class="form-select" id="montajeOT">
+                            <option value="">-- Seleccionar OT --</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Operador de Montaje</label>
+                        <input type="text" class="form-control" id="montajeOperador" placeholder="Nombre del operador">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resumen de la OT (oculto hasta seleccionar) -->
+        <div id="resumenOT" style="display:none;" class="card shadow-sm mb-3">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="bi bi-info-circle me-1"></i> Resumen de la OT</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered mb-0" style="font-size:0.9rem;">
+                        <tbody>
+                            <tr class="table-light">
+                                <th style="width:20%">Cliente</th><td id="ot-cliente">-</td>
+                                <th style="width:20%">Producto</th><td id="ot-producto">-</td>
+                            </tr>
+                            <tr>
+                                <th>CPE/SKU</th><td id="ot-cpe">-</td>
+                                <th>Maquina Impresion</th><td id="ot-maquina">-</td>
+                            </tr>
+                            <tr class="table-light">
+                                <th>Estructura</th><td id="ot-estructura">-</td>
+                                <th>Colores</th><td id="ot-colores">-</td>
+                            </tr>
+                            <tr>
+                                <th>Ancho (mm)</th><td id="ot-ancho">-</td>
+                                <th>Desarrollo</th><td id="ot-desarrollo">-</td>
+                            </tr>
+                            <tr class="table-light">
+                                <th>Figura Emb.</th><td id="ot-figura">-</td>
+                                <th>Pinon</th><td id="ot-pinon">-</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Temporizador -->
+        <div id="seccionMontaje" style="display:none;">
+            <div class="card shadow-sm mb-3 timer-card">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2"><i class="bi bi-stopwatch me-1"></i> Tiempo de Montaje</h6>
+                    <div class="timer-display" id="timerDisplay">00:00:00</div>
+                    <div class="mt-3">
+                        <button class="btn btn-success btn-lg" id="btnIniciar">
+                            <i class="bi bi-play-fill me-1"></i> Iniciar Montaje
+                        </button>
+                        <button class="btn btn-warning btn-lg d-none" id="btnFinalizar">
+                            <i class="bi bi-stop-fill me-1"></i> Finalizar Montaje
+                        </button>
+                    </div>
+                    <div id="alertaTiempo" class="alert-montaje-slow mt-3 d-none">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        <strong>ALERTA:</strong> El montaje ha superado la hora esperada.
+                        <br><small>Indique el motivo en observaciones.</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Material usado en montaje -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">
+                        <i class="bi bi-box-seam me-1"></i> Material Usado en Montaje
+                        <button class="btn btn-sm btn-outline-primary float-end" onclick="Montaje.agregarMaterial()">
+                            <i class="bi bi-plus me-1"></i>Agregar Material
+                        </button>
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width:15%">Tipo</th>
+                                    <th>Material / Descripcion</th>
+                                    <th style="width:12%">Cantidad</th>
+                                    <th style="width:12%">Unidad</th>
+                                    <th style="width:5%"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="bodyMaterialesMontaje">
+                                <!-- Filas dinamicas -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cliche / Observaciones -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="bi bi-card-text me-1"></i> Datos del Cliche y Observaciones</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">N° Cliche</label>
+                            <input type="text" class="form-control" id="numCliche">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">N° Cilindro</label>
+                            <input type="text" class="form-control" id="numCilindro">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Ayudante</label>
+                            <input type="text" class="form-control" id="ayudante">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Turno</label>
+                            <select class="form-select" id="turno">
+                                <option value="">--</option>
+                                <option value="D">Diurno (7am-4pm)</option>
+                                <option value="DHE">Diurno H.E. (4pm-7pm)</option>
+                                <option value="N">Nocturno (7pm-4am)</option>
+                                <option value="NHE">Nocturno H.E. (4am-7am)</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Observaciones <small class="text-muted">(obligatorio si montaje > 1h)</small></label>
+                            <textarea class="form-control" id="observaciones" rows="3" placeholder="Motivo de demora, problemas encontrados, notas..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botones -->
+            <div class="text-end mb-4">
+                <button class="btn btn-secondary me-2" onclick="Montaje.cancelar()">Cancelar</button>
+                <button class="btn btn-primary btn-lg" id="btnGuardarMontaje">
+                    <i class="bi bi-save me-1"></i> Guardar Montaje
+                </button>
+            </div>
+        </div>
+
+        <!-- Historial de montajes -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-clock-history me-1"></i> Montajes Recientes</h6>
+                <span class="badge bg-secondary" id="countHistorial">0</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fecha</th>
+                                <th>OT</th>
+                                <th>Cliente</th>
+                                <th>Maquina</th>
+                                <th>Operador</th>
+                                <th class="text-end">Duracion</th>
+                                <th class="text-center">Estado</th>
+                                <th class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaHistorialMontaje">
+                            <tr><td colspan="8" class="text-center text-muted py-4">No hay montajes registrados</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="src/js/utils/config.js"></script>
+    <script src="src/js/utils/auth.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="src/js/utils/supabase-client.js"></script>
+    <script src="src/js/utils/bobinas-service.js"></script>
+    <script src="src/js/utils/sync-realtime.js"></script>
+    <script src="src/js/modules/montaje.js"></script>
+</body>
+</html>

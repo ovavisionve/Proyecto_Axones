@@ -98,7 +98,7 @@ const HomeModule = {
     },
 
     // Cache interno de datos de Supabase
-    _cache: { produccion: [], alertas: [], inventario: [], tintas: [] },
+    _cache: { produccion: [], alertas: [], inventario: [], tintas: [], ordenes: [] },
 
     // Cargar datos del dashboard desde Supabase
     async cargarDatos() {
@@ -106,24 +106,82 @@ const HomeModule = {
         this.cargarDatosDesdeLocal();
     },
 
-    // Carga cache desde Supabase una sola vez
+    // Carga cache desde Supabase: AHORA LEE TABLAS REALES (no sync_store viejo)
     async _cargarCacheSupabase() {
         if (!AxonesDB.isReady()) return;
         try {
-            const [prod, alertas, inv, tintas] = await Promise.all([
-                AxonesDB.client.from('sync_store').select('value').eq('key', 'axones_produccion').maybeSingle(),
-                AxonesDB.client.from('alertas').select('*').order('created_at', { ascending: false }),
-                AxonesDB.client.from('materiales').select('*'),
+            const [imp, lam, cor, alertas, inv, tintas, ordenes] = await Promise.all([
+                // Tablas REALES de produccion (ultimos 30 dias para graficos)
+                AxonesDB.client.from('produccion_impresion').select('*').gte('fecha', this._fechaHace(30)),
+                AxonesDB.client.from('produccion_laminacion').select('*').gte('fecha', this._fechaHace(30)),
+                AxonesDB.client.from('produccion_corte').select('*').gte('fecha', this._fechaHace(30)),
+                // Alertas NO resueltas (sin filtro de fecha para no perder alertas pendientes)
+                AxonesDB.client.from('alertas').select('*').order('created_at', { ascending: false }).limit(100),
+                // Inventario real
+                AxonesDB.client.from('materiales').select('*').eq('activo', true),
                 AxonesDB.client.from('tintas').select('*'),
+                // OTs para estado de maquinas
+                AxonesDB.ordenesHelper ? AxonesDB.ordenesHelper.cargar() : Promise.resolve([]),
             ]);
-            this._cache.produccion = prod?.data?.value || [];
-            this._cache.alertas = alertas?.data || [];
+
+            // Consolidar produccion de las 3 fases en formato unificado
+            const normalizarProd = (registros, fase) => (registros || []).map(r => ({
+                id: r.id,
+                fecha: r.fecha,
+                fase: fase,
+                numeroOT: r.numero_ot,
+                maquina: r.maquina,
+                turno: r.turno,
+                operador: r.operador,
+                totalEntrada: parseFloat(r.total_entrada) || 0,
+                totalSalida: parseFloat(r.peso_total_salida || r.total_salida) || 0,
+                merma: parseFloat(r.merma) || 0,
+                scrap: parseFloat(r.total_scrap || r.scrap_refile) || 0,
+                porcentajeRefil: (function() {
+                    const ent = parseFloat(r.total_entrada) || 0;
+                    const merma = parseFloat(r.merma) || 0;
+                    return ent > 0 ? (merma / ent) * 100 : 0;
+                })(),
+            }));
+
+            this._cache.produccion = [
+                ...normalizarProd(imp?.data, 'impresion'),
+                ...normalizarProd(lam?.data, 'laminacion'),
+                ...normalizarProd(cor?.data, 'corte'),
+            ];
+
+            // Alertas: filtrar las NO resueltas
+            this._cache.alertas = (alertas?.data || []).filter(a =>
+                !a.resuelta && a.estado !== 'resuelta' && a.estado !== 'leida'
+            );
+
             this._cache.inventario = (inv?.data || []).map(m => ({
                 material: m.material, micras: m.micras, ancho: m.ancho,
-                kg: m.stock_kg || 0, producto: m.notas || ''
+                kg: parseFloat(m.stock_kg) || 0, producto: m.notas || ''
             }));
             this._cache.tintas = tintas?.data || [];
+            this._cache.ordenes = ordenes || [];
+
+            console.log('[Home] Cache cargado:', {
+                produccion: this._cache.produccion.length,
+                alertas: this._cache.alertas.length,
+                inventario: this._cache.inventario.length,
+                ordenes: this._cache.ordenes.length,
+            });
         } catch (e) { console.warn('[Home] Error cargando cache:', e.message); }
+    },
+
+    /** Devuelve fecha ISO de hace N dias */
+    _fechaHace: function(dias) {
+        const d = new Date();
+        d.setDate(d.getDate() - dias);
+        return d.toISOString().split('T')[0];
+    },
+
+    /** Devuelve registros de produccion de HOY */
+    _getProduccionHoy: function() {
+        const hoy = new Date().toISOString().split('T')[0];
+        return this._cache.produccion.filter(r => (r.fecha || '').split('T')[0] === hoy);
     },
 
     // Helpers para obtener datos del cache
@@ -911,27 +969,27 @@ const HomeModule = {
 
     // Obtener produccion del dia
     obtenerProduccionHoy() {
-        const hoy = new Date().toLocaleDateString('es-VE');
-        const registros = this._getProduccion();
-
-        const registrosHoy = registros.filter(r => {
-            const fechaRegistro = new Date(r.fecha).toLocaleDateString('es-VE');
-            return fechaRegistro === hoy;
-        });
-
-        const totalKg = registrosHoy.reduce((sum, r) => sum + (parseFloat(r.totalSalida) || 0), 0);
-
+        // Usa helper que compara fecha ISO correctamente
+        const registrosHoy = this._getProduccionHoy();
+        // Para "kg producidos hoy" usamos salida de CORTE (es el producto terminado)
+        // Si no hay corte aun, usamos salida de la fase mas avanzada
+        const corte = registrosHoy.filter(r => r.fase === 'corte');
+        const lam = registrosHoy.filter(r => r.fase === 'laminacion');
+        const imp = registrosHoy.filter(r => r.fase === 'impresion');
+        const grupo = corte.length > 0 ? corte : (lam.length > 0 ? lam : imp);
+        const totalKg = grupo.reduce((sum, r) => sum + r.totalSalida, 0);
         return {
             registros: registrosHoy,
-            totalKg: totalKg,
-            cantidad: registrosHoy.length
+            totalKg,
+            cantidad: registrosHoy.length,
+            ots: [...new Set(registrosHoy.map(r => r.numeroOT).filter(Boolean))].length,
         };
     },
 
-    // Obtener alertas pendientes
+    // Obtener alertas pendientes (sin limite de tiempo - mientras no esten resueltas)
     obtenerAlertasPendientes() {
-        const alertas = this._getAlertas();
-        return alertas.filter(a => a.estado === 'pendiente' || a.estado === 'activa');
+        // El cache ya filtra las resueltas, devolvemos todo
+        return this._getAlertas();
     },
 
     // Obtener total de inventario
@@ -940,16 +998,14 @@ const HomeModule = {
         return inventario.reduce((sum, item) => sum + (parseFloat(item.kg) || 0), 0);
     },
 
-    // Calcular promedio de refil del dia
+    // Calcular promedio de refil del dia (merma/entrada * 100)
     calcularRefilPromedio() {
-        const produccionHoy = this.obtenerProduccionHoy();
-        if (produccionHoy.cantidad === 0) return 0;
-
-        const totalRefil = produccionHoy.registros.reduce((sum, r) => {
-            return sum + (parseFloat(r.porcentajeRefil) || 0);
-        }, 0);
-
-        return totalRefil / produccionHoy.cantidad;
+        const registrosHoy = this._getProduccionHoy();
+        if (registrosHoy.length === 0) return 0;
+        // Refil ponderado: sum(merma) / sum(entrada) * 100
+        const totalEntrada = registrosHoy.reduce((s, r) => s + r.totalEntrada, 0);
+        const totalMerma = registrosHoy.reduce((s, r) => s + r.merma, 0);
+        return totalEntrada > 0 ? (totalMerma / totalEntrada) * 100 : 0;
     },
 
     // Cargar alertas recientes
@@ -1004,7 +1060,8 @@ const HomeModule = {
         const produccion = this.obtenerProduccionHoy();
 
         if (totalOTsHoy) {
-            totalOTsHoy.textContent = `${produccion.cantidad} OTs`;
+            // Mostrar OTs unicas (no registros totales)
+            totalOTsHoy.textContent = `${produccion.ots || 0} OTs`;
         }
 
         if (produccion.cantidad === 0) {
@@ -1020,25 +1077,27 @@ const HomeModule = {
             return;
         }
 
-        // Mostrar resumen por maquina
+        // Mostrar resumen por maquina (cada registro ya tiene fase asignada)
         const porMaquina = {};
         produccion.registros.forEach(r => {
-            const maq = r.maquina || 'Sin asignar';
+            const maq = `${r.maquina || 'Sin asignar'} (${r.fase})`;
             if (!porMaquina[maq]) {
-                porMaquina[maq] = { cantidad: 0, kg: 0, refil: [] };
+                porMaquina[maq] = { cantidad: 0, kg: 0, entrada: 0, merma: 0 };
             }
             porMaquina[maq].cantidad++;
-            porMaquina[maq].kg += parseFloat(r.totalSalida) || 0;
-            porMaquina[maq].refil.push(parseFloat(r.porcentajeRefil) || 0);
+            porMaquina[maq].kg += r.totalSalida;
+            porMaquina[maq].entrada += r.totalEntrada;
+            porMaquina[maq].merma += r.merma;
         });
 
         let html = '<div class="table-responsive"><table class="table table-sm mb-0">';
-        html += '<thead class="table-light"><tr><th>Maquina</th><th class="text-center">OTs</th><th class="text-end">Kg</th><th class="text-end">Refil %</th></tr></thead>';
+        html += '<thead class="table-light"><tr><th>Maquina</th><th class="text-center">Reg</th><th class="text-end">Kg</th><th class="text-end">Refil %</th></tr></thead>';
         html += '<tbody>';
 
         Object.keys(porMaquina).forEach(maq => {
             const data = porMaquina[maq];
-            const refilProm = data.refil.reduce((a, b) => a + b, 0) / data.refil.length;
+            // Refil ponderado: merma total / entrada total
+            const refilProm = data.entrada > 0 ? (data.merma / data.entrada) * 100 : 0;
             const refilClass = refilProm > CONFIG.UMBRALES_REFIL.default.maximo ? 'text-danger' :
                              refilProm > CONFIG.UMBRALES_REFIL.default.advertencia ? 'text-warning' : 'text-success';
 
@@ -1099,16 +1158,35 @@ const HomeModule = {
         const container = document.getElementById('listaMaquinas');
         if (!container) return;
 
-        // Crear estado de maquinas desde CONFIG
+        // Determinar estado real segun OTs activas hoy
+        const ordenes = this._cache.ordenes || [];
+        const prodHoy = this._getProduccionHoy();
+
+        const maquinaActiva = (nombreMaquina) => {
+            const nombreUp = (nombreMaquina || '').toUpperCase();
+            // Hay registro de produccion hoy en esta maquina
+            const tieneProdHoy = prodHoy.some(p =>
+                (p.maquina || '').toUpperCase().includes(nombreUp) ||
+                nombreUp.includes((p.maquina || '').toUpperCase())
+            );
+            // OT activa asignada a esta maquina (en proceso)
+            const otActiva = ordenes.find(o =>
+                ['montaje', 'impresion', 'laminacion', 'corte'].includes(o.estadoOrden) &&
+                (o.maquina || '').toUpperCase().includes(nombreUp)
+            );
+            if (tieneProdHoy) return { estado: 'active', ot: otActiva?.numeroOrden };
+            if (otActiva) return { estado: 'idle', ot: otActiva.numeroOrden };
+            return { estado: 'idle', ot: null };
+        };
+
         const maquinas = [];
-        CONFIG.MAQUINAS.IMPRESORAS.forEach(m => {
-            maquinas.push({ id: m.id, nombre: m.nombre, estado: 'active' });
-        });
-        CONFIG.MAQUINAS.LAMINADORAS.forEach(m => {
-            maquinas.push({ id: m.id, nombre: m.nombre, estado: 'active' });
-        });
-        CONFIG.MAQUINAS.CORTADORAS.forEach(m => {
-            maquinas.push({ id: m.id, nombre: m.nombre, estado: 'active' });
+        [...CONFIG.MAQUINAS.IMPRESORAS, ...CONFIG.MAQUINAS.LAMINADORAS, ...CONFIG.MAQUINAS.CORTADORAS].forEach(m => {
+            const estado = maquinaActiva(m.nombre);
+            maquinas.push({
+                id: m.id,
+                nombre: m.nombre + (estado.ot ? ` (${estado.ot})` : ''),
+                estado: estado.estado
+            });
         });
         this.renderizarMaquinas(maquinas);
     },

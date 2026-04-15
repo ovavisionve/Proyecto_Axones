@@ -2283,8 +2283,21 @@ const Ordenes = {
                 if (!ordenData.estadoOrden || ordenData.estadoOrden === 'pendiente') {
                     ordenData.estadoOrden = 'nueva';
                 }
-                const guardada = await AxonesDB.ordenesHelper.crear(ordenData);
-                ordenData.id = guardada.id;
+                try {
+                    const guardada = await AxonesDB.ordenesHelper.crear(ordenData);
+                    ordenData.id = guardada.id;
+                } catch (err) {
+                    // Fallback: si el check constraint no acepta 'nueva'
+                    // (BD sin migracion 007), reintenta con 'pendiente'
+                    if (err?.message?.includes('estado_check') || err?.code === '23514') {
+                        console.warn('[Ordenes] Check constraint no permite "nueva", reintentando con "pendiente". Ejecute migration-007-estados-ot.sql para activar estado "nueva".');
+                        ordenData.estadoOrden = 'pendiente';
+                        const guardada = await AxonesDB.ordenesHelper.crear(ordenData);
+                        ordenData.id = guardada.id;
+                    } else {
+                        throw err;
+                    }
+                }
                 this.ordenes.push(ordenData);
             }
         } catch (error) {

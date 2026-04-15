@@ -655,7 +655,7 @@ ${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="
             <td><select class="form-select form-select-sm rec-tipo" onchange="Almacen.onTipoRecepcionChange(this)">
                 <option value="">Tipo...</option>
                 <option value="Sustrato">Sustrato</option><option value="Tinta">Tinta</option>
-                <option value="Quimico">Quimico</option><option value="Consumible">Consumible</option><option value="Otro">Otro</option>
+                <option value="Quimico">Quimico</option><option value="Miscelaneo">Miscelaneo</option><option value="Consumible">Consumible</option><option value="Otro">Otro</option>
             </select></td>
             <td><input type="text" class="form-control form-control-sm rec-desc" list="listaMaterialesRec_${n}" placeholder="Escribir o seleccionar...">
                 <datalist id="listaMaterialesRec_${n}"></datalist>
@@ -773,10 +773,10 @@ ${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="
         });
         if (items.length === 0) { alert('Agregue al menos un item'); return; }
 
-        // Validacion: comprobante obligatorio si hay miscelaneos (Consumible u Otro)
-        const tieneMisc = items.some(i => i.tipo === 'Consumible' || i.tipo === 'Otro');
+        // Validacion: comprobante obligatorio si hay miscelaneos
+        const tieneMisc = items.some(i => i.tipo === 'Miscelaneo' || i.tipo === 'Consumible' || i.tipo === 'Otro');
         if (tieneMisc && !this._comprobanteBase64) {
-            alert('Para recepciones de miscelaneos (Consumibles/Otros) es obligatorio adjuntar foto de la factura o comprobante.');
+            alert('Para recepciones de miscelaneos es obligatorio adjuntar foto de la factura o comprobante.');
             document.getElementById('recepcionComprobante')?.focus();
             return;
         }

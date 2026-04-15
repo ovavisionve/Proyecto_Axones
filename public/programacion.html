@@ -376,7 +376,18 @@
 
         <!-- Kanban Board -->
         <div class="kanban-container" id="kanbanBoard">
-            <!-- Pendientes -->
+            <!-- Por Revisar (OTs nuevas pendientes de confirmar/planificar) -->
+            <div class="kanban-column">
+                <div class="kanban-header" style="background:#e2e3e5; color:#495057; border-left:4px solid #6c757d;">
+                    <span><i class="bi bi-inbox me-2"></i>Por Revisar</span>
+                    <span class="badge bg-dark" id="countNuevas">0</span>
+                </div>
+                <div class="kanban-body" id="colNuevas" data-status="nueva">
+                    <!-- OTs recien creadas por cliente, aun sin confirmar/planificar -->
+                </div>
+            </div>
+
+            <!-- Pendientes de OT (confirmadas, esperando recurso) -->
             <div class="kanban-column">
                 <div class="kanban-header pendiente">
                     <span><i class="bi bi-hourglass-split me-2"></i>Pendientes</span>

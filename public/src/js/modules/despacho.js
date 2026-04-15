@@ -37,8 +37,8 @@ const Despacho = {
                 this.cortes = cortes || [];
                 // Cargar historial
                 const { data: notas } = await AxonesDB.client.from('sync_store')
-                    .select('valor').eq('clave', 'axones_notas_despacho').maybeSingle();
-                this.notas = notas?.valor ? JSON.parse(notas.valor) : [];
+                    .select('value').eq('key', 'axones_notas_despacho').maybeSingle();
+                this.notas = notas?.value ? JSON.parse(notas.valor) : [];
             }
         } catch(e) { console.warn('Despacho: Error cargando datos:', e); }
 
@@ -296,10 +296,10 @@ const Despacho = {
         try {
             if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
                 await AxonesDB.client.from('sync_store').upsert({
-                    clave: 'axones_notas_despacho',
-                    valor: json,
+                    key: 'axones_notas_despacho',
+                    value: json,
                     updated_at: new Date().toISOString()
-                }, { onConflict: 'clave' });
+                }, { onConflict: 'key' });
             }
         } catch(e) { console.error('Despacho: Error guardando:', e); }
     },
@@ -309,8 +309,8 @@ const Despacho = {
             let movs = [];
             if (AxonesDB.isReady()) {
                 const { data } = await AxonesDB.client.from('sync_store')
-                    .select('valor').eq('clave', 'axones_movimientos_almacen').maybeSingle();
-                movs = data?.valor ? JSON.parse(data.valor) : [];
+                    .select('value').eq('key', 'axones_movimientos_almacen').maybeSingle();
+                movs = data?.value ? JSON.parse(data.value) : [];
             }
             movs.unshift({
                 id: 'mov-' + nota.id,
@@ -329,10 +329,10 @@ const Despacho = {
             localStorage.setItem('axones_movimientos_almacen', json);
             if (AxonesDB.isReady()) {
                 await AxonesDB.client.from('sync_store').upsert({
-                    clave: 'axones_movimientos_almacen',
-                    valor: json,
+                    key: 'axones_movimientos_almacen',
+                    value: json,
                     updated_at: new Date().toISOString()
-                }, { onConflict: 'clave' });
+                }, { onConflict: 'key' });
             }
         } catch(e) { console.error('Despacho: Error registrando movimiento:', e); }
     },

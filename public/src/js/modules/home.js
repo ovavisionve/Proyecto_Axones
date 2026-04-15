@@ -125,6 +125,7 @@ const HomeModule = {
             ]);
 
             // Consolidar produccion de las 3 fases en formato unificado
+            // Nota: impresion y laminacion tienen 'peso_total', corte tiene 'peso_total_salida'
             const normalizarProd = (registros, fase) => (registros || []).map(r => ({
                 id: r.id,
                 fecha: r.fecha,
@@ -134,9 +135,9 @@ const HomeModule = {
                 turno: r.turno,
                 operador: r.operador,
                 totalEntrada: parseFloat(r.total_entrada) || 0,
-                totalSalida: parseFloat(r.peso_total_salida || r.total_salida) || 0,
+                totalSalida: parseFloat(r.peso_total_salida ?? r.peso_total ?? r.total_salida) || 0,
                 merma: parseFloat(r.merma) || 0,
-                scrap: parseFloat(r.total_scrap || r.scrap_refile) || 0,
+                scrap: parseFloat(r.total_scrap ?? r.scrap_refile) || 0,
                 porcentajeRefil: (function() {
                     const ent = parseFloat(r.total_entrada) || 0;
                     const merma = parseFloat(r.merma) || 0;

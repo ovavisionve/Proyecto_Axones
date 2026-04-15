@@ -51,6 +51,8 @@ const Almacen = {
         // Recepcion
         document.getElementById('btnAgregarItemRecepcion')?.addEventListener('click', () => this.agregarFilaRecepcion());
         document.getElementById('formRecepcion')?.addEventListener('submit', (e) => { e.preventDefault(); this.registrarRecepcion(); });
+        // Adjuntar foto de comprobante
+        document.getElementById('recepcionComprobante')?.addEventListener('change', (e) => this.procesarComprobante(e.target.files[0]));
         // Toggle columnas de bobinas individuales
         document.getElementById('recepcionGenerarBobinas')?.addEventListener('change', (e) => {
             const show = e.target.checked;
@@ -582,6 +584,67 @@ ${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="
 
     // ==================== TAB 2: RECEPCION ====================
 
+    // ==================== FOTO COMPROBANTE ====================
+
+    /** Procesa foto seleccionada: comprime + preview + guarda en memoria */
+    procesarComprobante: async function(file) {
+        if (!file) { this._comprobanteBase64 = null; return; }
+        try {
+            const base64 = await this._comprimirImagen(file, 800, 0.7);
+            this._comprobanteBase64 = base64;
+            const img = document.getElementById('imgPreviewComprobante');
+            const prev = document.getElementById('previewComprobante');
+            if (img) img.src = base64;
+            if (prev) prev.style.display = '';
+            console.log(`[Almacen] Comprobante comprimido: ${Math.round(base64.length/1024)} KB`);
+        } catch(e) {
+            console.error('[Almacen] Error procesando foto:', e);
+            alert('Error al procesar la imagen');
+        }
+    },
+
+    /** Comprime imagen con canvas - reduce dimensiones + calidad JPEG */
+    _comprimirImagen: function(file, maxDim, calidad) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    let w = img.width, h = img.height;
+                    if (w > h && w > maxDim) { h = Math.round(h * maxDim / w); w = maxDim; }
+                    else if (h > maxDim) { w = Math.round(w * maxDim / h); h = maxDim; }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w; canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    resolve(canvas.toDataURL('image/jpeg', calidad));
+                };
+                img.onerror = reject;
+                img.src = e.target.result;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    },
+
+    quitarComprobante: function() {
+        this._comprobanteBase64 = null;
+        const inp = document.getElementById('recepcionComprobante');
+        if (inp) inp.value = '';
+        const prev = document.getElementById('previewComprobante');
+        if (prev) prev.style.display = 'none';
+    },
+
+    verComprobanteFullscreen: function(base64) {
+        const src = base64 || this._comprobanteBase64;
+        if (!src) return;
+        const w = window.open('', '_blank');
+        w.document.write(`<html><head><title>Comprobante</title></head>
+            <body style="margin:0; background:#000; display:flex; align-items:center; justify-content:center; min-height:100vh;">
+                <img src="${src}" style="max-width:100%; max-height:100vh;">
+            </body></html>`);
+    },
+
     agregarFilaRecepcion: function() {
         const tbody = document.getElementById('tablaItemsRecepcion');
         if (!tbody) return;
@@ -710,6 +773,14 @@ ${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="
         });
         if (items.length === 0) { alert('Agregue al menos un item'); return; }
 
+        // Validacion: comprobante obligatorio si hay miscelaneos (Consumible u Otro)
+        const tieneMisc = items.some(i => i.tipo === 'Consumible' || i.tipo === 'Otro');
+        if (tieneMisc && !this._comprobanteBase64) {
+            alert('Para recepciones de miscelaneos (Consumibles/Otros) es obligatorio adjuntar foto de la factura o comprobante.');
+            document.getElementById('recepcionComprobante')?.focus();
+            return;
+        }
+
         // Generar correlativo y armar documento de recepcion
         const correlativo = await this.generarCorrelativoRecepcion();
         const recepcion = {
@@ -724,6 +795,7 @@ ${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="
             totalItems: items.length,
             totalCantidad: items.reduce((s, i) => s + (parseFloat(i.cantidad) || 0), 0),
             observaciones: obs,
+            comprobante: this._comprobanteBase64 || null,
             usuario: (typeof Auth !== 'undefined' && Auth.getUser()) ? Auth.getUser().nombre : 'Sistema'
         };
 
@@ -854,6 +926,7 @@ ${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="
 
         document.getElementById('formRecepcion')?.reset();
         document.getElementById('tablaItemsRecepcion').innerHTML = '';
+        this.quitarComprobante();
         this.setDefaultDates();
         const bobinasMsg = bobinasCreadas > 0 ? ` | ${bobinasCreadas} bobinas individuales generadas` : '';
         if (typeof showToast === 'function') {
@@ -1220,6 +1293,12 @@ ${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="
                             </table>
                         </div>
                         ${datos.observaciones ? `<div class="alert alert-light mt-2"><strong>Observaciones:</strong> ${datos.observaciones}</div>` : ''}
+                        ${datos.comprobante ? `
+                            <div class="mt-3">
+                                <h6><i class="bi bi-image me-1"></i>Comprobante / Factura adjunta</h6>
+                                <img src="${datos.comprobante}" class="img-thumbnail" style="max-height:300px; cursor:pointer;"
+                                     onclick="Almacen.verComprobanteFullscreen('${datos.comprobante}')" title="Click para ver en pantalla completa">
+                            </div>` : '<div class="small text-muted mt-2"><em>Sin comprobante adjunto</em></div>'}
                     </div>
                     <div class="modal-footer py-1">
                         <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>

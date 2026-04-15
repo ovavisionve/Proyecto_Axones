@@ -493,6 +493,21 @@
                                             </button>
                                         </div>
 
+                                        <!-- Adjuntar factura/comprobante -->
+                                        <div class="col-md-8">
+                                            <label class="form-label small fw-bold">
+                                                <i class="bi bi-image me-1"></i>Adjuntar factura/comprobante (foto)
+                                            </label>
+                                            <input type="file" class="form-control form-control-sm" id="recepcionComprobante" accept="image/*" capture="environment">
+                                            <small class="text-muted">Obligatorio para miscelaneos. Se comprime automaticamente.</small>
+                                        </div>
+                                        <div class="col-md-4 d-flex align-items-end">
+                                            <div id="previewComprobante" class="w-100" style="display:none;">
+                                                <img id="imgPreviewComprobante" class="img-thumbnail" style="max-height:80px; cursor:pointer;" onclick="Almacen.verComprobanteFullscreen()">
+                                                <button type="button" class="btn btn-sm btn-outline-danger ms-1" onclick="Almacen.quitarComprobante()"><i class="bi bi-x"></i></button>
+                                            </div>
+                                        </div>
+
                                         <!-- Observaciones -->
                                         <div class="col-12">
                                             <label class="form-label small">Observaciones</label>

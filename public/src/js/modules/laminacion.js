@@ -847,7 +847,28 @@ const Laminacion = {
         try {
             await this.guardarLocal(datos);
 
-            // Descontar materiales del inventario (adhesivo, catalizador, acetato)
+            // Descontar material virgen del inventario (preciso via InventarioDescuentos)
+            if (typeof InventarioDescuentos !== 'undefined' && this.ordenCargada) {
+                const cantidadKg = parseFloat(datos.totalEntradaVirgen || datos.totalEntrada) || 0;
+                if (cantidadKg > 0) {
+                    await InventarioDescuentos.descontar({
+                        numeroOT: datos.ordenTrabajo,
+                        fase: 'laminacion',
+                        cantidadKg,
+                        orden: this.ordenCargada,
+                    });
+                }
+                const devBuena = parseFloat(datos.devolucionBuenaKg) || 0;
+                if (devBuena > 0) {
+                    await InventarioDescuentos.reponer({
+                        numeroOT: datos.ordenTrabajo,
+                        fase: 'laminacion',
+                        cantidadKg: devBuena,
+                        orden: this.ordenCargada,
+                    });
+                }
+            }
+            // Siempre descontar adhesivo/catalizador/acetato (logica especifica laminacion)
             await this.descontarInventarioLaminacion(datos);
 
             // Registrar bobinas rechazadas en inventario de bobinas malas

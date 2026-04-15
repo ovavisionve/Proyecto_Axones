@@ -1591,6 +1591,11 @@ const Impresion = {
                 });
                 console.log('[Impresion] Registro guardado en Supabase');
 
+                // Fase 5: Verificar alertas inteligentes
+                if (typeof AlertasEngine !== 'undefined') {
+                    AlertasEngine.verificarMerma(datos, 'impresion').catch(e => console.warn(e));
+                }
+
                 // Fase 3: Procesar bobinas seleccionadas (marcar como consumidas)
                 if (typeof BobinasSelector !== 'undefined' && BobinasSelector.getSeleccionadas) {
                     try {

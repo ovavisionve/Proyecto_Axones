@@ -453,6 +453,11 @@ const Tintas = {
             console.warn('Tintas: Error guardando consumo en Supabase', e);
         }
 
+        // Fase 5: Verificar alerta de consumo elevado
+        if (typeof AlertasEngine !== 'undefined') {
+            AlertasEngine.verificarTintas(datos).catch(e => console.warn(e));
+        }
+
         this.mostrarToast('Consumo registrado correctamente (solo registro, no descuenta inventario)', 'success');
         this.limpiarConsumo();
     },

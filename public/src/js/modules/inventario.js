@@ -1061,8 +1061,8 @@ const Inventario = {
         try {
             if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
                 const { data } = await AxonesDB.client.from('sync_store')
-                    .select('valor').eq('clave', 'axones_inventario_miscelaneos').maybeSingle();
-                miscelaneos = data?.valor ? JSON.parse(data.valor) : [];
+                    .select('value').eq('key', 'axones_inventario_miscelaneos').maybeSingle();
+                miscelaneos = data?.value ? JSON.parse(data.value) : [];
             }
             if (miscelaneos.length === 0) {
                 miscelaneos = JSON.parse(localStorage.getItem('axones_inventario_miscelaneos') || '[]');

@@ -30,8 +30,8 @@ const OrdenesCompra = {
         try {
             if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
                 const { data } = await AxonesDB.client.from('sync_store')
-                    .select('valor').eq('clave', this.SYNC_KEY).maybeSingle();
-                this.ocs = data?.valor ? JSON.parse(data.valor) : [];
+                    .select('value').eq('key', this.SYNC_KEY).maybeSingle();
+                this.ocs = data?.value ? JSON.parse(data.value) : [];
             }
             if (this.ocs.length === 0) {
                 this.ocs = JSON.parse(localStorage.getItem(this.SYNC_KEY) || '[]');
@@ -80,10 +80,10 @@ const OrdenesCompra = {
         try {
             if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
                 await AxonesDB.client.from('sync_store').upsert({
-                    clave: this.SYNC_KEY,
-                    valor: json,
+                    key: this.SYNC_KEY,
+                    value: json,
                     updated_at: new Date().toISOString()
-                }, { onConflict: 'clave' });
+                }, { onConflict: 'key' });
             }
         } catch(e) { console.error('OC: Error guardando:', e); }
     },

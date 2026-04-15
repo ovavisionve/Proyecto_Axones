@@ -125,6 +125,7 @@ const HomeModule = {
             ]);
 
             // Consolidar produccion de las 3 fases en formato unificado
+            // Nota: impresion y laminacion tienen 'peso_total', corte tiene 'peso_total_salida'
             const normalizarProd = (registros, fase) => (registros || []).map(r => ({
                 id: r.id,
                 fecha: r.fecha,
@@ -134,9 +135,9 @@ const HomeModule = {
                 turno: r.turno,
                 operador: r.operador,
                 totalEntrada: parseFloat(r.total_entrada) || 0,
-                totalSalida: parseFloat(r.peso_total_salida || r.total_salida) || 0,
+                totalSalida: parseFloat(r.peso_total_salida ?? r.peso_total ?? r.total_salida) || 0,
                 merma: parseFloat(r.merma) || 0,
-                scrap: parseFloat(r.total_scrap || r.scrap_refile) || 0,
+                scrap: parseFloat(r.total_scrap ?? r.scrap_refile) || 0,
                 porcentajeRefil: (function() {
                     const ent = parseFloat(r.total_entrada) || 0;
                     const merma = parseFloat(r.merma) || 0;
@@ -150,10 +151,16 @@ const HomeModule = {
                 ...normalizarProd(cor?.data, 'corte'),
             ];
 
-            // Alertas: filtrar las NO resueltas
-            this._cache.alertas = (alertas?.data || []).filter(a =>
-                !a.resuelta && a.estado !== 'resuelta' && a.estado !== 'leida'
-            );
+            // Alertas: filtrar las NO resueltas (soporta esquema viejo y nuevo)
+            // Esquema viejo: solo tiene 'leida' (boolean)
+            // Esquema nuevo (migration-008): tambien tiene 'resuelta' y 'estado'
+            this._cache.alertas = (alertas?.data || []).filter(a => {
+                // Si tiene campo resuelta, respetarlo; si no, usar leida
+                if ('resuelta' in a) {
+                    return !a.resuelta && a.estado !== 'resuelta';
+                }
+                return !a.leida;
+            });
 
             this._cache.inventario = (inv?.data || []).map(m => ({
                 material: m.material, micras: m.micras, ancho: m.ancho,

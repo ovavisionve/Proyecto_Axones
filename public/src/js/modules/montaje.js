@@ -42,8 +42,8 @@ const Montaje = {
             if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
                 this.ordenes = await AxonesDB.ordenesHelper.cargar() || [];
                 const { data } = await AxonesDB.client.from('sync_store')
-                    .select('valor').eq('clave', this.SYNC_KEY).maybeSingle();
-                this.montajes = data?.valor ? JSON.parse(data.valor) : [];
+                    .select('value').eq('key', this.SYNC_KEY).maybeSingle();
+                this.montajes = data?.value ? JSON.parse(data.value) : [];
             }
         } catch(e) { console.warn('Montaje: Error cargando datos:', e); }
 
@@ -308,10 +308,10 @@ const Montaje = {
         try {
             if (AxonesDB.isReady()) {
                 await AxonesDB.client.from('sync_store').upsert({
-                    clave: this.SYNC_KEY,
-                    valor: json,
+                    key: this.SYNC_KEY,
+                    value: json,
                     updated_at: new Date().toISOString()
-                }, { onConflict: 'clave' });
+                }, { onConflict: 'key' });
             }
         } catch(e) { console.error('Montaje: Error guardando:', e); }
     },

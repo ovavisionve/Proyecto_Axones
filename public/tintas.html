@@ -584,20 +584,31 @@
                                 <i class="bi bi-palette me-1"></i> Crear Nueva Mezcla
                             </div>
                             <div class="row g-2">
-                                <div class="col-12">
-                                    <label class="form-label small">Nombre del Color</label>
-                                    <input type="text" class="form-control form-control-sm" id="mezclaNombre" placeholder="Ej: Verde Especial ALTROM">
+                                <div class="col-md-6">
+                                    <label class="form-label small">Nombre del Color / Pantone <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control form-control-sm" id="mezclaNombre" list="dlPantonesExistentes" placeholder="Ej: Pantone 286C, Verde Especial ALTROM">
+                                    <datalist id="dlPantonesExistentes"></datalist>
+                                    <small class="text-muted">Si escribes un Pantone ya guardado, se sugiere reutilizar la receta.</small>
                                 </div>
-                                <div class="col-6">
+                                <div class="col-md-3">
                                     <label class="form-label small">Tipo</label>
                                     <select class="form-select form-select-sm" id="mezclaTipo">
                                         <option value="laminacion">Laminacion</option>
                                         <option value="superficie">Superficie</option>
                                     </select>
                                 </div>
-                                <div class="col-6">
-                                    <label class="form-label small">Para OT (opcional)</label>
-                                    <input type="text" class="form-control form-control-sm" id="mezclaOT" placeholder="OT-2026-XXXX">
+                                <div class="col-md-3">
+                                    <label class="form-label small">Para OT</label>
+                                    <select class="form-select form-select-sm" id="mezclaOT">
+                                        <option value="">-- Sin OT (receta general) --</option>
+                                    </select>
+                                </div>
+                                <div class="col-12" id="sugerenciaReceta" style="display:none;">
+                                    <div class="alert alert-info py-2 mb-0 small">
+                                        <i class="bi bi-lightbulb me-1"></i>
+                                        Ya existe una receta para <strong id="sugPantone">--</strong>.
+                                        <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="Tintas.reutilizarReceta()">Cargar receta</button>
+                                    </div>
                                 </div>
                                 <div class="col-12">
                                     <label class="form-label small">Componentes de la Mezcla</label>
@@ -637,10 +648,29 @@
                     <!-- Historial de Mezclas -->
                     <div class="col-lg-7">
                         <div class="form-section">
-                            <div class="form-section-title title-mezclas">
-                                <i class="bi bi-clock-history me-1"></i> Mezclas Guardadas
+                            <div class="form-section-title title-mezclas d-flex justify-content-between align-items-center">
+                                <span><i class="bi bi-clock-history me-1"></i> Recetario de Mezclas</span>
+                                <span class="badge bg-secondary" id="countMezclas">0</span>
                             </div>
-                            <div id="listaMezclas">
+                            <!-- Filtros -->
+                            <div class="row g-2 mb-2">
+                                <div class="col-md-5">
+                                    <input type="text" class="form-control form-control-sm" id="filtroMezclaBusq" placeholder="Buscar Pantone, OT, componente...">
+                                </div>
+                                <div class="col-md-4">
+                                    <select class="form-select form-select-sm" id="filtroMezclaOT">
+                                        <option value="">Todas las OT</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select form-select-sm" id="filtroMezclaVista">
+                                        <option value="por-ot">Agrupar por OT</option>
+                                        <option value="por-pantone">Agrupar por Pantone</option>
+                                        <option value="cronologico">Cronologico</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="listaMezclas" style="max-height:600px; overflow-y:auto;">
                                 <p class="text-muted text-center py-3">No hay mezclas guardadas</p>
                             </div>
                         </div>

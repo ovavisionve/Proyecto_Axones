@@ -133,6 +133,7 @@
                             <i class="bi bi-clipboard-data me-1"></i> Produccion
                         </a>
                         <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="montaje.html"><i class="bi bi-puzzle me-2"></i>Montaje</a></li>
                             <li><a class="dropdown-item" href="impresion.html"><i class="bi bi-printer me-2"></i>Impresion</a></li>
                             <li><a class="dropdown-item" href="laminacion.html"><i class="bi bi-layers me-2"></i>Laminacion</a></li>
                             <li><a class="dropdown-item" href="corte.html"><i class="bi bi-scissors me-2"></i>Corte</a></li>
@@ -159,8 +160,18 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="almacen.html">
-                            <i class="bi bi-building me-1"></i> Almacen
+                        <a class="nav-link" href="solicitud-despacho.html">
+                            <i class="bi bi-cart-plus me-1"></i> Solicitudes
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="despacho.html">
+                            <i class="bi bi-truck me-1"></i> Despacho
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="movimientos-orden.html">
+                            <i class="bi bi-arrow-repeat me-1"></i> Movimientos OT
                         </a>
                     </li>
                     <li class="nav-item dropdown">
@@ -170,6 +181,9 @@
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="clientes.html"><i class="bi bi-people me-2"></i>Clientes</a></li>
                             <li><a class="dropdown-item" href="proveedores.html"><i class="bi bi-truck me-2"></i>Proveedores</a></li>
+                            <li><a class="dropdown-item" href="productos.html"><i class="bi bi-box me-2"></i>Productos</a></li>
+                            <li><a class="dropdown-item" href="ordenes.html"><i class="bi bi-clipboard-check me-2"></i>Ordenes de Clientes</a></li>
+                            <li><a class="dropdown-item" href="ordenes-compra.html"><i class="bi bi-cart-check me-2"></i>Ordenes de Compra</a></li>
                         </ul>
                     </li>
                     <li class="nav-item">
@@ -240,8 +254,11 @@
                                 <input type="date" class="form-control form-control-sm" id="fecha" required>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label small">Orden de Trabajo</label>
-                                <input type="text" class="form-control form-control-sm" id="ordenTrabajo" required placeholder="N° OT">
+                                <label class="form-label small">Orden de Trabajo <span class="text-danger">*</span></label>
+                                <select class="form-select form-select-sm" id="ordenTrabajo" required>
+                                    <option value="">-- Seleccionar OT --</option>
+                                </select>
+                                <small class="text-muted">Al seleccionar, se auto-llenan los datos del cliente, producto y produccion.</small>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label small">Lote</label>
@@ -394,14 +411,24 @@
 
                     <!-- Botones -->
                     <div class="row g-2">
-                        <div class="col-6">
+                        <div class="col-4">
                             <button type="button" class="btn w-100" style="background-color: #20c997; color: white;" onclick="Certificado.generarPreview()">
                                 <i class="bi bi-eye me-1"></i> Vista Previa
                             </button>
                         </div>
-                        <div class="col-6">
+                        <div class="col-4">
+                            <button type="button" class="btn btn-primary w-100" onclick="Certificado.descargarPDF()">
+                                <i class="bi bi-download me-1"></i> Descargar PDF
+                            </button>
+                        </div>
+                        <div class="col-4">
                             <button type="button" class="btn btn-success w-100" onclick="Certificado.imprimir()">
                                 <i class="bi bi-printer me-1"></i> Imprimir
+                            </button>
+                        </div>
+                        <div class="col-12 mt-2">
+                            <button type="button" class="btn btn-outline-secondary btn-sm w-100" onclick="Certificado.guardar()">
+                                <i class="bi bi-save me-1"></i> Guardar en Historial
                             </button>
                         </div>
                     </div>

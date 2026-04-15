@@ -2278,8 +2278,11 @@ const Ordenes = {
                 const index = this.ordenes.findIndex(o => o.id === ordenId);
                 if (index !== -1) this.ordenes[index] = ordenData;
             } else {
-                // Nueva orden - guardar en Supabase
+                // Nueva orden - estado inicial "nueva" (por revisar en Kanban)
                 ordenData.fechaCreacion = new Date().toISOString();
+                if (!ordenData.estadoOrden || ordenData.estadoOrden === 'pendiente') {
+                    ordenData.estadoOrden = 'nueva';
+                }
                 const guardada = await AxonesDB.ordenesHelper.crear(ordenData);
                 ordenData.id = guardada.id;
                 this.ordenes.push(ordenData);

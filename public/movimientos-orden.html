@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movimientos de Orden - Axones</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#212529">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="src/css/main.css" rel="stylesheet">
+    <style>
+        .timeline { position:relative; padding-left:40px; }
+        .timeline::before { content:''; position:absolute; left:15px; top:0; bottom:0; width:2px; background:#dee2e6; }
+        .timeline-item { position:relative; margin-bottom:20px; }
+        .timeline-dot { position:absolute; left:-32px; top:5px; width:16px; height:16px; border-radius:50%; border:3px solid #fff; box-shadow:0 0 0 2px #dee2e6; }
+        .timeline-dot.fase-ordenes { background:#0d6efd; box-shadow:0 0 0 2px #0d6efd; }
+        .timeline-dot.fase-montaje { background:#ffc107; box-shadow:0 0 0 2px #ffc107; }
+        .timeline-dot.fase-impresion { background:#6f42c1; box-shadow:0 0 0 2px #6f42c1; }
+        .timeline-dot.fase-laminacion { background:#20c997; box-shadow:0 0 0 2px #20c997; }
+        .timeline-dot.fase-corte { background:#fd7e14; box-shadow:0 0 0 2px #fd7e14; }
+        .timeline-dot.fase-despacho { background:#198754; box-shadow:0 0 0 2px #198754; }
+        .timeline-dot.fase-alerta { background:#dc3545; box-shadow:0 0 0 2px #dc3545; }
+        .kpi-box { text-align:center; padding:15px; border-radius:8px; }
+        .kpi-value { font-size:1.8rem; font-weight:bold; }
+        .kpi-label { font-size:0.85rem; color:#6c757d; }
+        @media (max-width:1024px){ input,select,textarea{min-height:2.4rem;font-size:0.95rem;} }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="index.html">
+                <i class="bi bi-gear-wide-connected me-2"></i>
+                <span class="fw-bold">AXONES</span>
+                <span class="badge bg-info ms-2">Movimientos</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarMain">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link" href="index.html"><i class="bi bi-house-door me-1"></i> Inicio</a></li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"><i class="bi bi-clipboard-data me-1"></i> Produccion</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="ordenes.html">Ordenes de Trabajo</a></li>
+                            <li><a class="dropdown-item" href="montaje.html">Montaje</a></li>
+                            <li><a class="dropdown-item" href="impresion.html">Impresion</a></li>
+                            <li><a class="dropdown-item" href="laminacion.html">Laminacion</a></li>
+                            <li><a class="dropdown-item" href="corte.html">Corte</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item"><a class="nav-link" href="inventario.html"><i class="bi bi-box-seam me-1"></i> Inventario</a></li>
+                    <li class="nav-item"><a class="nav-link" href="despacho.html"><i class="bi bi-truck me-1"></i> Despacho</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="movimientos-orden.html"><i class="bi bi-arrow-repeat me-1"></i> Movimientos OT</a></li>
+                    <li class="nav-item"><a class="nav-link" href="reportes.html"><i class="bi bi-file-earmark-bar-graph me-1"></i> Reportes</a></li>
+                    <li class="nav-item"><a class="nav-link" href="alertas.html"><i class="bi bi-bell me-1"></i> Alertas <span class="badge bg-danger ms-1" id="alertasBadge" style="display:none">0</span></a></li>
+                </ul>
+                <div class="d-flex align-items-center">
+                    <span class="text-light me-3" id="userInfo"></span>
+                    <button class="btn btn-outline-light btn-sm" onclick="Auth.logout()"><i class="bi bi-box-arrow-right"></i></button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container-fluid" style="margin-top:70px;">
+        <div class="row mb-3">
+            <div class="col">
+                <h4><i class="bi bi-arrow-repeat text-info me-2"></i>Movimientos de Orden de Trabajo</h4>
+                <small class="text-muted">Historial completo de una OT: fases, material, tiempos, despachos y alertas</small>
+            </div>
+        </div>
+
+        <!-- Selector OT -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold">Orden de Trabajo</label>
+                        <select class="form-select" id="selectorOT">
+                            <option value="">-- Seleccionar OT --</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-outline-primary w-100" id="btnRefresh">
+                            <i class="bi bi-arrow-clockwise me-1"></i> Refrescar
+                        </button>
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-outline-success w-100" id="btnExportar" disabled>
+                            <i class="bi bi-download me-1"></i> Exportar PDF
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contenido cuando hay OT seleccionada -->
+        <div id="contenidoOT" style="display:none;">
+
+            <!-- Encabezado OT -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-file-earmark-text me-2"></i>OT <span id="otNumero">--</span></h5>
+                    <span class="badge bg-light text-primary" id="otEstado">--</span>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4"><strong>Cliente:</strong> <span id="otCliente">-</span></div>
+                        <div class="col-md-4"><strong>RIF:</strong> <span id="otRif">-</span></div>
+                        <div class="col-md-4"><strong>Fecha entrega:</strong> <span id="otFechaEntrega">-</span></div>
+                        <div class="col-md-4"><strong>Producto:</strong> <span id="otProducto">-</span></div>
+                        <div class="col-md-4"><strong>CPE/SKU:</strong> <span id="otCpe">-</span></div>
+                        <div class="col-md-4"><strong>Kg pedidos:</strong> <span id="otPedido">-</span></div>
+                        <div class="col-md-4"><strong>Estructura:</strong> <span id="otEstructura">-</span></div>
+                        <div class="col-md-4"><strong>Maquina:</strong> <span id="otMaquina">-</span></div>
+                        <div class="col-md-4"><strong>Ancho:</strong> <span id="otAncho">-</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KPIs consolidados -->
+            <div class="row g-2 mb-3">
+                <div class="col-md-2"><div class="kpi-box bg-primary bg-opacity-10"><div class="kpi-value text-primary" id="kpiMaterialUsado">0</div><div class="kpi-label">Kg material usado</div></div></div>
+                <div class="col-md-2"><div class="kpi-box bg-success bg-opacity-10"><div class="kpi-value text-success" id="kpiProductoTerminado">0</div><div class="kpi-label">Kg producto terminado</div></div></div>
+                <div class="col-md-2"><div class="kpi-box bg-warning bg-opacity-10"><div class="kpi-value text-warning" id="kpiMermaTotal">0</div><div class="kpi-label">Kg merma total</div></div></div>
+                <div class="col-md-2"><div class="kpi-box bg-danger bg-opacity-10"><div class="kpi-value text-danger" id="kpiPctMerma">0%</div><div class="kpi-label">% Merma</div></div></div>
+                <div class="col-md-2"><div class="kpi-box bg-info bg-opacity-10"><div class="kpi-value text-info" id="kpiKgDespachados">0</div><div class="kpi-label">Kg despachados</div></div></div>
+                <div class="col-md-2"><div class="kpi-box bg-secondary bg-opacity-10"><div class="kpi-value text-secondary" id="kpiAlertas">0</div><div class="kpi-label">Alertas generadas</div></div></div>
+            </div>
+
+            <!-- Resumen por fase -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-light"><h6 class="mb-0"><i class="bi bi-bar-chart me-1"></i>Resumen por Fase</h6></div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead class="table-light">
+                                <tr><th>Fase</th><th>Registros</th><th class="text-end">Kg Entrada</th><th class="text-end">Kg Salida</th><th class="text-end">Merma</th><th class="text-end">% Merma</th><th>Ultima actualizacion</th></tr>
+                            </thead>
+                            <tbody id="tablaResumenFase"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timeline -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light"><h6 class="mb-0"><i class="bi bi-clock-history me-1"></i>Cronologia de Movimientos</h6></div>
+                <div class="card-body">
+                    <div class="timeline" id="timeline">
+                        <div class="text-center text-muted py-4">Cargando...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mensaje sin OT seleccionada -->
+        <div id="sinOT" class="text-center py-5">
+            <i class="bi bi-arrow-up-circle display-1 text-muted"></i>
+            <h5 class="text-muted mt-3">Selecciona una Orden de Trabajo</h5>
+            <p class="text-muted small">Veras todo su recorrido: montaje, impresion, laminacion, corte, despachos y alertas.</p>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="src/js/utils/config.js"></script>
+    <script src="src/js/utils/auth.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="src/js/utils/supabase-client.js"></script>
+    <script src="src/js/utils/alertas-engine.js"></script>
+    <script src="src/js/utils/bobinas-service.js"></script>
+    <script src="src/js/utils/sync-realtime.js"></script>
+    <script src="src/js/modules/movimientos-orden.js"></script>
+</body>
+</html>

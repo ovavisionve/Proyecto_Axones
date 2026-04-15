@@ -76,6 +76,7 @@
                             <i class="bi bi-clipboard-data me-1"></i> Produccion
                         </a>
                         <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="montaje.html"><i class="bi bi-puzzle me-2"></i>Montaje</a></li>
                             <li><a class="dropdown-item" href="impresion.html"><i class="bi bi-printer me-2"></i>Control de Impresion</a></li>
                             <li><a class="dropdown-item" href="laminacion.html"><i class="bi bi-layers me-2"></i>Control de Laminacion</a></li>
                             <li><a class="dropdown-item" href="corte.html"><i class="bi bi-scissors me-2"></i>Control de Corte</a></li>
@@ -108,8 +109,18 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="almacen.html">
-                            <i class="bi bi-building me-1"></i> Almacen
+                        <a class="nav-link" href="solicitud-despacho.html">
+                            <i class="bi bi-cart-plus me-1"></i> Solicitudes
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="despacho.html">
+                            <i class="bi bi-truck me-1"></i> Despacho
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="movimientos-orden.html">
+                            <i class="bi bi-arrow-repeat me-1"></i> Movimientos OT
                         </a>
                     </li>
                     <li class="nav-item dropdown">
@@ -119,6 +130,9 @@
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="clientes.html"><i class="bi bi-people me-2"></i>Clientes</a></li>
                             <li><a class="dropdown-item" href="proveedores.html"><i class="bi bi-truck me-2"></i>Proveedores</a></li>
+                            <li><a class="dropdown-item" href="productos.html"><i class="bi bi-box me-2"></i>Productos</a></li>
+                            <li><a class="dropdown-item" href="ordenes.html"><i class="bi bi-clipboard-check me-2"></i>Ordenes de Clientes</a></li>
+                            <li><a class="dropdown-item" href="ordenes-compra.html"><i class="bi bi-cart-check me-2"></i>Ordenes de Compra</a></li>
                         </ul>
                     </li>
                     <li class="nav-item">
@@ -192,9 +206,13 @@
                         <button class="btn btn-outline-primary btn-sm" id="btnActualizar">
                             <i class="bi bi-arrow-clockwise me-1"></i> Actualizar
                         </button>
-                        <button class="btn btn-primary btn-sm" id="btnAgregarItem" data-bs-toggle="modal" data-bs-target="#modalAgregarItem">
-                            <i class="bi bi-plus-lg me-1"></i> Agregar Item
-                        </button>
+                        <!-- Recepcion dentro de Inventario -->
+                        <a href="almacen.html#panel-recepcion" class="btn btn-success btn-sm">
+                            <i class="bi bi-box-arrow-in-down me-1"></i> Nueva Recepcion
+                        </a>
+                        <a href="almacen.html#panel-movimientos" class="btn btn-outline-info btn-sm">
+                            <i class="bi bi-arrow-left-right me-1"></i> Movimientos
+                        </a>
                     </div>
                 </div>
 
@@ -222,6 +240,18 @@
                         <button class="nav-link" id="tab-bobinas-malas" data-bs-toggle="tab" data-bs-target="#panel-bobinas-malas" type="button" role="tab">
                             <i class="bi bi-exclamation-triangle me-1"></i> Bobinas Malas
                             <span class="badge bg-danger ms-1" id="countBobinasMalas">0</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tab-miscelaneos" data-bs-toggle="tab" data-bs-target="#panel-miscelaneos" type="button" role="tab">
+                            <i class="bi bi-tools me-1"></i> Miscelaneos
+                            <span class="badge bg-warning text-dark ms-1" id="countMiscelaneos">0</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tab-bobinas-individuales" data-bs-toggle="tab" data-bs-target="#panel-bobinas-individuales" type="button" role="tab">
+                            <i class="bi bi-upc-scan me-1"></i> Bobinas Individuales
+                            <span class="badge bg-info ms-1" id="countBobinasInd">0</span>
                         </button>
                     </li>
                 </ul>
@@ -713,6 +743,131 @@
                 </div>
             </div>
 
+            <!-- Panel Miscelaneos -->
+            <div class="tab-pane fade" id="panel-miscelaneos" role="tabpanel">
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <h6 class="text-muted mb-2">
+                            <i class="bi bi-tools me-1"></i> Inventario de Miscelaneos
+                        </h6>
+                        <p class="small text-muted">Consumibles de planta: hojillas, cintas, guantes, herramientas, etc. Se agregan via Recepcion en Almacen.</p>
+                    </div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-4">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control" id="buscarMiscelaneo" placeholder="Buscar miscelaneo...">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <span class="badge bg-warning text-dark">Total items: <span id="totalItemsMisc">0</span></span>
+                    </div>
+                </div>
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-sm mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Descripcion</th>
+                                        <th class="text-end">Cantidad</th>
+                                        <th>Unidad</th>
+                                        <th>Ultima Entrada</th>
+                                        <th>Ultima Salida</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaMiscelaneos">
+                                    <tr><td colspan="5" class="text-center text-muted py-3">
+                                        <i class="bi bi-inbox me-1"></i> No hay miscelaneos registrados. Use Recepcion en Almacen para agregar.
+                                    </td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel Bobinas Individuales -->
+            <div class="tab-pane fade" id="panel-bobinas-individuales" role="tabpanel">
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <h6 class="text-muted mb-2">
+                            <i class="bi bi-upc-scan me-1"></i> Bobinas como Entidades Unicas
+                        </h6>
+                        <p class="small text-muted">Cada bobina tiene codigo unico, peso, proveedor y estado. Se registran al recibir materia prima. <strong>Requiere migracion SQL 006.</strong></p>
+                    </div>
+                </div>
+                <!-- Filtros -->
+                <div class="row mb-2 g-2">
+                    <div class="col-md-2">
+                        <select class="form-select form-select-sm" id="filtroBobEstado">
+                            <option value="">Todos los estados</option>
+                            <option value="disponible" selected>Disponibles</option>
+                            <option value="reservada">Reservadas</option>
+                            <option value="en_uso">En uso</option>
+                            <option value="consumida">Consumidas</option>
+                            <option value="rechazada">Rechazadas</option>
+                            <option value="despachada">Despachadas</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select form-select-sm" id="filtroBobTipo">
+                            <option value="">Todos los tipos</option>
+                            <option value="sustrato" selected>Sustratos</option>
+                            <option value="tinta">Tintas</option>
+                            <option value="quimico">Quimicos</option>
+                            <option value="producto_terminado">Producto Terminado</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" class="form-control form-control-sm" id="filtroBobBusqueda" placeholder="Buscar codigo, material, proveedor...">
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-sm btn-outline-primary" id="btnRefreshBobinas">
+                            <i class="bi bi-arrow-clockwise me-1"></i> Actualizar
+                        </button>
+                        <button class="btn btn-sm btn-outline-success" id="btnExportBobinas">
+                            <i class="bi bi-download me-1"></i> Exportar CSV
+                        </button>
+                    </div>
+                    <div class="col-md-2 text-end">
+                        <span class="badge bg-info">Total Kg: <span id="totalKgBobinasInd">0</span></span>
+                    </div>
+                </div>
+
+                <!-- Tabla -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-sm mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Codigo</th>
+                                        <th>Tipo</th>
+                                        <th>Material</th>
+                                        <th class="text-end">Micras</th>
+                                        <th class="text-end">Ancho</th>
+                                        <th class="text-end">Kg Actual</th>
+                                        <th>Proveedor</th>
+                                        <th>OC / Lote</th>
+                                        <th>OT Asig.</th>
+                                        <th class="text-center">Estado</th>
+                                        <th class="text-center">Fecha</th>
+                                        <th class="text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaBobinasIndividuales">
+                                    <tr><td colspan="12" class="text-center text-muted py-4">
+                                        <i class="bi bi-info-circle me-1"></i> Aun no hay bobinas registradas. Al recibir material en Recepcion, marque "Generar bobinas individuales" para poblar esta tabla.
+                                    </td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div><!-- Fin tab-content -->
     </main>
 
@@ -800,6 +955,8 @@
     <script src="src/js/utils/config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="src/js/utils/supabase-client.js"></script>
+    <script src="src/js/utils/alertas-engine.js"></script>
+    <script src="src/js/utils/bobinas-service.js"></script>
     <script src="src/js/utils/api.js"></script>
     <script src="src/js/utils/sync-manager.js"></script>
     <script src="src/js/utils/sync-realtime.js"></script>

@@ -236,6 +236,7 @@
                             <i class="bi bi-clipboard-data me-1"></i> Produccion
                         </a>
                         <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="montaje.html"><i class="bi bi-puzzle me-2"></i>Montaje</a></li>
                             <li><a class="dropdown-item" href="impresion.html"><i class="bi bi-printer me-2"></i>Impresion</a></li>
                             <li><a class="dropdown-item" href="laminacion.html"><i class="bi bi-layers me-2"></i>Laminacion</a></li>
                             <li><a class="dropdown-item" href="corte.html"><i class="bi bi-scissors me-2"></i>Corte</a></li>
@@ -262,8 +263,18 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="almacen.html">
-                            <i class="bi bi-building me-1"></i> Almacen
+                        <a class="nav-link" href="solicitud-despacho.html">
+                            <i class="bi bi-cart-plus me-1"></i> Solicitudes
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="despacho.html">
+                            <i class="bi bi-truck me-1"></i> Despacho
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="movimientos-orden.html">
+                            <i class="bi bi-arrow-repeat me-1"></i> Movimientos OT
                         </a>
                     </li>
                     <li class="nav-item dropdown">
@@ -273,6 +284,9 @@
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="clientes.html"><i class="bi bi-people me-2"></i>Clientes</a></li>
                             <li><a class="dropdown-item" href="proveedores.html"><i class="bi bi-truck me-2"></i>Proveedores</a></li>
+                            <li><a class="dropdown-item" href="productos.html"><i class="bi bi-box me-2"></i>Productos</a></li>
+                            <li><a class="dropdown-item" href="ordenes.html"><i class="bi bi-clipboard-check me-2"></i>Ordenes de Clientes</a></li>
+                            <li><a class="dropdown-item" href="ordenes-compra.html"><i class="bi bi-cart-check me-2"></i>Ordenes de Compra</a></li>
                         </ul>
                     </li>
                     <li class="nav-item">
@@ -362,7 +376,18 @@
 
         <!-- Kanban Board -->
         <div class="kanban-container" id="kanbanBoard">
-            <!-- Pendientes -->
+            <!-- Por Revisar (OTs nuevas pendientes de confirmar/planificar) -->
+            <div class="kanban-column">
+                <div class="kanban-header" style="background:#e2e3e5; color:#495057; border-left:4px solid #6c757d;">
+                    <span><i class="bi bi-inbox me-2"></i>Por Revisar</span>
+                    <span class="badge bg-dark" id="countNuevas">0</span>
+                </div>
+                <div class="kanban-body" id="colNuevas" data-status="nueva">
+                    <!-- OTs recien creadas por cliente, aun sin confirmar/planificar -->
+                </div>
+            </div>
+
+            <!-- Pendientes de OT (confirmadas, esperando recurso) -->
             <div class="kanban-column">
                 <div class="kanban-header pendiente">
                     <span><i class="bi bi-hourglass-split me-2"></i>Pendientes</span>
@@ -470,6 +495,7 @@
     <script src="src/js/utils/config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="src/js/utils/supabase-client.js"></script>
+    <script src="src/js/utils/alertas-engine.js"></script>
     <script src="src/js/utils/migracion-supabase.js"></script>
     <script src="src/js/utils/api.js"></script>
     <script src="src/js/utils/sync-manager.js"></script>

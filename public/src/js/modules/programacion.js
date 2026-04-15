@@ -10,6 +10,7 @@ const Programacion = {
 
     // Mapeo de estados/columnas
     COLUMNAS: {
+        'nueva': 'colNuevas',
         'pendiente': 'colPendientes',
         'montaje': 'colMontaje',
         'impresion': 'colImpresion',
@@ -107,9 +108,10 @@ const Programacion = {
      * Determina la columna para una orden segun su estado y proceso actual
      */
     determinarColumna: function(orden) {
-        const estado = orden.estadoOrden || orden.estado || 'pendiente';
+        const estado = orden.estadoOrden || orden.estado || 'nueva';
 
         if (estado === 'completada') return 'completada';
+        if (estado === 'nueva') return 'nueva';
         if (estado === 'pendiente') return 'pendiente';
         if (estado === 'montaje') return 'montaje';
 
@@ -350,7 +352,7 @@ const Programacion = {
         if (!orden) return;
 
         const columnaActual = this.determinarColumna(orden);
-        const flujo = ['pendiente', 'montaje', 'impresion', 'laminacion', 'corte', 'completada'];
+        const flujo = ['nueva', 'pendiente', 'montaje', 'impresion', 'laminacion', 'corte', 'completada'];
 
         const indexActual = flujo.indexOf(columnaActual);
 
@@ -453,6 +455,7 @@ const Programacion = {
     actualizarContadores: function() {
         // Contadores por columna
         const conteos = {
+            nueva: 0,
             pendiente: 0,
             montaje: 0,
             impresion: 0,
@@ -480,8 +483,12 @@ const Programacion = {
         if (countMontaje) countMontaje.textContent = conteos.montaje;
         if (countCompletado) countCompletado.textContent = conteos.completada;
 
+        // Badge columna "Por Revisar" (nuevas)
+        const countNuevas = document.getElementById('countNuevas');
+        if (countNuevas) countNuevas.textContent = conteos.nueva;
+
         // Resumen superior
-        const totalPendientes = conteos.pendiente;
+        const totalPendientes = conteos.nueva + conteos.pendiente;
         const totalEnProceso = conteos.montaje + conteos.impresion + conteos.laminacion + conteos.corte;
         const totalCompletadas = conteos.completada;
         const totalUrgentes = this.ordenes.filter(o =>

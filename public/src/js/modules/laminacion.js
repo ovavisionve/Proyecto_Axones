@@ -215,6 +215,14 @@ const Laminacion = {
         const form = document.getElementById('formLaminacion');
         if (form) form.style.display = '';
 
+        // Fase 3: Selector de bobinas individuales (si disponible)
+        if (typeof BobinasSelector !== 'undefined' && document.getElementById('bobinasSelectorContainer')) {
+            BobinasSelector.renderIn('bobinasSelectorContainer', {
+                numeroOT: orden.numeroOrden || orden.ot,
+                fase: 'laminacion'
+            });
+        }
+
         // Actualizar badge
         const badge = document.getElementById('estadoOT');
         if (badge) {
@@ -1072,6 +1080,19 @@ const Laminacion = {
                     registrado_por_nombre: datos.registradoPorNombre || ''
                 });
                 console.log('[Laminacion] Registro guardado en Supabase');
+
+                // Fase 5: Verificar alertas inteligentes
+                if (typeof AlertasEngine !== 'undefined') {
+                    AlertasEngine.verificarMerma(datos, 'laminacion').catch(e => console.warn(e));
+                }
+
+                // Fase 3: Procesar bobinas seleccionadas
+                if (typeof BobinasSelector !== 'undefined' && BobinasSelector.getSeleccionadas) {
+                    try {
+                        const res = await BobinasSelector.procesarSeleccion({ marcarConsumida: true });
+                        if (res.asignadas > 0) console.log(`[Laminacion] ${res.asignadas} bobinas procesadas`);
+                    } catch(e) { console.warn('[Laminacion] Error procesando bobinas:', e); }
+                }
             }
         } catch (e) {
             console.error('[Laminacion] Error guardando en Supabase:', e);

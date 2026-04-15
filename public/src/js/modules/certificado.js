@@ -12,8 +12,84 @@ const Certificado = {
      */
     init: async function() {
         console.log('Inicializando modulo Certificado');
+        if (typeof AxonesDB !== 'undefined' && !AxonesDB.isReady()) {
+            await AxonesDB.init();
+        }
         await this.setDefaultValues();
+        await this.cargarOTs();
         this.setupEventListeners();
+
+        window.addEventListener('axones-sync', async () => {
+            await this.cargarOTs();
+        });
+    },
+
+    /** Carga OTs en el selector */
+    cargarOTs: async function() {
+        this._ordenes = [];
+        try {
+            if (AxonesDB.isReady() && AxonesDB.ordenesHelper) {
+                this._ordenes = await AxonesDB.ordenesHelper.cargar() || [];
+            }
+        } catch(e) { console.warn('Certificado: Error cargando OTs:', e); }
+
+        const sel = document.getElementById('ordenTrabajo');
+        if (!sel) return;
+        sel.innerHTML = '<option value="">-- Seleccionar OT --</option>';
+        this._ordenes
+            .filter(o => o.estadoOrden !== 'cancelada')
+            .sort((a, b) => (b.numeroOrden || '').localeCompare(a.numeroOrden || ''))
+            .forEach(ot => {
+                const num = ot.numeroOrden || ot.nombreOT || ot.id;
+                const opt = document.createElement('option');
+                opt.value = num;
+                opt.textContent = `${num} - ${ot.cliente || ''} - ${ot.producto || ''}`;
+                sel.appendChild(opt);
+            });
+    },
+
+    /** Al seleccionar una OT, auto-llena los campos del certificado */
+    autoLlenarDesdeOT: async function(numOT) {
+        const ot = (this._ordenes || []).find(o =>
+            (o.numeroOrden === numOT) || (o.nombreOT === numOT) || (o.id === numOT)
+        );
+        if (!ot) return;
+
+        const setIf = (id, val) => {
+            const el = document.getElementById(id);
+            if (el && val !== undefined && val !== null) el.value = val;
+        };
+        setIf('cliente', ot.cliente);
+        setIf('producto', ot.producto);
+
+        // Mapear material al selector
+        const matSel = document.getElementById('material');
+        if (matSel && ot.tipoMaterial) {
+            const matUpper = (ot.tipoMaterial || '').toUpperCase();
+            for (const opt of matSel.options) {
+                if (matUpper.includes(opt.value)) {
+                    matSel.value = opt.value;
+                    break;
+                }
+            }
+        }
+
+        // Espesor (micras)
+        setIf('espesorSpec', ot.micras || ot.micrasCapa1);
+
+        // Consultar produccion para obtener Kg producidos totales (salida de corte)
+        try {
+            if (AxonesDB.isReady()) {
+                const { data } = await AxonesDB.client.from('produccion_corte')
+                    .select('peso_total_salida').eq('numero_ot', numOT);
+                const kgProducidos = (data || []).reduce((s, r) => s + (parseFloat(r.peso_total_salida) || 0), 0);
+                if (kgProducidos > 0) setIf('cantidad', kgProducidos.toFixed(2));
+                else setIf('cantidad', ot.pedidoKg || '');
+            }
+        } catch(e) { setIf('cantidad', ot.pedidoKg || ''); }
+
+        // Disparar preview
+        this.generarPreview();
     },
 
     /**
@@ -44,14 +120,20 @@ const Certificado = {
      * Configura event listeners
      */
     setupEventListeners: function() {
-        // Auto-actualizar preview
-        const campos = ['cliente', 'producto', 'ordenTrabajo'];
-        campos.forEach(id => {
+        // Auto-actualizar preview en cambios de texto
+        ['cliente', 'producto'].forEach(id => {
             const el = document.getElementById(id);
-            if (el) {
-                el.addEventListener('input', () => this.generarPreview());
-            }
+            if (el) el.addEventListener('input', () => this.generarPreview());
         });
+
+        // Auto-llenar al seleccionar OT del dropdown
+        const otSel = document.getElementById('ordenTrabajo');
+        if (otSel) {
+            otSel.addEventListener('change', (e) => {
+                if (e.target.value) this.autoLlenarDesdeOT(e.target.value);
+                this.generarPreview();
+            });
+        }
     },
 
     /**
@@ -233,6 +315,22 @@ const Certificado = {
     /**
      * Imprime el certificado
      */
+    /** Solo guardar en historial sin abrir ventana */
+    guardar: async function() {
+        const form = document.getElementById('formCertificado');
+        if (!form.checkValidity()) { form.reportValidity(); return; }
+        this.generarPreview();
+        const datos = this.recopilarDatos();
+        await this.guardarHistorial(datos);
+        alert(`Certificado ${datos.numCertificado} guardado en historial`);
+    },
+
+    /** Descargar PDF: abre ventana de impresion con dialogo "Guardar como PDF" */
+    descargarPDF: async function() {
+        // Mismo flujo que imprimir pero con nombre sugerido para el archivo
+        await this.imprimir();
+    },
+
     imprimir: async function() {
         const form = document.getElementById('formCertificado');
         if (!form.checkValidity()) {

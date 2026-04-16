@@ -88,8 +88,26 @@
 
                             <!-- Paletas desde corte -->
                             <h6><i class="bi bi-pallet me-1"></i> Paletas a Despachar (desde Corte)</h6>
-                            <div class="alert alert-info small py-2">
-                                <i class="bi bi-info-circle me-1"></i>Las paletas se cargan automaticamente desde los registros de corte de esta OT. Desmarque las que no desea despachar hoy.
+                            <div class="row g-2 mb-2 align-items-center">
+                                <div class="col-md-4">
+                                    <label class="form-label small mb-0">Modo de empaque</label>
+                                    <select class="form-select form-select-sm" id="dModoEmpaque">
+                                        <option value="original">Original (como en corte)</option>
+                                        <option value="unificada">Unificar a N bobinas (lista empaque)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small mb-0">Bobinas por paleta</label>
+                                    <input type="number" class="form-control form-control-sm" id="dBobinasPorPaleta" value="36" min="1" max="100">
+                                </div>
+                                <div class="col-md-3">
+                                    <button class="btn btn-sm btn-outline-warning" onclick="Despacho.recargarPaletas()" id="btnRecargarPaletas">
+                                        <i class="bi bi-arrow-clockwise me-1"></i>Aplicar modo
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="alert alert-info small py-2 mb-2">
+                                <i class="bi bi-info-circle me-1"></i>"Original" muestra las paletas tal como las registro corte. "Unificar" agrupa todas las bobinas en paletas de N (default 36) para imprimir lista de empaque consolidada.
                             </div>
                             <div class="table-responsive mb-2">
                                 <table class="table table-sm table-bordered">

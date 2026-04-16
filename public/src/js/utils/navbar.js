@@ -69,10 +69,14 @@ const NavbarAxones = {
                             <i class="bi bi-cart-plus me-1"></i> Solicitudes
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" data-page="despacho.html" href="despacho.html">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" data-group="despacho" href="#" data-bs-toggle="dropdown">
                             <i class="bi bi-truck me-1"></i> Despacho
                         </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" data-page="despacho.html" href="despacho.html"><i class="bi bi-truck me-2"></i>Despacho de OT (producto terminado)</a></li>
+                            <li><a class="dropdown-item" data-page="despacho-general.html" href="despacho-general.html"><i class="bi bi-file-earmark-arrow-up me-2"></i>Notas de Salida General</a></li>
+                        </ul>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" data-page="movimientos-orden.html" href="movimientos-orden.html">

@@ -38,7 +38,7 @@ const Despacho = {
                 // Cargar historial
                 const { data: notas } = await AxonesDB.client.from('sync_store')
                     .select('value').eq('key', 'axones_notas_despacho').maybeSingle();
-                this.notas = notas?.value ? JSON.parse(notas.valor) : [];
+                this.notas = notas?.value ? JSON.parse(notas.value) : [];
             }
         } catch(e) { console.warn('Despacho: Error cargando datos:', e); }
 
@@ -55,6 +55,87 @@ const Despacho = {
             if (e.target.classList.contains('d-paleta-check')) this.calcularTotales();
         });
         document.getElementById('buscarHistorial')?.addEventListener('input', () => this.renderHistorial());
+    },
+
+    /** Re-renderiza paletas usando el modo seleccionado (original / unificada) */
+    _renderPaletas: function(ot) {
+        const numOT = ot.numeroOrden || ot.nombreOT;
+        let paletas = this.paletasDeOT(numOT);
+
+        const modo = document.getElementById('dModoEmpaque')?.value || 'original';
+        const bobinasPorPaleta = parseInt(document.getElementById('dBobinasPorPaleta')?.value) || 36;
+
+        if (modo === 'unificada' && paletas.length > 0) {
+            paletas = this.unificarPaletas(paletas, bobinasPorPaleta);
+        }
+
+        const tbody = document.getElementById('tablaPaletasDespacho');
+        if (!tbody) return;
+
+        if (paletas.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-warning py-2">Esta OT no tiene paletas registradas en corte</td></tr>';
+            this.calcularTotales();
+            return;
+        }
+
+        tbody.innerHTML = paletas.map((p, idx) => `
+            <tr data-idx="${idx}" data-corte-id="${p.corteId || ''}">
+                <td class="text-center"><input type="checkbox" class="form-check-input d-paleta-check" checked></td>
+                <td class="fw-bold text-center">${p.numero}</td>
+                <td><input type="number" class="form-control form-control-sm d-bob" value="${p.totalBobinas}" onchange="Despacho.calcularTotales()"></td>
+                <td><input type="number" class="form-control form-control-sm d-kg" value="${p.pesoTotal.toFixed(2)}" step="0.01" onchange="Despacho.calcularTotales()"></td>
+                <td><small class="text-muted">${modo === 'unificada' ? 'Unificada (' + p.totalBobinas + ' bob)' : 'Corte ' + (p.corteFecha || '') + ' - ' + (p.corteTurno || '')}</small></td>
+            </tr>`).join('');
+
+        this.calcularTotales();
+    },
+
+    /** Boton "Aplicar modo": re-renderiza paletas con el modo nuevo */
+    recargarPaletas: function() {
+        if (!this._otSeleccionada) return;
+        this._renderPaletas(this._otSeleccionada);
+    },
+
+    /**
+     * Unifica un array de paletas en grupos de N bobinas cada uno (lista de empaque).
+     * Ejemplo: si hay 5 paletas con [10, 5, 36, 12, 8] bobinas y N=36,
+     * devuelve paletas de exactamente 36 bobinas cada una hasta agotar.
+     */
+    unificarPaletas: function(paletas, bobinasPorPaleta) {
+        // Aplanar todas las bobinas de todas las paletas
+        const todasBobinas = [];
+        paletas.forEach(p => {
+            (p.bobinas || []).forEach(b => {
+                if (b && (b.peso || b.kg || 0) > 0) {
+                    todasBobinas.push({ ...b, _origenCorte: p.corteId });
+                }
+            });
+            // Si no hay array bobinas[], expandir por contador
+            if (!p.bobinas || p.bobinas.length === 0) {
+                const numBob = p.totalBobinas || 0;
+                const pesoProm = numBob > 0 ? (p.pesoTotal || 0) / numBob : 0;
+                for (let i = 0; i < numBob; i++) {
+                    todasBobinas.push({ peso: pesoProm, _origenCorte: p.corteId });
+                }
+            }
+        });
+
+        // Agrupar en paletas de N bobinas
+        const result = [];
+        let paletaActual = { numero: 1, bobinas: [], totalBobinas: 0, pesoTotal: 0, corteId: null };
+        todasBobinas.forEach((bob, idx) => {
+            paletaActual.bobinas.push(bob);
+            paletaActual.totalBobinas++;
+            paletaActual.pesoTotal += parseFloat(bob.peso || bob.kg) || 0;
+            if (!paletaActual.corteId) paletaActual.corteId = bob._origenCorte;
+
+            if (paletaActual.totalBobinas >= bobinasPorPaleta || idx === todasBobinas.length - 1) {
+                result.push(paletaActual);
+                paletaActual = { numero: result.length + 1, bobinas: [], totalBobinas: 0, pesoTotal: 0, corteId: null };
+            }
+        });
+
+        return result;
     },
 
     /** Extrae paletas de todos los registros de corte para una OT */
@@ -165,21 +246,8 @@ const Despacho = {
             } catch(e) {}
         }
 
-        // Cargar paletas
-        const paletas = this.paletasDeOT(ot.numeroOrden || ot.nombreOT);
-        const tbody = document.getElementById('tablaPaletasDespacho');
-        if (paletas.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-warning py-2">Esta OT no tiene paletas registradas en corte</td></tr>';
-        } else {
-            tbody.innerHTML = paletas.map((p, idx) => `
-                <tr data-idx="${idx}" data-corte-id="${p.corteId || ''}">
-                    <td class="text-center"><input type="checkbox" class="form-check-input d-paleta-check" checked></td>
-                    <td class="fw-bold text-center">${p.numero}</td>
-                    <td><input type="number" class="form-control form-control-sm d-bob" value="${p.totalBobinas}" onchange="Despacho.calcularTotales()"></td>
-                    <td><input type="number" class="form-control form-control-sm d-kg" value="${p.pesoTotal.toFixed(2)}" step="0.01" onchange="Despacho.calcularTotales()"></td>
-                    <td><small class="text-muted">Corte ${p.corteFecha || ''} - ${p.corteTurno || ''}</small></td>
-                </tr>`).join('');
-        }
+        // Cargar paletas (usando modo seleccionado)
+        this._renderPaletas(ot);
 
         document.getElementById('dFecha').value = new Date().toISOString().split('T')[0];
         document.getElementById('dCorrelativo').textContent = this.generarCorrelativo() + ' (preview)';

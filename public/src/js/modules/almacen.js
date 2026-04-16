@@ -1312,5 +1312,17 @@ ${nota.observaciones ? `<div class="section-title">OBSERVACIONES</div><p style="
     }
 };
 
-document.addEventListener('DOMContentLoaded', () => Almacen.init());
+document.addEventListener('DOMContentLoaded', () => {
+    Almacen.init();
+
+    // Activar tab segun hash (#panel-recepcion, #panel-movimientos, etc.)
+    setTimeout(() => {
+        const hash = window.location.hash.replace('#', '');
+        if (!hash) return;
+        const tabBtn = document.querySelector(`[data-bs-target="#${hash}"]`);
+        if (tabBtn && typeof bootstrap !== 'undefined') {
+            new bootstrap.Tab(tabBtn).show();
+        }
+    }, 300);
+});
 if (typeof window !== 'undefined') window.Almacen = Almacen;

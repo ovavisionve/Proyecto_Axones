@@ -504,6 +504,31 @@ const Ordenes = {
      * Genera un numero de orden automatico correlativo
      * Formato: OT-YYYY-XXXX donde XXXX es el siguiente numero disponible
      */
+    /**
+     * Genera numero de OT unico consultando Supabase en tiempo real.
+     * Usado al guardar (no al cargar form) para evitar duplicate key.
+     * @param {number} offset - sumar N al maximo encontrado (para reintentos)
+     */
+    _generarNumeroOTUnico: async function(offset = 1) {
+        const year = new Date().getFullYear();
+        let maxNum = 0;
+        if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
+            try {
+                const { data } = await AxonesDB.client.from('ordenes_trabajo')
+                    .select('numero_ot')
+                    .like('numero_ot', `OT-${year}-%`);
+                (data || []).forEach(ot => {
+                    const m = (ot.numero_ot || '').match(/OT-\d{4}-(\d+)/);
+                    if (m) {
+                        const n = parseInt(m[1]);
+                        if (n > maxNum) maxNum = n;
+                    }
+                });
+            } catch (e) { console.warn('[OT] Error generando numero unico:', e); }
+        }
+        return `OT-${year}-${String(maxNum + offset).padStart(4, '0')}`;
+    },
+
     generarNumeroOrden: async function() {
         const numeroOrden = document.getElementById('numeroOrden');
         if (!numeroOrden) return;
@@ -1056,15 +1081,14 @@ const Ordenes = {
      * - Figura Embobinado (Montaje) → Fig. Emb. Imp (display)
      */
     sincronizarMontajeImpresion: function() {
-        // Piñon
+        // Piñon (sí se sincroniza, es el mismo valor)
         const pinon = document.getElementById('pinon')?.value || '';
         const pinonImp = document.getElementById('pinonImpDisplay');
         if (pinonImp) pinonImp.value = pinon;
 
-        // Figura Embobinado
-        const figEmb = document.getElementById('figuraEmbobinadoMontaje')?.value || '';
-        const figEmbImp = document.getElementById('figEmbImpDisplay');
-        if (figEmbImp) figEmbImp.value = figEmb;
+        // Figura Embobinado: NO sincronizar - puede ser distinta entre montaje
+        // e impresion segun feedback de operadora (Roxana 16/04/2026).
+        // El operador define la figura de impresion manualmente en el area de Impresion.
     },
 
     /**
@@ -2225,6 +2249,26 @@ const Ordenes = {
      * Guarda la orden de trabajo
      */
     guardarOrden: async function() {
+        // PREVENIR DOBLE CLICK
+        if (this._guardandoOrden) {
+            console.warn('[OT] Ya se esta guardando, ignorando click duplicado');
+            return;
+        }
+        this._guardandoOrden = true;
+
+        // Deshabilitar botones de guardar para evitar dobles clicks
+        const btns = document.querySelectorAll('#btnGuardarOrden, #btnGuardarOrdenBottom, [onclick*="guardarOrden"]');
+        btns.forEach(b => b.disabled = true);
+
+        try {
+            return await this._guardarOrdenInterno();
+        } finally {
+            this._guardandoOrden = false;
+            btns.forEach(b => b.disabled = false);
+        }
+    },
+
+    _guardarOrdenInterno: async function() {
         const form = document.getElementById('formOrdenTrabajo');
         if (!form.checkValidity()) {
             form.reportValidity();
@@ -2283,21 +2327,41 @@ const Ordenes = {
                 if (!ordenData.estadoOrden || ordenData.estadoOrden === 'pendiente') {
                     ordenData.estadoOrden = 'nueva';
                 }
-                try {
-                    const guardada = await AxonesDB.ordenesHelper.crear(ordenData);
-                    ordenData.id = guardada.id;
-                } catch (err) {
-                    // Fallback: si el check constraint no acepta 'nueva'
-                    // (BD sin migracion 007), reintenta con 'pendiente'
-                    if (err?.message?.includes('estado_check') || err?.code === '23514') {
-                        console.warn('[Ordenes] Check constraint no permite "nueva", reintentando con "pendiente". Ejecute migration-007-estados-ot.sql para activar estado "nueva".');
-                        ordenData.estadoOrden = 'pendiente';
-                        const guardada = await AxonesDB.ordenesHelper.crear(ordenData);
-                        ordenData.id = guardada.id;
-                    } else {
+
+                // ANTES DE INSERTAR: regenerar numero_ot consultando Supabase
+                // (evita duplicate key cuando varias tablets crean OT al mismo tiempo)
+                ordenData.numeroOrden = await this._generarNumeroOTUnico();
+                document.getElementById('numeroOrden').value = ordenData.numeroOrden;
+
+                let intentos = 0;
+                let guardada = null;
+                while (intentos < 5) {
+                    try {
+                        guardada = await AxonesDB.ordenesHelper.crear(ordenData);
+                        break;  // exito
+                    } catch (err) {
+                        // Caso 1: check constraint estado
+                        if (err?.message?.includes('estado_check') || err?.code === '23514') {
+                            console.warn('[Ordenes] Check constraint no permite estado, reintentando con "pendiente"');
+                            ordenData.estadoOrden = 'pendiente';
+                            continue;
+                        }
+                        // Caso 2: duplicate key en numero_ot (regenerar +1 y reintentar)
+                        if (err?.message?.includes('numero_ot') || err?.code === '23505') {
+                            intentos++;
+                            console.warn(`[Ordenes] N° OT duplicado (${ordenData.numeroOrden}), regenerando intento ${intentos}/5`);
+                            ordenData.numeroOrden = await this._generarNumeroOTUnico(intentos);
+                            document.getElementById('numeroOrden').value = ordenData.numeroOrden;
+                            continue;
+                        }
+                        // Otro error: re-lanzar
                         throw err;
                     }
                 }
+                if (!guardada) {
+                    throw new Error('No se pudo generar un numero de OT unico despues de 5 intentos');
+                }
+                ordenData.id = guardada.id;
                 this.ordenes.push(ordenData);
             }
         } catch (error) {

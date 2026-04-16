@@ -1286,28 +1286,32 @@ const Corte = {
     guardarLocal: async function(datos) {
         try {
             if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
-                const payload = {
-                    orden_id: datos.otId || null,
-                    numero_ot: datos.ordenTrabajo || '',
-                    fecha: datos.fecha || new Date().toISOString().split('T')[0],
-                    turno: datos.turno || '',
-                    maquina: datos.maquina || '',
-                    operador: datos.operador || '',
-                    ayudante: datos.ayudante || '',
-                    supervisor: datos.supervisor || '',
-                    bobinas_entrada: datos.bobinasEntrada || [],
-                    total_entrada: parseFloat(datos.totalEntrada) || 0,
-                    paletas: datos.paletas || [],
-                    num_paletas: parseInt(datos.numPaletas) || 0,
-                    peso_total_salida: parseFloat(datos.pesoTotalSalida || datos.pesoTotal) || 0,
-                    scrap_refile: parseFloat(datos.scrapRefile || datos.scrapTransparente) || 0,
-                    total_scrap: parseFloat(datos.totalScrap) || 0,
-                    merma: parseFloat(datos.merma) || 0,
-                    porcentaje_refil: parseFloat(datos.porcentajeRefil) || 0,
-                    etiquetas_entrada: datos.etiquetasEntrada || {},
+                const rawPayload = {
+                    orden_id: datos.otId,
+                    numero_ot: datos.ordenTrabajo,
+                    fecha: datos.fecha,
+                    turno: datos.turno,
+                    maquina: datos.maquina,
+                    operador: datos.operador,
+                    ayudante: datos.ayudante,
+                    supervisor: datos.supervisor,
+                    bobinas_entrada: datos.bobinasEntrada,
+                    total_entrada: datos.totalEntrada,
+                    paletas: datos.paletas,
+                    num_paletas: datos.numPaletas,
+                    peso_total_salida: datos.pesoTotalSalida || datos.pesoTotal,
+                    scrap_refile: datos.scrapRefile || datos.scrapTransparente,
+                    total_scrap: datos.totalScrap,
+                    merma: datos.merma,
+                    porcentaje_refil: datos.porcentajeRefil,
+                    etiquetas_entrada: datos.etiquetasEntrada,
                     observaciones: JSON.stringify(datos),
-                    registrado_por_nombre: datos.registradoPorNombre || ''
+                    registrado_por_nombre: datos.registradoPorNombre
                 };
+                // Sanitizar payload (truncar strings, validar numeros, JSONB, etc)
+                const payload = (typeof PayloadSanitizer !== 'undefined')
+                    ? PayloadSanitizer.produccionCorte(rawPayload)
+                    : rawPayload;
 
                 console.log('[Corte] Enviando a Supabase:', payload.numero_ot, payload.fecha, payload.turno);
 

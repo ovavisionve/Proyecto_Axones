@@ -1063,44 +1063,58 @@ const Laminacion = {
     guardarLocal: async function(datos) {
         try {
             if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
-                await AxonesDB.client.from('produccion_laminacion').insert({
-                    orden_id: datos.otId || null,
-                    numero_ot: datos.ordenTrabajo || '',
-                    fecha: datos.fecha || new Date().toISOString().split('T')[0],
-                    turno: datos.turno || '',
-                    maquina: datos.maquina || '',
-                    operador: datos.operador || '',
-                    ayudante: datos.ayudante || '',
-                    supervisor: datos.supervisor || '',
-                    bobinas_entrada: datos.bobinasEntrada || [],
-                    total_entrada: datos.totalEntrada || 0,
-                    bobinas_virgen: datos.bobinasVirgen || [],
-                    total_entrada_virgen: datos.totalEntradaVirgen || 0,
-                    adhesivo_entrada: datos.adhesivoEntrada || 0,
-                    adhesivo_sobro: datos.adhesivoSobro || 0,
-                    consumo_adhesivo: datos.consumoAdhesivo || 0,
-                    catalizador_entrada: datos.catalizadorEntrada || 0,
-                    catalizador_sobro: datos.catalizadorSobro || 0,
-                    consumo_catalizador: datos.consumoCatalizador || 0,
-                    acetato_entrada: datos.acetatoEntrada || 0,
-                    acetato_sobro: datos.acetatoSobro || 0,
-                    consumo_acetato: datos.consumoAcetato || 0,
-                    bobinas_salida: datos.bobinasSalida || [],
-                    num_bobinas: datos.numBobinas || 0,
-                    peso_total: datos.pesoTotal || 0,
-                    scrap_transparente: datos.scrapTransparente || 0,
-                    scrap_impreso: datos.scrapImpreso || 0,
-                    scrap_laminado: datos.scrapLaminado || 0,
-                    total_scrap: datos.totalScrap || 0,
-                    merma: datos.merma || 0,
-                    porcentaje_refil: datos.porcentajeRefil || 0,
-                    metraje: datos.metraje || 0,
-                    etiquetas_entrada: datos.etiquetasEntrada || {},
-                    etiquetas_salida: datos.etiquetasSalida || {},
+                const rawPayload = {
+                    orden_id: datos.otId,
+                    numero_ot: datos.ordenTrabajo,
+                    fecha: datos.fecha,
+                    turno: datos.turno,
+                    maquina: datos.maquina,
+                    operador: datos.operador,
+                    ayudante: datos.ayudante,
+                    supervisor: datos.supervisor,
+                    bobinas_entrada: datos.bobinasEntrada,
+                    total_entrada: datos.totalEntrada,
+                    bobinas_virgen: datos.bobinasVirgen,
+                    total_entrada_virgen: datos.totalEntradaVirgen,
+                    adhesivo_entrada: datos.adhesivoEntrada,
+                    adhesivo_sobro: datos.adhesivoSobro,
+                    consumo_adhesivo: datos.consumoAdhesivo,
+                    catalizador_entrada: datos.catalizadorEntrada,
+                    catalizador_sobro: datos.catalizadorSobro,
+                    consumo_catalizador: datos.consumoCatalizador,
+                    acetato_entrada: datos.acetatoEntrada,
+                    acetato_sobro: datos.acetatoSobro,
+                    consumo_acetato: datos.consumoAcetato,
+                    bobinas_salida: datos.bobinasSalida,
+                    num_bobinas: datos.numBobinas,
+                    peso_total: datos.pesoTotal,
+                    scrap_transparente: datos.scrapTransparente,
+                    scrap_impreso: datos.scrapImpreso,
+                    scrap_laminado: datos.scrapLaminado,
+                    total_scrap: datos.totalScrap,
+                    merma: datos.merma,
+                    porcentaje_refil: datos.porcentajeRefil,
+                    etiquetas_entrada: datos.etiquetasEntrada,
+                    etiquetas_salida: datos.etiquetasSalida,
                     observaciones: JSON.stringify(datos),
-                    registrado_por_nombre: datos.registradoPorNombre || ''
-                });
-                console.log('[Laminacion] Registro guardado en Supabase');
+                    registrado_por_nombre: datos.registradoPorNombre
+                };
+                const payload = (typeof PayloadSanitizer !== 'undefined')
+                    ? PayloadSanitizer.produccionLaminacion(rawPayload)
+                    : rawPayload;
+
+                console.log('[Laminacion] Enviando a Supabase:', payload.numero_ot, payload.fecha, payload.turno);
+                const insertPromise = AxonesDB.client.from('produccion_laminacion').insert(payload).select();
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Timeout: el guardado tardo mas de 15 seg')), 15000)
+                );
+                const { data, error } = await Promise.race([insertPromise, timeoutPromise]);
+                if (error) {
+                    console.error('[Laminacion] Error de Supabase:', error);
+                    alert('Error al guardar en BD: ' + (error.message || JSON.stringify(error)));
+                    return false;
+                }
+                console.log('[Laminacion] Registro guardado en Supabase ✅', data?.[0]?.id);
 
                 // Fase 5: Verificar alertas inteligentes
                 if (typeof AlertasEngine !== 'undefined') {

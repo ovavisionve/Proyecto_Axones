@@ -1281,12 +1281,12 @@ const Corte = {
     },
 
     /**
-     * Guarda en Supabase (produccion_corte)
+     * Guarda en Supabase (produccion_corte) con timeout y feedback visible
      */
     guardarLocal: async function(datos) {
         try {
             if (typeof AxonesDB !== 'undefined' && AxonesDB.isReady()) {
-                await AxonesDB.client.from('produccion_corte').insert({
+                const payload = {
                     orden_id: datos.otId || null,
                     numero_ot: datos.ordenTrabajo || '',
                     fecha: datos.fecha || new Date().toISOString().split('T')[0],
@@ -1296,19 +1296,34 @@ const Corte = {
                     ayudante: datos.ayudante || '',
                     supervisor: datos.supervisor || '',
                     bobinas_entrada: datos.bobinasEntrada || [],
-                    total_entrada: datos.totalEntrada || 0,
+                    total_entrada: parseFloat(datos.totalEntrada) || 0,
                     paletas: datos.paletas || [],
-                    num_paletas: datos.numPaletas || 0,
-                    peso_total_salida: datos.pesoTotalSalida || datos.pesoTotal || 0,
-                    scrap_refile: datos.scrapRefile || datos.scrapTransparente || 0,
-                    total_scrap: datos.totalScrap || 0,
-                    merma: datos.merma || 0,
-                    porcentaje_refil: datos.porcentajeRefil || 0,
+                    num_paletas: parseInt(datos.numPaletas) || 0,
+                    peso_total_salida: parseFloat(datos.pesoTotalSalida || datos.pesoTotal) || 0,
+                    scrap_refile: parseFloat(datos.scrapRefile || datos.scrapTransparente) || 0,
+                    total_scrap: parseFloat(datos.totalScrap) || 0,
+                    merma: parseFloat(datos.merma) || 0,
+                    porcentaje_refil: parseFloat(datos.porcentajeRefil) || 0,
                     etiquetas_entrada: datos.etiquetasEntrada || {},
                     observaciones: JSON.stringify(datos),
                     registrado_por_nombre: datos.registradoPorNombre || ''
-                });
-                console.log('[Corte] Registro guardado en Supabase');
+                };
+
+                console.log('[Corte] Enviando a Supabase:', payload.numero_ot, payload.fecha, payload.turno);
+
+                // Timeout de 15 segundos para evitar que quede colgado
+                const insertPromise = AxonesDB.client.from('produccion_corte').insert(payload).select();
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Timeout: el guardado tardo mas de 15 seg. Verifique conexion.')), 15000)
+                );
+                const { data, error } = await Promise.race([insertPromise, timeoutPromise]);
+
+                if (error) {
+                    console.error('[Corte] Error de Supabase:', error);
+                    alert('Error al guardar en BD: ' + (error.message || JSON.stringify(error)));
+                    return false;
+                }
+                console.log('[Corte] Registro guardado en Supabase ✅', data?.[0]?.id);
 
                 // Fase 5: Verificar alertas inteligentes
                 if (typeof AlertasEngine !== 'undefined') {

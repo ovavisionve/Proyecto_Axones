@@ -1589,30 +1589,45 @@ const Impresion = {
     guardarLocal: async function(datos) {
         if (AxonesDB.isReady()) {
             try {
-                await AxonesDB.client.from('produccion_impresion').insert({
-                    orden_id: datos.otId || null,
-                    numero_ot: datos.ordenTrabajo || null,
-                    fecha: datos.fecha || new Date().toISOString().split('T')[0],
-                    turno: datos.turno || '',
-                    maquina: datos.maquina || '',
-                    operador: datos.operador || '',
-                    ayudante: datos.ayudante || '',
-                    supervisor: datos.supervisor || '',
-                    bobinas_entrada: datos.materialesEntrada || [],
-                    total_entrada: datos.totalMaterialEntrada || 0,
-                    bobinas_salida: datos.bobinasSalida || [],
-                    num_bobinas: datos.numBobinas || 0,
-                    peso_total: datos.pesoTotal || 0,
-                    total_scrap: datos.totalScrap || 0,
-                    merma: datos.merma || 0,
-                    porcentaje_refil: datos.porcentajeScrap || 0,
-                    metraje: datos.metraje || 0,
-                    etiquetas_entrada: datos.etiquetasEntrada || {},
-                    etiquetas_salida: datos.etiquetasSalida || {},
+                const rawPayload = {
+                    orden_id: datos.otId,
+                    numero_ot: datos.ordenTrabajo,
+                    fecha: datos.fecha,
+                    turno: datos.turno,
+                    maquina: datos.maquina,
+                    operador: datos.operador,
+                    ayudante: datos.ayudante,
+                    supervisor: datos.supervisor,
+                    bobinas_entrada: datos.materialesEntrada,
+                    total_entrada: datos.totalMaterialEntrada,
+                    bobinas_salida: datos.bobinasSalida,
+                    num_bobinas: datos.numBobinas,
+                    peso_total: datos.pesoTotal,
+                    total_scrap: datos.totalScrap,
+                    merma: datos.merma,
+                    porcentaje_refil: datos.porcentajeScrap,
+                    metraje: datos.metraje,
+                    etiquetas_entrada: datos.etiquetasEntrada,
+                    etiquetas_salida: datos.etiquetasSalida,
                     observaciones: JSON.stringify(datos),
-                    registrado_por_nombre: datos.registradoPorNombre || ''
-                });
-                console.log('[Impresion] Registro guardado en Supabase');
+                    registrado_por_nombre: datos.registradoPorNombre
+                };
+                const payload = (typeof PayloadSanitizer !== 'undefined')
+                    ? PayloadSanitizer.produccionImpresion(rawPayload)
+                    : rawPayload;
+
+                console.log('[Impresion] Enviando a Supabase:', payload.numero_ot, payload.fecha, payload.turno);
+                const insertPromise = AxonesDB.client.from('produccion_impresion').insert(payload).select();
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Timeout: el guardado tardo mas de 15 seg')), 15000)
+                );
+                const { data, error } = await Promise.race([insertPromise, timeoutPromise]);
+                if (error) {
+                    console.error('[Impresion] Error de Supabase:', error);
+                    alert('Error al guardar en BD: ' + (error.message || JSON.stringify(error)));
+                    return false;
+                }
+                console.log('[Impresion] Registro guardado en Supabase ✅', data?.[0]?.id);
 
                 // Fase 5: Verificar alertas inteligentes
                 if (typeof AlertasEngine !== 'undefined') {
